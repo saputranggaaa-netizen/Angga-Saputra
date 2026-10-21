@@ -1,0 +1,6 @@
+{
+  "name": "Dashboard Penjualan & Sales Performance",
+  "description": "Dashboard interaktif analisis penjualan dan performa tim sales dengan integrasi data Google Sheets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
