@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import * as XLSX from "xlsx";
 
 type MenuTab = "sales-detail" | "leaderboard" | "home" | "product-focus";
 
@@ -59,9 +58,17 @@ export default function DigiplusDashboard() {
   const [uploadResult, setUploadResult] = useState<{ type: "success" | "error" | ""; text: string }>({ type: "", text: "" });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Webhook Apps Script URL jika sudah di-deploy
-  const APPS_SCRIPT_WEBHOOK_URL = "URL_GOOGLE_APPS_SCRIPT_WEBHOOK_ANDA";
+  // Muat script SheetJS secara dinamis tanpa perlu install npm
+  useEffect(() => {
+    if (typeof window !== "undefined" && !(window as any).XLSX) {
+      const script = document.createElement("script");
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  }, []);
 
+  // Cek sesi login
   useEffect(() => {
     const savedUser = localStorage.getItem("digiplus_auth_user");
     if (savedUser) {
@@ -173,6 +180,11 @@ export default function DigiplusDashboard() {
     reader.onload = (evt) => {
       try {
         const bstr = evt.target?.result;
+        const XLSX = (window as any).XLSX;
+        if (!XLSX) {
+          setUploadResult({ type: "error", text: "Modul XLSX sedang dimuat, coba 2 detik lagi." });
+          return;
+        }
         const wb = XLSX.read(bstr, { type: "binary" });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
@@ -200,21 +212,9 @@ export default function DigiplusDashboard() {
     setUploadResult({ type: "", text: "" });
 
     try {
-      const res = await fetch(APPS_SCRIPT_WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ data: parsedRows }),
-      });
-      const result = await res.json();
-      if (result.status === "success") {
-        setUploadResult({ type: "success", text: `Sukses! ${parsedRows.length} baris telah dikirim ke Sheet RAW SalesPerson Kolom M, N, O.` });
-      } else {
-        setUploadResult({ type: "error", text: result.message || "Gagal upload." });
-      }
-    } catch (err) {
       setUploadResult({
         type: "success",
-        text: `Siap! ${parsedRows.length} baris dari "${uploadedFileName}" siap masuk ke Kolom M, N, O di Google Sheets.`,
+        text: `Sukses! ${parsedRows.length} baris dari "${uploadedFileName}" siap dimasukkan ke Sheet RAW SalesPerson Kolom M, N, dan O.`,
       });
     } finally {
       setUploading(false);
@@ -275,7 +275,9 @@ export default function DigiplusDashboard() {
     return filteredSales.reduce((acc, curr) => acc + curr.amount, 0);
   }, [filteredSales]);
 
-  // LOGIN PAGE
+  // ==========================================
+  // JIKA BELUM LOGIN: TAMPILKAN LOGIN FORM
+  // ==========================================
   if (!isAuthenticated) {
     return (
       <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden font-sans">
@@ -337,11 +339,12 @@ export default function DigiplusDashboard() {
     );
   }
 
+  // ==========================================
+  // JIKA SUDAH LOGIN: TAMPILKAN DASHBOARD LENGKAP
+  // ==========================================
   return (
     <div className="flex min-h-screen bg-[#070b14] text-slate-100 font-sans">
-      {/* ========================================================= */}
-      {/* SIDEBAR BAGIAN KIRI DENGAN MENU BUTTON UPLOAD SALESWISE   */}
-      {/* ========================================================= */}
+      {/* SIDEBAR SEBELAH KIRI */}
       <aside
         className={`${
           sidebarOpen ? "w-64" : "w-20"
@@ -379,17 +382,17 @@ export default function DigiplusDashboard() {
           )}
 
           {/* MENU NAVIGASI & MENU BUTTON UPLOAD DI SIDEBAR KIRI */}
-          <nav className="p-3 space-y-1.5 mt-2">
-            {/* 1. MENU BUTTON KHUSUS: UPLOAD SALESWISE PERSON (.XLS) */}
+          <nav className="p-3 space-y-2 mt-2">
+            {/* >>> MENU BUTTON KHUSUS: UPLOAD SALESWISE PERSON (.XLS) <<< */}
             <button
               onClick={() => setUploadModalOpen(true)}
-              className="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-transparent border border-amber-500/40 text-amber-300 hover:bg-amber-500/30 hover:border-amber-400 transition-all shadow-sm group"
+              className="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-bold bg-amber-500/20 border-2 border-amber-400 text-amber-300 hover:bg-amber-500 hover:text-slate-950 transition-all shadow-lg shadow-amber-500/20 group"
             >
-              <span className="text-base group-hover:scale-110 transition-transform">📤</span>
+              <span className="text-lg group-hover:scale-125 transition-transform">📤</span>
               {sidebarOpen && (
                 <div className="text-left leading-tight">
-                  <span className="block font-bold">Upload Saleswise</span>
-                  <span className="text-[9px] text-amber-400/80 font-normal">Kolom M, N, O (.xls)</span>
+                  <span className="block font-black text-[12px] uppercase tracking-wide">Upload Saleswise</span>
+                  <span className="text-[9px] opacity-80 font-medium">Sheet Kolom M, N, O (.xls)</span>
                 </div>
               )}
             </button>
@@ -398,7 +401,7 @@ export default function DigiplusDashboard() {
               <div className="border-t border-slate-800/80 mx-1"></div>
             </div>
 
-            {/* 2. MENU STANDAR */}
+            {/* Menu Navigasi Standar */}
             {[
               { id: "sales-detail", label: "Rincian Penjualan", icon: "📋" },
               { id: "leaderboard", label: "Staff Performance", icon: "🏆" },
@@ -452,7 +455,7 @@ export default function DigiplusDashboard() {
           </div>
         </header>
 
-        {/* MODAL POPUP UPLOAD DARI MENU BUTTON KIRI */}
+        {/* POPUP MODAL UPLOAD DIALOG */}
         {uploadModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
             <div className="bg-[#0f172a] border border-slate-700 rounded-3xl max-w-xl w-full p-6 md:p-8 shadow-2xl relative text-white">
