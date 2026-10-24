@@ -1,8 +1,30 @@
+Berikut adalah kode Next.js (`page.tsx`) yang sudah diperbarui secara menyeluruh dan siap di-deploy ke Vercel/GitHub Anda:
+
+### Fitur-fitur baru yang ditambahkan:
+
+1. **Filter Waktu Dinamis**: Filter dropdown **Bulan**, **Week (Minggu ke-1 s/d ke-4)**, dan pemilih **Tanggal Berjalan**.
+2. **Overview Store Lengkap**:
+* Menampilkan **Time Gone** (Hari berlalu, sisa hari, % waktu berlalu, actual vs required daily run-rate).
+* Metric card untuk seluruh kategori utama: **Apple Devices**, **Android Devices**, **Accessories**, dan **VAS (Qoala, Telkomsel, XL, Indosat)** lengkap dengan *Target, Actual/Achievement, Persentase, Variance, dan Estimate*.
+* Rincian produk per kategori & Mini Leaderboard / **Rank Sales per Staff** langsung di halaman Overview.
+
+
+3. **Staff Performance Rinci (4 Kategori dengan Tab & Ikon Khusus)**:
+* **Apple Devices** 🍎: iPhone, iPad, MacBook, Apple Watch, AirPods.
+* **Android Devices** 🤖: Samsung, Oppo, Motorola, Huawei, Infinix, Xiaomi.
+* **Accessories** 🎧: Diurutkan otomatis dari nominal/amount terbesar ke terkecil (*Power Adapter, MagSafe Case, Screen Protector, Kabel, dll.*).
+* **VAS** 🛡️: Qoala Protection, Telkomsel Bundle, XL Axiata Package, Indosat Ooredoo.
+
+
+4. **Evaluasi Sales Perlu Perhatian**: Catatan evaluasi ringkas dalam Bahasa Indonesia yang otomatis menyoroti defisit dan peluang akselerasi tiap staf.
+
+```tsx
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
 
 type MenuTab = "store-overview" | "leaderboard" | "sales-detail";
+type SubLOBType = "apple" | "android" | "accessories" | "vas";
 
 interface SubProductMetric {
   name: string;
@@ -12,6 +34,7 @@ interface SubProductMetric {
   variance: number;
   estimate: number;
   qty: number;
+  icon?: string;
 }
 
 interface StaffDetailedPerformance {
@@ -25,12 +48,14 @@ interface StaffDetailedPerformance {
   estimate: number;
   status: "Tercapai" | "Perlu Perhatian Khusus" | "Dalam Pantauan";
   attentionNotes: string[];
+  topProductSold: string;
   appleSubProducts: SubProductMetric[];
   androidSubProducts: SubProductMetric[];
-  topProductSold: string;
+  accessoriesSubProducts: SubProductMetric[];
+  vasSubProducts: SubProductMetric[];
 }
 
-// 1. DATA MASTER TIME GONE & TOKO
+// 1. DATA TIME GONE & TOKO MASTER
 const TIME_GONE_METRIC = {
   daysPassed: 24,
   totalDays: 31,
@@ -41,6 +66,74 @@ const TIME_GONE_METRIC = {
   requiredDailyRunRate: 797262710,
 };
 
+// 2. KATEGORI UTAMA DI STORE OVERVIEW
+const STORE_CATEGORIES = {
+  apple: {
+    name: "Apple Devices",
+    icon: "🍎",
+    target: 5600000000,
+    actual: 2510000000,
+    achievement: 44.8,
+    variance: -3090000000,
+    estimate: 3242083333,
+    items: [
+      { name: "iPhone", target: 4500000000, actual: 2167000000, achievement: 48.2, variance: -2333000000, estimate: 2799041667, qty: 85, icon: "📱" },
+      { name: "iPad", target: 450000000, actual: 168000000, achievement: 37.3, variance: -282000000, estimate: 217000000, qty: 14, icon: "📋" },
+      { name: "MacBook", target: 350000000, actual: 89000000, achievement: 25.4, variance: -261000000, estimate: 114958333, qty: 4, icon: "💻" },
+      { name: "Apple Watch", target: 180000000, actual: 48000000, achievement: 26.7, variance: -132000000, estimate: 62000000, qty: 8, icon: "⌚" },
+      { name: "AirPods", target: 120000000, actual: 38000000, achievement: 31.7, variance: -82000000, estimate: 49083333, qty: 15, icon: "🎧" },
+    ],
+  },
+  android: {
+    name: "Android Devices",
+    icon: "🤖",
+    target: 1850000000,
+    actual: 394000000,
+    achievement: 21.3,
+    variance: -1456000000,
+    estimate: 508916667,
+    items: [
+      { name: "Samsung Devices", target: 1100000000, actual: 324000000, achievement: 29.5, variance: -776000000, estimate: 418500000, qty: 48, icon: "🪐" },
+      { name: "Oppo Devices", target: 200000000, actual: 28000000, achievement: 14.0, variance: -172000000, estimate: 36166667, qty: 7, icon: "🟢" },
+      { name: "Xiaomi Devices", target: 180000000, actual: 21000000, achievement: 11.7, variance: -159000000, estimate: 27125000, qty: 6, icon: "🟠" },
+      { name: "Infinix Devices", target: 120000000, actual: 12000000, achievement: 10.0, variance: -108000000, estimate: 15500000, qty: 5, icon: "⚡" },
+      { name: "Huawei Devices", target: 150000000, actual: 9000000, achievement: 6.0, variance: -141000000, estimate: 11625000, qty: 2, icon: "🔴" },
+      { name: "Motorola Devices", target: 100000000, actual: 0, achievement: 0.0, variance: -100000000, estimate: 0, qty: 0, icon: "Ⓜ️" },
+    ],
+  },
+  accessories: {
+    name: "Accessories",
+    icon: "🔌",
+    target: 650000000,
+    actual: 198828200,
+    achievement: 30.6,
+    variance: -451171800,
+    estimate: 256819758,
+    items: [
+      { name: "Original Apple & Samsung Adaptor", target: 200000000, actual: 78500000, achievement: 39.3, variance: -121500000, estimate: 101395833, qty: 165, icon: "⚡" },
+      { name: "Premium Casing & MagSafe Case", target: 180000000, actual: 52400000, achievement: 29.1, variance: -127600000, estimate: 67683333, qty: 98, icon: "🛡️" },
+      { name: "Screen Protector & Tempered Glass", target: 140000000, actual: 41200000, achievement: 29.4, variance: -98800000, estimate: 53216667, qty: 142, icon: "📱" },
+      { name: "Powerbank & Wireless Charger", target: 80000000, actual: 18128200, achievement: 22.7, variance: -61871800, estimate: 23414758, qty: 32, icon: "🔋" },
+      { name: "Audio, Cable & Smart Gadget Misc", target: 50000000, actual: 8600000, achievement: 17.2, variance: -41400000, estimate: 11108333, qty: 26, icon: "🎧" },
+    ],
+  },
+  vas: {
+    name: "VAS (Value Added Services)",
+    icon: "🛡️",
+    target: 628667173,
+    actual: 45000000,
+    achievement: 7.2,
+    variance: -583667173,
+    estimate: 58125000,
+    items: [
+      { name: "Qoala Device Protection", target: 350000000, actual: 29500000, achievement: 8.4, variance: -320500000, estimate: 38104167, qty: 34, icon: "🛡️" },
+      { name: "Telkomsel Bundling & eSIM", target: 120000000, actual: 8200000, achievement: 6.8, variance: -111800000, estimate: 10591667, qty: 18, icon: "🔴" },
+      { name: "XL Axiata Data Plan Package", target: 80000000, actual: 4500000, achievement: 5.6, variance: -75500000, estimate: 5812500, qty: 9, icon: "🔵" },
+      { name: "Indosat Ooredoo Postpaid Package", target: 78667173, actual: 2800000, achievement: 3.6, variance: -75867173, estimate: 3616667, qty: 5, icon: "🟡" },
+    ],
+  },
+};
+
 const STORE_TOTAL = {
   actual: 3147828200,
   target: 8728667173,
@@ -49,7 +142,7 @@ const STORE_TOTAL = {
   estimate: 4065944758,
 };
 
-// 2. DATA RINCIAN LENGKAP SETIAP STAF & SUB-PRODUK (APPLE & ANDROID)
+// 3. DATA RINCIAN STAF
 const DETAILED_STAFF_PERFORMANCE: StaffDetailedPerformance[] = [
   {
     rank: 1,
@@ -62,25 +155,36 @@ const DETAILED_STAFF_PERFORMANCE: StaffDetailedPerformance[] = [
     estimate: 1835436458,
     status: "Tercapai",
     attentionNotes: [
-      "Performa sangat prima, target bulanan sudah terlampaui 162,8%.",
-      "Penyumbang omset iPhone terbesar di toko (Rp 1,35 Miliar).",
-      "Perlu dorongan tambahan pada lini MacBook & Apple Watch yang masih minim.",
+      "Performa sangat prima! Target bulanan terlampaui 162,8%.",
+      "Pilar utama omset iPhone toko (Rp 1,35 Miliar).",
+      "Perlu dorongan attachment Qoala VAS dan MacBook yang masih minim.",
     ],
     topProductSold: "iPhone 17 Pro Max 256GB / 512GB (41 unit)",
     appleSubProducts: [
-      { name: "iPhone", target: 750000000, actual: 1353207000, achievement: 180.4, variance: 603207000, estimate: 1747892375, qty: 45 },
-      { name: "iPad", target: 60000000, actual: 24884000, achievement: 41.5, variance: -35116000, estimate: 32141833, qty: 3 },
-      { name: "MacBook", target: 30000000, actual: 0, achievement: 0.0, variance: -30000000, estimate: 0, qty: 0 },
-      { name: "Apple Watch", target: 20000000, actual: 4499000, achievement: 22.5, variance: -15501000, estimate: 5811208, qty: 1 },
-      { name: "AirPods", target: 12866717, actual: 4200000, achievement: 32.6, variance: -8666717, estimate: 5425000, qty: 2 },
+      { name: "iPhone", target: 750000000, actual: 1353207000, achievement: 180.4, variance: 603207000, estimate: 1747892375, qty: 45, icon: "📱" },
+      { name: "iPad", target: 60000000, actual: 24884000, achievement: 41.5, variance: -35116000, estimate: 32141833, qty: 3, icon: "📋" },
+      { name: "MacBook", target: 30000000, actual: 0, achievement: 0.0, variance: -30000000, estimate: 0, qty: 0, icon: "💻" },
+      { name: "Apple Watch", target: 20000000, actual: 4499000, achievement: 22.5, variance: -15501000, estimate: 5811208, qty: 1, icon: "⌚" },
+      { name: "AirPods", target: 12866717, actual: 4200000, achievement: 32.6, variance: -8666717, estimate: 5425000, qty: 2, icon: "🎧" },
     ],
     androidSubProducts: [
-      { name: "Samsung Devices", target: 80000000, actual: 27992000, achievement: 35.0, variance: -52008000, estimate: 36156333, qty: 8 },
-      { name: "Oppo Devices", target: 10000000, actual: 0, achievement: 0.0, variance: -10000000, estimate: 0, qty: 0 },
-      { name: "Motorola Devices", target: 10000000, actual: 0, achievement: 0.0, variance: -10000000, estimate: 0, qty: 0 },
-      { name: "Huawei Devices", target: 10000000, actual: 0, achievement: 0.0, variance: -10000000, estimate: 0, qty: 0 },
-      { name: "Infinix Devices", target: 5000000, actual: 0, achievement: 0.0, variance: -5000000, estimate: 0, qty: 0 },
-      { name: "Xiaomi Devices", target: 5000000, actual: 0, achievement: 0.0, variance: -5000000, estimate: 0, qty: 0 },
+      { name: "Samsung Devices", target: 80000000, actual: 27992000, achievement: 35.0, variance: -52008000, estimate: 36156333, qty: 8, icon: "🪐" },
+      { name: "Oppo Devices", target: 10000000, actual: 0, achievement: 0.0, variance: -10000000, estimate: 0, qty: 0, icon: "🟢" },
+      { name: "Motorola Devices", target: 10000000, actual: 0, achievement: 0.0, variance: -10000000, estimate: 0, qty: 0, icon: "Ⓜ️" },
+      { name: "Huawei Devices", target: 10000000, actual: 0, achievement: 0.0, variance: -10000000, estimate: 0, qty: 0, icon: "🔴" },
+      { name: "Infinix Devices", target: 5000000, actual: 0, achievement: 0.0, variance: -5000000, estimate: 0, qty: 0, icon: "⚡" },
+      { name: "Xiaomi Devices", target: 5000000, actual: 0, achievement: 0.0, variance: -5000000, estimate: 0, qty: 0, icon: "🟠" },
+    ],
+    accessoriesSubProducts: [
+      { name: "Original Adapter & Charger", target: 15000000, actual: 4200000, achievement: 28.0, variance: -10800000, estimate: 5425000, qty: 9, icon: "⚡" },
+      { name: "Screen Protector Tempered Glass", target: 12000000, actual: 1650000, achievement: 13.8, variance: -10350000, estimate: 2131250, qty: 6, icon: "📱" },
+      { name: "MagSafe Case Original", target: 10000000, actual: 350000, achievement: 3.5, variance: -9650000, estimate: 452083, qty: 1, icon: "🛡️" },
+    ],
+    vasSubProducts: [
+      { name: "Qoala Protection", target: 20000000, actual: 3600000, achievement: 18.0, variance: -16400000, estimate: 4650000, qty: 4, icon: "🛡️" },
+      { name: "Telkomsel Paket Data", target: 5000000, actual: 750000, achievement: 15.0, variance: -4250000, estimate: 968750, qty: 2, icon: "🔴" },
+      { name: "XL Bundling", target: 3000000, actual: 0, achievement: 0.0, variance: -3000000, estimate: 0, qty: 0, icon: "🔵" },
+      { name: "Indosat Paket", target: 3000000, actual: 0, achievement: 0.0, variance: -3000000, estimate: 0, qty: 0, icon: "🟡" },
     ],
   },
   {
@@ -94,25 +198,36 @@ const DETAILED_STAFF_PERFORMANCE: StaffDetailedPerformance[] = [
     estimate: 582552000,
     status: "Dalam Pantauan",
     attentionNotes: [
-      "Achievement (36,9%) tertinggal dari laju waktu Time Gone (77,4%).",
-      "Penjualan Samsung Devices sangat kuat (Galaxy S26 Ultra & Fold 8).",
-      "Perlu fokus mengejar sisa gap target sebesar Rp 771 Juta dalam 7 hari sisa.",
+      "Pencapaian 36,9% tertinggal jauh di bawah laju waktu Time Gone (77,4%).",
+      "Performa Samsung Devices sangat baik (Fold & Ultra).",
+      "Prioritaskan push iPhone & Accessories untuk mengejar sisa gap target Rp 771 Juta.",
     ],
     topProductSold: "Galaxy S26 Ultra 12/256GB & iPhone 15",
     appleSubProducts: [
-      { name: "iPhone", target: 850000000, actual: 238190000, achievement: 28.0, variance: -611810000, estimate: 307662083, qty: 12 },
-      { name: "iPad", target: 80000000, actual: 34796000, achievement: 43.5, variance: -45204000, estimate: 44944833, qty: 4 },
-      { name: "MacBook", target: 50000000, actual: 0, achievement: 0.0, variance: -50000000, estimate: 0, qty: 0 },
-      { name: "Apple Watch", target: 30000000, actual: 7104000, achievement: 23.7, variance: -22896000, estimate: 9176167, qty: 1 },
-      { name: "AirPods", target: 20000000, actual: 4100000, achievement: 20.5, variance: -15900000, estimate: 5295833, qty: 2 },
+      { name: "iPhone", target: 850000000, actual: 238190000, achievement: 28.0, variance: -611810000, estimate: 307662083, qty: 12, icon: "📱" },
+      { name: "iPad", target: 80000000, actual: 34796000, achievement: 43.5, variance: -45204000, estimate: 44944833, qty: 4, icon: "📋" },
+      { name: "MacBook", target: 50000000, actual: 0, achievement: 0.0, variance: -50000000, estimate: 0, qty: 0, icon: "💻" },
+      { name: "Apple Watch", target: 30000000, actual: 7104000, achievement: 23.7, variance: -22896000, estimate: 9176167, qty: 1, icon: "⌚" },
+      { name: "AirPods", target: 20000000, actual: 4100000, achievement: 20.5, variance: -15900000, estimate: 5295833, qty: 2, icon: "🎧" },
     ],
     androidSubProducts: [
-      { name: "Samsung Devices", target: 150000000, actual: 136044000, achievement: 90.7, variance: -13956000, estimate: 175723500, qty: 16 },
-      { name: "Oppo Devices", target: 10000000, actual: 0, achievement: 0.0, variance: -10000000, estimate: 0, qty: 0 },
-      { name: "Motorola Devices", target: 10000000, actual: 0, achievement: 0.0, variance: -10000000, estimate: 0, qty: 0 },
-      { name: "Huawei Devices", target: 10000000, actual: 0, achievement: 0.0, variance: -10000000, estimate: 0, qty: 0 },
-      { name: "Infinix Devices", target: 5000000, actual: 0, achievement: 0.0, variance: -5000000, estimate: 0, qty: 0 },
-      { name: "Xiaomi Devices", target: 7013404, actual: 0, achievement: 0.0, variance: -7013404, estimate: 0, qty: 0 },
+      { name: "Samsung Devices", target: 150000000, actual: 136044000, achievement: 90.7, variance: -13956000, estimate: 175723500, qty: 16, icon: "🪐" },
+      { name: "Oppo Devices", target: 10000000, actual: 0, achievement: 0.0, variance: -10000000, estimate: 0, qty: 0, icon: "🟢" },
+      { name: "Motorola Devices", target: 10000000, actual: 0, achievement: 0.0, variance: -10000000, estimate: 0, qty: 0, icon: "Ⓜ️" },
+      { name: "Huawei Devices", target: 10000000, actual: 0, achievement: 0.0, variance: -10000000, estimate: 0, qty: 0, icon: "🔴" },
+      { name: "Infinix Devices", target: 5000000, actual: 0, achievement: 0.0, variance: -5000000, estimate: 0, qty: 0, icon: "⚡" },
+      { name: "Xiaomi Devices", target: 7013404, actual: 0, achievement: 0.0, variance: -7013404, estimate: 0, qty: 0, icon: "🟠" },
+    ],
+    accessoriesSubProducts: [
+      { name: "Screen Protector Tempered Glass", target: 20000000, actual: 12400000, achievement: 62.0, variance: -7600000, estimate: 16016667, qty: 45, icon: "📱" },
+      { name: "Original Adapter & Charger", target: 18000000, actual: 10200000, achievement: 56.7, variance: -7800000, estimate: 13175000, qty: 22, icon: "⚡" },
+      { name: "MagSafe Case Original", target: 15000000, actual: 5600000, achievement: 37.3, variance: -9400000, estimate: 7233333, qty: 11, icon: "🛡️" },
+    ],
+    vasSubProducts: [
+      { name: "Qoala Protection", target: 25000000, actual: 7200000, achievement: 28.8, variance: -17800000, estimate: 9300000, qty: 8, icon: "🛡️" },
+      { name: "Telkomsel Bundling", target: 10000000, actual: 2100000, achievement: 21.0, variance: -7900000, estimate: 2712500, qty: 4, icon: "🔴" },
+      { name: "XL Paket Data", target: 6000000, actual: 1200000, achievement: 20.0, variance: -4800000, estimate: 1550000, qty: 3, icon: "🔵" },
+      { name: "Indosat Paket", target: 4000000, actual: 400000, achievement: 10.0, variance: -3600000, estimate: 516667, qty: 1, icon: "🟡" },
     ],
   },
   {
@@ -126,25 +241,36 @@ const DETAILED_STAFF_PERFORMANCE: StaffDetailedPerformance[] = [
     estimate: 390044842,
     status: "Perlu Perhatian Khusus",
     attentionNotes: [
-      "PERINGATAN DEFISIT: Target Rp 1,65 Miliar baru tercapai 18,2% (Pace tertinggal -59,2%).",
-      "Defisit omset sangat besar (-Rp 1,35 Miliar).",
-      "Penjualan Android selain Samsung masih nol (Oppo, Xiaomi, Huawei kosong).",
+      "PERHATIAN DEFISIT BESAR: Baru tercapai 18,2% dari kuota Rp 1,65 Miliar.",
+      "Defisit omset -Rp 1,35 Miliar. Pace harian tertinggal -59,2% dari rasio waktu.",
+      "Produk Android non-Samsung dan VAS proteksi masih sangat minim penawaran.",
     ],
     topProductSold: "AirPods 4 & iPhone 17 Pro",
     appleSubProducts: [
-      { name: "iPhone", target: 1100000000, actual: 212493000, achievement: 19.3, variance: -887507000, estimate: 274470125, qty: 8 },
-      { name: "iPad", target: 100000000, actual: 17398000, achievement: 17.4, variance: -82602000, estimate: 22472417, qty: 2 },
-      { name: "MacBook", target: 80000000, actual: 19803000, achievement: 24.8, variance: -60197000, estimate: 25578875, qty: 1 },
-      { name: "Apple Watch", target: 40000000, actual: 0, achievement: 0.0, variance: -40000000, estimate: 0, qty: 0 },
-      { name: "AirPods", target: 30000000, actual: 4799000, achievement: 16.0, variance: -25201000, estimate: 6198708, qty: 2 },
+      { name: "iPhone", target: 1100000000, actual: 212493000, achievement: 19.3, variance: -887507000, estimate: 274470125, qty: 8, icon: "📱" },
+      { name: "iPad", target: 100000000, actual: 17398000, achievement: 17.4, variance: -82602000, estimate: 22472417, qty: 2, icon: "📋" },
+      { name: "MacBook", target: 80000000, actual: 19803000, achievement: 24.8, variance: -60197000, estimate: 25578875, qty: 1, icon: "💻" },
+      { name: "Apple Watch", target: 40000000, actual: 0, achievement: 0.0, variance: -40000000, estimate: 0, qty: 0, icon: "⌚" },
+      { name: "AirPods", target: 30000000, actual: 4799000, achievement: 16.0, variance: -25201000, estimate: 6198708, qty: 2, icon: "🎧" },
     ],
     androidSubProducts: [
-      { name: "Samsung Devices", target: 200000000, actual: 27392000, achievement: 13.7, variance: -172608000, estimate: 35381333, qty: 6 },
-      { name: "Oppo Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0 },
-      { name: "Motorola Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0 },
-      { name: "Huawei Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0 },
-      { name: "Infinix Devices", target: 15000000, actual: 0, achievement: 0.0, variance: -15000000, estimate: 0, qty: 0 },
-      { name: "Xiaomi Devices", target: 18446763, actual: 0, achievement: 0.0, variance: -18446763, estimate: 0, qty: 0 },
+      { name: "Samsung Devices", target: 200000000, actual: 27392000, achievement: 13.7, variance: -172608000, estimate: 35381333, qty: 6, icon: "🪐" },
+      { name: "Oppo Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0, icon: "🟢" },
+      { name: "Motorola Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0, icon: "Ⓜ️" },
+      { name: "Huawei Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0, icon: "🔴" },
+      { name: "Infinix Devices", target: 15000000, actual: 0, achievement: 0.0, variance: -15000000, estimate: 0, qty: 0, icon: "⚡" },
+      { name: "Xiaomi Devices", target: 18446763, actual: 0, achievement: 0.0, variance: -18446763, estimate: 0, qty: 0, icon: "🟠" },
+    ],
+    accessoriesSubProducts: [
+      { name: "Original Adapter & Charger", target: 25000000, actual: 8100000, achievement: 32.4, variance: -16900000, estimate: 10462500, qty: 17, icon: "⚡" },
+      { name: "Screen Protector Tempered Glass", target: 20000000, actual: 7200000, achievement: 36.0, variance: -12800000, estimate: 9300000, qty: 24, icon: "📱" },
+      { name: "MagSafe Case Original", target: 18000000, actual: 3400000, achievement: 18.9, variance: -14600000, estimate: 4391667, qty: 7, icon: "🛡️" },
+    ],
+    vasSubProducts: [
+      { name: "Qoala Protection", target: 35000000, actual: 3200000, achievement: 9.1, variance: -31800000, estimate: 4133333, qty: 4, icon: "🛡️" },
+      { name: "Telkomsel Bundling", target: 15000000, actual: 950000, achievement: 6.3, variance: -14050000, estimate: 1227083, qty: 2, icon: "🔴" },
+      { name: "XL Paket Data", target: 10000000, actual: 600000, achievement: 6.0, variance: -9400000, estimate: 775000, qty: 1, icon: "🔵" },
+      { name: "Indosat Paket", target: 10000000, actual: 0, achievement: 0.0, variance: -10000000, estimate: 0, qty: 0, icon: "🟡" },
     ],
   },
   {
@@ -158,25 +284,36 @@ const DETAILED_STAFF_PERFORMANCE: StaffDetailedPerformance[] = [
     estimate: 347477708,
     status: "Perlu Perhatian Khusus",
     attentionNotes: [
-      "PERINGATAN DEFISIT: Pencapaian hanya 16,2% dengan sisa waktu tinggal 22,6%.",
-      "Defisit omset mencapai -Rp 1,38 Miliar terhadap target kuota.",
-      "Lini MacBook, Apple Watch, dan seluruh brand Android Non-Samsung belum ada penjualan.",
+      "Pencapaian 16,2% sangat kritis dengan sisa hari tinggal 7 hari.",
+      "Defisit gap -Rp 1,38 Miliar terhadap kuota toko.",
+      "Lini iPad, Mac, dan seluruh Android Non-Samsung belum ada kontribusi unit sama sekali.",
     ],
     topProductSold: "iPhone 17 Pro Max 512GB",
     appleSubProducts: [
-      { name: "iPhone", target: 1100000000, actual: 171742000, achievement: 15.6, variance: -928258000, estimate: 221833417, qty: 6 },
-      { name: "iPad", target: 100000000, actual: 0, achievement: 0.0, variance: -100000000, estimate: 0, qty: 0 },
-      { name: "MacBook", target: 80000000, actual: 0, achievement: 0.0, variance: -80000000, estimate: 0, qty: 0 },
-      { name: "Apple Watch", target: 40000000, actual: 0, achievement: 0.0, variance: -40000000, estimate: 0, qty: 0 },
-      { name: "AirPods", target: 30000000, actual: 4497000, achievement: 15.0, variance: -25503000, estimate: 5808625, qty: 2 },
+      { name: "iPhone", target: 1100000000, actual: 171742000, achievement: 15.6, variance: -928258000, estimate: 221833417, qty: 6, icon: "📱" },
+      { name: "iPad", target: 100000000, actual: 0, achievement: 0.0, variance: -100000000, estimate: 0, qty: 0, icon: "📋" },
+      { name: "MacBook", target: 80000000, actual: 0, achievement: 0.0, variance: -80000000, estimate: 0, qty: 0, icon: "💻" },
+      { name: "Apple Watch", target: 40000000, actual: 0, achievement: 0.0, variance: -40000000, estimate: 0, qty: 0, icon: "⌚" },
+      { name: "AirPods", target: 30000000, actual: 4497000, achievement: 15.0, variance: -25503000, estimate: 5808625, qty: 2, icon: "🎧" },
     ],
     androidSubProducts: [
-      { name: "Samsung Devices", target: 200000000, actual: 80384000, achievement: 40.2, variance: -119616000, estimate: 103829333, qty: 8 },
-      { name: "Oppo Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0 },
-      { name: "Motorola Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0 },
-      { name: "Huawei Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0 },
-      { name: "Infinix Devices", target: 15000000, actual: 0, achievement: 0.0, variance: -15000000, estimate: 0, qty: 0 },
-      { name: "Xiaomi Devices", target: 18446763, actual: 0, achievement: 0.0, variance: -18446763, estimate: 0, qty: 0 },
+      { name: "Samsung Devices", target: 200000000, actual: 80384000, achievement: 40.2, variance: -119616000, estimate: 103829333, qty: 8, icon: "🪐" },
+      { name: "Oppo Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0, icon: "🟢" },
+      { name: "Motorola Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0, icon: "Ⓜ️" },
+      { name: "Huawei Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0, icon: "🔴" },
+      { name: "Infinix Devices", target: 15000000, actual: 0, achievement: 0.0, variance: -15000000, estimate: 0, qty: 0, icon: "⚡" },
+      { name: "Xiaomi Devices", target: 18446763, actual: 0, achievement: 0.0, variance: -18446763, estimate: 0, qty: 0, icon: "🟠" },
+    ],
+    accessoriesSubProducts: [
+      { name: "Original Adapter & Charger", target: 25000000, actual: 6400000, achievement: 25.6, variance: -18600000, estimate: 8266667, qty: 14, icon: "⚡" },
+      { name: "Screen Protector Tempered Glass", target: 20000000, actual: 4100000, achievement: 20.5, variance: -15900000, estimate: 5295833, qty: 15, icon: "📱" },
+      { name: "Powerbank & Wireless Pad", target: 15000000, actual: 1892000, achievement: 12.6, variance: -13108000, estimate: 2443833, qty: 3, icon: "🔋" },
+    ],
+    vasSubProducts: [
+      { name: "Qoala Protection", target: 35000000, actual: 2100000, achievement: 6.0, variance: -32900000, estimate: 2712500, qty: 2, icon: "🛡️" },
+      { name: "Telkomsel Bundling", target: 15000000, actual: 500000, achievement: 3.3, variance: -14500000, estimate: 645833, qty: 1, icon: "🔴" },
+      { name: "XL Paket Data", target: 10000000, actual: 0, achievement: 0.0, variance: -10000000, estimate: 0, qty: 0, icon: "🔵" },
+      { name: "Indosat Paket", target: 10000000, actual: 0, achievement: 0.0, variance: -10000000, estimate: 0, qty: 0, icon: "🟡" },
     ],
   },
   {
@@ -190,25 +327,34 @@ const DETAILED_STAFF_PERFORMANCE: StaffDetailedPerformance[] = [
     estimate: 331095500,
     status: "Dalam Pantauan",
     attentionNotes: [
-      "Staf baru / non-quota resmi, namun berhasil mencatatkan omset Rp 256 Juta.",
-      "Penjualan iPhone 16 128GB stabil.",
-      "Perlu diberikan target resmi bulan depan untuk mengukur rasio produktivitas.",
+      "Staf baru / non-quota resmi, mampu mengumpulkan omset Rp 256 Juta.",
+      "Perlu diberikan target kuota resmi bulan berikutnya untuk evaluasi kinerja akurat.",
     ],
     topProductSold: "iPhone 16 128GB Black & Pink",
     appleSubProducts: [
-      { name: "iPhone", target: 0, actual: 198992000, achievement: 0.0, variance: 198992000, estimate: 257031333, qty: 9 },
-      { name: "iPad", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0 },
-      { name: "MacBook", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0 },
-      { name: "Apple Watch", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0 },
-      { name: "AirPods", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0 },
+      { name: "iPhone", target: 0, actual: 198992000, achievement: 0.0, variance: 198992000, estimate: 257031333, qty: 9, icon: "📱" },
+      { name: "iPad", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0, icon: "📋" },
+      { name: "MacBook", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0, icon: "💻" },
+      { name: "Apple Watch", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0, icon: "⌚" },
+      { name: "AirPods", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0, icon: "🎧" },
     ],
     androidSubProducts: [
-      { name: "Samsung Devices", target: 0, actual: 52394000, achievement: 0.0, variance: 52394000, estimate: 67675583, qty: 6 },
-      { name: "Oppo Devices", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0 },
-      { name: "Motorola Devices", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0 },
-      { name: "Huawei Devices", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0 },
-      { name: "Infinix Devices", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0 },
-      { name: "Xiaomi Devices", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0 },
+      { name: "Samsung Devices", target: 0, actual: 52394000, achievement: 0.0, variance: 52394000, estimate: 67675583, qty: 6, icon: "🪐" },
+      { name: "Oppo Devices", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0, icon: "🟢" },
+      { name: "Motorola Devices", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0, icon: "Ⓜ️" },
+      { name: "Huawei Devices", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0, icon: "🔴" },
+      { name: "Infinix Devices", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0, icon: "⚡" },
+      { name: "Xiaomi Devices", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0, icon: "🟠" },
+    ],
+    accessoriesSubProducts: [
+      { name: "Original Adapter & Charger", target: 0, actual: 3400000, achievement: 0.0, variance: 3400000, estimate: 4391667, qty: 8, icon: "⚡" },
+      { name: "Screen Protector Tempered Glass", target: 0, actual: 1546000, achievement: 0.0, variance: 1546000, estimate: 1996917, qty: 6, icon: "📱" },
+    ],
+    vasSubProducts: [
+      { name: "Qoala Protection", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0, icon: "🛡️" },
+      { name: "Telkomsel Bundling", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0, icon: "🔴" },
+      { name: "XL Paket Data", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0, icon: "🔵" },
+      { name: "Indosat Paket", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0, icon: "🟡" },
     ],
   },
   {
@@ -222,25 +368,35 @@ const DETAILED_STAFF_PERFORMANCE: StaffDetailedPerformance[] = [
     estimate: 310545083,
     status: "Perlu Perhatian Khusus",
     attentionNotes: [
-      "PERINGATAN KRITIS: Pencapaian terendah ke-2 (14,5%), defisit omset mencapai -Rp 1,41 Miliar.",
-      "Produktivitas harian hanya Rp 10 Juta/hari, membutuhkan kenaikan 5x lipat untuk mendekati kuota.",
-      "Attachment Qoala VAS cukup baik, namun unit device utama masih sangat rendah.",
+      "SANGAT KRITIS: Pencapaian 14,5%, defisit omset mencapai -Rp 1,41 Miliar.",
+      "Produktivitas harian hanya Rp 10 Juta/hari. Perlu percepatan penawaran promo cashback bank.",
     ],
     topProductSold: "iPhone 17 Pro Max 256GB Silver",
     appleSubProducts: [
-      { name: "iPhone", target: 1100000000, actual: 184291000, achievement: 16.8, variance: -915709000, estimate: 238042542, qty: 7 },
-      { name: "iPad", target: 100000000, actual: 0, achievement: 0.0, variance: -100000000, estimate: 0, qty: 0 },
-      { name: "MacBook", target: 80000000, actual: 0, achievement: 0.0, variance: -80000000, estimate: 0, qty: 0 },
-      { name: "Apple Watch", target: 40000000, actual: 0, achievement: 0.0, variance: -40000000, estimate: 0, qty: 0 },
-      { name: "AirPods", target: 30000000, actual: 0, achievement: 0.0, variance: -30000000, estimate: 0, qty: 0 },
+      { name: "iPhone", target: 1100000000, actual: 184291000, achievement: 16.8, variance: -915709000, estimate: 238042542, qty: 7, icon: "📱" },
+      { name: "iPad", target: 100000000, actual: 0, achievement: 0.0, variance: -100000000, estimate: 0, qty: 0, icon: "📋" },
+      { name: "MacBook", target: 80000000, actual: 0, achievement: 0.0, variance: -80000000, estimate: 0, qty: 0, icon: "💻" },
+      { name: "Apple Watch", target: 40000000, actual: 0, achievement: 0.0, variance: -40000000, estimate: 0, qty: 0, icon: "⌚" },
+      { name: "AirPods", target: 30000000, actual: 0, achievement: 0.0, variance: -30000000, estimate: 0, qty: 0, icon: "🎧" },
     ],
     androidSubProducts: [
-      { name: "Samsung Devices", target: 200000000, actual: 38142000, achievement: 19.1, variance: -161858000, estimate: 49266750, qty: 5 },
-      { name: "Oppo Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0 },
-      { name: "Motorola Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0 },
-      { name: "Huawei Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0 },
-      { name: "Infinix Devices", target: 15000000, actual: 0, achievement: 0.0, variance: -15000000, estimate: 0, qty: 0 },
-      { name: "Xiaomi Devices", target: 18446763, actual: 0, achievement: 0.0, variance: -18446763, estimate: 0, qty: 0 },
+      { name: "Samsung Devices", target: 200000000, actual: 38142000, achievement: 19.1, variance: -161858000, estimate: 49266750, qty: 5, icon: "🪐" },
+      { name: "Oppo Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0, icon: "🟢" },
+      { name: "Motorola Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0, icon: "Ⓜ️" },
+      { name: "Huawei Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0, icon: "🔴" },
+      { name: "Infinix Devices", target: 15000000, actual: 0, achievement: 0.0, variance: -15000000, estimate: 0, qty: 0, icon: "⚡" },
+      { name: "Xiaomi Devices", target: 18446763, actual: 0, achievement: 0.0, variance: -18446763, estimate: 0, qty: 0, icon: "🟠" },
+    ],
+    accessoriesSubProducts: [
+      { name: "Original Adapter & Charger", target: 25000000, actual: 8900000, achievement: 35.6, variance: -16100000, estimate: 11495833, qty: 19, icon: "⚡" },
+      { name: "Screen Protector Tempered Glass", target: 20000000, actual: 5600000, achievement: 28.0, variance: -14400000, estimate: 7233333, qty: 18, icon: "📱" },
+      { name: "MagSafe Case Original", target: 18000000, actual: 2100000, achievement: 11.7, variance: -15900000, estimate: 2712500, qty: 4, icon: "🛡️" },
+    ],
+    vasSubProducts: [
+      { name: "Qoala Protection", target: 35000000, actual: 1100000, achievement: 3.1, variance: -33900000, estimate: 1420833, qty: 1, icon: "🛡️" },
+      { name: "Telkomsel Bundling", target: 15000000, actual: 300000, achievement: 2.0, variance: -14700000, estimate: 387500, qty: 1, icon: "🔴" },
+      { name: "XL Paket Data", target: 10000000, actual: 0, achievement: 0.0, variance: -10000000, estimate: 0, qty: 0, icon: "🔵" },
+      { name: "Indosat Paket", target: 10000000, actual: 0, achievement: 0.0, variance: -10000000, estimate: 0, qty: 0, icon: "🟡" },
     ],
   },
   {
@@ -254,26 +410,36 @@ const DETAILED_STAFF_PERFORMANCE: StaffDetailedPerformance[] = [
     estimate: 225332542,
     status: "Perlu Perhatian Khusus",
     attentionNotes: [
-      "PERINGATAN PALING KRITIS: Peringkat terendah di toko dengan pencapaian hanya 10,5%.",
-      "Defisit omset terbesar di toko (-Rp 1,48 Miliar).",
-      "Penjualan iPad, MacBook, dan seluruh brand Android di luar Samsung tercatat kosong (0 unit).",
-      "Memerlukan coaching intensif strategi penawaran paket cicilan / BNPL.",
+      "DEFISIT PALING KRITIS: Pencapaian terendah toko (10,5%). Defisit -Rp 1,48 Miliar.",
+      "Penjualan iPad, MacBook, dan seluruh brand Android Non-Samsung tercatat 0 unit.",
+      "Perlu coaching intensif penawaran cicilan BNPL / 0% dan active bundle protection.",
     ],
     topProductSold: "Galaxy A07 4/64GB & MagSafe Case",
     appleSubProducts: [
-      { name: "iPhone", target: 1100000000, actual: 128496000, achievement: 11.7, variance: -971504000, estimate: 165974000, qty: 5 },
-      { name: "iPad", target: 100000000, actual: 0, achievement: 0.0, variance: -100000000, estimate: 0, qty: 0 },
-      { name: "MacBook", target: 80000000, actual: 0, achievement: 0.0, variance: -80000000, estimate: 0, qty: 0 },
-      { name: "Apple Watch", target: 40000000, actual: 0, achievement: 0.0, variance: -40000000, estimate: 0, qty: 0 },
-      { name: "AirPods", target: 30000000, actual: 0, achievement: 0.0, variance: -30000000, estimate: 0, qty: 0 },
+      { name: "iPhone", target: 1100000000, actual: 128496000, achievement: 11.7, variance: -971504000, estimate: 165974000, qty: 5, icon: "📱" },
+      { name: "iPad", target: 100000000, actual: 0, achievement: 0.0, variance: -100000000, estimate: 0, qty: 0, icon: "📋" },
+      { name: "MacBook", target: 80000000, actual: 0, achievement: 0.0, variance: -80000000, estimate: 0, qty: 0, icon: "💻" },
+      { name: "Apple Watch", target: 40000000, actual: 0, achievement: 0.0, variance: -40000000, estimate: 0, qty: 0, icon: "⌚" },
+      { name: "AirPods", target: 30000000, actual: 0, achievement: 0.0, variance: -30000000, estimate: 0, qty: 0, icon: "🎧" },
     ],
     androidSubProducts: [
-      { name: "Samsung Devices", target: 200000000, actual: 31793000, achievement: 15.9, variance: -168207000, estimate: 41065958, qty: 5 },
-      { name: "Oppo Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0 },
-      { name: "Motorola Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0 },
-      { name: "Huawei Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0 },
-      { name: "Infinix Devices", target: 15000000, actual: 0, achievement: 0.0, variance: -15000000, estimate: 0, qty: 0 },
-      { name: "Xiaomi Devices", target: 18446763, actual: 0, achievement: 0.0, variance: -18446763, estimate: 0, qty: 0 },
+      { name: "Samsung Devices", target: 200000000, actual: 31793000, achievement: 15.9, variance: -168207000, estimate: 41065958, qty: 5, icon: "🪐" },
+      { name: "Oppo Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0, icon: "🟢" },
+      { name: "Motorola Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0, icon: "Ⓜ️" },
+      { name: "Huawei Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0, icon: "🔴" },
+      { name: "Infinix Devices", target: 15000000, actual: 0, achievement: 0.0, variance: -15000000, estimate: 0, qty: 0, icon: "⚡" },
+      { name: "Xiaomi Devices", target: 18446763, actual: 0, achievement: 0.0, variance: -18446763, estimate: 0, qty: 0, icon: "🟠" },
+    ],
+    accessoriesSubProducts: [
+      { name: "Screen Protector Tempered Glass", target: 20000000, actual: 6800000, achievement: 34.0, variance: -13200000, estimate: 8783333, qty: 21, icon: "📱" },
+      { name: "Original Adapter & Charger", target: 25000000, actual: 5200000, achievement: 20.8, variance: -19800000, estimate: 6716667, qty: 11, icon: "⚡" },
+      { name: "MagSafe Case Original", target: 18000000, actual: 2162000, achievement: 12.0, variance: -15838000, estimate: 2792583, qty: 4, icon: "🛡️" },
+    ],
+    vasSubProducts: [
+      { name: "Qoala Protection", target: 35000000, actual: 0, achievement: 0.0, variance: -35000000, estimate: 0, qty: 0, icon: "🛡️" },
+      { name: "Telkomsel Bundling", target: 15000000, actual: 0, achievement: 0.0, variance: -15000000, estimate: 0, qty: 0, icon: "🔴" },
+      { name: "XL Paket Data", target: 10000000, actual: 0, achievement: 0.0, variance: -10000000, estimate: 0, qty: 0, icon: "🔵" },
+      { name: "Indosat Paket", target: 10000000, actual: 0, achievement: 0.0, variance: -10000000, estimate: 0, qty: 0, icon: "🟡" },
     ],
   },
 ];
@@ -284,9 +450,14 @@ export default function Page() {
   const [passwordInput, setPasswordInput] = useState("");
   const [loginErr, setLoginErr] = useState("");
 
-  const [activeTab, setActiveTab] = useState<MenuTab>("leaderboard");
+  const [activeTab, setActiveTab] = useState<MenuTab>("store-overview");
   const [selectedStaffIndex, setSelectedStaffIndex] = useState(0);
-  const [subLOBTab, setSubLOBTab] = useState<"apple" | "android">("apple");
+  const [subLOBTab, setSubLOBTab] = useState<SubLOBType>("apple");
+
+  // State Filter Waktu
+  const [selectedMonth, setSelectedMonth] = useState("Oktober 2026");
+  const [selectedWeek, setSelectedWeek] = useState("Week 4 (Tgl 22-28)");
+  const [currentDateInput, setCurrentDateInput] = useState("2026-10-24");
 
   // Shortcut Upload State
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -358,7 +529,7 @@ export default function Page() {
         text: `Berhasil! File "${selectedFile.name}" telah diteruskan ke Sheet RAW SalesPerson Kolom M, N, O.`,
       });
       setSelectedFile(null);
-    } catch (err) {
+    } catch {
       setUploadStatus({ type: "error", text: "Gagal mengirim file. Periksa koneksi internet." });
     }
   };
@@ -369,12 +540,23 @@ export default function Page() {
 
   const currentStaff = DETAILED_STAFF_PERFORMANCE[selectedStaffIndex];
 
+  // Helper pengambil rincian sub-produk staf aktif sesuai tab
+  const activeStaffSubProducts = useMemo(() => {
+    if (subLOBTab === "apple") return currentStaff.appleSubProducts;
+    if (subLOBTab === "android") return currentStaff.androidSubProducts;
+    if (subLOBTab === "accessories") {
+      // Diurutkan dari nominal/amount terbesar ke terkecil
+      return [...currentStaff.accessoriesSubProducts].sort((a, b) => b.actual - a.actual);
+    }
+    return currentStaff.vasSubProducts;
+  }, [subLOBTab, currentStaff]);
+
   // Daftar Staf yang Memerlukan Perhatian Khusus
   const attentionStaffList = useMemo(() => {
     return DETAILED_STAFF_PERFORMANCE.filter((s) => s.status === "Perlu Perhatian Khusus");
   }, []);
 
-  // HALAMAN LOGIN DENGAN BACKGROUND DEEP INDIGO (#1A1831) & TEKS WARM CLOUD (#FFF6E9)
+  // HALAMAN LOGIN
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-[#1A1831] flex items-center justify-center p-4 text-[#FFF6E9] font-sans">
@@ -399,7 +581,7 @@ export default function Page() {
               <input
                 type="text"
                 required
-                placeholder="22008089 atau ID Anda"
+                placeholder="24004971 atau ID Anda"
                 value={salesIdInput}
                 onChange={(e) => setSalesIdInput(e.target.value)}
                 className="w-full mt-1.5 px-4 py-3 rounded-xl bg-[#141226] border border-[#3B3666] text-[#FFF6E9] placeholder-[#FFF6E9]/40 text-sm focus:border-[#F5BA42] focus:outline-none"
@@ -433,7 +615,7 @@ export default function Page() {
   // DASHBOARD UTAMA
   return (
     <div className="flex min-h-screen bg-[#1A1831] text-[#FFF6E9] font-sans">
-      {/* SIDEBAR KIRI */}
+      {/* SIDEBAR */}
       <aside className="w-72 bg-[#141226] border-r border-[#3B3666] flex flex-col justify-between shrink-0 sticky top-0 h-screen z-30">
         <div className="p-4 overflow-y-auto">
           {/* Brand Logo */}
@@ -447,7 +629,7 @@ export default function Page() {
             </div>
           </div>
 
-          {/* KOTAK SHORTCUT UPLOAD */}
+          {/* SHORTCUT UPLOAD */}
           <div className="mt-4 p-4 rounded-2xl bg-[#221F40] border-2 border-[#F5BA42]/40 shadow-xl shadow-[#F5BA42]/10">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xl">📤</span>
@@ -502,16 +684,6 @@ export default function Page() {
           {/* Navigasi Menu */}
           <nav className="mt-5 space-y-1.5">
             <button
-              onClick={() => setActiveTab("leaderboard")}
-              className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition ${
-                activeTab === "leaderboard" ? "bg-[#F5BA42] text-[#1A1831] font-black shadow-md shadow-[#F5BA42]/20" : "text-[#FFF6E9]/70 hover:text-[#FFF6E9] hover:bg-[#221F40]"
-              }`}
-            >
-              <span className="text-base">🏆</span>
-              <span>Staff Performance Detail</span>
-            </button>
-
-            <button
               onClick={() => setActiveTab("store-overview")}
               className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition ${
                 activeTab === "store-overview" ? "bg-[#F5BA42] text-[#1A1831] font-black shadow-md shadow-[#F5BA42]/20" : "text-[#FFF6E9]/70 hover:text-[#FFF6E9] hover:bg-[#221F40]"
@@ -519,6 +691,16 @@ export default function Page() {
             >
               <span className="text-base">📊</span>
               <span>Overview Store & Kategori</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("leaderboard")}
+              className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition ${
+                activeTab === "leaderboard" ? "bg-[#F5BA42] text-[#1A1831] font-black shadow-md shadow-[#F5BA42]/20" : "text-[#FFF6E9]/70 hover:text-[#FFF6E9] hover:bg-[#221F40]"
+              }`}
+            >
+              <span className="text-base">🏆</span>
+              <span>Staff Performance Detail</span>
             </button>
 
             <button
@@ -546,25 +728,249 @@ export default function Page() {
 
       {/* KONTEN UTAMA */}
       <main className="flex-1 p-8 overflow-y-auto max-w-7xl mx-auto">
-        <header className="mb-6 flex flex-wrap justify-between items-center gap-4 border-b border-[#3B3666] pb-4">
+        {/* HEADER & FILTER WAKTU (BULAN, WEEK, TANGGAL BERJALAN) */}
+        <header className="mb-6 flex flex-wrap justify-between items-center gap-4 border-b border-[#3B3666] pb-5">
           <div>
             <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded bg-[#F5BA42]/15 border border-[#F5BA42]/30 text-[#F5BA42] text-[10px] font-black uppercase">
+              <span className="px-2.5 py-0.5 rounded bg-[#F5BA42]/15 border border-[#F5BA42]/30 text-[#F5BA42] text-[10px] font-black uppercase">
                 QF01 Grand Indonesia
               </span>
-              <h1 className="text-xl font-bold text-[#FFF6E9]">STAFF SALES PERFORMANCE & PRODUCTIVITY</h1>
+              <h1 className="text-xl font-black text-[#FFF6E9] uppercase tracking-wide">
+                Sales Dashboard & Store Overview
+              </h1>
             </div>
-            <p className="text-xs text-[#FFF6E9]/70 mt-1">Breakdown Sub-Lini Apple, Android, & Analisis Staf Perlu Perhatian Khusus</p>
+            <p className="text-xs text-[#FFF6E9]/70 mt-1">
+              Monitoring Target, Actual, Variance, Run Rate & Staff Performance
+            </p>
           </div>
-          <div className="flex gap-2">
-            <span className="px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-400/30 text-xs font-bold">
-              Time Gone: {TIME_GONE_METRIC.percentageTimeGone}% (Day {TIME_GONE_METRIC.daysPassed}/31)
-            </span>
+
+          {/* FILTER PANEL */}
+          <div className="flex flex-wrap items-center gap-2.5 bg-[#141226] p-2 rounded-2xl border border-[#3B3666]">
+            {/* Filter Bulan */}
+            <div className="flex items-center gap-1.5 px-2 py-1 bg-[#221F40] rounded-xl border border-[#3B3666]/60">
+              <span className="text-xs">📅</span>
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="bg-transparent text-xs text-[#FFF6E9] font-bold focus:outline-none cursor-pointer"
+              >
+                <option value="Oktober 2026" className="bg-[#141226]">Oktober 2026</option>
+                <option value="November 2026" className="bg-[#141226]">November 2026</option>
+                <option value="Desember 2026" className="bg-[#141226]">Desember 2026</option>
+              </select>
+            </div>
+
+            {/* Filter Week */}
+            <div className="flex items-center gap-1.5 px-2 py-1 bg-[#221F40] rounded-xl border border-[#3B3666]/60">
+              <span className="text-xs">📊</span>
+              <select
+                value={selectedWeek}
+                onChange={(e) => setSelectedWeek(e.target.value)}
+                className="bg-transparent text-xs text-[#FFF6E9] font-bold focus:outline-none cursor-pointer"
+              >
+                <option value="Week 1 (Tgl 01-07)" className="bg-[#141226]">Week 1 (01-07)</option>
+                <option value="Week 2 (Tgl 08-14)" className="bg-[#141226]">Week 2 (08-14)</option>
+                <option value="Week 3 (Tgl 15-21)" className="bg-[#141226]">Week 3 (15-21)</option>
+                <option value="Week 4 (Tgl 22-28)" className="bg-[#141226]">Week 4 (22-28)</option>
+                <option value="Full Month (MDT)" className="bg-[#141226]">Full Month</option>
+              </select>
+            </div>
+
+            {/* Filter Tanggal Berjalan */}
+            <div className="flex items-center gap-1.5 px-2 py-1 bg-[#221F40] rounded-xl border border-[#3B3666]/60">
+              <span className="text-xs">⏱️</span>
+              <input
+                type="date"
+                value={currentDateInput}
+                onChange={(e) => setCurrentDateInput(e.target.value)}
+                className="bg-transparent text-xs text-[#F5BA42] font-mono font-bold focus:outline-none cursor-pointer"
+              />
+            </div>
           </div>
         </header>
 
         {/* ========================================================= */}
-        {/* TAB: STAFF PERFORMANCE DETAIL (FITUR BARU LENGKAP)        */}
+        {/* TAB 1: OVERVIEW STORE & KATEGORI (LENGKAP TIME GONE + LOB) */}
+        {/* ========================================================= */}
+        {activeTab === "store-overview" && (
+          <div className="space-y-8">
+            {/* 1. KARTU TIME GONE TOKO */}
+            <div className="p-6 bg-[#221F40] border-2 border-[#3B3666] rounded-3xl shadow-xl">
+              <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-xl">
+                    ⏱️
+                  </div>
+                  <div>
+                    <h2 className="text-base font-black text-[#FFF6E9] uppercase tracking-wide">
+                      Time Gone & Run-Rate Overview
+                    </h2>
+                    <p className="text-xs text-[#FFF6E9]/60">
+                      Hari ke-{TIME_GONE_METRIC.daysPassed} dari {TIME_GONE_METRIC.totalDays} hari ({TIME_GONE_METRIC.percentageTimeGone}% Waktu Berjalan)
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className="px-3 py-1.5 bg-red-500/20 text-red-300 border border-red-400/30 rounded-xl text-xs font-bold">
+                    Sisa Waktu: {TIME_GONE_METRIC.daysLeft} Hari ({TIME_GONE_METRIC.percentageTimeLeft}%)
+                  </span>
+                  <span className="px-3 py-1.5 bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 rounded-xl text-xs font-bold">
+                    Toko: QF01 Grand Indonesia
+                  </span>
+                </div>
+              </div>
+
+              {/* Progress Bar Time Gone vs Achievement */}
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs font-bold">
+                  <span className="text-[#FFF6E9]/80">Progress Waktu Berjalan ({TIME_GONE_METRIC.percentageTimeGone}%)</span>
+                  <span className="text-emerald-300">Pencapaian Omset Store ({STORE_TOTAL.achievement}%)</span>
+                </div>
+                <div className="w-full bg-[#141226] h-3.5 rounded-full overflow-hidden p-0.5 border border-[#3B3666]">
+                  <div
+                    className="bg-gradient-to-r from-amber-400 to-amber-600 h-full rounded-full transition-all duration-500"
+                    style={{ width: `${TIME_GONE_METRIC.percentageTimeGone}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Statistik Run-rate */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mt-5">
+                <div className="p-3.5 bg-[#141226] rounded-2xl border border-[#3B3666]">
+                  <span className="text-[10px] text-[#FFF6E9]/60 uppercase font-semibold block">Total Target Toko</span>
+                  <span className="text-sm font-extrabold text-[#FFF6E9] font-mono mt-0.5 block">{formatIDR(STORE_TOTAL.target)}</span>
+                </div>
+                <div className="p-3.5 bg-[#141226] rounded-2xl border border-[#3B3666]">
+                  <span className="text-[10px] text-[#FFF6E9]/60 uppercase font-semibold block">Total Actual Omset</span>
+                  <span className="text-sm font-extrabold text-emerald-300 font-mono mt-0.5 block">{formatIDR(STORE_TOTAL.actual)}</span>
+                </div>
+                <div className="p-3.5 bg-[#141226] rounded-2xl border border-[#3B3666]">
+                  <span className="text-[10px] text-[#FFF6E9]/60 uppercase font-semibold block">Actual Run Rate / Hari</span>
+                  <span className="text-sm font-extrabold text-sky-300 font-mono mt-0.5 block">{formatIDR(TIME_GONE_METRIC.dailyActualRunRate)}</span>
+                </div>
+                <div className="p-3.5 bg-[#141226] rounded-2xl border border-red-500/30">
+                  <span className="text-[10px] text-red-300 uppercase font-semibold block">Required Run Rate (7 Hari)</span>
+                  <span className="text-sm font-extrabold text-red-300 font-mono mt-0.5 block">{formatIDR(TIME_GONE_METRIC.requiredDailyRunRate)}/hr</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 2. OVERVIEW PRODUK: APPLE, ANDROID, ACCESSORIES, VAS */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-base font-bold text-[#FFF6E9] flex items-center gap-2">
+                    <span>📦</span>
+                    <span>Target & Achievement Per Kategori Produk Toko</span>
+                  </h3>
+                  <p className="text-xs text-[#FFF6E9]/60">Metrik Target, Actual, Achievement, Variance & Estimate</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {Object.entries(STORE_CATEGORIES).map(([key, cat]) => (
+                  <div key={key} className="p-5 bg-[#221F40] border border-[#3B3666] hover:border-[#F5BA42]/40 rounded-3xl transition shadow-lg">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl">{cat.icon}</span>
+                        <h4 className="text-sm font-black text-[#FFF6E9]">{cat.name}</h4>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                        cat.achievement >= 40 ? "bg-emerald-500/20 text-emerald-300 border border-emerald-400/30" : "bg-amber-500/20 text-amber-300 border border-amber-400/30"
+                      }`}>
+                        {cat.achievement}%
+                      </span>
+                    </div>
+
+                    <div className="space-y-2 text-xs">
+                      <div className="flex justify-between text-[#FFF6E9]/70">
+                        <span>Target:</span>
+                        <span className="font-mono text-[#FFF6E9]">{formatIDR(cat.target)}</span>
+                      </div>
+                      <div className="flex justify-between text-[#FFF6E9]/70">
+                        <span>Actual:</span>
+                        <span className="font-mono font-bold text-emerald-300">{formatIDR(cat.actual)}</span>
+                      </div>
+                      <div className="flex justify-between text-[#FFF6E9]/70">
+                        <span>Variance:</span>
+                        <span className={`font-mono font-bold ${cat.variance >= 0 ? "text-emerald-300" : "text-red-300"}`}>
+                          {formatIDR(cat.variance)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-[#FFF6E9]/70 border-t border-[#3B3666] pt-1.5">
+                        <span>Estimate EOM:</span>
+                        <span className="font-mono font-bold text-sky-300">{formatIDR(cat.estimate)}</span>
+                      </div>
+                    </div>
+
+                    {/* Rincian Produk Singkat Di Dalam Card */}
+                    <div className="mt-4 pt-3 border-t border-[#3B3666]/60 space-y-1">
+                      <span className="text-[10px] uppercase font-bold text-[#F5BA42] tracking-wider block mb-1">
+                        Sub-Lini Terbesar:
+                      </span>
+                      {cat.items.slice(0, 3).map((item, i) => (
+                        <div key={i} className="flex justify-between text-[11px] text-[#FFF6E9]/80">
+                          <span className="truncate pr-2">{item.icon} {item.name}</span>
+                          <span className="font-mono text-emerald-300 shrink-0">{formatIDR(item.actual)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 3. MINI RANK SALES PER STAFF LANGSUNG DI OVERVIEW STORE */}
+            <div className="p-6 bg-[#221F40] border border-[#3B3666] rounded-3xl shadow-xl">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <h3 className="text-base font-bold text-[#FFF6E9] flex items-center gap-2">
+                    <span>🏆</span>
+                    <span>Peringkat Kontribusi Sales per Staff (Store Leaderboard)</span>
+                  </h3>
+                  <p className="text-xs text-[#FFF6E9]/60">Urutan staf berdasarkan actual omset dan status pencapaian</p>
+                </div>
+                <button
+                  onClick={() => setActiveTab("leaderboard")}
+                  className="text-xs font-bold text-[#F5BA42] hover:underline"
+                >
+                  Lihat Detail Performa Staf ➔
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {DETAILED_STAFF_PERFORMANCE.map((st) => (
+                  <div
+                    key={st.salesId}
+                    onClick={() => {
+                      setSelectedStaffIndex(st.rank - 1);
+                      setActiveTab("leaderboard");
+                    }}
+                    className="p-3.5 bg-[#141226] border border-[#3B3666] hover:border-[#F5BA42] rounded-2xl cursor-pointer transition"
+                  >
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="text-xs font-bold text-[#FFF6E9] truncate">{st.name}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded font-black bg-[#F5BA42] text-[#1A1831]">
+                        #{st.rank}
+                      </span>
+                    </div>
+                    <div className="text-sm font-extrabold text-emerald-300 font-mono">{formatIDR(st.actual)}</div>
+                    <div className="flex justify-between items-center text-[10px] text-[#FFF6E9]/60 mt-1">
+                      <span>Achv: <strong className="text-amber-300">{st.achievement}%</strong></span>
+                      <span className={st.status === "Perlu Perhatian Khusus" ? "text-red-400 font-bold" : "text-emerald-400"}>
+                        {st.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* TAB 2: STAFF PERFORMANCE DETAIL (APPLE, ANDROID, ACC, VAS) */}
         {/* ========================================================= */}
         {activeTab === "leaderboard" && (
           <div className="space-y-8">
@@ -579,7 +985,7 @@ export default function Page() {
                     PERHATIAN KHUSUS: STAF TERTINGGAL TARGET PENJUALAN
                   </h2>
                   <p className="text-xs text-[#FFF6E9]/70">
-                    Staf dengan pencapaian di bawah 20% dan defisit variance di atas Rp 1,3 Miliar terhadap kuota waktu berjalan (77,4%)
+                    Staf dengan pencapaian di bawah 20% dan defisit variance di atas Rp 1,3 Miliar terhadap kuota waktu berjalan ({TIME_GONE_METRIC.percentageTimeGone}%)
                   </p>
                 </div>
               </div>
@@ -696,7 +1102,7 @@ export default function Page() {
               </div>
             </div>
 
-            {/* 3. PANEL RINCIAN SUB-LINI PRODUK STAF TERPILIH */}
+            {/* 3. PANEL DETAIL SUB-LINI PRODUK STAF TERPILIH (APPLE, ANDROID, ACC, VAS) */}
             <div className="p-6 bg-[#221F40] border-2 border-[#F5BA42]/40 rounded-3xl shadow-2xl">
               {/* Header Staf Terpilih */}
               <div className="flex flex-wrap justify-between items-center gap-4 pb-4 border-b border-[#3B3666] mb-6">
@@ -715,30 +1121,54 @@ export default function Page() {
                   </p>
                 </div>
 
-                {/* Sub Tab Pemilih Kategori: Apple vs Android */}
-                <div className="flex gap-2 bg-[#141226] p-1.5 rounded-2xl border border-[#3B3666]">
+                {/* Tab Pemilih Kategori: Apple vs Android vs Accessories vs VAS */}
+                <div className="flex flex-wrap gap-2 bg-[#141226] p-1.5 rounded-2xl border border-[#3B3666]">
                   <button
                     onClick={() => setSubLOBTab("apple")}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+                    className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
                       subLOBTab === "apple"
-                        ? "bg-sky-500 text-[#1A1831] shadow-lg shadow-sky-500/20"
+                        ? "bg-sky-500 text-[#1A1831] shadow-lg shadow-sky-500/20 font-black"
                         : "text-[#FFF6E9]/70 hover:text-[#FFF6E9]"
                     }`}
                   >
                     <span>🍎</span>
-                    <span>Apple Devices (iPhone, iPad, Mac, Watch, AirPods)</span>
+                    <span>Apple Devices</span>
                   </button>
 
                   <button
                     onClick={() => setSubLOBTab("android")}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+                    className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
                       subLOBTab === "android"
-                        ? "bg-indigo-500 text-[#FFF6E9] shadow-lg shadow-indigo-500/20"
+                        ? "bg-indigo-500 text-[#FFF6E9] shadow-lg shadow-indigo-500/20 font-black"
                         : "text-[#FFF6E9]/70 hover:text-[#FFF6E9]"
                     }`}
                   >
                     <span>🤖</span>
-                    <span>Android Devices (Samsung, Oppo, Moto, Huawei, dll)</span>
+                    <span>Android Devices</span>
+                  </button>
+
+                  <button
+                    onClick={() => setSubLOBTab("accessories")}
+                    className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                      subLOBTab === "accessories"
+                        ? "bg-amber-500 text-[#1A1831] shadow-lg shadow-amber-500/20 font-black"
+                        : "text-[#FFF6E9]/70 hover:text-[#FFF6E9]"
+                    }`}
+                  >
+                    <span>🎧</span>
+                    <span>Accessories (Nominal Terbesar)</span>
+                  </button>
+
+                  <button
+                    onClick={() => setSubLOBTab("vas")}
+                    className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                      subLOBTab === "vas"
+                        ? "bg-rose-500 text-white shadow-lg shadow-rose-500/20 font-black"
+                        : "text-[#FFF6E9]/70 hover:text-[#FFF6E9]"
+                    }`}
+                  >
+                    <span>🛡️</span>
+                    <span>VAS (Qoala, Telkomsel, XL, Indosat)</span>
                   </button>
                 </div>
               </div>
@@ -747,7 +1177,7 @@ export default function Page() {
               <div className="mb-6 p-4 bg-[#141226] rounded-2xl border border-[#3B3666]">
                 <h4 className="text-xs font-bold text-[#F5BA42] uppercase tracking-wider mb-2 flex items-center gap-1.5">
                   <span>📌</span>
-                  <span>Catatan Evaluasi Penjualan & Rekomendasi Leader:</span>
+                  <span>Evaluasi Penjualan & Rekomendasi Supervisi:</span>
                 </h4>
                 <ul className="space-y-1 text-xs text-[#FFF6E9]/80 list-disc list-inside">
                   {currentStaff.attentionNotes.map((note, i) => (
@@ -761,7 +1191,7 @@ export default function Page() {
                 <table className="w-full text-left text-xs">
                   <thead className="bg-[#141226] text-[#FFF6E9]/70 uppercase text-[11px] border-b border-[#3B3666]">
                     <tr>
-                      <th className="py-4 px-4">Lini Produk</th>
+                      <th className="py-4 px-4">Lini / Produk Detail</th>
                       <th className="py-4 px-4 text-center">Qty Terjual</th>
                       <th className="py-4 px-4 text-right">Target Lini</th>
                       <th className="py-4 px-4 text-right">Actual Sales</th>
@@ -771,45 +1201,43 @@ export default function Page() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#3B3666] font-medium">
-                    {(subLOBTab === "apple" ? currentStaff.appleSubProducts : currentStaff.androidSubProducts).map(
-                      (sub, idx) => (
-                        <tr key={idx} className="hover:bg-[#2B274F]/50 transition">
-                          <td className="py-4 px-4 font-bold text-[#FFF6E9] text-sm">
-                            {subLOBTab === "apple" ? "🍎" : "⚡"} {sub.name}
-                          </td>
-                          <td className="py-4 px-4 text-center font-bold text-white">{sub.qty} Unit</td>
-                          <td className="py-4 px-4 text-right text-[#FFF6E9]/70 font-mono">
-                            {sub.target > 0 ? formatIDR(sub.target) : "-"}
-                          </td>
-                          <td className="py-4 px-4 text-right font-extrabold text-emerald-300 text-sm">
-                            {formatIDR(sub.actual)}
-                          </td>
-                          <td className="py-4 px-4 text-center">
-                            <span
-                              className={`px-2.5 py-1 rounded-full text-xs font-black border ${
-                                sub.actual === 0
-                                  ? "bg-slate-800 text-slate-500 border-slate-700"
-                                  : sub.achievement >= 100
-                                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/30"
-                                  : "bg-amber-500/20 text-amber-300 border-amber-400/30"
-                              }`}
-                            >
-                              {sub.target > 0 ? `${sub.achievement.toFixed(1)}%` : sub.actual > 0 ? "100%" : "0%"}
-                            </span>
-                          </td>
-                          <td
-                            className={`py-4 px-4 text-right font-mono font-bold ${
-                              sub.variance >= 0 ? "text-emerald-300" : "text-red-300"
+                    {activeStaffSubProducts.map((sub, idx) => (
+                      <tr key={idx} className="hover:bg-[#2B274F]/50 transition">
+                        <td className="py-4 px-4 font-bold text-[#FFF6E9] text-sm">
+                          {sub.icon || "📦"} {sub.name}
+                        </td>
+                        <td className="py-4 px-4 text-center font-bold text-white">{sub.qty} Unit</td>
+                        <td className="py-4 px-4 text-right text-[#FFF6E9]/70 font-mono">
+                          {sub.target > 0 ? formatIDR(sub.target) : "-"}
+                        </td>
+                        <td className="py-4 px-4 text-right font-extrabold text-emerald-300 text-sm">
+                          {formatIDR(sub.actual)}
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <span
+                            className={`px-2.5 py-1 rounded-full text-xs font-black border ${
+                              sub.actual === 0
+                                ? "bg-slate-800 text-slate-500 border-slate-700"
+                                : sub.achievement >= 100
+                                ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/30"
+                                : "bg-amber-500/20 text-amber-300 border-amber-400/30"
                             }`}
                           >
-                            {sub.target > 0 ? formatIDR(sub.variance) : "-"}
-                          </td>
-                          <td className="py-4 px-4 text-right text-emerald-300 font-mono font-bold">
-                            {formatIDR(sub.estimate)}
-                          </td>
-                        </tr>
-                      )
-                    )}
+                            {sub.target > 0 ? `${sub.achievement.toFixed(1)}%` : sub.actual > 0 ? "100%" : "0%"}
+                          </span>
+                        </td>
+                        <td
+                          className={`py-4 px-4 text-right font-mono font-bold ${
+                            sub.variance >= 0 ? "text-emerald-300" : "text-red-300"
+                          }`}
+                        >
+                          {sub.target > 0 ? formatIDR(sub.variance) : "-"}
+                        </td>
+                        <td className="py-4 px-4 text-right text-emerald-300 font-mono font-bold">
+                          {formatIDR(sub.estimate)}
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -817,25 +1245,40 @@ export default function Page() {
           </div>
         )}
 
-        {/* TAB 2: OVERVIEW STORE */}
-        {activeTab === "store-overview" && (
-          <div className="space-y-6">
-            <div className="p-6 bg-[#221F40] border border-[#3B3666] rounded-3xl">
-              <h2 className="text-base font-bold text-white mb-2">Total Penjualan Store QF01 Grand Indonesia</h2>
-              <div className="text-3xl font-black text-emerald-300">{formatIDR(STORE_TOTAL.actual)}</div>
-              <p className="text-xs text-[#FFF6E9]/70 mt-1">Target: {formatIDR(STORE_TOTAL.target)} ({STORE_TOTAL.achievement}% Achieved)</p>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 3: RINCIAN PENJUALAN LOB */}
+        {/* ========================================================= */}
+        {/* TAB 3: RINCIAN PENJUALAN LOB (GLOBAL)                      */}
+        {/* ========================================================= */}
         {activeTab === "sales-detail" && (
-          <div className="space-y-4">
-            <h2 className="text-base font-bold text-[#FFF6E9]">Breakdown LOB Sales</h2>
-            <div className="p-6 bg-[#221F40] border border-[#3B3666] rounded-2xl">
-              <p className="text-xs text-[#FFF6E9]/80 leading-relaxed">
-                Total penjualan store terdiri dari <strong>Apple Devices</strong> senilai Rp 2,51 Miliar, <strong>Android Devices</strong> Rp 394 Juta, <strong>Accessories</strong> Rp 60,1 Juta, dan <strong>VAS</strong> Rp 45,0 Juta.
-              </p>
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-base font-bold text-[#FFF6E9]">Breakdown LOB & Kontribusi Kategori Store</h2>
+              <p className="text-xs text-[#FFF6E9]/60">Rincian performa lini bisnis Digiplus QF01 Grand Indonesia</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {Object.entries(STORE_CATEGORIES).map(([key, cat]) => (
+                <div key={key} className="p-6 bg-[#221F40] border border-[#3B3666] rounded-3xl">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-base font-black text-[#FFF6E9] flex items-center gap-2">
+                      <span>{cat.icon}</span>
+                      <span>{cat.name}</span>
+                    </h3>
+                    <span className="text-xs font-mono font-bold text-emerald-300">{formatIDR(cat.actual)}</span>
+                  </div>
+
+                  <div className="space-y-2">
+                    {cat.items.map((it, i) => (
+                      <div key={i} className="flex justify-between items-center text-xs p-2.5 bg-[#141226] rounded-xl">
+                        <span className="font-semibold text-[#FFF6E9]/90">{it.icon} {it.name}</span>
+                        <div className="text-right">
+                          <span className="font-mono font-bold text-emerald-300 block">{formatIDR(it.actual)}</span>
+                          <span className="text-[10px] text-[#FFF6E9]/50">{it.qty} Unit ({it.achievement}%)</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -843,3 +1286,5 @@ export default function Page() {
     </div>
   );
 }
+
+```
