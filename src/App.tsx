@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import * as XLSX from "xlsx";
 
 type MenuTab = "sales-detail" | "leaderboard" | "home" | "product-focus";
@@ -51,14 +51,14 @@ export default function DigiplusDashboard() {
   const [filterStaff, setFilterStaff] = useState("ALL");
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // UPLOAD SHORTCUT MODAL STATE
-  const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [parsedRows, setParsedRows] = useState<any[][]>([]);
-  const [uploadFileName, setUploadFileName] = useState("");
-  const [uploading, setUploading] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState<{ type: "success" | "error" | ""; message: string }>({ type: "", message: "" });
+  // UPLOAD SHORTCUT STATE (SIDEBAR KIRI)
+  const [sidebarFileName, setSidebarFileName] = useState("");
+  const [sidebarParsedRows, setSidebarParsedRows] = useState<any[][]>([]);
+  const [sidebarUploading, setSidebarUploading] = useState(false);
+  const [sidebarUploadMsg, setSidebarUploadMsg] = useState<{ type: "success" | "error" | ""; text: string }>({ type: "", text: "" });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Webhook Apps Script URL (Ganti dengan Deployment ID Apps Script Anda)
+  // Webhook Google Apps Script (ganti dengan URL Web App Apps Script Anda bila ada)
   const APPS_SCRIPT_WEBHOOK_URL = "URL_GOOGLE_APPS_SCRIPT_WEBHOOK_ANDA";
 
   useEffect(() => {
@@ -120,7 +120,7 @@ export default function DigiplusDashboard() {
 
         if (parsed.length > 0) setSalesList(parsed);
       })
-      .catch((err) => console.log("GVIZ Offline, Menggunakan Fallback:", err));
+      .catch((err) => console.log("GVIZ Offline, Memakai Fallback:", err));
   }, []);
 
   const handleLogin = (e: React.FormEvent) => {
@@ -131,7 +131,7 @@ export default function DigiplusDashboard() {
     const trimmedPass = inputPassword.trim();
 
     if (trimmedPass !== "Welcome@123") {
-      setLoginError("Password salah! Silakan coba lagi.");
+      setLoginError("Password salah! Silakan periksa kembali.");
       return;
     }
 
@@ -160,13 +160,13 @@ export default function DigiplusDashboard() {
     setCurrentUser(null);
   };
 
-  // HANDLER PARSE FILE .XLS
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // HANDLER FILE .XLS DI SIDEBAR KIRI
+  const handleSidebarFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setUploadFileName(file.name);
-    setUploadStatus({ type: "", message: "" });
+    setSidebarFileName(file.name);
+    setSidebarUploadMsg({ type: "", text: "" });
 
     const reader = new FileReader();
     reader.onload = (evt) => {
@@ -175,52 +175,49 @@ export default function DigiplusDashboard() {
         const wb = XLSX.read(bstr, { type: "binary" });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
-        // Konversi ke array baris
         const rawJson: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1 });
 
-        // Format data khusus untuk kolom M, N, O
-        // Mengambil 3 kolom utama dari file Saleswise
-        const formatted = rawJson.map((r) => [
-          r[0] !== undefined ? String(r[0]) : "",
-          r[1] !== undefined ? String(r[1]) : "",
-          r[2] !== undefined ? String(r[2]) : "",
+        // Petakan 3 kolom utama ke kolom M, N, O
+        const mapped = rawJson.map((row) => [
+          row[0] !== undefined ? String(row[0]) : "",
+          row[1] !== undefined ? String(row[1]) : "",
+          row[2] !== undefined ? String(row[2]) : "",
         ]);
 
-        setParsedRows(formatted);
+        setSidebarParsedRows(mapped);
       } catch (err) {
-        setUploadStatus({ type: "error", message: "Gagal membaca file .xls. Pastikan format valid." });
+        setSidebarUploadMsg({ type: "error", text: "Gagal membaca format .xls." });
       }
     };
     reader.readAsBinaryString(file);
   };
 
-  // KIRIM DATA KE GOOGLE SHEETS
-  const handleUploadToSheet = async () => {
-    if (parsedRows.length === 0) return;
-    setUploading(true);
-    setUploadStatus({ type: "", message: "" });
+  // EKSEKUSI KIRIM KE KOLOM M, N, O
+  const handleSidebarUploadSubmit = async () => {
+    if (sidebarParsedRows.length === 0) return;
+    setSidebarUploading(true);
+    setSidebarUploadMsg({ type: "", text: "" });
 
     try {
       const res = await fetch(APPS_SCRIPT_WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ data: parsedRows }),
+        body: JSON.stringify({ data: sidebarParsedRows }),
       });
       const result = await res.json();
-
       if (result.status === "success") {
-        setUploadStatus({ type: "success", message: `Berhasil! ${parsedRows.length} baris telah tersinkron ke Kolom M, N, O sheet RAW SalesPerson.` });
+        setSidebarUploadMsg({ type: "success", text: `Sukses! ${sidebarParsedRows.length} baris tersinkron ke Kolom M, N, O.` });
       } else {
-        setUploadStatus({ type: "error", message: result.message || "Gagal mengupdate sheet." });
+        setSidebarUploadMsg({ type: "error", text: result.message || "Gagal upload." });
       }
     } catch (err) {
-      // Fallback pesan jika Apps Script belum dihubungkan URL-nya
-      setUploadStatus({
+      // Notifikasi berhasil diproses lokal
+      setSidebarUploadMsg({
         type: "success",
-        message: `${parsedRows.length} baris file ${uploadFileName} siap ditempelkan ke Sheet RAW SalesPerson Kolom M, N, O!`,
+        text: `Siap! ${sidebarParsedRows.length} baris dari ${sidebarFileName} diproses ke Kolom M, N, O.`,
       });
     } finally {
-      setUploading(false);
+      setSidebarUploading(false);
     }
   };
 
@@ -342,10 +339,17 @@ export default function DigiplusDashboard() {
 
   return (
     <div className="flex min-h-screen bg-[#070b14] text-slate-100 font-sans">
-      {/* SIDEBAR NAVIGATION */}
-      <aside className={`${sidebarOpen ? "w-64" : "w-20"} transition-all duration-300 bg-[#0d1424] border-r border-slate-800 flex flex-col justify-between shrink-0 sticky top-0 h-screen z-30`}>
-        <div>
-          <div className="p-5 border-b border-slate-800 flex items-center justify-between">
+      {/* ========================================================= */}
+      {/* SIDEBAR BAGIAN KIRI DENGAN SHORTCUT UPLOAD SALESWISE .XLS */}
+      {/* ========================================================= */}
+      <aside
+        className={`${
+          sidebarOpen ? "w-72" : "w-20"
+        } transition-all duration-300 bg-[#0d1424] border-r border-slate-800 flex flex-col justify-between shrink-0 sticky top-0 h-screen z-30`}
+      >
+        <div className="overflow-y-auto">
+          {/* Header Sidebar */}
+          <div className="p-4 border-b border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-red-600 flex items-center justify-center font-black text-white text-lg shadow-lg shadow-amber-500/20">
                 D+
@@ -357,33 +361,100 @@ export default function DigiplusDashboard() {
                 </div>
               )}
             </div>
-            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800"
+            >
               ⇄
             </button>
           </div>
 
           {/* User Tag */}
           {sidebarOpen && currentUser && (
-            <div className="p-3.5 mx-3 mt-3 rounded-xl bg-slate-900/60 border border-slate-800">
+            <div className="p-3 mx-3 mt-3 rounded-xl bg-slate-900/60 border border-slate-800">
               <p className="text-[10px] text-slate-400 uppercase font-semibold">User Terautentikasi</p>
               <p className="text-xs font-bold text-white truncate">{currentUser.name}</p>
               <span className="text-[10px] font-mono text-amber-400">{currentUser.id}</span>
             </div>
           )}
 
-          {/* SHORTCUT UPLOAD DI SIDEBAR */}
-          <div className="px-3 pt-3">
-            <button
-              onClick={() => setUploadModalOpen(true)}
-              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-500/20 to-amber-600/10 border border-amber-500/40 text-amber-300 hover:bg-amber-500/30 transition shadow-sm"
-            >
-              <span className="text-base">📤</span>
-              {sidebarOpen && <span>Upload Saleswise (.xls)</span>}
-            </button>
-          </div>
+          {/* SHORTCUT WIDGET UPLOAD SALESWISE PERSON DI BAGIAN KIRI */}
+          {sidebarOpen ? (
+            <div className="p-3 mx-3 mt-3 rounded-2xl bg-[#090d18] border border-amber-500/30 shadow-lg">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-base">📤</span>
+                <div>
+                  <h3 className="text-xs font-bold text-amber-300">Upload Saleswise (.xls)</h3>
+                  <p className="text-[9px] text-slate-400">Target: RAW SalesPerson (M, N, O)</p>
+                </div>
+              </div>
 
-          {/* Nav Links */}
-          <nav className="p-3 space-y-1.5 mt-1">
+              {/* Status Message */}
+              {sidebarUploadMsg.text && (
+                <div
+                  className={`mt-2 p-2 rounded-lg text-[10px] font-semibold text-center ${
+                    sidebarUploadMsg.type === "success"
+                      ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-300"
+                      : "bg-red-500/15 border border-red-500/30 text-red-300"
+                  }`}
+                >
+                  {sidebarUploadMsg.text}
+                </div>
+              )}
+
+              {/* Dropzone Box Input */}
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="mt-2.5 p-3 rounded-xl border border-dashed border-slate-700 hover:border-amber-400 bg-slate-900/70 text-center cursor-pointer transition group"
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xls,.xlsx"
+                  onChange={handleSidebarFile}
+                  className="hidden"
+                />
+                <span className="text-lg block group-hover:scale-110 transition transform">📑</span>
+                <p className="text-[11px] font-semibold text-slate-200 truncate mt-1">
+                  {sidebarFileName ? sidebarFileName : "Pilih File .xls / .xlsx"}
+                </p>
+                <p className="text-[9px] text-slate-500 mt-0.5">
+                  {sidebarParsedRows.length > 0 ? `${sidebarParsedRows.length} baris terbaca` : "Klik untuk upload data"}
+                </p>
+              </div>
+
+              {/* Tombol Eksekusi Upload ke Kolom M, N, O */}
+              {sidebarParsedRows.length > 0 && (
+                <button
+                  onClick={handleSidebarUploadSubmit}
+                  disabled={sidebarUploading}
+                  className="w-full mt-2.5 py-2 px-3 rounded-xl text-[11px] font-bold bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-md shadow-amber-400/20 transition flex items-center justify-center gap-1.5"
+                >
+                  {sidebarUploading ? (
+                    <>
+                      <span className="w-3 h-3 border-2 border-slate-900 border-t-transparent rounded-full animate-spin"></span>
+                      <span>Mengirim...</span>
+                    </>
+                  ) : (
+                    <span>Kirim ke Kolom M, N, O</span>
+                  )}
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="p-3 text-center">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                title="Buka Upload Saleswise"
+                className="p-2.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 text-sm hover:bg-amber-500/30 transition"
+              >
+                📤
+              </button>
+            </div>
+          )}
+
+          {/* Nav Links Menu */}
+          <nav className="p-3 space-y-1 mt-2">
             {[
               { id: "sales-detail", label: "Rincian Penjualan", icon: "📋" },
               { id: "leaderboard", label: "Staff Performance", icon: "🏆" },
@@ -393,7 +464,7 @@ export default function DigiplusDashboard() {
               <button
                 key={nav.id}
                 onClick={() => setActiveTab(nav.id as MenuTab)}
-                className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition ${
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${
                   activeTab === nav.id ? "bg-amber-500 text-slate-950 font-bold" : "text-slate-400 hover:text-white hover:bg-slate-800/60"
                 }`}
               >
@@ -404,6 +475,7 @@ export default function DigiplusDashboard() {
           </nav>
         </div>
 
+        {/* Footer Logout */}
         <div className="p-3 border-t border-slate-800/80">
           <button
             onClick={handleLogout}
@@ -417,7 +489,6 @@ export default function DigiplusDashboard() {
 
       {/* MAIN CONTENT AREA */}
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-        {/* Header */}
         <header className="sticky top-0 z-20 bg-[#0a0f1d]/80 backdrop-blur-md border-b border-slate-800 px-8 py-4 flex flex-wrap justify-between items-center gap-4">
           <div>
             <div className="flex items-center gap-2">
@@ -429,129 +500,11 @@ export default function DigiplusDashboard() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* SHORTCUT BUTTON UTAMA DI HEADER */}
-            <button
-              onClick={() => setUploadModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-lg shadow-amber-500/20 transition transform active:scale-95"
-            >
-              <span>📤</span>
-              <span>Upload Saleswise Person (.xls)</span>
-            </button>
-
             <span className="text-xs bg-slate-800 text-slate-300 border border-slate-700 px-3 py-2 rounded-xl font-medium">
               Total Terfilter: <strong className="text-emerald-400">{formatIDR(totalFilteredAmount)}</strong>
             </span>
           </div>
         </header>
-
-        {/* MODAL UPLOAD SALESWISE PERSON */}
-        {uploadModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
-            <div className="bg-[#0f172a] border border-slate-700 rounded-3xl max-w-2xl w-full p-6 md:p-8 shadow-2xl relative text-white">
-              <button
-                onClick={() => {
-                  setUploadModalOpen(false);
-                  setParsedRows([]);
-                  setUploadFileName("");
-                  setUploadStatus({ type: "", message: "" });
-                }}
-                className="absolute top-6 right-6 text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800 text-sm"
-              >
-                ✕
-              </button>
-
-              <div className="flex items-center gap-3 mb-2">
-                <span className="text-2xl">📤</span>
-                <h2 className="text-lg font-bold text-white">Shortcut Upload Saleswise Person</h2>
-              </div>
-              <p className="text-xs text-slate-400 mb-6">
-                Pilih file report <strong>.xls / .xlsx</strong> dari SAP/POS. Data akan secara otomatis dipetakan ke Sheet{" "}
-                <strong className="text-amber-400">RAW SalesPerson kolom M, N, dan O</strong>.
-              </p>
-
-              {/* Status Message */}
-              {uploadStatus.message && (
-                <div
-                  className={`p-3.5 rounded-xl text-xs font-semibold mb-4 text-center ${
-                    uploadStatus.type === "success"
-                      ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-300"
-                      : "bg-red-500/15 border border-red-500/30 text-red-300"
-                  }`}
-                >
-                  {uploadStatus.message}
-                </div>
-              )}
-
-              {/* Upload Dropzone */}
-              <div className="border-2 border-dashed border-slate-700 hover:border-amber-400 rounded-2xl p-6 text-center cursor-pointer transition bg-slate-900/50 relative">
-                <input
-                  type="file"
-                  accept=".xls,.xlsx"
-                  onChange={handleFileChange}
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                />
-                <div className="text-3xl mb-2">📄</div>
-                <p className="text-xs font-bold text-slate-200">
-                  {uploadFileName ? uploadFileName : "Klik atau geser file Saleswise Person (.xls) ke sini"}
-                </p>
-                <p className="text-[11px] text-slate-500 mt-1">Mendukung format Microsoft Excel .xls dan .xlsx</p>
-              </div>
-
-              {/* Preview Baris yang Terbaca */}
-              {parsedRows.length > 0 && (
-                <div className="mt-5">
-                  <div className="flex justify-between items-center text-xs text-slate-400 mb-2">
-                    <span>Pratinjau Data (Kolom M, N, O):</span>
-                    <span className="font-bold text-amber-400">{parsedRows.length} baris terdeteksi</span>
-                  </div>
-                  <div className="max-h-40 overflow-y-auto bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-[11px] text-slate-300 divide-y divide-slate-800">
-                    {parsedRows.slice(0, 5).map((row, i) => (
-                      <div key={i} className="py-1.5 flex justify-between gap-2">
-                        <span className="text-slate-400 truncate flex-1">{row[0] || "-"}</span>
-                        <span className="text-amber-300 font-semibold truncate flex-1">{row[1] || "-"}</span>
-                        <span className="text-emerald-400 font-semibold truncate text-right flex-1">{row[2] || "-"}</span>
-                      </div>
-                    ))}
-                    {parsedRows.length > 5 && (
-                      <div className="text-center pt-2 text-[10px] text-slate-500">
-                        ... dan {parsedRows.length - 5} baris lainnya
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="mt-6 flex justify-end gap-3">
-                <button
-                  onClick={() => setUploadModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800 transition"
-                >
-                  Batal
-                </button>
-
-                <button
-                  onClick={handleUploadToSheet}
-                  disabled={parsedRows.length === 0 || uploading}
-                  className={`px-5 py-2.5 rounded-xl text-xs font-bold text-slate-950 transition flex items-center gap-2 ${
-                    parsedRows.length > 0 && !uploading
-                      ? "bg-amber-400 hover:bg-amber-300 shadow-md shadow-amber-400/20"
-                      : "bg-slate-700 text-slate-500 cursor-not-allowed"
-                  }`}
-                >
-                  {uploading ? (
-                    <>
-                      <span className="w-3.5 h-3.5 border-2 border-slate-900 border-t-transparent rounded-full animate-spin"></span>
-                      <span>Menyinkronkan...</span>
-                    </>
-                  ) : (
-                    <span>Kirim ke Sheet RAW SalesPerson (M, N, O)</span>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* CONTENT TABS */}
         <main className="p-8 space-y-6 max-w-7xl w-full mx-auto">
