@@ -138,8 +138,8 @@ const OVERVIEW_PRODUCT_BREAKDOWN: Record<string, { name: string; sku: string; br
   ],
 };
 
-// 4. DATA DETAIL STAFF PERFORMANCE (APPLE, ANDROID, ACCESSORIES, VAS)
-const DETAILED_STAFF_LIST: StaffFullData[] = [
+// 4. DATA DETAIL SELURUH STAF TOKO QF01 (DITAMPILKAN SEMUANYA)
+const ALL_STAFF_DETAILS: StaffFullData[] = [
   {
     rank: 1,
     salesId: "24004971",
@@ -150,8 +150,8 @@ const DETAILED_STAFF_LIST: StaffFullData[] = [
     variance: 548116283,
     estimate: 1835436458,
     status: "Tercapai",
-    ringkasanEvaluasi: "Performa terbaik di toko. Target kuota bulanan terlampaui 162,8% didorong volume iPhone yang sangat dominan.",
-    rekomendasiTindakan: "Tingkatkan attachment Aksesoris dan VAS Qoala pada setiap transaksi iPhone agar margin toko semakin optimal.",
+    ringkasanEvaluasi: "Pencapaian sangat memuaskan (162,8%). Lini iPhone menyumbang lebih dari Rp 1,35 Miliar.",
+    rekomendasiTindakan: "Tingkatkan attachment Aksesoris dan VAS Qoala pada setiap unit iPhone agar margin toko semakin maksimal.",
     appleSub: [
       { name: "iPhone", icon: "📱", qty: 45, actual: 1353207000, target: 750000000, achievement: 180.4, variance: 603207000, estimate: 1747892375 },
       { name: "iPad", icon: "📟", qty: 3, actual: 24884000, target: 60000000, achievement: 41.5, variance: -35116000, estimate: 32141833 },
@@ -189,8 +189,8 @@ const DETAILED_STAFF_LIST: StaffFullData[] = [
     variance: -771005404,
     estimate: 582552000,
     status: "Dalam Pantauan",
-    ringkasanEvaluasi: "Pencapaian 36,9% tertinggal dari laju waktu Time Gone (77,4%). Penjualan Samsung Galaxy S26 Ultra & Fold 8 sangat baik.",
-    rekomendasiTindakan: "Tingkatkan closing rate pada lini iPhone 17 dan MacBook untuk memangkas selisih minus Rp 771 Juta dalam 7 hari sisa.",
+    ringkasanEvaluasi: "Pencapaian 36,9% tertinggal dari Time Gone (77,4%). Samsung Flagship (S26 Ultra & Fold 8) terjual kuat.",
+    rekomendasiTindakan: "Fokus closing pada seri iPhone 17 dan MacBook untuk memangkas selisih minus Rp 771 Juta di sisa 7 hari.",
     appleSub: [
       { name: "iPhone", icon: "📱", qty: 12, actual: 238190000, target: 850000000, achievement: 28.0, variance: -611810000, estimate: 307662083 },
       { name: "iPad", icon: "📟", qty: 4, actual: 34796000, target: 80000000, achievement: 43.5, variance: -45204000, estimate: 44944833 },
@@ -229,8 +229,8 @@ const DETAILED_STAFF_LIST: StaffFullData[] = [
     variance: -1356476563,
     estimate: 390044842,
     status: "Perlu Perhatian Khusus",
-    ringkasanEvaluasi: "Pencapaian sangat rendah (18,2%) dengan defisit minus Rp 1,35 Miliar. Penjualan Android Non-Samsung dan aksesoris masih minim.",
-    rekomendasiTindakan: "Wajib tawarkan bundling cicilan 0% dan bundling proteksi Qoala untuk setiap pembeli iPhone 16 & 17.",
+    ringkasanEvaluasi: "Defisit kritis minus Rp 1,35 Miliar. Penjualan brand Android selain Samsung masih nol.",
+    rekomendasiTindakan: "Tawarkan simulasi cicilan 0% dan bundling proteksi Qoala pada setiap prospek perangkat flagship.",
     appleSub: [
       { name: "iPhone", icon: "📱", qty: 8, actual: 212493000, target: 1100000000, achievement: 19.3, variance: -887507000, estimate: 274470125 },
       { name: "iPad", icon: "📟", qty: 2, actual: 17398000, target: 100000000, achievement: 17.4, variance: -82602000, estimate: 22472417 },
@@ -268,8 +268,8 @@ const DETAILED_STAFF_LIST: StaffFullData[] = [
     variance: -1389431763,
     estimate: 347477708,
     status: "Perlu Perhatian Khusus",
-    ringkasanEvaluasi: "Defisit sangat kritis mencapai minus Rp 1,38 Miliar. Lini iPad, MacBook, dan seluruh brand Android selain Samsung kosong.",
-    rekomendasiTindakan: "Lakukan review harian terhadap daftar prospek walk-in customer dan fokus dorong penjualan iPad & Samsung A-Series.",
+    ringkasanEvaluasi: "Defisit mencapai minus Rp 1,38 Miliar. Lini iPad, MacBook, dan Android non-Samsung kosong.",
+    rekomendasiTindakan: "Review harian terhadap traffic walk-in dan proaktif tawarkan iPad dan Samsung A-Series.",
     appleSub: [
       { name: "iPhone", icon: "📱", qty: 6, actual: 171742000, target: 1100000000, achievement: 15.6, variance: -928258000, estimate: 221833417 },
       { name: "iPad", icon: "📟", qty: 0, actual: 0, target: 100000000, achievement: 0.0, variance: -100000000, estimate: 0 },
@@ -307,8 +307,8 @@ const DETAILED_STAFF_LIST: StaffFullData[] = [
     variance: 256332000,
     estimate: 331095500,
     status: "Dalam Pantauan",
-    ringkasanEvaluasi: "Staf non-quota resmi, namun berhasil membukukan omset Rp 256 Juta melalui iPhone 16 dan Samsung Galaxy A-Series.",
-    rekomendasiTindakan: "Berikan target kuota resmi bulan depan dan dorong penawaran proteksi Qoala untuk menjaga margin penjualan.",
+    ringkasanEvaluasi: "Staf non-quota resmi, mencatatkan omset Rp 256 Juta melalui iPhone 16 dan Samsung A-Series.",
+    rekomendasiTindakan: "Berikan target kuota resmi bulan depan dan dorong penawaran proteksi Qoala.",
     appleSub: [
       { name: "iPhone", icon: "📱", qty: 9, actual: 198992000, target: 0, achievement: 0.0, variance: 198992000, estimate: 257031333 },
       { name: "iPad", icon: "📟", qty: 0, actual: 0, target: 0, achievement: 0.0, variance: 0, estimate: 0 },
@@ -346,8 +346,8 @@ const DETAILED_STAFF_LIST: StaffFullData[] = [
     variance: -1418024763,
     estimate: 310545083,
     status: "Perlu Perhatian Khusus",
-    ringkasanEvaluasi: "Pencapaian sangat tertinggal (14,5%), defisit omset mencapai minus Rp 1,41 Miliar. Unit device utama sangat minim.",
-    rekomendasiTindakan: "Gunakan pendekatan proaktif dengan mempresentasikan promo cicilan kartu kredit dan trade-in handphone bekas.",
+    ringkasanEvaluasi: "Pencapaian sangat tertinggal (14,5%), defisit omset mencapai minus Rp 1,41 Miliar.",
+    rekomendasiTindakan: "Proaktif tawarkan promo cicilan kartu kredit dan trade-in untuk mendorong closing unit handphone.",
     appleSub: [
       { name: "iPhone", icon: "📱", qty: 7, actual: 184291000, target: 1100000000, achievement: 16.8, variance: -915709000, estimate: 238042542 },
       { name: "iPad", icon: "📟", qty: 0, actual: 0, target: 100000000, achievement: 0.0, variance: -100000000, estimate: 0 },
@@ -386,8 +386,8 @@ const DETAILED_STAFF_LIST: StaffFullData[] = [
     variance: -1483995763,
     estimate: 225332542,
     status: "Perlu Perhatian Khusus",
-    ringkasanEvaluasi: "Peringkat paling rendah di toko dengan pencapaian 10,5% dan defisit terbesar minus Rp 1,48 Miliar.",
-    rekomendasiTindakan: "Lakukan coaching intensif teknik closing, briefing produk bundling aksesoris, dan targetkan minimal 2 transaksi device per hari.",
+    ringkasanEvaluasi: "Peringkat terendah di toko dengan pencapaian 10,5% dan defisit terbesar minus Rp 1,48 Miliar.",
+    rekomendasiTindakan: "Coaching intensif teknik closing dan targetkan minimal 2 transaksi perangkat per hari.",
     appleSub: [
       { name: "iPhone", icon: "📱", qty: 5, actual: 128496000, target: 1100000000, achievement: 11.7, variance: -971504000, estimate: 165974000 },
       { name: "iPad", icon: "📟", qty: 0, actual: 0, target: 100000000, achievement: 0.0, variance: -100000000, estimate: 0 },
@@ -431,10 +431,6 @@ export default function Page() {
   const [filterMonth, setFilterMonth] = useState("2026-10");
   const [filterWeek, setFilterWeek] = useState("ALL");
   const [filterDate, setFilterDate] = useState("2026-10-24");
-
-  // Staff Performance State
-  const [selectedStaffIndex, setSelectedStaffIndex] = useState(0);
-  const [staffLOBTab, setStaffLOBTab] = useState<"apple" | "android" | "accessories" | "vas">("apple");
 
   // Shortcut Upload State
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -515,11 +511,9 @@ export default function Page() {
     return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
   };
 
-  const currentStaff = DETAILED_STAFF_LIST[selectedStaffIndex];
-
   // Daftar Staf yang Memerlukan Perhatian Khusus
   const attentionStaffList = useMemo(() => {
-    return DETAILED_STAFF_LIST.filter((s) => s.status === "Perlu Perhatian Khusus");
+    return ALL_STAFF_DETAILS.filter((s) => s.status === "Perlu Perhatian Khusus");
   }, []);
 
   // HALAMAN LOGIN DENGAN BACKGROUND DEEP INDIGO (#1A1831) & TEKS WARM CLOUD (#FFF6E9)
@@ -930,7 +924,7 @@ export default function Page() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#3B3666] font-medium">
-                    {DETAILED_STAFF_LIST.map((s) => (
+                    {ALL_STAFF_DETAILS.map((s) => (
                       <tr
                         key={s.rank}
                         className={`hover:bg-[#2B274F]/50 transition ${
@@ -1081,9 +1075,9 @@ export default function Page() {
           </div>
         )}
 
-        {/* ========================================================= */}
-        {/* TAB 2: STAFF PERFORMANCE DETAIL (DETAIL PRODUK & EVALUASI) */}
-        {/* ========================================================= */}
+        {/* ========================================================================= */}
+        {/* TAB 2: STAFF PERFORMANCE DETAIL (SEMUA STAF DITAMPILKAN SEKALIGUS)       */}
+        {/* ========================================================================= */}
         {activeTab === "staff-performance" && (
           <div className="space-y-8">
             {/* 1. KARTU PERINGATAN: STAF YANG PERLU DIPERHATIKAN PENJUALANNYA */}
@@ -1106,11 +1100,7 @@ export default function Page() {
                 {attentionStaffList.map((st) => (
                   <div
                     key={st.salesId}
-                    onClick={() => {
-                      const idx = DETAILED_STAFF_LIST.findIndex((x) => x.salesId === st.salesId);
-                      if (idx !== -1) setSelectedStaffIndex(idx);
-                    }}
-                    className="p-4 bg-[#141226] border border-red-500/30 hover:border-red-400 rounded-2xl cursor-pointer transition"
+                    className="p-4 bg-[#141226] border border-red-500/40 rounded-2xl shadow-md"
                   >
                     <div className="flex justify-between items-center mb-1">
                       <span className="text-xs font-bold text-white">{st.name}</span>
@@ -1129,171 +1119,268 @@ export default function Page() {
               </div>
             </div>
 
-            {/* 2. PANEL RINCIAN LENGKAP STAF TERPILIH */}
-            <div className="p-6 bg-[#221F40] border-2 border-[#F5BA42]/40 rounded-3xl shadow-2xl">
-              {/* Header Staf Terpilih */}
-              <div className="flex flex-wrap justify-between items-center gap-4 pb-4 border-b border-[#3B3666] mb-6">
-                <div>
-                  <span className="text-[10px] font-black uppercase text-[#F5BA42] tracking-widest block">
-                    Detail Sub-Lini Produk Salesperson
-                  </span>
-                  <div className="flex items-center gap-3 mt-1">
-                    <select
-                      value={selectedStaffIndex}
-                      onChange={(e) => setSelectedStaffIndex(Number(e.target.value))}
-                      className="bg-[#141226] border border-[#3B3666] text-[#FFF6E9] font-black text-lg rounded-xl px-3 py-1.5 focus:outline-none focus:border-[#F5BA42]"
-                    >
-                      {DETAILED_STAFF_LIST.map((s, idx) => (
-                        <option key={s.salesId} value={idx}>
-                          #{s.rank} - {s.name} ({s.achievement > 0 ? `${s.achievement.toFixed(1)}%` : "Non-Quota"})
-                        </option>
-                      ))}
-                    </select>
-
-                    <span className="text-xs px-2.5 py-1 rounded-full bg-[#F5BA42] text-[#1A1831] font-black">
-                      Rank #{currentStaff.rank}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Sub Tab Pemilih Kategori: Apple, Android, Accessories (Besar ke Kecil), VAS */}
-                <div className="flex flex-wrap gap-2 bg-[#141226] p-1.5 rounded-2xl border border-[#3B3666]">
-                  <button
-                    onClick={() => setStaffLOBTab("apple")}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-                      staffLOBTab === "apple"
-                        ? "bg-sky-500 text-[#1A1831] shadow-lg shadow-sky-500/20"
-                        : "text-[#FFF6E9]/70 hover:text-[#FFF6E9]"
-                    }`}
-                  >
-                    <span>🍎</span>
-                    <span>Apple (iPhone/iPad/Mac/Watch/AirPods)</span>
-                  </button>
-
-                  <button
-                    onClick={() => setStaffLOBTab("android")}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-                      staffLOBTab === "android"
-                        ? "bg-indigo-500 text-[#FFF6E9] shadow-lg shadow-indigo-500/20"
-                        : "text-[#FFF6E9]/70 hover:text-[#FFF6E9]"
-                    }`}
-                  >
-                    <span>🤖</span>
-                    <span>Android (Samsung/Oppo/Moto/Huawei/Infinix/Xiaomi)</span>
-                  </button>
-
-                  <button
-                    onClick={() => setStaffLOBTab("accessories")}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-                      staffLOBTab === "accessories"
-                        ? "bg-[#F5BA42] text-[#1A1831] shadow-lg shadow-[#F5BA42]/20"
-                        : "text-[#FFF6E9]/70 hover:text-[#FFF6E9]"
-                    }`}
-                  >
-                    <span>🔌</span>
-                    <span>Accessories (Besar ke Kecil)</span>
-                  </button>
-
-                  <button
-                    onClick={() => setStaffLOBTab("vas")}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-                      staffLOBTab === "vas"
-                        ? "bg-purple-500 text-[#FFF6E9] shadow-lg shadow-purple-500/20"
-                        : "text-[#FFF6E9]/70 hover:text-[#FFF6E9]"
-                    }`}
-                  >
-                    <span>🛡️</span>
-                    <span>VAS (Qoala/Tsel/XL/Indosat)</span>
-                  </button>
-                </div>
+            {/* 2. DAFTAR SELURUH STAF TOKO (DITAMPILKAN SEMUANYA SATU PER SATU DARI RANK 1 SAMPAI 7) */}
+            <div className="space-y-8">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-black text-[#FFF6E9] tracking-wide flex items-center gap-2">
+                  <span>👥</span>
+                  <span>RINCIAN DETAIL SELURUH STAF SALES ({ALL_STAFF_DETAILS.length} ORANG)</span>
+                </h2>
+                <span className="text-xs text-[#F5BA42] font-semibold">Semua rincian produk ditampilkan lengkap tanpa dropdown</span>
               </div>
 
-              {/* Ringkasan Evaluasi & Rekomendasi Ringkas Bahasa Indonesia */}
-              <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 bg-[#141226] rounded-2xl border border-[#3B3666]">
-                  <h4 className="text-xs font-bold text-[#F5BA42] uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                    <span>📌</span>
-                    <span>Ringkasan Evaluasi Kinerja:</span>
-                  </h4>
-                  <p className="text-xs text-[#FFF6E9]/80 leading-relaxed">
-                    {currentStaff.ringkasanEvaluasi}
-                  </p>
-                </div>
-
-                <div className="p-4 bg-[#141226] rounded-2xl border border-[#3B3666]">
-                  <h4 className="text-xs font-bold text-emerald-300 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                    <span>⚡</span>
-                    <span>Rekomendasi Tindakan Leader:</span>
-                  </h4>
-                  <p className="text-xs text-[#FFF6E9]/80 leading-relaxed">
-                    {currentStaff.rekomendasiTindakan}
-                  </p>
-                </div>
-              </div>
-
-              {/* Tabel Detail Sub-Lini Terpilih dengan Ikon Khusus */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-[#141226] text-[#FFF6E9]/70 uppercase text-[11px] border-b border-[#3B3666]">
-                    <tr>
-                      <th className="py-4 px-4">Lini Produk</th>
-                      <th className="py-4 px-4 text-center">Qty Terjual</th>
-                      <th className="py-4 px-4 text-right">Target Lini</th>
-                      <th className="py-4 px-4 text-right">Actual Sales</th>
-                      <th className="py-4 px-4 text-center">Achievement (%)</th>
-                      <th className="py-4 px-4 text-right">Variance</th>
-                      <th className="py-4 px-4 text-right">Estimate (Run Rate)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#3B3666] font-medium">
-                    {(staffLOBTab === "apple"
-                      ? currentStaff.appleSub
-                      : staffLOBTab === "android"
-                      ? currentStaff.androidSub
-                      : staffLOBTab === "accessories"
-                      ? currentStaff.accessoriesSub
-                      : currentStaff.vasSub
-                    ).map((sub, idx) => (
-                      <tr key={idx} className="hover:bg-[#2B274F]/50 transition">
-                        <td className="py-4 px-4 font-bold text-[#FFF6E9] text-sm">
-                          <span className="mr-2">{sub.icon}</span>
-                          <span>{sub.name}</span>
-                        </td>
-                        <td className="py-4 px-4 text-center font-bold text-white">{sub.qty} Unit</td>
-                        <td className="py-4 px-4 text-right text-[#FFF6E9]/70 font-mono">
-                          {sub.target > 0 ? formatIDR(sub.target) : "-"}
-                        </td>
-                        <td className="py-4 px-4 text-right font-extrabold text-emerald-300 text-sm">
-                          {formatIDR(sub.actual)}
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                          <span
-                            className={`px-2.5 py-1 rounded-full text-xs font-black border ${
-                              sub.actual === 0
-                                ? "bg-slate-800 text-slate-500 border-slate-700"
-                                : sub.achievement >= 100
-                                ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/30"
-                                : "bg-amber-500/20 text-amber-300 border-amber-400/30"
-                            }`}
-                          >
-                            {sub.target > 0 ? `${sub.achievement.toFixed(1)}%` : sub.actual > 0 ? "100%" : "0%"}
-                          </span>
-                        </td>
-                        <td
-                          className={`py-4 px-4 text-right font-mono font-bold ${
-                            sub.variance >= 0 ? "text-emerald-300" : "text-red-300"
+              {ALL_STAFF_DETAILS.map((staff) => (
+                <div
+                  key={staff.salesId}
+                  className="p-6 bg-[#221F40] border-2 border-[#3B3666] rounded-3xl shadow-2xl relative overflow-hidden space-y-6"
+                >
+                  {/* Header Staf */}
+                  <div className="flex flex-wrap justify-between items-start gap-4 pb-4 border-b border-[#3B3666]">
+                    <div>
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`w-8 h-8 rounded-full inline-flex items-center justify-center font-black text-sm ${
+                            staff.rank === 1
+                              ? "bg-[#F5BA42] text-[#1A1831] shadow-lg shadow-[#F5BA42]/30"
+                              : staff.rank === 2
+                              ? "bg-slate-300 text-[#1A1831]"
+                              : staff.rank === 3
+                              ? "bg-amber-700 text-white"
+                              : "bg-[#141226] text-[#FFF6E9]/80 border border-[#3B3666]"
                           }`}
                         >
-                          {sub.target > 0 ? formatIDR(sub.variance) : "-"}
-                        </td>
-                        <td className="py-4 px-4 text-right text-emerald-300 font-mono font-bold">
-                          {formatIDR(sub.estimate)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                          #{staff.rank}
+                        </span>
+                        <div>
+                          <h3 className="text-xl font-black text-[#FFF6E9] flex items-center gap-2">
+                            <span>{staff.name}</span>
+                            {staff.rank === 1 && (
+                              <span className="text-[10px] bg-[#F5BA42] text-[#1A1831] px-2 py-0.5 rounded-full font-black uppercase">
+                                Top 1 👑
+                              </span>
+                            )}
+                          </h3>
+                          <p className="text-xs text-[#FFF6E9]/60 font-mono">ID Staf: {staff.salesId}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Ringkasan Angka Utama Staf */}
+                    <div className="flex flex-wrap items-center gap-3 text-right">
+                      <div className="bg-[#141226] px-3.5 py-2 rounded-xl border border-[#3B3666]">
+                        <span className="text-[10px] text-[#FFF6E9]/60 uppercase block">Actual Omset</span>
+                        <span className="text-sm font-black text-emerald-300">{formatIDR(staff.actual)}</span>
+                      </div>
+                      <div className="bg-[#141226] px-3.5 py-2 rounded-xl border border-[#3B3666]">
+                        <span className="text-[10px] text-[#FFF6E9]/60 uppercase block">Target Kuota</span>
+                        <span className="text-sm font-bold text-slate-300">{staff.target > 0 ? formatIDR(staff.target) : "-"}</span>
+                      </div>
+                      <div className="bg-[#141226] px-3.5 py-2 rounded-xl border border-[#3B3666]">
+                        <span className="text-[10px] text-[#FFF6E9]/60 uppercase block">Achievement</span>
+                        <span className={`text-sm font-black ${staff.achievement >= 100 ? "text-emerald-300" : "text-[#F5BA42]"}`}>
+                          {staff.achievement > 0 ? `${staff.achievement.toFixed(1)}%` : "-"}
+                        </span>
+                      </div>
+                      <div className="bg-[#141226] px-3.5 py-2 rounded-xl border border-[#3B3666]">
+                        <span className="text-[10px] text-[#FFF6E9]/60 uppercase block">Variance</span>
+                        <span className={`text-sm font-bold ${staff.variance >= 0 ? "text-emerald-300" : "text-red-300"}`}>
+                          {staff.target > 0 ? formatIDR(staff.variance) : "-"}
+                        </span>
+                      </div>
+                      <div className="bg-[#141226] px-3.5 py-2 rounded-xl border border-[#3B3666]">
+                        <span className="text-[10px] text-[#FFF6E9]/60 uppercase block">Estimate</span>
+                        <span className="text-sm font-bold text-emerald-400">{formatIDR(staff.estimate)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Ringkasan Evaluasi & Rekomendasi Staf Ringkas Bahasa Indonesia */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-3.5 bg-[#141226] rounded-2xl border border-[#3B3666]">
+                      <h4 className="text-xs font-bold text-[#F5BA42] uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                        <span>📌</span>
+                        <span>Ringkasan Evaluasi Penjualan:</span>
+                      </h4>
+                      <p className="text-xs text-[#FFF6E9]/80 leading-relaxed">
+                        {staff.ringkasanEvaluasi}
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 bg-[#141226] rounded-2xl border border-[#3B3666]">
+                      <h4 className="text-xs font-bold text-emerald-300 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                        <span>⚡</span>
+                        <span>Rekomendasi Tindakan Leader:</span>
+                      </h4>
+                      <p className="text-xs text-[#FFF6E9]/80 leading-relaxed">
+                        {staff.rekomendasiTindakan}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Tabel 1: Sub-Lini Apple Devices */}
+                  <div>
+                    <h4 className="text-xs font-bold text-sky-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                      <span>🍎</span>
+                      <span>Apple Devices (iPhone, iPad, MacBook, Apple Watch, AirPods)</span>
+                    </h4>
+                    <div className="overflow-x-auto rounded-xl border border-[#3B3666]">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-[#141226] text-[#FFF6E9]/70 uppercase text-[10px] border-b border-[#3B3666]">
+                          <tr>
+                            <th className="py-2.5 px-3">Produk Apple</th>
+                            <th className="py-2.5 px-3 text-center">Qty</th>
+                            <th className="py-2.5 px-3 text-right">Actual Sales</th>
+                            <th className="py-2.5 px-3 text-right">Target</th>
+                            <th className="py-2.5 px-3 text-center">Achv (%)</th>
+                            <th className="py-2.5 px-3 text-right">Variance</th>
+                            <th className="py-2.5 px-3 text-right">Estimate</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#3B3666] font-medium">
+                          {staff.appleSub.map((p, idx) => (
+                            <tr key={idx} className="hover:bg-[#2B274F]/40 transition">
+                              <td className="py-2.5 px-3 font-bold text-[#FFF6E9] flex items-center gap-1.5">
+                                <span>{p.icon}</span>
+                                <span>{p.name}</span>
+                              </td>
+                              <td className="py-2.5 px-3 text-center font-bold text-white">{p.qty}</td>
+                              <td className="py-2.5 px-3 text-right font-extrabold text-emerald-300">{formatIDR(p.actual)}</td>
+                              <td className="py-2.5 px-3 text-right text-[#FFF6E9]/70 font-mono">{p.target > 0 ? formatIDR(p.target) : "-"}</td>
+                              <td className="py-2.5 px-3 text-center">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${p.actual === 0 ? "text-slate-500" : p.achievement >= 100 ? "text-emerald-300" : "text-[#F5BA42]"}`}>
+                                  {p.target > 0 ? `${p.achievement.toFixed(1)}%` : p.actual > 0 ? "100%" : "0%"}
+                                </span>
+                              </td>
+                              <td className={`py-2.5 px-3 text-right font-mono font-bold ${p.variance >= 0 ? "text-emerald-300" : "text-red-300"}`}>
+                                {p.target > 0 ? formatIDR(p.variance) : "-"}
+                              </td>
+                              <td className="py-2.5 px-3 text-right text-emerald-300 font-mono">{formatIDR(p.estimate)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Tabel 2: Sub-Lini Android Devices */}
+                  <div>
+                    <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                      <span>🤖</span>
+                      <span>Android Devices (Samsung, Oppo, Motorola, Huawei, Infinix, Xiaomi)</span>
+                    </h4>
+                    <div className="overflow-x-auto rounded-xl border border-[#3B3666]">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-[#141226] text-[#FFF6E9]/70 uppercase text-[10px] border-b border-[#3B3666]">
+                          <tr>
+                            <th className="py-2.5 px-3">Brand Android</th>
+                            <th className="py-2.5 px-3 text-center">Qty</th>
+                            <th className="py-2.5 px-3 text-right">Actual Sales</th>
+                            <th className="py-2.5 px-3 text-right">Target</th>
+                            <th className="py-2.5 px-3 text-center">Achv (%)</th>
+                            <th className="py-2.5 px-3 text-right">Variance</th>
+                            <th className="py-2.5 px-3 text-right">Estimate</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#3B3666] font-medium">
+                          {staff.androidSub.map((p, idx) => (
+                            <tr key={idx} className="hover:bg-[#2B274F]/40 transition">
+                              <td className="py-2.5 px-3 font-bold text-[#FFF6E9] flex items-center gap-1.5">
+                                <span>{p.icon}</span>
+                                <span>{p.name}</span>
+                              </td>
+                              <td className="py-2.5 px-3 text-center font-bold text-white">{p.qty}</td>
+                              <td className="py-2.5 px-3 text-right font-extrabold text-emerald-300">{formatIDR(p.actual)}</td>
+                              <td className="py-2.5 px-3 text-right text-[#FFF6E9]/70 font-mono">{p.target > 0 ? formatIDR(p.target) : "-"}</td>
+                              <td className="py-2.5 px-3 text-center">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${p.actual === 0 ? "text-slate-500" : p.achievement >= 100 ? "text-emerald-300" : "text-[#F5BA42]"}`}>
+                                  {p.target > 0 ? `${p.achievement.toFixed(1)}%` : p.actual > 0 ? "100%" : "0%"}
+                                </span>
+                              </td>
+                              <td className={`py-2.5 px-3 text-right font-mono font-bold ${p.variance >= 0 ? "text-emerald-300" : "text-red-300"}`}>
+                                {p.target > 0 ? formatIDR(p.variance) : "-"}
+                              </td>
+                              <td className="py-2.5 px-3 text-right text-emerald-300 font-mono">{formatIDR(p.estimate)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Grid 2 Kolom: Accessories (Besar ke Kecil) & VAS (Qoala, Telkomsel, XL, Indosat) */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {/* Accessories */}
+                    <div>
+                      <h4 className="text-xs font-bold text-amber-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <span>🔌</span>
+                        <span>Accessories (Diurutkan dari Nominal Besar ke Kecil)</span>
+                      </h4>
+                      <div className="overflow-x-auto rounded-xl border border-[#3B3666]">
+                        <table className="w-full text-left text-xs">
+                          <thead className="bg-[#141226] text-[#FFF6E9]/70 uppercase text-[10px] border-b border-[#3B3666]">
+                            <tr>
+                              <th className="py-2.5 px-3">Item Aksesoris</th>
+                              <th className="py-2.5 px-3 text-center">Qty</th>
+                              <th className="py-2.5 px-3 text-right">Actual</th>
+                              <th className="py-2.5 px-3 text-right">Variance</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[#3B3666] font-medium">
+                            {staff.accessoriesSub.map((p, idx) => (
+                              <tr key={idx} className="hover:bg-[#2B274F]/40 transition">
+                                <td className="py-2 px-3 font-bold text-[#FFF6E9] flex items-center gap-1.5">
+                                  <span>{p.icon}</span>
+                                  <span>{p.name}</span>
+                                </td>
+                                <td className="py-2 px-3 text-center font-bold text-white">{p.qty}</td>
+                                <td className="py-2 px-3 text-right font-extrabold text-amber-300">{formatIDR(p.actual)}</td>
+                                <td className={`py-2 px-3 text-right font-mono font-bold ${p.variance >= 0 ? "text-emerald-300" : "text-red-300"}`}>
+                                  {p.target > 0 ? formatIDR(p.variance) : "-"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* VAS */}
+                    <div>
+                      <h4 className="text-xs font-bold text-purple-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <span>🛡️</span>
+                        <span>VAS (Qoala, Telkomsel, XL, Indosat)</span>
+                      </h4>
+                      <div className="overflow-x-auto rounded-xl border border-[#3B3666]">
+                        <table className="w-full text-left text-xs">
+                          <thead className="bg-[#141226] text-[#FFF6E9]/70 uppercase text-[10px] border-b border-[#3B3666]">
+                            <tr>
+                              <th className="py-2.5 px-3">Layanan VAS</th>
+                              <th className="py-2.5 px-3 text-center">Qty</th>
+                              <th className="py-2.5 px-3 text-right">Actual</th>
+                              <th className="py-2.5 px-3 text-right">Variance</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[#3B3666] font-medium">
+                            {staff.vasSub.map((p, idx) => (
+                              <tr key={idx} className="hover:bg-[#2B274F]/40 transition">
+                                <td className="py-2 px-3 font-bold text-[#FFF6E9] flex items-center gap-1.5">
+                                  <span>{p.icon}</span>
+                                  <span>{p.name}</span>
+                                </td>
+                                <td className="py-2 px-3 text-center font-bold text-white">{p.qty}</td>
+                                <td className="py-2 px-3 text-right font-extrabold text-purple-300">{formatIDR(p.actual)}</td>
+                                <td className={`py-2 px-3 text-right font-mono font-bold ${p.variance >= 0 ? "text-emerald-300" : "text-red-300"}`}>
+                                  {p.target > 0 ? formatIDR(p.variance) : "-"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
