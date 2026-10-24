@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
 
-type MenuTab = "store-overview" | "weekly-sales" | "staff-performance" | "sales-detail";
+type MenuTab = "store-overview" | "weekly-sales" | "staff-performance" | "bnpl" | "sales-detail" | "admin-audit";
 
 interface SubCategoryMetric {
   name: string;
@@ -42,7 +42,28 @@ interface StaffFullData {
   vasSub: SubCategoryMetric[];
 }
 
-// 1. DATA TIME GONE BERJALAN (OKTOBER 2026)
+interface BnplTransaction {
+  date: string;
+  invoice: string;
+  amount: number;
+  tender: string;
+  product: string;
+  qty: number;
+  month: string;
+}
+
+interface StaffLoginLog {
+  id: string;
+  salesId: string;
+  salesName: string;
+  timestamp: string;
+  deviceType: "Komputer / PC" | "Tablet" | "Handphone / Mobile";
+  browserInfo: string;
+  locationName: string;
+  coords: string;
+}
+
+// 1. DATA TIME GONE BERJALAN
 const TIME_GONE_DATA = {
   daysPassed: 24,
   totalDays: 31,
@@ -147,7 +168,7 @@ const OVERVIEW_PRODUCT_BREAKDOWN: Record<string, { name: string; sku: string; br
   ],
 };
 
-// 4. DATA WEEKLY SALES (DARI SHEET DATABASE KOLOM O)
+// 4. DATA WEEKLY SALES DARI DATABASE KOLOM O
 const DATABASE_WEEKLY_DATA = [
   {
     weekLabel: "Week 1 (03/10/26)",
@@ -199,7 +220,56 @@ const DATABASE_WEEKLY_DATA = [
   },
 ];
 
-// 5. DATA DETAIL SELURUH STAF TOKO QF01 (DITAMPILKAN SEMUANYA)
+// 5. DATA RIIL SHEET BNPL DATABASE (gid: 2697970)
+const BNPL_REAL_DATA: BnplTransaction[] = [
+  {
+    date: "09-10-2026",
+    invoice: "100012235",
+    amount: 2099000,
+    tender: "Indodana",
+    product: "HUAWEI WATCH FIT 5 BLACK",
+    qty: 1,
+    month: "Oktober 2026",
+  },
+  {
+    date: "10-10-2026",
+    invoice: "100012241",
+    amount: 24969000,
+    tender: "Indodana",
+    product: "IPHONE 17 PRO 256GB SILVER ; PROTEKSI DIAMOND 24-25",
+    qty: 1,
+    month: "Oktober 2026",
+  },
+  {
+    date: "11-10-2026",
+    invoice: "100012249",
+    amount: 14999000,
+    tender: "Akulaku",
+    product: "IPHONE 17 PRO MAX 256GB DEEP BLUE",
+    qty: 1,
+    month: "Oktober 2026",
+  },
+  {
+    date: "03-10-2026",
+    invoice: "100012221",
+    amount: 13000000,
+    tender: "Kredivo",
+    product: "20W USB-C POWER ADAPTER ; IPHONE 17 PRO 1TB SILVER ; IP17 PRO SANTACRUZ SNAP MIDBLK",
+    qty: 1,
+    month: "Oktober 2026",
+  },
+  {
+    date: "15-10-2026",
+    invoice: "100012270",
+    amount: 32499000,
+    tender: "Home Credit",
+    product: "SAMSUNG Z FOLD 8 12/512GB GRAPHITE",
+    qty: 1,
+    month: "Oktober 2026",
+  },
+];
+
+// 6. DATA DETAIL STAFF LENGKAP TOKO QF01
 const ALL_STAFF_DETAILS: StaffFullData[] = [
   {
     rank: 1,
@@ -214,8 +284,8 @@ const ALL_STAFF_DETAILS: StaffFullData[] = [
     variance: 548116283,
     estimate: 1835436458,
     status: "Tercapai",
-    ringkasanEvaluasi: "Pencapaian sangat luar biasa (162,8%) berkat volume penjualan iPhone yang dominan.",
-    rekomendasiTindakan: "Tingkatkan rasio attach Accessories & Proteksi Qoala pada setiap unit iPhone yang terjual.",
+    ringkasanEvaluasi: "Pencapaian sangat memuaskan (162,8%) berkat volume penjualan iPhone yang dominan.",
+    rekomendasiTindakan: "Tingkatkan closing rate Accessories dan Proteksi Qoala pada setiap unit iPhone.",
     targetAcc: 50000000,
     actualAcc: 2711000,
     achvAcc: 5.4,
@@ -262,8 +332,8 @@ const ALL_STAFF_DETAILS: StaffFullData[] = [
     variance: -771005404,
     estimate: 582552000,
     status: "Dalam Pantauan",
-    ringkasanEvaluasi: "Pencapaian 36,9% tertinggal dari Time Gone (77,4%). Samsung Flagship (S26 Ultra & Fold 8) terjual kuat.",
-    rekomendasiTindakan: "Fokus closing pada seri iPhone 17 dan MacBook untuk memangkas selisih minus Rp 771 Juta di sisa 7 hari.",
+    ringkasanEvaluasi: "Pencapaian 36,9% tertinggal dari Time Gone (77,4%). Samsung Flagship sangat kuat.",
+    rekomendasiTindakan: "Fokus closing iPhone 17 dan MacBook untuk memangkas gap minus Rp 771 Juta di 7 hari sisa.",
     targetAcc: 80000000,
     actualAcc: 17654000,
     achvAcc: 22.1,
@@ -312,7 +382,7 @@ const ALL_STAFF_DETAILS: StaffFullData[] = [
     estimate: 390044842,
     status: "Perlu Perhatian Khusus",
     ringkasanEvaluasi: "Defisit kritis minus Rp 1,35 Miliar. Penjualan brand Android selain Samsung masih nol.",
-    rekomendasiTindakan: "Tawarkan simulasi cicilan 0% dan bundling proteksi Qoala pada setiap prospek perangkat flagship.",
+    rekomendasiTindakan: "Tawarkan simulasi cicilan 0% dan proteksi Qoala pada setiap prospek perangkat flagship.",
     targetAcc: 100000000,
     actualAcc: 14335200,
     achvAcc: 14.3,
@@ -360,7 +430,7 @@ const ALL_STAFF_DETAILS: StaffFullData[] = [
     estimate: 347477708,
     status: "Perlu Perhatian Khusus",
     ringkasanEvaluasi: "Defisit mencapai minus Rp 1,38 Miliar. Lini iPad, MacBook, dan Android non-Samsung kosong.",
-    rekomendasiTindakan: "Review harian terhadap traffic walk-in dan proaktif tawarkan iPad dan Samsung A-Series.",
+    rekomendasiTindakan: "Review harian traffic walk-in dan proaktif tawarkan iPad dan Samsung A-Series.",
     targetAcc: 100000000,
     actualAcc: 8532000,
     achvAcc: 8.5,
@@ -407,7 +477,7 @@ const ALL_STAFF_DETAILS: StaffFullData[] = [
     variance: 256332000,
     estimate: 331095500,
     status: "Dalam Pantauan",
-    ringkasanEvaluasi: "Staf non-quota resmi, mencatatkan omset Rp 256 Juta melalui iPhone 16 dan Samsung A-Series.",
+    ringkasanEvaluasi: "Staf non-quota resmi, membukukan omset Rp 256 Juta melalui iPhone 16 dan Samsung A-Series.",
     rekomendasiTindakan: "Berikan target kuota resmi bulan depan dan dorong penawaran proteksi Qoala.",
     targetAcc: 0,
     actualAcc: 1946000,
@@ -548,6 +618,7 @@ export default function Page() {
   const [passwordInput, setPasswordInput] = useState("");
   const [loginErr, setLoginErr] = useState("");
   const [currentSalesId, setCurrentSalesId] = useState("");
+  const [currentSalesName, setCurrentSalesName] = useState("");
 
   const [activeTab, setActiveTab] = useState<MenuTab>("store-overview");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -557,6 +628,9 @@ export default function Page() {
   const [filterWeek, setFilterWeek] = useState("ALL");
   const [filterDate, setFilterDate] = useState("2026-10-24");
   const [overviewDetailCategory, setOverviewDetailCategory] = useState<"apple" | "android" | "accessories" | "vas">("apple");
+
+  // Admin Activity Staff Logs State
+  const [staffActivityLogs, setStaffActivityLogs] = useState<StaffLoginLog[]>([]);
 
   // Shortcut Upload State
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -568,15 +642,84 @@ export default function Page() {
 
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz2VUsReKqqJgPsG15L1pOAkmqoIWF2vApyD18jr5e_z0OVqagasa9yHXEe5fzMhoQmOw/exec";
 
+  // Cek sesi login & muat activity logs
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedUser = localStorage.getItem("digiplus_session_user");
+      const savedName = localStorage.getItem("digiplus_session_name");
       if (savedUser) {
         setIsLoggedIn(true);
         setCurrentSalesId(savedUser);
+        setCurrentSalesName(savedName || `Sales ${savedUser}`);
+      }
+      const savedLogs = localStorage.getItem("digiplus_staff_activity_logs");
+      if (savedLogs) {
+        try {
+          setStaffActivityLogs(JSON.parse(savedLogs));
+        } catch (e) {}
       }
     }
   }, []);
+
+  // Deteksi Tipe Perangkat
+  const detectDevice = (): "Komputer / PC" | "Tablet" | "Handphone / Mobile" => {
+    if (typeof window === "undefined") return "Komputer / PC";
+    const ua = navigator.userAgent;
+    if (/(tablet|ipad|playbook|silk)|(android(?!.*mobi))/i.test(ua)) return "Tablet";
+    if (/Mobile|Android|iP(hone|od)|IEMobile|BlackBerry/i.test(ua)) return "Handphone / Mobile";
+    return "Komputer / PC";
+  };
+
+  const recordStaffActivity = (id: string, name: string) => {
+    const now = new Date();
+    const timeFormatted = now.toLocaleDateString("id-ID", {
+      weekday: "long",
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+
+    const dev = detectDevice();
+    const brw = navigator.userAgent.includes("Chrome") ? "Chrome" : navigator.userAgent.includes("Safari") ? "Safari" : "Browser";
+
+    const logEntry: StaffLoginLog = {
+      id: Date.now().toString(),
+      salesId: id,
+      salesName: name,
+      timestamp: timeFormatted,
+      deviceType: dev,
+      browserInfo: brw,
+      locationName: "Grand Indonesia Store (Jakarta Pusat)",
+      coords: "-6.1953, 106.8219",
+    };
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          logEntry.coords = `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
+          logEntry.locationName = "Area Jakarta (GPS Terverifikasi)";
+          saveLog(logEntry);
+        },
+        () => saveLog(logEntry),
+        { timeout: 3000 }
+      );
+    } else {
+      saveLog(logEntry);
+    }
+  };
+
+  const saveLog = (entry: StaffLoginLog) => {
+    setStaffActivityLogs((prev) => {
+      const updated = [entry, ...prev.slice(0, 49)];
+      if (typeof window !== "undefined") {
+        localStorage.setItem("digiplus_staff_activity_logs", JSON.stringify(updated));
+      }
+      return updated;
+    });
+  };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -590,16 +733,28 @@ export default function Page() {
       return;
     }
 
+    let detectedName = `Sales ${cleanId}`;
+    const foundStaff = ALL_STAFF_DETAILS.find((s) => s.salesId === cleanId);
+    if (foundStaff) detectedName = foundStaff.name;
+    if (cleanId === "22008089") detectedName = "Store Leader Admin";
+
     localStorage.setItem("digiplus_session_user", cleanId);
+    localStorage.setItem("digiplus_session_name", detectedName);
     setCurrentSalesId(cleanId);
+    setCurrentSalesName(detectedName);
     setIsLoggedIn(true);
     setLoginErr("");
+
+    // Catat log activity
+    recordStaffActivity(cleanId, detectedName);
   };
 
   const handleLogout = () => {
     localStorage.removeItem("digiplus_session_user");
+    localStorage.removeItem("digiplus_session_name");
     setIsLoggedIn(false);
     setCurrentSalesId("");
+    setCurrentSalesName("");
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -712,7 +867,6 @@ export default function Page() {
         </button>
       </div>
 
-      {/* BACKDROP MOBILE DRAWER */}
       {mobileMenuOpen && (
         <div onClick={() => setMobileMenuOpen(false)} className="lg:hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-40" />
       )}
@@ -740,8 +894,9 @@ export default function Page() {
             <div>
               <span className="text-[9px] uppercase tracking-wider text-[#FFF6E9]/60 block font-bold">User Aktif</span>
               <span className="text-xs font-bold text-white truncate block">
-                {currentSalesId === "22008089" ? "👑 Admin Store" : `ID: ${currentSalesId}`}
+                {currentSalesId === "22008089" ? "👑 Admin Leader" : currentSalesName}
               </span>
+              <span className="text-[10px] font-mono text-[#F5BA42]">ID: {currentSalesId}</span>
             </div>
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
           </div>
@@ -813,7 +968,6 @@ export default function Page() {
               <span>Overview Store & Kategori</span>
             </button>
 
-            {/* MENU "Weekly sales" */}
             <button
               onClick={() => {
                 setActiveTab("weekly-sales");
@@ -839,6 +993,38 @@ export default function Page() {
               <span className="text-base">🏆</span>
               <span>Staff Performance Detail</span>
             </button>
+
+            {/* MENU BARU: BNPL */}
+            <button
+              onClick={() => {
+                setActiveTab("bnpl");
+                setMobileMenuOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition ${
+                activeTab === "bnpl" ? "bg-[#F5BA42] text-[#1A1831] font-black shadow-md shadow-[#F5BA42]/20" : "text-[#FFF6E9]/70 hover:text-[#FFF6E9] hover:bg-[#221F40]"
+              }`}
+            >
+              <span className="text-base">💳</span>
+              <span>BNPL Transactions</span>
+            </button>
+
+            {/* MENU KHUSUS ADMIN SALES ID 22008089: ACTIVITY STAFF */}
+            {currentSalesId === "22008089" && (
+              <button
+                onClick={() => {
+                  setActiveTab("admin-audit");
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-bold transition border border-emerald-500/40 ${
+                  activeTab === "admin-audit"
+                    ? "bg-emerald-500 text-[#1A1831] font-black shadow-lg shadow-emerald-500/20"
+                    : "bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
+                }`}
+              >
+                <span className="text-base">🛡️</span>
+                <span>Activity Staff (Admin)</span>
+              </button>
+            )}
 
             <button
               onClick={() => {
@@ -868,18 +1054,16 @@ export default function Page() {
 
       {/* KONTEN UTAMA */}
       <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-w-7xl mx-auto w-full">
-        {/* HEADER DENGAN FILTER BULAN, WEEK, DAN TANGGAL BERJALAN */}
+        {/* HEADER ATAS: SAPAAN "HALO [NAMA SALES]" & FILTER TANGGAL */}
         <header className="mb-6 border-b border-[#3B3666] pb-5">
           <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
             <div>
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded bg-[#F5BA42]/15 border border-[#F5BA42]/30 text-[#F5BA42] text-[10px] font-black uppercase">
-                  QF01 Grand Indonesia
-                </span>
-                <h1 className="text-lg sm:text-xl font-bold text-[#FFF6E9]">RETAIL STORE PERFORMANCE ENGINE</h1>
+              {/* SAPAAN PERSONALISASI SALES */}
+              <div className="text-lg sm:text-2xl font-black text-[#F5BA42] flex items-center gap-2">
+                <span>Halo, {currentSalesName} 👋</span>
               </div>
               <p className="text-xs text-[#FFF6E9]/70 mt-1">
-                Data Master: Sheet `TIME GONE`, `Dashboard QF01`, & `DATABASE` Kolom O
+                Store QF01 Grand Indonesia • Master: Sheet `DATABASE`, `BNPL DATABASE`, & `Dashboard QF01`
               </p>
             </div>
 
@@ -890,6 +1074,7 @@ export default function Page() {
             </div>
           </div>
 
+          {/* FILTER BAR */}
           <div className="p-3 bg-[#221F40] border border-[#3B3666] rounded-2xl flex flex-wrap items-center gap-3 justify-between text-xs">
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2">
@@ -930,12 +1115,12 @@ export default function Page() {
               </div>
             </div>
 
-            <div className="text-[11px] text-[#F5BA42] font-semibold">● Cut-off: {filterDate}</div>
+            <div className="text-[11px] text-[#F5BA42] font-semibold">● Cut-off Data: {filterDate}</div>
           </div>
         </header>
 
         {/* ========================================================= */}
-        {/* TAB 1: OVERVIEW STORE & KATEGORI (DENGAN TIME GONE & RANK) */}
+        {/* TAB 1: OVERVIEW STORE & KATEGORI                          */}
         {/* ========================================================= */}
         {activeTab === "store-overview" && (
           <div className="space-y-6 sm:space-y-8">
@@ -984,7 +1169,7 @@ export default function Page() {
                     <span className="font-bold text-emerald-300">{OVERVIEW_TOTAL.achievement}% ({formatIDR(OVERVIEW_TOTAL.actual)})</span>
                   </div>
                   <div className="w-full bg-[#141226] h-2.5 rounded-full overflow-hidden">
-                    <div className="bg-emerald-400 h-full rounded-full" style={{ width: `${OVERVIEW_TOTAL.achievement}%` }}></div>
+                    <div className="bg-emerald-400 h-full rounded-full transition-all" style={{ width: `${OVERVIEW_TOTAL.achievement}%` }}></div>
                   </div>
                 </div>
               </div>
@@ -1007,7 +1192,7 @@ export default function Page() {
               </div>
             </div>
 
-            {/* TABEL LENGKAP LOB METRICS (TERMASUK VAS MULTI-PROVIDER) */}
+            {/* TABEL LENGKAP LOB METRICS */}
             <div>
               <div className="flex justify-between items-center mb-3">
                 <h2 className="text-base font-bold text-[#FFF6E9]">Matriks Kategori Produk (Apple, Android, Accessories & VAS)</h2>
@@ -1047,7 +1232,7 @@ export default function Page() {
               </div>
             </div>
 
-            {/* TABEL RANK SALES PER STAFF DI OVERVIEW STORE */}
+            {/* TABEL RANK SALES PER STAFF */}
             <div className="p-4 sm:p-6 bg-[#221F40] border border-[#3B3666] rounded-3xl shadow-xl">
               <h3 className="text-base font-bold text-[#FFF6E9] mb-4">🏆 Rank Sales per Staff & Evaluasi Kuota</h3>
               <div className="overflow-x-auto">
@@ -1093,7 +1278,7 @@ export default function Page() {
               </div>
             </div>
 
-            {/* DETAIL PRODUK PER KATEGORI (APPLE, ANDROID, ACC, VAS) */}
+            {/* DETAIL PRODUK PER KATEGORI OVERVIEW */}
             <div className="p-6 bg-[#221F40] border border-[#3B3666] rounded-3xl shadow-xl">
               <div className="flex flex-wrap justify-between items-center gap-4 mb-5">
                 <div>
@@ -1452,7 +1637,149 @@ export default function Page() {
           </div>
         )}
 
-        {/* TAB 4: RINCIAN PENJUALAN LOB */}
+        {/* ========================================================================= */}
+        {/* TAB 4: MENU BNPL (BUY NOW PAY LATER - DARI GID 2697970)                   */}
+        {/* ========================================================================= */}
+        {activeTab === "bnpl" && (
+          <div className="space-y-6">
+            <div className="p-4 sm:p-6 bg-[#221F40] border-2 border-[#F5BA42]/40 rounded-3xl shadow-xl">
+              <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
+                <div>
+                  <h2 className="text-base sm:text-lg font-black text-[#FFF6E9] flex items-center gap-2">
+                    <span>💳</span>
+                    <span>TRANSAKSI PEMBIAYAAN KONSUMEN (BNPL DATABASE)</span>
+                  </h2>
+                  <p className="text-xs text-[#FFF6E9]/70 mt-1">
+                    Sumber Data Riil: Sheet <code>BNPL DATABASE</code> (gid: 2697970). Detail transaksi leasing & cicilan.
+                  </p>
+                </div>
+              </div>
+
+              {/* Tabel Transaksi BNPL */}
+              <div className="overflow-x-auto rounded-2xl border border-[#3B3666]">
+                <table className="w-full text-left text-xs min-w-[700px]">
+                  <thead className="bg-[#141226] text-[#FFF6E9]/70 uppercase text-[11px] border-b border-[#3B3666]">
+                    <tr>
+                      <th className="py-4 px-4">Tanggal</th>
+                      <th className="py-4 px-4">No. Invoice</th>
+                      <th className="py-4 px-4">Tender / Mitra BNPL</th>
+                      <th className="py-4 px-4">Detail Produk yang Dibeli</th>
+                      <th className="py-4 px-4 text-center">QTY</th>
+                      <th className="py-4 px-4 text-right">Nilai Pembiayaan (Rp)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#3B3666] font-medium">
+                    {BNPL_REAL_DATA.map((b, idx) => (
+                      <tr key={idx} className="hover:bg-[#2B274F]/50 transition">
+                        <td className="py-3.5 px-4 font-mono text-slate-300">{b.date}</td>
+                        <td className="py-3.5 px-4 font-mono font-bold text-[#F5BA42]">{b.invoice}</td>
+                        <td className="py-3.5 px-4">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${
+                            b.tender === "Indodana"
+                              ? "bg-amber-500/20 text-amber-300 border-amber-400/40"
+                              : b.tender === "Akulaku"
+                              ? "bg-red-500/20 text-red-300 border-red-400/40"
+                              : b.tender === "Kredivo"
+                              ? "bg-sky-500/20 text-sky-300 border-sky-400/40"
+                              : "bg-emerald-500/20 text-emerald-300 border-emerald-400/40"
+                          }`}>
+                            {b.tender}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 font-semibold text-white max-w-md">{b.product}</td>
+                        <td className="py-3.5 px-4 text-center font-bold text-white">{b.qty}</td>
+                        <td className="py-3.5 px-4 text-right font-extrabold text-emerald-300 text-sm">
+                          {formatIDR(b.amount)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB 5: KHUSUS ADMIN (22008089) - ACTIVITY STAFF MONITORING                */}
+        {/* ========================================================================= */}
+        {activeTab === "admin-audit" && currentSalesId === "22008089" && (
+          <div className="space-y-6">
+            <div className="p-4 sm:p-6 bg-[#221F40] border-2 border-emerald-500/40 rounded-3xl shadow-2xl">
+              <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
+                <div>
+                  <h2 className="text-base sm:text-lg font-black text-emerald-300 flex items-center gap-2">
+                    <span>🛡️</span>
+                    <span>MONITORING ACTIVITY STAFF (PORTAL KHUSUS ADMIN)</span>
+                  </h2>
+                  <p className="text-xs text-[#FFF6E9]/70 mt-1">
+                    Rekam jejak setiap kali staf membuka website: mencatat Sales ID, waktu login, jenis perangkat, dan lokasi/GPS.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => {
+                    localStorage.removeItem("digiplus_staff_activity_logs");
+                    setStaffActivityLogs([]);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-red-500/20 text-red-300 border border-red-500/40 text-xs font-bold hover:bg-red-500/30 transition"
+                >
+                  Bersihkan Log
+                </button>
+              </div>
+
+              <div className="overflow-x-auto rounded-2xl border border-[#3B3666]">
+                <table className="w-full text-left text-xs min-w-[700px]">
+                  <thead className="bg-[#141226] text-[#FFF6E9]/70 uppercase text-[11px] border-b border-[#3B3666]">
+                    <tr>
+                      <th className="py-3.5 px-4">Waktu Akses (WIB)</th>
+                      <th className="py-3.5 px-4">Sales ID & Nama Staf</th>
+                      <th className="py-3.5 px-4">Tipe Perangkat</th>
+                      <th className="py-3.5 px-4">Browser</th>
+                      <th className="py-3.5 px-4">Lokasi Terdeteksi</th>
+                      <th className="py-3.5 px-4">Koordinat GPS</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#3B3666] font-medium">
+                    {staffActivityLogs.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-6 text-center text-slate-400">
+                          Belum ada aktivitas staf baru yang terekam.
+                        </td>
+                      </tr>
+                    ) : (
+                      staffActivityLogs.map((log) => (
+                        <tr key={log.id} className="hover:bg-[#2B274F]/50 transition">
+                          <td className="py-3.5 px-4 font-mono text-amber-300">{log.timestamp}</td>
+                          <td className="py-3.5 px-4">
+                            <div className="font-bold text-white">{log.salesName}</div>
+                            <div className="text-[10px] text-slate-400 font-mono">ID: {log.salesId}</div>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                              log.deviceType === "Handphone / Mobile"
+                                ? "bg-amber-500/15 border-amber-400/30 text-amber-200"
+                                : log.deviceType === "Tablet"
+                                ? "bg-sky-500/15 border-sky-400/30 text-sky-200"
+                                : "bg-purple-500/15 border-purple-400/30 text-purple-200"
+                            }`}>
+                              {log.deviceType}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-[#FFF6E9]/80">{log.browserInfo}</td>
+                          <td className="py-3.5 px-4 text-emerald-300 font-bold">{log.locationName}</td>
+                          <td className="py-3.5 px-4 font-mono text-slate-400 text-[10px]">{log.coords}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 6: RINCIAN PENJUALAN LOB */}
         {activeTab === "sales-detail" && (
           <div className="space-y-4">
             <h2 className="text-base font-bold text-[#FFF6E9]">Breakdown LOB Sales</h2>
@@ -1467,3 +1794,6 @@ export default function Page() {
     </div>
   );
 }
+Langkah Singkat Deploy ke Vercel
+Buka repositori GitHub Anda: https://github.com/saputranggaaa-netizen/Angga-Saputra.
+Buka file app/page.tsx (atau src/app/page.tsx)
