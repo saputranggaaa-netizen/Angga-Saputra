@@ -1794,6 +1794,3 @@ export default function Page() {
     </div>
   );
 }
-Langkah Singkat Deploy ke Vercel
-Buka repositori GitHub Anda: https://github.com/saputranggaaa-netizen/Angga-Saputra.
-Buka file app/page.tsx (atau src/app/page.tsx)
