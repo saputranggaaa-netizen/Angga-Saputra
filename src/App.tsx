@@ -4,44 +4,33 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 
 type MenuTab = "store-overview" | "leaderboard" | "sales-detail";
 
-interface CategoryMetric {
-  category: string;
-  icon: string;
-  actual: number;
+interface SubProductMetric {
+  name: string;
   target: number;
+  actual: number;
   achievement: number;
   variance: number;
   estimate: number;
-  paceStatus: string;
-  color: string;
-  badgeBg: string;
-}
-
-interface ProductDetailItem {
-  name: string;
-  sku: string;
-  brand: string;
   qty: number;
-  revenue: number;
-  share: string;
 }
 
-interface StaffRankItem {
+interface StaffDetailedPerformance {
   rank: number;
   salesId: string;
   name: string;
   target: number;
   actual: number;
   achievement: number;
-  appleSales: number;
-  androidSales: number;
-  accessoriesSales: number;
-  vasSales: number;
-  status: "Tercapai" | "Belum Tercapai";
-  paceVsTimeGone: number;
+  variance: number;
+  estimate: number;
+  status: "Tercapai" | "Perlu Perhatian Khusus" | "Dalam Pantauan";
+  attentionNotes: string[];
+  appleSubProducts: SubProductMetric[];
+  androidSubProducts: SubProductMetric[];
+  topProductSold: string;
 }
 
-// 1. DATA TIME GONE RESMI (1 - 24 OKTOBER 2026 DARI 31 HARI)
+// 1. DATA MASTER TIME GONE & TOKO
 const TIME_GONE_METRIC = {
   daysPassed: 24,
   totalDays: 31,
@@ -52,58 +41,6 @@ const TIME_GONE_METRIC = {
   requiredDailyRunRate: 797262710,
 };
 
-// 2. DATA MASTER KATEGORI SESUAI TAB "Dashboard QF01" (BARIS 14 - 20)
-const STORE_OVERVIEW_METRICS: CategoryMetric[] = [
-  {
-    category: "Apple Devices",
-    icon: "🍎",
-    actual: 2519060000,
-    target: 6932151006,
-    achievement: 36.3,
-    variance: -4413091006,
-    estimate: 3253785833,
-    paceStatus: "Lagging (-41.1%)",
-    color: "text-sky-300",
-    badgeBg: "bg-sky-500/15 border-sky-400/30 text-sky-200",
-  },
-  {
-    category: "Android Devices",
-    icon: "🤖",
-    actual: 394141000,
-    target: 943691666,
-    achievement: 41.8,
-    variance: -549550666,
-    estimate: 509098792,
-    paceStatus: "Lagging (-35.6%)",
-    color: "text-indigo-300",
-    badgeBg: "bg-indigo-500/15 border-indigo-400/30 text-indigo-200",
-  },
-  {
-    category: "Accessories",
-    icon: "🔌",
-    actual: 60156200,
-    target: 460550560,
-    achievement: 13.1,
-    variance: -400394360,
-    estimate: 77701758,
-    paceStatus: "Lagging (-64.3%)",
-    color: "text-amber-300",
-    badgeBg: "bg-amber-500/15 border-amber-400/30 text-amber-200",
-  },
-  {
-    category: "VAS (Qoala, Telkomsel, XL, Indosat)",
-    icon: "🛡️",
-    actual: 45070000,
-    target: 392273940,
-    achievement: 11.5,
-    variance: -347203940,
-    estimate: 58215417,
-    paceStatus: "Lagging (-65.9%)",
-    color: "text-purple-300",
-    badgeBg: "bg-purple-500/15 border-purple-400/30 text-purple-200",
-  },
-];
-
 const STORE_TOTAL = {
   actual: 3147828200,
   target: 8728667173,
@@ -112,8 +49,8 @@ const STORE_TOTAL = {
   estimate: 4065944758,
 };
 
-// 3. RANK SALES PER STAFF
-const STAFF_RANK_DATA: StaffRankItem[] = [
+// 2. DATA RINCIAN LENGKAP SETIAP STAF & SUB-PRODUK (APPLE & ANDROID)
+const DETAILED_STAFF_PERFORMANCE: StaffDetailedPerformance[] = [
   {
     rank: 1,
     salesId: "24004971",
@@ -121,12 +58,30 @@ const STAFF_RANK_DATA: StaffRankItem[] = [
     target: 872866717,
     actual: 1420983000,
     achievement: 162.8,
-    appleSales: 1386790000,
-    androidSales: 27992000,
-    accessoriesSales: 2711000,
-    vasSales: 3490000,
+    variance: 548116283,
+    estimate: 1835436458,
     status: "Tercapai",
-    paceVsTimeGone: 85.4,
+    attentionNotes: [
+      "Performa sangat prima, target bulanan sudah terlampaui 162,8%.",
+      "Penyumbang omset iPhone terbesar di toko (Rp 1,35 Miliar).",
+      "Perlu dorongan tambahan pada lini MacBook & Apple Watch yang masih minim.",
+    ],
+    topProductSold: "iPhone 17 Pro Max 256GB / 512GB (41 unit)",
+    appleSubProducts: [
+      { name: "iPhone", target: 750000000, actual: 1353207000, achievement: 180.4, variance: 603207000, estimate: 1747892375, qty: 45 },
+      { name: "iPad", target: 60000000, actual: 24884000, achievement: 41.5, variance: -35116000, estimate: 32141833, qty: 3 },
+      { name: "MacBook", target: 30000000, actual: 0, achievement: 0.0, variance: -30000000, estimate: 0, qty: 0 },
+      { name: "Apple Watch", target: 20000000, actual: 4499000, achievement: 22.5, variance: -15501000, estimate: 5811208, qty: 1 },
+      { name: "AirPods", target: 12866717, actual: 4200000, achievement: 32.6, variance: -8666717, estimate: 5425000, qty: 2 },
+    ],
+    androidSubProducts: [
+      { name: "Samsung Devices", target: 80000000, actual: 27992000, achievement: 35.0, variance: -52008000, estimate: 36156333, qty: 8 },
+      { name: "Oppo Devices", target: 10000000, actual: 0, achievement: 0.0, variance: -10000000, estimate: 0, qty: 0 },
+      { name: "Motorola Devices", target: 10000000, actual: 0, achievement: 0.0, variance: -10000000, estimate: 0, qty: 0 },
+      { name: "Huawei Devices", target: 10000000, actual: 0, achievement: 0.0, variance: -10000000, estimate: 0, qty: 0 },
+      { name: "Infinix Devices", target: 5000000, actual: 0, achievement: 0.0, variance: -5000000, estimate: 0, qty: 0 },
+      { name: "Xiaomi Devices", target: 5000000, actual: 0, achievement: 0.0, variance: -5000000, estimate: 0, qty: 0 },
+    ],
   },
   {
     rank: 2,
@@ -135,12 +90,30 @@ const STAFF_RANK_DATA: StaffRankItem[] = [
     target: 1222013404,
     actual: 451008000,
     achievement: 36.9,
-    appleSales: 284190000,
-    androidSales: 136044000,
-    accessoriesSales: 17654000,
-    vasSales: 13120000,
-    status: "Belum Tercapai",
-    paceVsTimeGone: -40.5,
+    variance: -771005404,
+    estimate: 582552000,
+    status: "Dalam Pantauan",
+    attentionNotes: [
+      "Achievement (36,9%) tertinggal dari laju waktu Time Gone (77,4%).",
+      "Penjualan Samsung Devices sangat kuat (Galaxy S26 Ultra & Fold 8).",
+      "Perlu fokus mengejar sisa gap target sebesar Rp 771 Juta dalam 7 hari sisa.",
+    ],
+    topProductSold: "Galaxy S26 Ultra 12/256GB & iPhone 15",
+    appleSubProducts: [
+      { name: "iPhone", target: 850000000, actual: 238190000, achievement: 28.0, variance: -611810000, estimate: 307662083, qty: 12 },
+      { name: "iPad", target: 80000000, actual: 34796000, achievement: 43.5, variance: -45204000, estimate: 44944833, qty: 4 },
+      { name: "MacBook", target: 50000000, actual: 0, achievement: 0.0, variance: -50000000, estimate: 0, qty: 0 },
+      { name: "Apple Watch", target: 30000000, actual: 7104000, achievement: 23.7, variance: -22896000, estimate: 9176167, qty: 1 },
+      { name: "AirPods", target: 20000000, actual: 4100000, achievement: 20.5, variance: -15900000, estimate: 5295833, qty: 2 },
+    ],
+    androidSubProducts: [
+      { name: "Samsung Devices", target: 150000000, actual: 136044000, achievement: 90.7, variance: -13956000, estimate: 175723500, qty: 16 },
+      { name: "Oppo Devices", target: 10000000, actual: 0, achievement: 0.0, variance: -10000000, estimate: 0, qty: 0 },
+      { name: "Motorola Devices", target: 10000000, actual: 0, achievement: 0.0, variance: -10000000, estimate: 0, qty: 0 },
+      { name: "Huawei Devices", target: 10000000, actual: 0, achievement: 0.0, variance: -10000000, estimate: 0, qty: 0 },
+      { name: "Infinix Devices", target: 5000000, actual: 0, achievement: 0.0, variance: -5000000, estimate: 0, qty: 0 },
+      { name: "Xiaomi Devices", target: 7013404, actual: 0, achievement: 0.0, variance: -7013404, estimate: 0, qty: 0 },
+    ],
   },
   {
     rank: 3,
@@ -149,12 +122,30 @@ const STAFF_RANK_DATA: StaffRankItem[] = [
     target: 1658446763,
     actual: 301970200,
     achievement: 18.2,
-    appleSales: 254493000,
-    androidSales: 27392000,
-    accessoriesSales: 14335200,
-    vasSales: 5750000,
-    status: "Belum Tercapai",
-    paceVsTimeGone: -59.2,
+    variance: -1356476563,
+    estimate: 390044842,
+    status: "Perlu Perhatian Khusus",
+    attentionNotes: [
+      "PERINGATAN DEFISIT: Target Rp 1,65 Miliar baru tercapai 18,2% (Pace tertinggal -59,2%).",
+      "Defisit omset sangat besar (-Rp 1,35 Miliar).",
+      "Penjualan Android selain Samsung masih nol (Oppo, Xiaomi, Huawei kosong).",
+    ],
+    topProductSold: "AirPods 4 & iPhone 17 Pro",
+    appleSubProducts: [
+      { name: "iPhone", target: 1100000000, actual: 212493000, achievement: 19.3, variance: -887507000, estimate: 274470125, qty: 8 },
+      { name: "iPad", target: 100000000, actual: 17398000, achievement: 17.4, variance: -82602000, estimate: 22472417, qty: 2 },
+      { name: "MacBook", target: 80000000, actual: 19803000, achievement: 24.8, variance: -60197000, estimate: 25578875, qty: 1 },
+      { name: "Apple Watch", target: 40000000, actual: 0, achievement: 0.0, variance: -40000000, estimate: 0, qty: 0 },
+      { name: "AirPods", target: 30000000, actual: 4799000, achievement: 16.0, variance: -25201000, estimate: 6198708, qty: 2 },
+    ],
+    androidSubProducts: [
+      { name: "Samsung Devices", target: 200000000, actual: 27392000, achievement: 13.7, variance: -172608000, estimate: 35381333, qty: 6 },
+      { name: "Oppo Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0 },
+      { name: "Motorola Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0 },
+      { name: "Huawei Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0 },
+      { name: "Infinix Devices", target: 15000000, actual: 0, achievement: 0.0, variance: -15000000, estimate: 0, qty: 0 },
+      { name: "Xiaomi Devices", target: 18446763, actual: 0, achievement: 0.0, variance: -18446763, estimate: 0, qty: 0 },
+    ],
   },
   {
     rank: 4,
@@ -163,12 +154,30 @@ const STAFF_RANK_DATA: StaffRankItem[] = [
     target: 1658446763,
     actual: 269015000,
     achievement: 16.2,
-    appleSales: 176239000,
-    androidSales: 80384000,
-    accessoriesSales: 8532000,
-    vasSales: 3860000,
-    status: "Belum Tercapai",
-    paceVsTimeGone: -61.2,
+    variance: -1389431763,
+    estimate: 347477708,
+    status: "Perlu Perhatian Khusus",
+    attentionNotes: [
+      "PERINGATAN DEFISIT: Pencapaian hanya 16,2% dengan sisa waktu tinggal 22,6%.",
+      "Defisit omset mencapai -Rp 1,38 Miliar terhadap target kuota.",
+      "Lini MacBook, Apple Watch, dan seluruh brand Android Non-Samsung belum ada penjualan.",
+    ],
+    topProductSold: "iPhone 17 Pro Max 512GB",
+    appleSubProducts: [
+      { name: "iPhone", target: 1100000000, actual: 171742000, achievement: 15.6, variance: -928258000, estimate: 221833417, qty: 6 },
+      { name: "iPad", target: 100000000, actual: 0, achievement: 0.0, variance: -100000000, estimate: 0, qty: 0 },
+      { name: "MacBook", target: 80000000, actual: 0, achievement: 0.0, variance: -80000000, estimate: 0, qty: 0 },
+      { name: "Apple Watch", target: 40000000, actual: 0, achievement: 0.0, variance: -40000000, estimate: 0, qty: 0 },
+      { name: "AirPods", target: 30000000, actual: 4497000, achievement: 15.0, variance: -25503000, estimate: 5808625, qty: 2 },
+    ],
+    androidSubProducts: [
+      { name: "Samsung Devices", target: 200000000, actual: 80384000, achievement: 40.2, variance: -119616000, estimate: 103829333, qty: 8 },
+      { name: "Oppo Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0 },
+      { name: "Motorola Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0 },
+      { name: "Huawei Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0 },
+      { name: "Infinix Devices", target: 15000000, actual: 0, achievement: 0.0, variance: -15000000, estimate: 0, qty: 0 },
+      { name: "Xiaomi Devices", target: 18446763, actual: 0, achievement: 0.0, variance: -18446763, estimate: 0, qty: 0 },
+    ],
   },
   {
     rank: 5,
@@ -177,12 +186,30 @@ const STAFF_RANK_DATA: StaffRankItem[] = [
     target: 0,
     actual: 256332000,
     achievement: 0.0,
-    appleSales: 198992000,
-    androidSales: 52394000,
-    accessoriesSales: 1946000,
-    vasSales: 3000000,
-    status: "Belum Tercapai",
-    paceVsTimeGone: 0.0,
+    variance: 256332000,
+    estimate: 331095500,
+    status: "Dalam Pantauan",
+    attentionNotes: [
+      "Staf baru / non-quota resmi, namun berhasil mencatatkan omset Rp 256 Juta.",
+      "Penjualan iPhone 16 128GB stabil.",
+      "Perlu diberikan target resmi bulan depan untuk mengukur rasio produktivitas.",
+    ],
+    topProductSold: "iPhone 16 128GB Black & Pink",
+    appleSubProducts: [
+      { name: "iPhone", target: 0, actual: 198992000, achievement: 0.0, variance: 198992000, estimate: 257031333, qty: 9 },
+      { name: "iPad", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0 },
+      { name: "MacBook", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0 },
+      { name: "Apple Watch", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0 },
+      { name: "AirPods", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0 },
+    ],
+    androidSubProducts: [
+      { name: "Samsung Devices", target: 0, actual: 52394000, achievement: 0.0, variance: 52394000, estimate: 67675583, qty: 6 },
+      { name: "Oppo Devices", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0 },
+      { name: "Motorola Devices", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0 },
+      { name: "Huawei Devices", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0 },
+      { name: "Infinix Devices", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0 },
+      { name: "Xiaomi Devices", target: 0, actual: 0, achievement: 0.0, variance: 0, estimate: 0, qty: 0 },
+    ],
   },
   {
     rank: 6,
@@ -191,12 +218,30 @@ const STAFF_RANK_DATA: StaffRankItem[] = [
     target: 1658446763,
     actual: 240422000,
     achievement: 14.5,
-    appleSales: 184291000,
-    androidSales: 38142000,
-    accessoriesSales: 9734000,
-    vasSales: 8255000,
-    status: "Belum Tercapai",
-    paceVsTimeGone: -62.9,
+    variance: -1418024763,
+    estimate: 310545083,
+    status: "Perlu Perhatian Khusus",
+    attentionNotes: [
+      "PERINGATAN KRITIS: Pencapaian terendah ke-2 (14,5%), defisit omset mencapai -Rp 1,41 Miliar.",
+      "Produktivitas harian hanya Rp 10 Juta/hari, membutuhkan kenaikan 5x lipat untuk mendekati kuota.",
+      "Attachment Qoala VAS cukup baik, namun unit device utama masih sangat rendah.",
+    ],
+    topProductSold: "iPhone 17 Pro Max 256GB Silver",
+    appleSubProducts: [
+      { name: "iPhone", target: 1100000000, actual: 184291000, achievement: 16.8, variance: -915709000, estimate: 238042542, qty: 7 },
+      { name: "iPad", target: 100000000, actual: 0, achievement: 0.0, variance: -100000000, estimate: 0, qty: 0 },
+      { name: "MacBook", target: 80000000, actual: 0, achievement: 0.0, variance: -80000000, estimate: 0, qty: 0 },
+      { name: "Apple Watch", target: 40000000, actual: 0, achievement: 0.0, variance: -40000000, estimate: 0, qty: 0 },
+      { name: "AirPods", target: 30000000, actual: 0, achievement: 0.0, variance: -30000000, estimate: 0, qty: 0 },
+    ],
+    androidSubProducts: [
+      { name: "Samsung Devices", target: 200000000, actual: 38142000, achievement: 19.1, variance: -161858000, estimate: 49266750, qty: 5 },
+      { name: "Oppo Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0 },
+      { name: "Motorola Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0 },
+      { name: "Huawei Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0 },
+      { name: "Infinix Devices", target: 15000000, actual: 0, achievement: 0.0, variance: -15000000, estimate: 0, qty: 0 },
+      { name: "Xiaomi Devices", target: 18446763, actual: 0, achievement: 0.0, variance: -18446763, estimate: 0, qty: 0 },
+    ],
   },
   {
     rank: 7,
@@ -205,48 +250,33 @@ const STAFF_RANK_DATA: StaffRankItem[] = [
     target: 1658446763,
     actual: 174451000,
     achievement: 10.5,
-    appleSales: 128496000,
-    androidSales: 31793000,
-    accessoriesSales: 10302000,
-    vasSales: 3860000,
-    status: "Belum Tercapai",
-    paceVsTimeGone: -66.9,
+    variance: -1483995763,
+    estimate: 225332542,
+    status: "Perlu Perhatian Khusus",
+    attentionNotes: [
+      "PERINGATAN PALING KRITIS: Peringkat terendah di toko dengan pencapaian hanya 10,5%.",
+      "Defisit omset terbesar di toko (-Rp 1,48 Miliar).",
+      "Penjualan iPad, MacBook, dan seluruh brand Android di luar Samsung tercatat kosong (0 unit).",
+      "Memerlukan coaching intensif strategi penawaran paket cicilan / BNPL.",
+    ],
+    topProductSold: "Galaxy A07 4/64GB & MagSafe Case",
+    appleSubProducts: [
+      { name: "iPhone", target: 1100000000, actual: 128496000, achievement: 11.7, variance: -971504000, estimate: 165974000, qty: 5 },
+      { name: "iPad", target: 100000000, actual: 0, achievement: 0.0, variance: -100000000, estimate: 0, qty: 0 },
+      { name: "MacBook", target: 80000000, actual: 0, achievement: 0.0, variance: -80000000, estimate: 0, qty: 0 },
+      { name: "Apple Watch", target: 40000000, actual: 0, achievement: 0.0, variance: -40000000, estimate: 0, qty: 0 },
+      { name: "AirPods", target: 30000000, actual: 0, achievement: 0.0, variance: -30000000, estimate: 0, qty: 0 },
+    ],
+    androidSubProducts: [
+      { name: "Samsung Devices", target: 200000000, actual: 31793000, achievement: 15.9, variance: -168207000, estimate: 41065958, qty: 5 },
+      { name: "Oppo Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0 },
+      { name: "Motorola Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0 },
+      { name: "Huawei Devices", target: 25000000, actual: 0, achievement: 0.0, variance: -25000000, estimate: 0, qty: 0 },
+      { name: "Infinix Devices", target: 15000000, actual: 0, achievement: 0.0, variance: -15000000, estimate: 0, qty: 0 },
+      { name: "Xiaomi Devices", target: 18446763, actual: 0, achievement: 0.0, variance: -18446763, estimate: 0, qty: 0 },
+    ],
   },
 ];
-
-// 4. DETAIL PRODUK PER KATEGORI (TERMASUK VAS LENGKAP: QOALA, TELKOMSEL, XL, INDOSAT)
-const PRODUCT_DETAILS: Record<string, ProductDetailItem[]> = {
-  apple: [
-    { name: "iPhone 17 Pro Max 256GB / 512GB", sku: "APPMFYM4ID/A", brand: "APPLE", qty: 48, revenue: 1248000000, share: "49.5%" },
-    { name: "iPhone 17 Pro 256GB / 1TB", sku: "APPMG8P4ID/A", brand: "APPLE", qty: 26, revenue: 642000000, share: "25.5%" },
-    { name: "iPhone 16 128GB / 256GB", sku: "APPMYE73ID/A", brand: "APPLE", qty: 22, revenue: 362978000, share: "14.4%" },
-    { name: "iPhone 15 128GB", sku: "APPMTP13ID/A", brand: "APPLE", qty: 12, revenue: 167988000, share: "6.7%" },
-    { name: "iPad 11th Gen Wi-Fi 128GB", sku: "APPMD4A4PA/A", brand: "APPLE", qty: 9, revenue: 78291000, share: "3.1%" },
-    { name: "MacBook Neo M-Series", sku: "APPMACNEO", brand: "APPLE", qty: 2, revenue: 19803000, share: "0.8%" },
-  ],
-  android: [
-    { name: "Galaxy S26 Ultra 12/256GB", sku: "SSUSM-S948BZVB", brand: "SAMSUNG", qty: 12, revenue: 261120000, share: "66.2%" },
-    { name: "Samsung Galaxy Z Fold 8 512GB", sku: "SSUSM-F971BZKG", brand: "SAMSUNG", qty: 2, revenue: 64998000, share: "16.5%" },
-    { name: "Galaxy A17 4/128GB LTE/5G", sku: "SSUSM-A175FZKN", brand: "SAMSUNG", qty: 14, revenue: 41986000, share: "10.7%" },
-    { name: "Galaxy A07 4/64GB Light Violet", sku: "SSUSM-A075FLVD", brand: "SAMSUNG", qty: 8, revenue: 18392000, share: "4.7%" },
-    { name: "Motorola & Multi-brand Devices", sku: "MOT-MULTIBRAND", brand: "MOTOROLA", qty: 3, revenue: 7645000, share: "1.9%" },
-  ],
-  accessories: [
-    { name: "20W USB-C Power Adapter", sku: "APPMD3J4ZA/A", brand: "APPLE", qty: 36, revenue: 19764000, share: "32.9%" },
-    { name: "AirPods 4th Generation", sku: "APPMXP63ID/A", brand: "APPLE", qty: 7, revenue: 14693000, share: "24.4%" },
-    { name: "240W USB-C Charge Cable (2M)", sku: "APPMYQT3ZA/A", brand: "APPLE", qty: 16, revenue: 8784000, share: "14.6%" },
-    { name: "MagSafe Silicone & Clear Case", sku: "MUUM-IP17PM-ICM", brand: "MUTUALL / ZAGG", qty: 14, revenue: 7686000, share: "12.8%" },
-    { name: "Samsung Travel Adapter 25W/45W", sku: "SSUEP-T2510NBE", brand: "SAMSUNG", qty: 18, revenue: 5382000, share: "8.9%" },
-    { name: "Tempered Glass 2.5D / 3D Shield", sku: "KOATGF-IP18PM", brand: "DIGI-SHIELD", qty: 6, revenue: 3847200, share: "6.4%" },
-  ],
-  vas: [
-    { name: "Proteksi Qoala Diamond 24-25 (Apple & Flagship)", sku: "KLADIAMOND(24-25)", brand: "QOALA", qty: 18, revenue: 35460000, share: "78.68%" },
-    { name: "Proteksi Qoala Screen & Extended Warranty", sku: "KLAPROT-EXT", brand: "QOALA", qty: 3, revenue: 5170000, share: "11.47%" },
-    { name: "Telkomsel Pascabayar / Bundling Halo Device", sku: "TSL-HALO-POST", brand: "TELKOMSEL", qty: 4, revenue: 4440000, share: "9.85%" },
-    { name: "XL Axiata Prioritas Bundling Package", sku: "XL-PRIORITAS-PKG", brand: "XL", qty: 0, revenue: 0, share: "0.00%" },
-    { name: "Indosat Ooredoo Hutchison Prime Bundling", sku: "IM3-PRIME-POST", brand: "INDOSAT", qty: 0, revenue: 0, share: "0.00%" },
-  ],
-};
 
 export default function Page() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -254,9 +284,9 @@ export default function Page() {
   const [passwordInput, setPasswordInput] = useState("");
   const [loginErr, setLoginErr] = useState("");
 
-  const [activeTab, setActiveTab] = useState<MenuTab>("store-overview");
-  const [activeCategoryTab, setActiveCategoryTab] = useState<"apple" | "android" | "accessories" | "vas">("vas");
-  const [searchStaff, setSearchStaff] = useState("");
+  const [activeTab, setActiveTab] = useState<MenuTab>("leaderboard");
+  const [selectedStaffIndex, setSelectedStaffIndex] = useState(0);
+  const [subLOBTab, setSubLOBTab] = useState<"apple" | "android">("apple");
 
   // Shortcut Upload State
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -337,13 +367,14 @@ export default function Page() {
     return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
   };
 
-  const filteredStaffRank = useMemo(() => {
-    return STAFF_RANK_DATA.filter(
-      (s) => s.name.toLowerCase().includes(searchStaff.toLowerCase()) || s.salesId.includes(searchStaff)
-    );
-  }, [searchStaff]);
+  const currentStaff = DETAILED_STAFF_PERFORMANCE[selectedStaffIndex];
 
-  // LOGIN PAGE
+  // Daftar Staf yang Memerlukan Perhatian Khusus
+  const attentionStaffList = useMemo(() => {
+    return DETAILED_STAFF_PERFORMANCE.filter((s) => s.status === "Perlu Perhatian Khusus");
+  }, []);
+
+  // HALAMAN LOGIN DENGAN BACKGROUND DEEP INDIGO (#1A1831) & TEKS WARM CLOUD (#FFF6E9)
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-[#1A1831] flex items-center justify-center p-4 text-[#FFF6E9] font-sans">
@@ -471,6 +502,16 @@ export default function Page() {
           {/* Navigasi Menu */}
           <nav className="mt-5 space-y-1.5">
             <button
+              onClick={() => setActiveTab("leaderboard")}
+              className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition ${
+                activeTab === "leaderboard" ? "bg-[#F5BA42] text-[#1A1831] font-black shadow-md shadow-[#F5BA42]/20" : "text-[#FFF6E9]/70 hover:text-[#FFF6E9] hover:bg-[#221F40]"
+              }`}
+            >
+              <span className="text-base">🏆</span>
+              <span>Staff Performance Detail</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab("store-overview")}
               className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition ${
                 activeTab === "store-overview" ? "bg-[#F5BA42] text-[#1A1831] font-black shadow-md shadow-[#F5BA42]/20" : "text-[#FFF6E9]/70 hover:text-[#FFF6E9] hover:bg-[#221F40]"
@@ -481,23 +522,13 @@ export default function Page() {
             </button>
 
             <button
-              onClick={() => setActiveTab("leaderboard")}
-              className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition ${
-                activeTab === "leaderboard" ? "bg-[#F5BA42] text-[#1A1831] font-black shadow-md shadow-[#F5BA42]/20" : "text-[#FFF6E9]/70 hover:text-[#FFF6E9] hover:bg-[#221F40]"
-              }`}
-            >
-              <span className="text-base">🏆</span>
-              <span>Staff Performance</span>
-            </button>
-
-            <button
               onClick={() => setActiveTab("sales-detail")}
               className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition ${
                 activeTab === "sales-detail" ? "bg-[#F5BA42] text-[#1A1831] font-black shadow-md shadow-[#F5BA42]/20" : "text-[#FFF6E9]/70 hover:text-[#FFF6E9] hover:bg-[#221F40]"
               }`}
             >
               <span className="text-base">📋</span>
-              <span>Rincian Penjualan LOB</span>
+              <span>Rincian LOB Penjualan</span>
             </button>
           </nav>
         </div>
@@ -521,243 +552,141 @@ export default function Page() {
               <span className="px-2 py-0.5 rounded bg-[#F5BA42]/15 border border-[#F5BA42]/30 text-[#F5BA42] text-[10px] font-black uppercase">
                 QF01 Grand Indonesia
               </span>
-              <h1 className="text-xl font-bold text-[#FFF6E9]">RETAIL STORE PERFORMANCE ENGINE</h1>
+              <h1 className="text-xl font-bold text-[#FFF6E9]">STAFF SALES PERFORMANCE & PRODUCTIVITY</h1>
             </div>
-            <p className="text-xs text-[#FFF6E9]/70 mt-1">Periode: Oktober 2026 • Sumber Master: Sheet `TIME GONE`, `Dashboard QF01`, & `DATABASE`</p>
+            <p className="text-xs text-[#FFF6E9]/70 mt-1">Breakdown Sub-Lini Apple, Android, & Analisis Staf Perlu Perhatian Khusus</p>
           </div>
           <div className="flex gap-2">
             <span className="px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-400/30 text-xs font-bold">
-              Actual MTD: {formatIDR(STORE_TOTAL.actual)}
+              Time Gone: {TIME_GONE_METRIC.percentageTimeGone}% (Day {TIME_GONE_METRIC.daysPassed}/31)
             </span>
           </div>
         </header>
 
-        {/* TAB 1: STORE OVERVIEW */}
-        {activeTab === "store-overview" && (
+        {/* ========================================================= */}
+        {/* TAB: STAFF PERFORMANCE DETAIL (FITUR BARU LENGKAP)        */}
+        {/* ========================================================= */}
+        {activeTab === "leaderboard" && (
           <div className="space-y-8">
-            {/* 1. MODUL TIME GONE ANALYTICS */}
-            <div className="p-6 bg-[#221F40] border-2 border-[#F5BA42]/35 rounded-3xl shadow-2xl relative overflow-hidden">
-              <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-[#F5BA42]/20 border border-[#F5BA42]/40 flex items-center justify-center text-2xl font-bold text-[#F5BA42]">
-                    ⏳
-                  </div>
-                  <div>
-                    <h2 className="text-base font-black text-[#FFF6E9] tracking-wide">TIME GONE ANALYTICS (OKTOBER 2026)</h2>
-                    <p className="text-xs text-[#FFF6E9]/70">
-                      Hari Berjalan: <strong className="text-[#FFF6E9]">{TIME_GONE_METRIC.daysPassed} hari</strong> dari {TIME_GONE_METRIC.totalDays} hari ({TIME_GONE_METRIC.daysLeft} hari tersisa)
-                    </p>
-                  </div>
+            {/* 1. KARTU PERINGATAN: STAF YANG PERLU DIPERHATIKAN PENJUALANNYA */}
+            <div className="p-6 bg-[#221F40] border-2 border-red-400/40 rounded-3xl shadow-2xl relative overflow-hidden">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-2xl bg-red-500/20 border border-red-400/40 flex items-center justify-center text-xl font-bold text-red-300">
+                  ⚠️
                 </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <span className="text-[10px] uppercase font-bold text-[#FFF6E9]/60 block">Time Elapsed</span>
-                    <span className="text-2xl font-black text-[#F5BA42]">{TIME_GONE_METRIC.percentageTimeGone}%</span>
-                  </div>
-                  <div className="h-8 w-px bg-[#3B3666] mx-1"></div>
-                  <div className="text-right">
-                    <span className="text-[10px] uppercase font-bold text-[#FFF6E9]/60 block">Achv Pace</span>
-                    <span className="text-2xl font-black text-emerald-300">{STORE_TOTAL.achievement}%</span>
-                  </div>
+                <div>
+                  <h2 className="text-base font-black text-red-300 uppercase tracking-wide">
+                    PERHATIAN KHUSUS: STAF TERTINGGAL TARGET PENJUALAN
+                  </h2>
+                  <p className="text-xs text-[#FFF6E9]/70">
+                    Staf dengan pencapaian di bawah 20% dan defisit variance di atas Rp 1,3 Miliar terhadap kuota waktu berjalan (77,4%)
+                  </p>
                 </div>
               </div>
 
-              {/* Progress Bar Dual Komparasi: Time Gone vs Actual Achv */}
-              <div className="space-y-2 mb-4">
-                <div>
-                  <div className="flex justify-between text-[11px] mb-1">
-                    <span className="text-[#FFF6E9]/70">Waktu Berjalan (Time Gone):</span>
-                    <span className="font-bold text-[#F5BA42]">{TIME_GONE_METRIC.percentageTimeGone}% ({TIME_GONE_METRIC.daysPassed}/{TIME_GONE_METRIC.totalDays} Hari)</span>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {attentionStaffList.map((st) => (
+                  <div
+                    key={st.salesId}
+                    onClick={() => {
+                      const idx = DETAILED_STAFF_PERFORMANCE.findIndex((x) => x.salesId === st.salesId);
+                      if (idx !== -1) setSelectedStaffIndex(idx);
+                    }}
+                    className="p-4 bg-[#141226] border border-red-500/30 hover:border-red-400 rounded-2xl cursor-pointer transition"
+                  >
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs font-bold text-white">{st.name}</span>
+                      <span className="text-[10px] bg-red-500/20 text-red-200 border border-red-400/30 px-1.5 py-0.2 rounded font-black">
+                        #{st.rank}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-[#FFF6E9]/60 font-mono">ID: {st.salesId}</div>
+                    <div className="mt-2 text-sm font-black text-red-300">{formatIDR(st.actual)}</div>
+                    <div className="flex justify-between text-[10px] text-[#FFF6E9]/70 mt-1">
+                      <span>Achv: <strong className="text-amber-300">{st.achievement}%</strong></span>
+                      <span className="text-red-400 font-bold">{formatIDR(st.variance)}</span>
+                    </div>
                   </div>
-                  <div className="w-full bg-[#141226] h-2.5 rounded-full overflow-hidden">
-                    <div className="bg-[#F5BA42] h-full rounded-full transition-all" style={{ width: `${TIME_GONE_METRIC.percentageTimeGone}%` }}></div>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-[11px] mb-1">
-                    <span className="text-[#FFF6E9]/70">Pencapaian Omset (Actual Revenue):</span>
-                    <span className="font-bold text-emerald-300">{STORE_TOTAL.achievement}% ({formatIDR(STORE_TOTAL.actual)})</span>
-                  </div>
-                  <div className="w-full bg-[#141226] h-2.5 rounded-full overflow-hidden">
-                    <div className="bg-emerald-400 h-full rounded-full transition-all" style={{ width: `${STORE_TOTAL.achievement}%` }}></div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Status Pace & Run Rate Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-[#3B3666] text-xs">
-                <div className="p-3 bg-[#141226] rounded-xl border border-[#3B3666]">
-                  <span className="text-[#FFF6E9]/60 text-[11px]">Kesenjangan Pace Toko:</span>
-                  <div className="text-sm font-black text-red-300 mt-0.5">
-                    -{(TIME_GONE_METRIC.percentageTimeGone - STORE_TOTAL.achievement).toFixed(1)}% (Tertinggal)
-                  </div>
-                  <p className="text-[10px] text-[#FFF6E9]/50 mt-1">Omset tertinggal dibanding laju hari</p>
-                </div>
-
-                <div className="p-3 bg-[#141226] rounded-xl border border-[#3B3666]">
-                  <span className="text-[#FFF6E9]/60 text-[11px]">Daily Run Rate Aktual:</span>
-                  <div className="text-sm font-black text-sky-300 mt-0.5">
-                    {formatIDR(TIME_GONE_METRIC.dailyActualRunRate)} / hari
-                  </div>
-                  <p className="text-[10px] text-[#FFF6E9]/50 mt-1">Rata-rata penjualan harian saat ini</p>
-                </div>
-
-                <div className="p-3 bg-[#141226] rounded-xl border border-[#3B3666]">
-                  <span className="text-[#FFF6E9]/60 text-[11px]">Required Run Rate (7 Hari Sisa):</span>
-                  <div className="text-sm font-black text-[#F5BA42] mt-0.5">
-                    {formatIDR(TIME_GONE_METRIC.requiredDailyRunRate)} / hari
-                  </div>
-                  <p className="text-[10px] text-[#FFF6E9]/50 mt-1">Target harian untuk capai 100%</p>
-                </div>
+                ))}
               </div>
             </div>
 
-            {/* 2. TABEL LENGKAP: TARGET, ACHV, VARIANCE, ESTIMATE PER KATEGORI (TERMASUK VAS MULTI-PROVIDER) */}
-            <div>
-              <div className="flex justify-between items-center mb-3">
-                <h2 className="text-base font-bold text-[#FFF6E9]">Matriks Kategori Produk (Apple, Android, Accessories & VAS)</h2>
-                <span className="text-[11px] text-[#FFF6E9]/60">VAS: Qoala + Telkomsel + XL + Indosat</span>
-              </div>
-
-              <div className="bg-[#221F40] border border-[#3B3666] rounded-2xl overflow-x-auto shadow-2xl">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-[#141226] text-[#FFF6E9]/70 uppercase text-[11px] border-b border-[#3B3666]">
-                    <tr>
-                      <th className="py-4 px-4">Kategori Produk</th>
-                      <th className="py-4 px-4 text-right">Actual Sales</th>
-                      <th className="py-4 px-4 text-right">Target</th>
-                      <th className="py-4 px-4 text-center">Achievement (%)</th>
-                      <th className="py-4 px-4 text-right">Variance (Selisih)</th>
-                      <th className="py-4 px-4 text-right">Estimate (Run Rate)</th>
-                      <th className="py-4 px-4 text-center">Pace Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#3B3666] font-medium">
-                    {STORE_OVERVIEW_METRICS.map((row, idx) => (
-                      <tr key={idx} className="hover:bg-[#2B274F]/50 transition">
-                        <td className="py-4 px-4 font-bold text-[#FFF6E9] text-sm">
-                          <span className="mr-2">{row.icon}</span>
-                          <span>{row.category}</span>
-                        </td>
-                        <td className={`py-4 px-4 text-right font-extrabold text-sm ${row.color}`}>
-                          {formatIDR(row.actual)}
-                        </td>
-                        <td className="py-4 px-4 text-right text-[#FFF6E9]/80 font-mono">
-                          {formatIDR(row.target)}
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-black border ${row.badgeBg}`}>
-                            {row.achievement}%
-                          </span>
-                        </td>
-                        <td className="py-4 px-4 text-right text-red-300 font-mono font-bold">
-                          {formatIDR(row.variance)}
-                        </td>
-                        <td className="py-4 px-4 text-right text-emerald-300 font-mono font-bold">
-                          {formatIDR(row.estimate)}
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/15 text-red-200 border border-red-500/30">
-                            {row.paceStatus}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* 3. RANK SALES PER STAFF */}
+            {/* 2. TABEL RINGKASAN SELURUH SALES & STATUS KINERJA */}
             <div className="p-6 bg-[#221F40] border border-[#3B3666] rounded-3xl shadow-xl">
-              <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
-                <div>
-                  <h3 className="text-base font-bold text-[#FFF6E9]">🏆 Rank Sales per Staff & Pace Komparasi</h3>
-                  <p className="text-xs text-[#FFF6E9]/70 mt-0.5">Peringkat performa staf dibandingkan Target Quota dan laju Time Gone (77,4%)</p>
-                </div>
-                <input
-                  type="text"
-                  placeholder="Cari Staf atau Sales ID..."
-                  value={searchStaff}
-                  onChange={(e) => setSearchStaff(e.target.value)}
-                  className="px-3.5 py-2 bg-[#141226] border border-[#3B3666] rounded-xl text-xs text-[#FFF6E9] placeholder-[#FFF6E9]/40 focus:outline-none focus:border-[#F5BA42] max-w-xs"
-                />
-              </div>
+              <h3 className="text-base font-bold text-[#FFF6E9] mb-4">🏆 Peringkat Salesperson & Evaluasi Kinerja Toko</h3>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-[#141226] text-[#FFF6E9]/70 uppercase text-[11px] border-b border-[#3B3666]">
                     <tr>
                       <th className="py-3.5 px-4 text-center">Rank</th>
-                      <th className="py-3.5 px-4">Nama Salesperson</th>
-                      <th className="py-3.5 px-4 text-right">Target</th>
+                      <th className="py-3.5 px-4">Salesperson</th>
+                      <th className="py-3.5 px-4 text-right">Target Kuota</th>
                       <th className="py-3.5 px-4 text-right">Actual Penjualan</th>
-                      <th className="py-3.5 px-4 text-center">Achv %</th>
-                      <th className="py-3.5 px-4 text-center">Status Quota</th>
-                      <th className="py-3.5 px-4 text-right">Pace vs Time Gone</th>
+                      <th className="py-3.5 px-4 text-center">Achv (%)</th>
+                      <th className="py-3.5 px-4 text-right">Variance</th>
+                      <th className="py-3.5 px-4 text-right">Estimate Akhir Bulan</th>
+                      <th className="py-3.5 px-4 text-center">Status & Aksi</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#3B3666] font-medium">
-                    {filteredStaffRank.map((s) => (
+                    {DETAILED_STAFF_PERFORMANCE.map((st, index) => (
                       <tr
-                        key={s.rank}
-                        className={`hover:bg-[#2B274F]/50 transition ${
-                          s.rank === 1 ? "bg-[#F5BA42]/10 font-bold" : ""
+                        key={st.salesId}
+                        onClick={() => setSelectedStaffIndex(index)}
+                        className={`cursor-pointer transition ${
+                          selectedStaffIndex === index
+                            ? "bg-[#2B274F] border-l-4 border-l-[#F5BA42]"
+                            : "hover:bg-[#2B274F]/50"
                         }`}
                       >
                         <td className="py-3.5 px-4 text-center">
                           <span
                             className={`w-6 h-6 rounded-full inline-flex items-center justify-center font-black text-xs ${
-                              s.rank === 1
-                                ? "bg-[#F5BA42] text-[#1A1831] shadow-md shadow-[#F5BA42]/30"
-                                : s.rank === 2
+                              st.rank === 1
+                                ? "bg-[#F5BA42] text-[#1A1831]"
+                                : st.rank === 2
                                 ? "bg-slate-300 text-[#1A1831]"
-                                : s.rank === 3
+                                : st.rank === 3
                                 ? "bg-amber-700 text-white"
                                 : "text-[#FFF6E9]/60"
                             }`}
                           >
-                            {s.rank}
+                            {st.rank}
                           </span>
                         </td>
                         <td className="py-3.5 px-4">
-                          <div className="text-[#FFF6E9] font-bold flex items-center gap-2">
-                            <span>{s.name}</span>
-                            {s.rank === 1 && (
-                              <span className="text-[9px] bg-[#F5BA42] text-[#1A1831] px-2 py-0.2 rounded-full font-black uppercase">
-                                Top Sales 👑
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-[10px] text-[#FFF6E9]/50 font-mono">ID: {s.salesId}</div>
+                          <div className="text-[#FFF6E9] font-bold text-sm">{st.name}</div>
+                          <div className="text-[10px] text-[#FFF6E9]/50 font-mono">ID: {st.salesId}</div>
                         </td>
                         <td className="py-3.5 px-4 text-right text-[#FFF6E9]/70 font-mono">
-                          {s.target > 0 ? formatIDR(s.target) : "-"}
+                          {st.target > 0 ? formatIDR(st.target) : "-"}
                         </td>
                         <td className="py-3.5 px-4 text-right font-extrabold text-emerald-300 text-sm">
-                          {formatIDR(s.actual)}
+                          {formatIDR(st.actual)}
                         </td>
                         <td className="py-3.5 px-4 text-center">
-                          <span className={`font-black ${s.achievement >= 100 ? "text-emerald-300" : "text-[#F5BA42]"}`}>
-                            {s.achievement.toFixed(1)}%
+                          <span className={`font-black ${st.achievement >= 100 ? "text-emerald-300" : "text-[#F5BA42]"}`}>
+                            {st.achievement > 0 ? `${st.achievement.toFixed(1)}%` : "-"}
                           </span>
+                        </td>
+                        <td className={`py-3.5 px-4 text-right font-mono font-bold ${st.variance >= 0 ? "text-emerald-300" : "text-red-300"}`}>
+                          {st.target > 0 ? formatIDR(st.variance) : "-"}
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-mono font-bold text-emerald-300">
+                          {formatIDR(st.estimate)}
                         </td>
                         <td className="py-3.5 px-4 text-center">
                           <span
                             className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              s.status === "Tercapai"
-                                ? "bg-blue-500/15 text-blue-300 border border-blue-400/30"
-                                : "bg-red-500/15 text-red-300 border border-red-400/30"
+                              st.status === "Tercapai"
+                                ? "bg-blue-500/20 text-blue-300 border border-blue-400/30"
+                                : st.status === "Perlu Perhatian Khusus"
+                                ? "bg-red-500/20 text-red-300 border border-red-400/30 animate-pulse"
+                                : "bg-amber-500/20 text-amber-300 border border-amber-400/30"
                             }`}
                           >
-                            {s.status === "Tercapai" ? "🔵 Tercapai" : "🔻 Belum"}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 text-right font-mono font-bold">
-                          <span className={s.paceVsTimeGone >= 0 ? "text-emerald-300" : "text-red-300"}>
-                            {s.paceVsTimeGone > 0 ? `+${s.paceVsTimeGone.toFixed(1)}%` : `${s.paceVsTimeGone.toFixed(1)}%`}
+                            {st.status}
                           </span>
                         </td>
                       </tr>
@@ -767,85 +696,120 @@ export default function Page() {
               </div>
             </div>
 
-            {/* 4. RINCIAN DETAIL PRODUK PER KATEGORI (DENGAN DETAIL LENGKAP VAS QOALA, TELKOMSEL, XL, INDOSAT) */}
-            <div className="p-6 bg-[#221F40] border border-[#3B3666] rounded-3xl shadow-xl">
-              <div className="flex flex-wrap justify-between items-center gap-4 mb-5">
+            {/* 3. PANEL RINCIAN SUB-LINI PRODUK STAF TERPILIH */}
+            <div className="p-6 bg-[#221F40] border-2 border-[#F5BA42]/40 rounded-3xl shadow-2xl">
+              {/* Header Staf Terpilih */}
+              <div className="flex flex-wrap justify-between items-center gap-4 pb-4 border-b border-[#3B3666] mb-6">
                 <div>
-                  <h3 className="text-base font-bold text-[#FFF6E9]">Rincian Detail Produk Terjual per Kategori</h3>
-                  <p className="text-xs text-[#FFF6E9]/70 mt-0.5">Pilih kategori untuk melihat kontribusi produk (termasuk multi-provider VAS)</p>
+                  <span className="text-[10px] font-black uppercase text-[#F5BA42] tracking-widest block">
+                    Detail Sub-Lini Produk Salesperson
+                  </span>
+                  <h2 className="text-2xl font-black text-[#FFF6E9] mt-0.5 flex items-center gap-2">
+                    <span>{currentStaff.name}</span>
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#F5BA42] text-[#1A1831] font-black">
+                      Rank #{currentStaff.rank}
+                    </span>
+                  </h2>
+                  <p className="text-xs text-[#FFF6E9]/70 mt-1">
+                    Top Selling Unit: <strong className="text-emerald-300">{currentStaff.topProductSold}</strong>
+                  </p>
                 </div>
 
-                <div className="flex flex-wrap gap-2 bg-[#141226] p-1.5 rounded-2xl border border-[#3B3666]">
+                {/* Sub Tab Pemilih Kategori: Apple vs Android */}
+                <div className="flex gap-2 bg-[#141226] p-1.5 rounded-2xl border border-[#3B3666]">
                   <button
-                    onClick={() => setActiveCategoryTab("apple")}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-                      activeCategoryTab === "apple" ? "bg-sky-500 text-[#1A1831] shadow-md shadow-sky-500/20" : "text-[#FFF6E9]/70 hover:text-[#FFF6E9]"
+                    onClick={() => setSubLOBTab("apple")}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+                      subLOBTab === "apple"
+                        ? "bg-sky-500 text-[#1A1831] shadow-lg shadow-sky-500/20"
+                        : "text-[#FFF6E9]/70 hover:text-[#FFF6E9]"
                     }`}
                   >
-                    🍎 Apple Devices
+                    <span>🍎</span>
+                    <span>Apple Devices (iPhone, iPad, Mac, Watch, AirPods)</span>
                   </button>
+
                   <button
-                    onClick={() => setActiveCategoryTab("android")}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-                      activeCategoryTab === "android" ? "bg-indigo-500 text-[#FFF6E9] shadow-md shadow-indigo-500/20" : "text-[#FFF6E9]/70 hover:text-[#FFF6E9]"
+                    onClick={() => setSubLOBTab("android")}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+                      subLOBTab === "android"
+                        ? "bg-indigo-500 text-[#FFF6E9] shadow-lg shadow-indigo-500/20"
+                        : "text-[#FFF6E9]/70 hover:text-[#FFF6E9]"
                     }`}
                   >
-                    🤖 Android Devices
-                  </button>
-                  <button
-                    onClick={() => setActiveCategoryTab("accessories")}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-                      activeCategoryTab === "accessories" ? "bg-[#F5BA42] text-[#1A1831] shadow-md shadow-[#F5BA42]/20" : "text-[#FFF6E9]/70 hover:text-[#FFF6E9]"
-                    }`}
-                  >
-                    🔌 Accessories
-                  </button>
-                  <button
-                    onClick={() => setActiveCategoryTab("vas")}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-                      activeCategoryTab === "vas" ? "bg-purple-500 text-[#FFF6E9] shadow-md shadow-purple-500/20" : "text-[#FFF6E9]/70 hover:text-[#FFF6E9]"
-                    }`}
-                  >
-                    🛡️ VAS (Qoala/Telkomsel/XL/Indosat)
+                    <span>🤖</span>
+                    <span>Android Devices (Samsung, Oppo, Moto, Huawei, dll)</span>
                   </button>
                 </div>
               </div>
 
+              {/* Catatan Evaluasi Penjualan Staf */}
+              <div className="mb-6 p-4 bg-[#141226] rounded-2xl border border-[#3B3666]">
+                <h4 className="text-xs font-bold text-[#F5BA42] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <span>📌</span>
+                  <span>Catatan Evaluasi Penjualan & Rekomendasi Leader:</span>
+                </h4>
+                <ul className="space-y-1 text-xs text-[#FFF6E9]/80 list-disc list-inside">
+                  {currentStaff.attentionNotes.map((note, i) => (
+                    <li key={i}>{note}</li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Tabel Detail Sub-Lini Terpilih */}
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-[#141226] text-[#FFF6E9]/70 uppercase text-[11px] border-b border-[#3B3666]">
                     <tr>
-                      <th className="py-3 px-4">Nama Produk & Layanan</th>
-                      <th className="py-3 px-4">Artikel SAP</th>
-                      <th className="py-3 px-4">Brand / Provider</th>
-                      <th className="py-3 px-4 text-center">Qty Terjual</th>
-                      <th className="py-3 px-4 text-right">Nilai Penjualan (Rp)</th>
-                      <th className="py-3 px-4 text-right">Kontribusi Share</th>
+                      <th className="py-4 px-4">Lini Produk</th>
+                      <th className="py-4 px-4 text-center">Qty Terjual</th>
+                      <th className="py-4 px-4 text-right">Target Lini</th>
+                      <th className="py-4 px-4 text-right">Actual Sales</th>
+                      <th className="py-4 px-4 text-center">Achievement (%)</th>
+                      <th className="py-4 px-4 text-right">Variance</th>
+                      <th className="py-4 px-4 text-right">Estimate (Run Rate)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#3B3666] font-medium">
-                    {PRODUCT_DETAILS[activeCategoryTab].map((p, i) => (
-                      <tr key={i} className="hover:bg-[#2B274F]/50 transition">
-                        <td className="py-3.5 px-4 font-bold text-[#FFF6E9]">{p.name}</td>
-                        <td className="py-3.5 px-4 font-mono text-[#FFF6E9]/60 text-[11px]">{p.sku}</td>
-                        <td className="py-3.5 px-4">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                            p.brand === "QOALA" ? "bg-purple-500/20 border-purple-400/40 text-purple-200" :
-                            p.brand === "TELKOMSEL" ? "bg-red-500/20 border-red-400/40 text-red-200" :
-                            p.brand === "XL" ? "bg-blue-500/20 border-blue-400/40 text-blue-200" :
-                            p.brand === "INDOSAT" ? "bg-amber-500/20 border-amber-400/40 text-amber-200" :
-                            "bg-[#141226] border-[#3B3666] text-[#FFF6E9]/80"
-                          }`}>
-                            {p.brand}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 text-center font-bold text-[#FFF6E9]">{p.qty} Unit</td>
-                        <td className="py-3.5 px-4 text-right font-extrabold text-emerald-300">
-                          {formatIDR(p.revenue)}
-                        </td>
-                        <td className="py-3.5 px-4 text-right text-[#F5BA42] font-bold">{p.share}</td>
-                      </tr>
-                    ))}
+                    {(subLOBTab === "apple" ? currentStaff.appleSubProducts : currentStaff.androidSubProducts).map(
+                      (sub, idx) => (
+                        <tr key={idx} className="hover:bg-[#2B274F]/50 transition">
+                          <td className="py-4 px-4 font-bold text-[#FFF6E9] text-sm">
+                            {subLOBTab === "apple" ? "🍎" : "⚡"} {sub.name}
+                          </td>
+                          <td className="py-4 px-4 text-center font-bold text-white">{sub.qty} Unit</td>
+                          <td className="py-4 px-4 text-right text-[#FFF6E9]/70 font-mono">
+                            {sub.target > 0 ? formatIDR(sub.target) : "-"}
+                          </td>
+                          <td className="py-4 px-4 text-right font-extrabold text-emerald-300 text-sm">
+                            {formatIDR(sub.actual)}
+                          </td>
+                          <td className="py-4 px-4 text-center">
+                            <span
+                              className={`px-2.5 py-1 rounded-full text-xs font-black border ${
+                                sub.actual === 0
+                                  ? "bg-slate-800 text-slate-500 border-slate-700"
+                                  : sub.achievement >= 100
+                                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/30"
+                                  : "bg-amber-500/20 text-amber-300 border-amber-400/30"
+                              }`}
+                            >
+                              {sub.target > 0 ? `${sub.achievement.toFixed(1)}%` : sub.actual > 0 ? "100%" : "0%"}
+                            </span>
+                          </td>
+                          <td
+                            className={`py-4 px-4 text-right font-mono font-bold ${
+                              sub.variance >= 0 ? "text-emerald-300" : "text-red-300"
+                            }`}
+                          >
+                            {sub.target > 0 ? formatIDR(sub.variance) : "-"}
+                          </td>
+                          <td className="py-4 px-4 text-right text-emerald-300 font-mono font-bold">
+                            {formatIDR(sub.estimate)}
+                          </td>
+                        </tr>
+                      )
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -853,43 +817,13 @@ export default function Page() {
           </div>
         )}
 
-        {/* TAB 2: LEADERBOARD STAF */}
-        {activeTab === "leaderboard" && (
-          <div className="space-y-4">
-            <h2 className="text-base font-bold text-[#FFF6E9]">🏆 Staff Sales Performance & Leaderboard</h2>
-            <div className="bg-[#221F40] border border-[#3B3666] rounded-2xl overflow-x-auto shadow-2xl">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-[#141226] text-[#FFF6E9]/70 uppercase text-[11px] border-b border-[#3B3666]">
-                  <tr>
-                    <th className="py-4 px-4 text-center">Rank</th>
-                    <th className="py-4 px-4">Nama Salesperson</th>
-                    <th className="py-4 px-4 text-right">Target</th>
-                    <th className="py-4 px-4 text-right">Actual Sales</th>
-                    <th className="py-4 px-4 text-center">Achievement</th>
-                    <th className="py-4 px-4 text-center">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#3B3666] font-medium">
-                  {STAFF_RANK_DATA.map((s) => (
-                    <tr key={s.rank} className={`hover:bg-[#2B274F]/50 transition ${s.rank === 1 ? "bg-[#F5BA42]/10 font-bold" : ""}`}>
-                      <td className="py-4 px-4 text-center">
-                        <span className={`w-6 h-6 rounded-full inline-flex items-center justify-center font-black text-xs ${s.rank === 1 ? "bg-[#F5BA42] text-[#1A1831]" : "text-[#FFF6E9]/60"}`}>
-                          {s.rank}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 font-bold text-[#FFF6E9] text-sm">{s.name}</td>
-                      <td className="py-4 px-4 text-right text-[#FFF6E9]/70 font-mono">{s.target > 0 ? formatIDR(s.target) : "-"}</td>
-                      <td className="py-4 px-4 text-right text-emerald-300 font-extrabold text-sm">{formatIDR(s.actual)}</td>
-                      <td className="py-4 px-4 text-center font-bold text-[#F5BA42]">{s.achievement.toFixed(1)}%</td>
-                      <td className="py-4 px-4 text-center">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${s.achievement >= 100 ? "bg-blue-500/20 text-blue-200" : "bg-red-500/20 text-red-200"}`}>
-                          {s.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        {/* TAB 2: OVERVIEW STORE */}
+        {activeTab === "store-overview" && (
+          <div className="space-y-6">
+            <div className="p-6 bg-[#221F40] border border-[#3B3666] rounded-3xl">
+              <h2 className="text-base font-bold text-white mb-2">Total Penjualan Store QF01 Grand Indonesia</h2>
+              <div className="text-3xl font-black text-emerald-300">{formatIDR(STORE_TOTAL.actual)}</div>
+              <p className="text-xs text-[#FFF6E9]/70 mt-1">Target: {formatIDR(STORE_TOTAL.target)} ({STORE_TOTAL.achievement}% Achieved)</p>
             </div>
           </div>
         )}
@@ -900,7 +834,7 @@ export default function Page() {
             <h2 className="text-base font-bold text-[#FFF6E9]">Breakdown LOB Sales</h2>
             <div className="p-6 bg-[#221F40] border border-[#3B3666] rounded-2xl">
               <p className="text-xs text-[#FFF6E9]/80 leading-relaxed">
-                Total penjualan store terdiri dari <strong>Apple Devices</strong> senilai Rp 2,51 Miliar (80,0%), <strong>Android Devices</strong> Rp 394 Juta (12,5%), <strong>Accessories</strong> Rp 60,1 Juta (1,9%), dan <strong>VAS</strong> (Qoala, Telkomsel, XL, Indosat) sebesar Rp 45,0 Juta (1,4%).
+                Total penjualan store terdiri dari <strong>Apple Devices</strong> senilai Rp 2,51 Miliar, <strong>Android Devices</strong> Rp 394 Juta, <strong>Accessories</strong> Rp 60,1 Juta, dan <strong>VAS</strong> Rp 45,0 Juta.
               </p>
             </div>
           </div>
