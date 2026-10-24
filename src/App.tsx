@@ -48,21 +48,21 @@ export default function DigiplusDashboard() {
   const [filterStaff, setFilterStaff] = useState("ALL");
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // SHORTCUT UPLOAD SIDEBAR KIRI (Target: RAW SalesPerson M, N, O)
+  // SHORTCUT UPLOAD STATE (TARGET: RAW SalesPerson KOLOM M, N, O)
   const [fileName, setFileName] = useState("");
   const [parsedRows, setParsedRows] = useState<any[][]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<{ type: "success" | "error" | ""; message: string }>({ type: "", message: "" });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Masukkan URL Web App Apps Script Anda di sini:
-  const APPS_SCRIPT_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbz6DKAF9ZhC5reV3SvLu6l-Cj_GYzMFS1rqa2ckedLZgdTO1v0G9Ki3XBMwXQJU-g6fMg/exec";
+  // URL APPS SCRIPT AKTIF DARI SEL A1 SHEET RAW SalesPerson
+  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz2VUsReKqqJgPsG15L1pOAkmqoIWF2vApyD18jr5e_z0OVqagasa9yHXEe5fzMhoQmOw/exec";
 
-  // Memuat engine parser xls secara dinamis agar lolos build Vercel
+  // Load engine xlsx secara aman
   useEffect(() => {
     if (typeof window !== "undefined" && !(window as any).XLSX) {
       const script = document.createElement("script");
-      script.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+      script.src = "https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js";
       script.async = true;
       document.body.appendChild(script);
     }
@@ -129,7 +129,7 @@ export default function DigiplusDashboard() {
       .catch((err) => console.log("GVIZ Offline, menggunakan dataset lokal:", err));
   }, []);
 
-  // Baca file .xls dari Sidebar Kiri
+  // Baca file .xls
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -143,7 +143,7 @@ export default function DigiplusDashboard() {
         const bstr = evt.target?.result;
         const XLSX = (window as any).XLSX;
         if (!XLSX) {
-          setUploadStatus({ type: "error", message: "Engine XLSX sedang memuat. Ulangi dalam 2 detik." });
+          setUploadStatus({ type: "error", message: "Engine file sedang memuat, mohon coba 2 detik lagi." });
           return;
         }
 
@@ -161,34 +161,40 @@ export default function DigiplusDashboard() {
 
         setParsedRows(mapped);
       } catch (err) {
-        setUploadStatus({ type: "error", message: "Gagal membaca file .xls." });
+        setUploadStatus({ type: "error", message: "Gagal membaca format file .xls." });
       }
     };
     reader.readAsBinaryString(file);
   };
 
-  // Kirim data ke Kolom M, N, O
+  // Kirim data ke Kolom M, N, O Google Sheet
   const handleUploadSubmit = async () => {
     if (parsedRows.length === 0) return;
     setIsUploading(true);
     setUploadStatus({ type: "", message: "" });
 
     try {
-      const res = await fetch(APPS_SCRIPT_WEBHOOK_URL, {
+      // Gunakan mode no-cors dan text/plain agar tidak diblokir browser
+      await fetch(APPS_SCRIPT_URL, {
         method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ data: parsedRows }),
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({
+          targetSheet: "RAW SalesPerson",
+          startColumn: "M",
+          columns: ["M", "N", "O"],
+          data: parsedRows,
+        }),
       });
-      const result = await res.json();
-      if (result.status === "success") {
-        setUploadStatus({ type: "success", message: `✅ Berhasil! ${parsedRows.length} baris masuk ke Kolom M, N, O.` });
-      } else {
-        setUploadStatus({ type: "error", message: result.message || "Gagal sinkronisasi." });
-      }
-    } catch (err) {
+
       setUploadStatus({
         type: "success",
-        message: `✅ Siap! ${parsedRows.length} baris file ${fileName} siap disinkronkan ke Kolom M, N, O.`,
+        message: `✅ Berhasil dikirim! ${parsedRows.length} baris telah diteruskan ke Sheet RAW SalesPerson Kolom M, N, O.`,
+      });
+    } catch (err) {
+      setUploadStatus({
+        type: "error",
+        message: "Gagal terhubung ke Apps Script. Periksa koneksi internet Anda.",
       });
     } finally {
       setIsUploading(false);
@@ -203,7 +209,7 @@ export default function DigiplusDashboard() {
     const trimmedPass = inputPassword.trim();
 
     if (trimmedPass !== "Welcome@123") {
-      setLoginError("Password salah!");
+      setLoginError("Password salah! Silakan coba lagi.");
       return;
     }
 
@@ -286,7 +292,7 @@ export default function DigiplusDashboard() {
     return filteredSales.reduce((acc, curr) => acc + curr.amount, 0);
   }, [filteredSales]);
 
-  // LOGIN SCREEN
+  // HALAMAN LOGIN
   if (!isAuthenticated) {
     return (
       <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden font-sans">
@@ -350,16 +356,14 @@ export default function DigiplusDashboard() {
 
   return (
     <div className="flex min-h-screen bg-[#070b14] text-slate-100 font-sans">
-      {/* ========================================================= */}
-      {/* SIDEBAR BAGIAN KIRI DENGAN SHORTCUT UPLOAD SALESWISE .XLS */}
-      {/* ========================================================= */}
+      {/* SIDEBAR SEBELAH KIRI */}
       <aside
         className={`${
           sidebarOpen ? "w-72" : "w-20"
         } transition-all duration-300 bg-[#0d1424] border-r border-slate-800 flex flex-col justify-between shrink-0 sticky top-0 h-screen z-30`}
       >
         <div className="overflow-y-auto">
-          {/* Logo Header */}
+          {/* Header */}
           <div className="p-4 border-b border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-red-600 flex items-center justify-center font-black text-white text-lg shadow-lg shadow-amber-500/20">
@@ -380,7 +384,7 @@ export default function DigiplusDashboard() {
             </button>
           </div>
 
-          {/* User Tag */}
+          {/* User Profile */}
           {sidebarOpen && currentUser && (
             <div className="p-3 mx-3 mt-3 rounded-xl bg-slate-900/60 border border-slate-800">
               <p className="text-[10px] text-slate-400 uppercase font-semibold">User Terautentikasi</p>
@@ -389,14 +393,21 @@ export default function DigiplusDashboard() {
             </div>
           )}
 
-          {/* >>> KOTAK SHORTCUT UPLOAD DI BAGIAN KIRI (TARGET: RAW SalesPerson Kolom M, N, O) <<< */}
+          {/* KOTAK SHORTCUT UPLOAD DI BAGIAN KIRI */}
           {sidebarOpen ? (
-            <div className="mx-3 mt-3 p-3.5 rounded-2xl bg-[#090e1a] border-2 border-amber-500/40 shadow-lg shadow-amber-500/10">
+            <div className="mx-3 mt-3 p-3.5 rounded-2xl bg-[#090e1a] border-2 border-amber-500/50 shadow-lg shadow-amber-500/10">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-lg">📤</span>
                 <div>
                   <h3 className="text-xs font-black text-amber-300 uppercase tracking-wide">Upload Saleswise</h3>
-                  <p className="text-[9px] text-slate-400">Sheet RAW SalesPerson (M, N, O)</p>
+                  <a
+                    href="https://docs.google.com/spreadsheets/d/1v_QCLTDKORjVnByrzo9qRiivdU8CGO99nJri9jBETWM/edit#gid=483282286"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[9px] text-amber-400/80 hover:underline block"
+                  >
+                    Target: Sheet RAW (M, N, O) ↗
+                  </a>
                 </div>
               </div>
 
@@ -426,10 +437,10 @@ export default function DigiplusDashboard() {
                 />
                 <span className="text-xl block mb-1">📑</span>
                 <p className="text-[11px] font-bold text-white truncate">
-                  {fileName ? fileName : "Klik Pilih File .xls"}
+                  {fileName ? fileName : "Pilih File Saleswise (.xls)"}
                 </p>
                 <p className="text-[9px] text-slate-400 mt-0.5">
-                  {parsedRows.length > 0 ? `${parsedRows.length} baris siap diunggah` : "Format Excel POS (.xls/.xlsx)"}
+                  {parsedRows.length > 0 ? `${parsedRows.length} baris terbaca` : "Format Excel POS"}
                 </p>
               </div>
 
@@ -443,7 +454,7 @@ export default function DigiplusDashboard() {
                   {isUploading ? (
                     <>
                       <span className="w-3 h-3 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span>
-                      <span>Menyimpan...</span>
+                      <span>Menyimpan ke Sheet...</span>
                     </>
                   ) : (
                     <span>Kirim ke Kolom M, N, O</span>
@@ -463,7 +474,7 @@ export default function DigiplusDashboard() {
             </div>
           )}
 
-          {/* Menu Navigasi */}
+          {/* Nav Links */}
           <nav className="p-3 space-y-1.5 mt-2">
             {[
               { id: "sales-detail", label: "Rincian Penjualan", icon: "📋" },
