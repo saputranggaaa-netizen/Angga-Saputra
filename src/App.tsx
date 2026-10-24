@@ -19,6 +19,8 @@ interface StaffFullData {
   rank: number;
   salesId: string;
   name: string;
+  toyStoryChar: string;
+  toyStoryIcon: string;
   avatarUrl: string;
   target: number;
   actual: number;
@@ -40,7 +42,7 @@ interface StaffFullData {
   vasSub: SubCategoryMetric[];
 }
 
-// 1. DATA TIME GONE RESMI
+// 1. DATA TIME GONE BERJALAN
 const TIME_GONE_DATA = {
   daysPassed: 24,
   totalDays: 31,
@@ -163,13 +165,15 @@ const DATABASE_WEEKLY_DATA = [
   },
 ];
 
-// 4. DATA DETAIL STAFF LENGKAP DENGAN TARGET/PENCAPAIAN ACC, VAS, DAN AVATAR
+// 4. DATA DETAIL STAF TOKO QF01 DENGAN AVATAR TOY STORY LENGKAP
 const DETAILED_STAFF_LIST: StaffFullData[] = [
   {
     rank: 1,
     salesId: "24004971",
     name: "Liesbeth Febrina",
-    avatarUrl: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
+    toyStoryChar: "Sheriff Woody",
+    toyStoryIcon: "🤠",
+    avatarUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/03/Woody_at_Toy_Story_Land%2C_Hong_Kong.jpg/250px-Woody_at_Toy_Story_Land%2C_Hong_Kong.jpg",
     target: 872866717,
     actual: 1420983000,
     achievement: 162.8,
@@ -215,14 +219,16 @@ const DETAILED_STAFF_LIST: StaffFullData[] = [
     rank: 2,
     salesId: "24016878",
     name: "Yunita Anggraini",
-    avatarUrl: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80",
+    toyStoryChar: "Buzz Lightyear",
+    toyStoryIcon: "🚀",
+    avatarUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/Buzz_Lightyear_sculpture_of_Toy_Story_Hotel_Shanghai_%28cropped%29.jpg/250px-Buzz_Lightyear_sculpture_of_Toy_Story_Hotel_Shanghai_%28cropped%29.jpg",
     target: 1222013404,
     actual: 451008000,
     achievement: 36.9,
     variance: -771005404,
     estimate: 582552000,
     status: "Dalam Pantauan",
-    ringkasanEvaluasi: "Pencapaian 36,9% tertinggal dari Time Gone (77,4%). Penjualan Samsung Galaxy Flagship sangat kuat.",
+    ringkasanEvaluasi: "Pencapaian 36,9% tertinggal dari Time Gone (77,4%). Samsung Galaxy Flagship sangat kuat.",
     rekomendasiTindakan: "Fokus closing pada seri iPhone 17 dan MacBook untuk memangkas selisih minus Rp 771 Juta di sisa 7 hari.",
     targetAcc: 80000000,
     actualAcc: 17654000,
@@ -262,7 +268,9 @@ const DETAILED_STAFF_LIST: StaffFullData[] = [
     rank: 3,
     salesId: "26028497",
     name: "Siti Amelia",
-    avatarUrl: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
+    toyStoryChar: "Jessie",
+    toyStoryIcon: "🐎",
+    avatarUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/Jessie_at_Shanghai_Toy_Story_Land_%28cropped%29.jpg/250px-Jessie_at_Shanghai_Toy_Story_Land_%28cropped%29.jpg",
     target: 1658446763,
     actual: 301970200,
     achievement: 18.2,
@@ -308,7 +316,9 @@ const DETAILED_STAFF_LIST: StaffFullData[] = [
     rank: 4,
     salesId: "25005333",
     name: "M. Adlii",
-    avatarUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+    toyStoryChar: "Rex",
+    toyStoryIcon: "🦖",
+    avatarUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Disneyland_Hong_Kong_-_Toy_Story_Land_IMG_5462.JPG/250px-Disneyland_Hong_Kong_-_Toy_Story_Land_IMG_5462.JPG",
     target: 1658446763,
     actual: 269015000,
     achievement: 16.2,
@@ -354,7 +364,9 @@ const DETAILED_STAFF_LIST: StaffFullData[] = [
     rank: 5,
     salesId: "26036846",
     name: "Bagas T Saputra",
-    avatarUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
+    toyStoryChar: "Slinky Dog",
+    toyStoryIcon: "🐶",
+    avatarUrl: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
     target: 0,
     actual: 256332000,
     achievement: 0.0,
@@ -400,7 +412,9 @@ const DETAILED_STAFF_LIST: StaffFullData[] = [
     rank: 6,
     salesId: "25015216",
     name: "Andrian Afi Syarfuan",
-    avatarUrl: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150&auto=format&fit=crop&q=80",
+    toyStoryChar: "Hamm",
+    toyStoryIcon: "🐷",
+    avatarUrl: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80",
     target: 1658446763,
     actual: 240422000,
     achievement: 14.5,
@@ -447,7 +461,9 @@ const DETAILED_STAFF_LIST: StaffFullData[] = [
     rank: 7,
     salesId: "26026303",
     name: "Surya Adi Permana",
-    avatarUrl: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80",
+    toyStoryChar: "Alien (LGM)",
+    toyStoryIcon: "👽",
+    avatarUrl: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80",
     target: 1658446763,
     actual: 174451000,
     achievement: 10.5,
@@ -762,7 +778,7 @@ export default function Page() {
               <span>Overview Store & Kategori</span>
             </button>
 
-            {/* MENU WEEKLY SALES WOW BERDASARKAN DATABASE KOLOM O */}
+            {/* MENU DIUBAH MENJADI: "Weekly sales" */}
             <button
               onClick={() => {
                 setActiveTab("weekly-sales");
@@ -773,7 +789,7 @@ export default function Page() {
               }`}
             >
               <span className="text-base">📈</span>
-              <span>Weekly Sales (WoW Database Kolom O)</span>
+              <span>Weekly sales</span>
             </button>
 
             <button
@@ -817,7 +833,7 @@ export default function Page() {
 
       {/* KONTEN UTAMA */}
       <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-w-7xl mx-auto w-full">
-        {/* HEADER */}
+        {/* HEADER DENGAN FILTER */}
         <header className="mb-6 border-b border-[#3B3666] pb-5">
           <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
             <div>
@@ -839,7 +855,6 @@ export default function Page() {
             </div>
           </div>
 
-          {/* FILTER BARIS */}
           <div className="p-3 bg-[#221F40] border border-[#3B3666] rounded-2xl flex flex-wrap items-center gap-3 justify-between text-xs">
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2">
@@ -884,12 +899,10 @@ export default function Page() {
           </div>
         </header>
 
-        {/* ========================================================= */}
-        {/* TAB 1: OVERVIEW STORE & KATEGORI                          */}
-        {/* ========================================================= */}
+        {/* TAB 1: OVERVIEW STORE & KATEGORI */}
         {activeTab === "store-overview" && (
           <div className="space-y-6 sm:space-y-8">
-            {/* MODUL TIME GONE */}
+            {/* TIME GONE ANALYTICS */}
             <div className="p-4 sm:p-6 bg-[#221F40] border-2 border-[#F5BA42]/35 rounded-3xl shadow-2xl relative overflow-hidden">
               <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
                 <div className="flex items-center gap-3">
@@ -917,7 +930,6 @@ export default function Page() {
                 </div>
               </div>
 
-              {/* Progress Bars */}
               <div className="space-y-2 mb-4">
                 <div>
                   <div className="flex justify-between text-[11px] mb-1">
@@ -1000,9 +1012,9 @@ export default function Page() {
           </div>
         )}
 
-        {/* ========================================================================= */}
-        {/* TAB 2: WEEKLY SALES (WOW) BERDASARKAN SHEET DATABASE KOLOM O              */}
-        {/* ========================================================================= */}
+        {/* ========================================================= */}
+        {/* TAB 2: WEEKLY SALES (WoW DARI DATABASE KOLOM O)          */}
+        {/* ========================================================= */}
         {activeTab === "weekly-sales" && (
           <div className="space-y-6 sm:space-y-8">
             <div className="p-4 sm:p-6 bg-[#221F40] border-2 border-[#F5BA42]/40 rounded-3xl shadow-xl">
@@ -1088,29 +1100,28 @@ export default function Page() {
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 3: STAFF PERFORMANCE DETAIL (TERMASUK TARGET/ACHV ACC, VAS, & AVATAR) */}
+        {/* TAB 3: STAFF PERFORMANCE DETAIL (DENGAN AVATAR KARAKTER TOY STORY)       */}
         {/* ========================================================================= */}
         {activeTab === "staff-performance" && (
           <div className="space-y-6 sm:space-y-8">
-            {/* DAFTAR SEMUA STAF DENGAN FOTO AVATAR & RINCIAN TARGET ACC / VAS */}
             <div className="space-y-6 sm:space-y-8">
               <div className="flex items-center justify-between">
                 <h2 className="text-base sm:text-lg font-black text-[#FFF6E9] tracking-wide flex items-center gap-2">
                   <span>👥</span>
-                  <span>RINCIAN DETAIL SELURUH STAF SALES ({DETAILED_STAFF_LIST.length} ORANG)</span>
+                  <span>RINCIAN DETAIL SELURUH STAF SALES ({DETAILED_STAFF_LIST.length} ORANG - TOY STORY EDITION)</span>
                 </h2>
               </div>
 
               {DETAILED_STAFF_LIST.map((staff) => (
                 <div key={staff.salesId} className="p-4 sm:p-6 bg-[#221F40] border-2 border-[#3B3666] rounded-3xl shadow-2xl relative overflow-hidden space-y-5">
-                  {/* Header Staf dengan Foto Avatar */}
+                  {/* Header Staf dengan Foto Avatar Karakter Toy Story */}
                   <div className="flex flex-wrap justify-between items-start gap-4 pb-4 border-b border-[#3B3666]">
                     <div className="flex items-center gap-3">
                       <div className="relative">
                         <img
                           src={staff.avatarUrl}
                           alt={staff.name}
-                          className="w-14 h-14 rounded-2xl object-cover ring-2 ring-[#F5BA42]/40 shadow-lg"
+                          className="w-14 h-14 rounded-2xl object-cover ring-2 ring-[#F5BA42]/50 shadow-lg"
                         />
                         <span className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full inline-flex items-center justify-center font-black text-xs ${
                           staff.rank === 1 ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#141226] text-[#FFF6E9] border border-[#3B3666]"
@@ -1122,6 +1133,10 @@ export default function Page() {
                       <div>
                         <h3 className="text-lg sm:text-xl font-black text-[#FFF6E9] flex items-center gap-2">
                           <span>{staff.name}</span>
+                          <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-[#141226] border border-[#F5BA42]/40 text-[#F5BA42] font-bold flex items-center gap-1">
+                            <span>{staff.toyStoryIcon}</span>
+                            <span>{staff.toyStoryChar}</span>
+                          </span>
                           {staff.rank === 1 && (
                             <span className="text-[10px] bg-[#F5BA42] text-[#1A1831] px-2 py-0.5 rounded-full font-black uppercase">
                               Top 1 👑
