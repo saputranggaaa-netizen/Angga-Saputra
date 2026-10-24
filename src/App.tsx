@@ -1,24 +1,3 @@
-Berikut adalah kode Next.js (`page.tsx`) yang sudah diperbarui secara menyeluruh dan siap di-deploy ke Vercel/GitHub Anda:
-
-### Fitur-fitur baru yang ditambahkan:
-
-1. **Filter Waktu Dinamis**: Filter dropdown **Bulan**, **Week (Minggu ke-1 s/d ke-4)**, dan pemilih **Tanggal Berjalan**.
-2. **Overview Store Lengkap**:
-* Menampilkan **Time Gone** (Hari berlalu, sisa hari, % waktu berlalu, actual vs required daily run-rate).
-* Metric card untuk seluruh kategori utama: **Apple Devices**, **Android Devices**, **Accessories**, dan **VAS (Qoala, Telkomsel, XL, Indosat)** lengkap dengan *Target, Actual/Achievement, Persentase, Variance, dan Estimate*.
-* Rincian produk per kategori & Mini Leaderboard / **Rank Sales per Staff** langsung di halaman Overview.
-
-
-3. **Staff Performance Rinci (4 Kategori dengan Tab & Ikon Khusus)**:
-* **Apple Devices** 🍎: iPhone, iPad, MacBook, Apple Watch, AirPods.
-* **Android Devices** 🤖: Samsung, Oppo, Motorola, Huawei, Infinix, Xiaomi.
-* **Accessories** 🎧: Diurutkan otomatis dari nominal/amount terbesar ke terkecil (*Power Adapter, MagSafe Case, Screen Protector, Kabel, dll.*).
-* **VAS** 🛡️: Qoala Protection, Telkomsel Bundle, XL Axiata Package, Indosat Ooredoo.
-
-
-4. **Evaluasi Sales Perlu Perhatian**: Catatan evaluasi ringkas dalam Bahasa Indonesia yang otomatis menyoroti defisit dan peluang akselerasi tiap staf.
-
-```tsx
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
@@ -1286,5 +1265,3 @@ export default function Page() {
     </div>
   );
 }
-
-```
