@@ -18,7 +18,6 @@ interface StaffPerformance {
   status: "Tercapai" | "Belum Tercapai";
 }
 
-// DATA MASTER PERSIS SESUAI SHEET "Dashboard QF01"
 const STORE_DATA_DEFAULT = {
   storeCode: "QF01",
   storeName: "DIGIPLUS GRAND INDONESIA",
@@ -37,110 +36,14 @@ const STORE_DATA_DEFAULT = {
 };
 
 const LEADERBOARD_DEFAULT: StaffPerformance[] = [
-  {
-    rank: 1,
-    salesId: "24004971",
-    name: "Liesbeth Febrina",
-    target: 872866717,
-    appleSales: 1353207000,
-    androidSales: 27992000,
-    accessoriesSales: 2452000,
-    vasSales: 3490000,
-    totalSales: 1387141000,
-    achievement: 158.9,
-    status: "Tercapai",
-  },
-  {
-    rank: 2,
-    salesId: "24016878",
-    name: "Yunita Anggraini",
-    target: 1222013404,
-    appleSales: 238190000,
-    androidSales: 136044000,
-    accessoriesSales: 16222000,
-    vasSales: 13120000,
-    totalSales: 403576000,
-    achievement: 33.0,
-    status: "Belum Tercapai",
-  },
-  {
-    rank: 3,
-    salesId: "25005333",
-    name: "M. Adlii",
-    target: 1658446763,
-    appleSales: 171742000,
-    androidSales: 80384000,
-    accessoriesSales: 8532000,
-    vasSales: 3860000,
-    totalSales: 264518000,
-    achievement: 15.9,
-    status: "Belum Tercapai",
-  },
-  {
-    rank: 4,
-    salesId: "26036846",
-    name: "Bagas T Saputra",
-    target: 0,
-    appleSales: 198992000,
-    androidSales: 52394000,
-    accessoriesSales: 1647000,
-    vasSales: 3000000,
-    totalSales: 256033000,
-    achievement: 0.0,
-    status: "Belum Tercapai",
-  },
-  {
-    rank: 5,
-    salesId: "26028497",
-    name: "Siti Amelia",
-    target: 1658446763,
-    appleSales: 212493000,
-    androidSales: 27392000,
-    accessoriesSales: 9087200,
-    vasSales: 5750000,
-    totalSales: 254722200,
-    achievement: 15.4,
-    status: "Belum Tercapai",
-  },
-  {
-    rank: 6,
-    salesId: "25015216",
-    name: "Andrian Afi Syarfuan",
-    target: 1658446763,
-    appleSales: 183792000,
-    androidSales: 38142000,
-    accessoriesSales: 9546000,
-    vasSales: 8255000,
-    totalSales: 239735000,
-    achievement: 14.5,
-    status: "Belum Tercapai",
-  },
-  {
-    rank: 7,
-    salesId: "26026303",
-    name: "Surya Adi Permana",
-    target: 1658446763,
-    appleSales: 124496000,
-    androidSales: 31793000,
-    accessoriesSales: 10330000,
-    vasSales: 3860000,
-    totalSales: 170479000,
-    achievement: 10.3,
-    status: "Belum Tercapai",
-  },
-  {
-    rank: 8,
-    salesId: "ONLINE",
-    name: "Digiplus.Co.Id",
-    target: 0,
-    appleSales: 36148000,
-    androidSales: 0,
-    accessoriesSales: 0,
-    vasSales: 0,
-    totalSales: 36148000,
-    achievement: 0.0,
-    status: "Belum Tercapai",
-  },
+  { rank: 1, salesId: "24004971", name: "Liesbeth Febrina", target: 872866717, appleSales: 1353207000, androidSales: 27992000, accessoriesSales: 2452000, vasSales: 3490000, totalSales: 1387141000, achievement: 158.9, status: "Tercapai" },
+  { rank: 2, salesId: "24016878", name: "Yunita Anggraini", target: 1222013404, appleSales: 238190000, androidSales: 136044000, accessoriesSales: 16222000, vasSales: 13120000, totalSales: 403576000, achievement: 33.0, status: "Belum Tercapai" },
+  { rank: 3, salesId: "25005333", name: "M. Adlii", target: 1658446763, appleSales: 171742000, androidSales: 80384000, accessoriesSales: 8532000, vasSales: 3860000, totalSales: 264518000, achievement: 15.9, status: "Belum Tercapai" },
+  { rank: 4, salesId: "26036846", name: "Bagas T Saputra", target: 0, appleSales: 198992000, androidSales: 52394000, accessoriesSales: 1647000, vasSales: 3000000, totalSales: 256033000, achievement: 0.0, status: "Belum Tercapai" },
+  { rank: 5, salesId: "26028497", name: "Siti Amelia", target: 1658446763, appleSales: 212493000, androidSales: 27392000, accessoriesSales: 9087200, vasSales: 5750000, totalSales: 254722200, achievement: 15.4, status: "Belum Tercapai" },
+  { rank: 6, salesId: "25015216", name: "Andrian Afi Syarfuan", target: 1658446763, appleSales: 183792000, androidSales: 38142000, accessoriesSales: 9546000, vasSales: 8255000, totalSales: 239735000, achievement: 14.5, status: "Belum Tercapai" },
+  { rank: 7, salesId: "26026303", name: "Surya Adi Permana", target: 1658446763, appleSales: 124496000, androidSales: 31793000, accessoriesSales: 10330000, vasSales: 3860000, totalSales: 170479000, achievement: 10.3, status: "Belum Tercapai" },
+  { rank: 8, salesId: "ONLINE", name: "Digiplus.Co.Id", target: 0, appleSales: 36148000, androidSales: 0, accessoriesSales: 0, vasSales: 0, totalSales: 36148000, achievement: 0.0, status: "Belum Tercapai" },
 ];
 
 export default function Page() {
@@ -151,12 +54,12 @@ export default function Page() {
 
   const [activeTab, setActiveTab] = useState<MenuTab>("leaderboard");
   const [search, setSearch] = useState("");
-  const [leaderboard, setLeaderboard] = useState<StaffPerformance[]>(LEADERBOARD_DEFAULT);
+  const [leaderboard] = useState<StaffPerformance[]>(LEADERBOARD_DEFAULT);
   const [storeData, setStoreData] = useState(STORE_DATA_DEFAULT);
-  const [isLiveSync, setIsLiveSync] = useState(false);
 
-  // SHORTCUT UPLOAD
+  // SHORTCUT UPLOAD REALTIME
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [extractedRows, setExtractedRows] = useState<any[][]>([]);
   const [uploadStatus, setUploadStatus] = useState<{ type: "idle" | "loading" | "success" | "error"; text: string }>({
     type: "idle",
     text: "",
@@ -165,45 +68,16 @@ export default function Page() {
 
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz2VUsReKqqJgPsG15L1pOAkmqoIWF2vApyD18jr5e_z0OVqagasa9yHXEe5fzMhoQmOw/exec";
 
-  // AUTO-SYNC DARI GOOGLE SHEETS
+  // Injeksi Script SheetJS secara runtime untuk membaca format XLS/XLSX
   useEffect(() => {
-    const SHEET_ID = "1v_QCLTDKORjVnByrzo9qRiivdU8CGO99nJri9jBETWM";
-    const GVIZ_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Dashboard%20QF01`;
-
-    fetch(GVIZ_URL)
-      .then((res) => res.text())
-      .then((text) => {
-        if (!text.includes("google.visualization.Query.setResponse")) return;
-        const json = JSON.parse(text.substring(text.indexOf("{"), text.lastIndexOf("}") + 1));
-        const rows = json.table.rows;
-
-        // Ambil Total Store Revenue dari row 14
-        const totalRev = Number(rows[13]?.c[2]?.v) || STORE_DATA_DEFAULT.actualRevenue;
-        const targetRev = Number(rows[15]?.c[2]?.v) || STORE_DATA_DEFAULT.targetRevenue;
-        const apple = Number(rows[13]?.c[5]?.v) || STORE_DATA_DEFAULT.appleSales;
-        const android = Number(rows[13]?.c[7]?.v) || STORE_DATA_DEFAULT.androidSales;
-        const acc = Number(rows[13]?.c[9]?.v) || STORE_DATA_DEFAULT.accessoriesSales;
-        const vas = Number(rows[13]?.c[11]?.v) || STORE_DATA_DEFAULT.vasSales;
-
-        setStoreData((prev) => ({
-          ...prev,
-          actualRevenue: totalRev,
-          targetRevenue: targetRev,
-          appleSales: apple,
-          androidSales: android,
-          accessoriesSales: acc,
-          vasSales: vas,
-          achievementRate: Number(((totalRev / targetRev) * 100).toFixed(1)),
-        }));
-
-        setIsLiveSync(true);
-      })
-      .catch(() => {
-        console.log("Memakai data resmi terverifikasi");
-      });
+    if (typeof window !== "undefined" && !(window as any).XLSX) {
+      const script = document.createElement("script");
+      script.src = "https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js";
+      script.async = true;
+      document.body.appendChild(script);
+    }
   }, []);
 
-  // Cek sesi login
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedUser = localStorage.getItem("digiplus_session_user");
@@ -231,23 +105,69 @@ export default function Page() {
     setIsLoggedIn(false);
   };
 
+  // PEMBACAAN FILE EXCEL SECARA NYATA
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
     setSelectedFile(file);
-    setUploadStatus({ type: "idle", text: `File: ${file.name}` });
+    setUploadStatus({ type: "loading", text: "Membaca data file..." });
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const XLSX = (window as any).XLSX;
+        
+        if (!XLSX) {
+          setUploadStatus({ type: "error", text: "Engine XLSX belum siap. Tunggu 2 detik dan coba lagi." });
+          return;
+        }
+
+        const wb = XLSX.read(bstr, { type: "binary" });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        
+        // Konversi sheet Excel menjadi array 2 dimensi
+        const rawJson: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1 });
+
+        // Format khusus untuk Kolom M, N, O (Ambil 3 kolom pertama dari file Saleswise)
+        const formatted = rawJson
+          .filter((row) => row && row.length > 0)
+          .map((row) => [
+            row[0] !== undefined ? String(row[0]) : "",
+            row[1] !== undefined ? String(row[1]) : "",
+            row[2] !== undefined ? String(row[2]) : "",
+          ]);
+
+        if (formatted.length === 0) {
+          setUploadStatus({ type: "error", text: "File kosong atau tidak terbaca." });
+          return;
+        }
+
+        setExtractedRows(formatted);
+        setUploadStatus({
+          type: "idle",
+          text: `✅ ${formatted.length} baris data terbaca! Klik tombol di bawah untuk simpan.`,
+        });
+      } catch (err) {
+        setUploadStatus({ type: "error", text: "Gagal memproses file Excel. Pastikan format .xls valid." });
+      }
+    };
+    reader.readAsBinaryString(file);
   };
 
+  // EKSEKUSI PENGIRIMAN DATA KE GOOGLE SHEET
   const handleExecuteUpload = async () => {
-    if (!selectedFile) {
+    if (!selectedFile || extractedRows.length === 0) {
       setUploadStatus({
         type: "error",
-        text: "Pilih file .xls terlebih dahulu!",
+        text: "Pilih file .xls yang memiliki isi terlebih dahulu!",
       });
       return;
     }
 
-    setUploadStatus({ type: "loading", text: "Mengirim ke Kolom M, N, O..." });
+    setUploadStatus({ type: "loading", text: `Mengirim ${extractedRows.length} baris ke Kolom M, N, O...` });
 
     try {
       await fetch(APPS_SCRIPT_URL, {
@@ -255,21 +175,20 @@ export default function Page() {
         mode: "no-cors",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({
-          action: "upload_saleswise",
-          targetSheet: "RAW SalesPerson",
-          columns: ["M", "N", "O"],
-          fileName: selectedFile.name,
+          data: extractedRows, // Data matriks nyata yang akan ditulis
         }),
       });
 
       setUploadStatus({
         type: "success",
-        text: `Berhasil! File "${selectedFile.name}" telah diteruskan ke Sheet RAW SalesPerson Kolom M, N, O.`,
+        text: `🎉 Sukses! ${extractedRows.length} baris dari "${selectedFile.name}" telah masuk ke Sheet RAW SalesPerson Kolom M, N, O!`,
       });
+      setSelectedFile(null);
+      setExtractedRows([]);
     } catch (err) {
       setUploadStatus({
         type: "error",
-        text: "Gagal mengirim file. Periksa koneksi internet.",
+        text: "Gagal mengirim data ke Google Sheets. Periksa koneksi internet.",
       });
     }
   };
@@ -284,7 +203,6 @@ export default function Page() {
     );
   }, [leaderboard, search]);
 
-  // LOGIN SCREEN
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-[#070b14] flex items-center justify-center p-4 text-white font-sans">
@@ -309,7 +227,7 @@ export default function Page() {
               <input
                 type="text"
                 required
-                placeholder="Contoh: 22008089 atau ID Staf"
+                placeholder="22008089 atau ID Anda"
                 value={salesIdInput}
                 onChange={(e) => setSalesIdInput(e.target.value)}
                 className="w-full mt-1.5 px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:border-amber-400 focus:outline-none"
@@ -356,7 +274,7 @@ export default function Page() {
             </div>
           </div>
 
-          {/* KOTAK SHORTCUT UPLOAD */}
+          {/* KOTAK SHORTCUT UPLOAD REALTIME */}
           <div className="mt-4 p-4 rounded-2xl bg-[#090e1a] border-2 border-amber-500/50 shadow-xl shadow-amber-500/10">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xl">📤</span>
@@ -368,7 +286,7 @@ export default function Page() {
                   rel="noreferrer"
                   className="text-[9px] text-slate-400 hover:text-amber-400 underline block"
                 >
-                  Target: RAW (Kolom M, N, O) ↗
+                  Sheet RAW (Kolom M, N, O) ↗
                 </a>
               </div>
             </div>
@@ -395,6 +313,7 @@ export default function Page() {
               className="hidden"
             />
 
+            {/* TOMBOL 1: PILIH FILE */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -406,13 +325,28 @@ export default function Page() {
               </span>
             </button>
 
+            {/* TOMBOL 2: EKSEKUSI KE KOLOM M, N, O */}
             <button
               type="button"
               onClick={handleExecuteUpload}
-              disabled={uploadStatus.type === "loading"}
-              className="w-full mt-2 py-2.5 px-3 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs rounded-xl shadow-lg uppercase tracking-wider flex items-center justify-center gap-1.5 transition"
+              disabled={uploadStatus.type === "loading" || extractedRows.length === 0}
+              className={`w-full mt-2 py-2.5 px-3 font-black text-xs rounded-xl shadow-lg uppercase tracking-wider flex items-center justify-center gap-1.5 transition ${
+                extractedRows.length > 0 && uploadStatus.type !== "loading"
+                  ? "bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20 cursor-pointer animate-pulse"
+                  : "bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700"
+              }`}
             >
-              {uploadStatus.type === "loading" ? "Mengirim Data..." : "2. Kirim ke Kolom M, N, O"}
+              {uploadStatus.type === "loading" ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span>
+                  <span>Menulis ke Sheet...</span>
+                </>
+              ) : (
+                <>
+                  <span>⚡</span>
+                  <span>2. Kirim ke Kolom M, N, O</span>
+                </>
+              )}
             </button>
           </div>
 
@@ -465,14 +399,7 @@ export default function Page() {
       <main className="flex-1 p-8 overflow-y-auto max-w-7xl mx-auto">
         <header className="mb-6 flex flex-wrap justify-between items-center gap-4 border-b border-slate-800 pb-4">
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-white">{storeData.storeName}</h1>
-              {isLiveSync && (
-                <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
-                  ● Live Sheets Sync
-                </span>
-              )}
-            </div>
+            <h1 className="text-xl font-bold text-white">{storeData.storeName}</h1>
             <p className="text-xs text-slate-400">Periode: {storeData.period} • Master Data: Tab `Dashboard QF01`</p>
           </div>
           <div className="flex gap-2">
