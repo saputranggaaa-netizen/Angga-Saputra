@@ -19,9 +19,9 @@ interface StaffFullData {
   rank: number;
   salesId: string;
   name: string;
-  toyStoryChar: string;
-  toyStoryIcon: string;
-  avatarUrl: string;
+  initials: string;
+  avatarBg: string;
+  avatarText: string;
   target: number;
   actual: number;
   achievement: number;
@@ -42,7 +42,7 @@ interface StaffFullData {
   vasSub: SubCategoryMetric[];
 }
 
-// 1. DATA TIME GONE BERJALAN
+// 1. DATA TIME GONE BERJALAN (OKTOBER 2026)
 const TIME_GONE_DATA = {
   daysPassed: 24,
   totalDays: 31,
@@ -53,7 +53,7 @@ const TIME_GONE_DATA = {
   requiredRunRate: 797262710,
 };
 
-// 2. DATA OVERVIEW STORE LOB
+// 2. DATA OVERVIEW STORE LOB (DATABASE MASTER)
 const OVERVIEW_LOB_DATA = [
   {
     category: "Apple Devices",
@@ -113,7 +113,41 @@ const OVERVIEW_TOTAL = {
   estimate: 4069818467,
 };
 
-// 3. DATA WEEKLY SALES DARI SHEET DATABASE KOLOM O
+// 3. DETAIL PRODUK PER KATEGORI (SUMBER SHEET DATABASE)
+const OVERVIEW_PRODUCT_BREAKDOWN: Record<string, { name: string; sku: string; brand: string; qty: number; revenue: number; share: string }[]> = {
+  apple: [
+    { name: "iPhone 17 Pro Max 256GB / 512GB", sku: "APPMFYM4ID/A", brand: "APPLE", qty: 48, revenue: 1248000000, share: "49.5%" },
+    { name: "iPhone 17 Pro 256GB / 1TB", sku: "APPMG8P4ID/A", brand: "APPLE", qty: 26, revenue: 642000000, share: "25.5%" },
+    { name: "iPhone 16 128GB / 256GB", sku: "APPMYE73ID/A", brand: "APPLE", qty: 22, revenue: 362978000, share: "14.4%" },
+    { name: "iPhone 15 128GB", sku: "APPMTP13ID/A", brand: "APPLE", qty: 12, revenue: 167988000, share: "6.7%" },
+    { name: "iPad 11th Gen Wi-Fi 128GB", sku: "APPMD4A4PA/A", brand: "APPLE", qty: 9, revenue: 78291000, share: "3.1%" },
+    { name: "MacBook Air/Pro M-Series", sku: "APPMACNEO", brand: "APPLE", qty: 2, revenue: 19803000, share: "0.8%" },
+  ],
+  android: [
+    { name: "Galaxy S26 Ultra 12/256GB", sku: "SSUSM-S948BZVB", brand: "SAMSUNG", qty: 12, revenue: 261120000, share: "66.2%" },
+    { name: "Samsung Galaxy Z Fold 8 512GB", sku: "SSUSM-F971BZKG", brand: "SAMSUNG", qty: 2, revenue: 64998000, share: "16.5%" },
+    { name: "Galaxy A17 4/128GB LTE/5G", sku: "SSUSM-A175FZKN", brand: "SAMSUNG", qty: 14, revenue: 41986000, share: "10.7%" },
+    { name: "Galaxy A07 4/64GB Light Violet", sku: "SSUSM-A075FLVD", brand: "SAMSUNG", qty: 8, revenue: 18392000, share: "4.7%" },
+    { name: "Motorola & Multi-brand Devices", sku: "MOT-MULTIBRAND", brand: "MOTOROLA", qty: 3, revenue: 7645000, share: "1.9%" },
+  ],
+  accessories: [
+    { name: "20W USB-C Power Adapter", sku: "APPMD3J4ZA/A", brand: "APPLE", qty: 36, revenue: 19764000, share: "32.6%" },
+    { name: "AirPods 4th Gen Wireless Audio", sku: "APPMXP63ID/A", brand: "APPLE", qty: 7, revenue: 14693000, share: "24.2%" },
+    { name: "240W USB-C Charge Cable (2M)", sku: "APPMYQT3ZA/A", brand: "APPLE", qty: 16, revenue: 8784000, share: "14.5%" },
+    { name: "MagSafe Silicone & Clear Case", sku: "MUUM-IP17PM-ICM", brand: "MUTUALL / ZAGG", qty: 14, revenue: 7686000, share: "12.7%" },
+    { name: "Samsung Travel Adapter 25W/45W", sku: "SSUEP-T2510NBE", brand: "SAMSUNG", qty: 18, revenue: 5382000, share: "8.9%" },
+    { name: "Tempered Glass Shield Screen", sku: "KOATGF-IP18PM", brand: "DIGI-SHIELD", qty: 6, revenue: 4345200, share: "7.1%" },
+  ],
+  vas: [
+    { name: "Proteksi Qoala Diamond 24-25", sku: "KLADIAMOND(24-25)", brand: "QOALA", qty: 18, revenue: 35460000, share: "78.68%" },
+    { name: "Proteksi Qoala Screen & Extended", sku: "KLAPROT-EXT", brand: "QOALA", qty: 3, revenue: 5170000, share: "11.47%" },
+    { name: "Telkomsel Halo Pascabayar Bundling", sku: "TSL-HALO-POST", brand: "TELKOMSEL", qty: 4, revenue: 4440000, share: "9.85%" },
+    { name: "XL Axiata Prioritas Bundling Data", sku: "XL-PRIORITAS-PKG", brand: "XL", qty: 0, revenue: 0, share: "0.00%" },
+    { name: "Indosat Ooredoo IM3 Prime Bundling", sku: "IM3-PRIME-POST", brand: "INDOSAT", qty: 0, revenue: 0, share: "0.00%" },
+  ],
+};
+
+// 4. DATA WEEKLY SALES (DARI SHEET DATABASE KOLOM O)
 const DATABASE_WEEKLY_DATA = [
   {
     weekLabel: "Week 1 (03/10/26)",
@@ -165,23 +199,23 @@ const DATABASE_WEEKLY_DATA = [
   },
 ];
 
-// 4. DATA DETAIL STAF TOKO QF01 DENGAN AVATAR TOY STORY LENGKAP
-const DETAILED_STAFF_LIST: StaffFullData[] = [
+// 5. DATA DETAIL SELURUH STAF TOKO QF01 (DITAMPILKAN SEMUANYA)
+const ALL_STAFF_DETAILS: StaffFullData[] = [
   {
     rank: 1,
     salesId: "24004971",
     name: "Liesbeth Febrina",
-    toyStoryChar: "Sheriff Woody",
-    toyStoryIcon: "🤠",
-    avatarUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/03/Woody_at_Toy_Story_Land%2C_Hong_Kong.jpg/250px-Woody_at_Toy_Story_Land%2C_Hong_Kong.jpg",
+    initials: "LF",
+    avatarBg: "bg-amber-500/20 border-2 border-[#F5BA42]",
+    avatarText: "text-[#F5BA42]",
     target: 872866717,
     actual: 1420983000,
     achievement: 162.8,
     variance: 548116283,
     estimate: 1835436458,
     status: "Tercapai",
-    ringkasanEvaluasi: "Pencapaian sangat memuaskan (162,8%) berkat volume iPhone yang sangat dominan.",
-    rekomendasiTindakan: "Tingkatkan closing rate pada Accessories dan Proteksi Qoala pada setiap unit iPhone.",
+    ringkasanEvaluasi: "Pencapaian sangat luar biasa (162,8%) berkat volume penjualan iPhone yang dominan.",
+    rekomendasiTindakan: "Tingkatkan rasio attach Accessories & Proteksi Qoala pada setiap unit iPhone yang terjual.",
     targetAcc: 50000000,
     actualAcc: 2711000,
     achvAcc: 5.4,
@@ -219,16 +253,16 @@ const DETAILED_STAFF_LIST: StaffFullData[] = [
     rank: 2,
     salesId: "24016878",
     name: "Yunita Anggraini",
-    toyStoryChar: "Buzz Lightyear",
-    toyStoryIcon: "🚀",
-    avatarUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/Buzz_Lightyear_sculpture_of_Toy_Story_Hotel_Shanghai_%28cropped%29.jpg/250px-Buzz_Lightyear_sculpture_of_Toy_Story_Hotel_Shanghai_%28cropped%29.jpg",
+    initials: "YA",
+    avatarBg: "bg-indigo-500/20 border-2 border-indigo-400",
+    avatarText: "text-indigo-300",
     target: 1222013404,
     actual: 451008000,
     achievement: 36.9,
     variance: -771005404,
     estimate: 582552000,
     status: "Dalam Pantauan",
-    ringkasanEvaluasi: "Pencapaian 36,9% tertinggal dari Time Gone (77,4%). Samsung Galaxy Flagship sangat kuat.",
+    ringkasanEvaluasi: "Pencapaian 36,9% tertinggal dari Time Gone (77,4%). Samsung Flagship (S26 Ultra & Fold 8) terjual kuat.",
     rekomendasiTindakan: "Fokus closing pada seri iPhone 17 dan MacBook untuk memangkas selisih minus Rp 771 Juta di sisa 7 hari.",
     targetAcc: 80000000,
     actualAcc: 17654000,
@@ -268,9 +302,9 @@ const DETAILED_STAFF_LIST: StaffFullData[] = [
     rank: 3,
     salesId: "26028497",
     name: "Siti Amelia",
-    toyStoryChar: "Jessie",
-    toyStoryIcon: "🐎",
-    avatarUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/Jessie_at_Shanghai_Toy_Story_Land_%28cropped%29.jpg/250px-Jessie_at_Shanghai_Toy_Story_Land_%28cropped%29.jpg",
+    initials: "SA",
+    avatarBg: "bg-purple-500/20 border-2 border-purple-400",
+    avatarText: "text-purple-300",
     target: 1658446763,
     actual: 301970200,
     achievement: 18.2,
@@ -316,9 +350,9 @@ const DETAILED_STAFF_LIST: StaffFullData[] = [
     rank: 4,
     salesId: "25005333",
     name: "M. Adlii",
-    toyStoryChar: "Rex",
-    toyStoryIcon: "🦖",
-    avatarUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Disneyland_Hong_Kong_-_Toy_Story_Land_IMG_5462.JPG/250px-Disneyland_Hong_Kong_-_Toy_Story_Land_IMG_5462.JPG",
+    initials: "MA",
+    avatarBg: "bg-emerald-500/20 border-2 border-emerald-400",
+    avatarText: "text-emerald-300",
     target: 1658446763,
     actual: 269015000,
     achievement: 16.2,
@@ -364,9 +398,9 @@ const DETAILED_STAFF_LIST: StaffFullData[] = [
     rank: 5,
     salesId: "26036846",
     name: "Bagas T Saputra",
-    toyStoryChar: "Slinky Dog",
-    toyStoryIcon: "🐶",
-    avatarUrl: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+    initials: "BS",
+    avatarBg: "bg-sky-500/20 border-2 border-sky-400",
+    avatarText: "text-sky-300",
     target: 0,
     actual: 256332000,
     achievement: 0.0,
@@ -412,9 +446,9 @@ const DETAILED_STAFF_LIST: StaffFullData[] = [
     rank: 6,
     salesId: "25015216",
     name: "Andrian Afi Syarfuan",
-    toyStoryChar: "Hamm",
-    toyStoryIcon: "🐷",
-    avatarUrl: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80",
+    initials: "AA",
+    avatarBg: "bg-orange-500/20 border-2 border-orange-400",
+    avatarText: "text-orange-300",
     target: 1658446763,
     actual: 240422000,
     achievement: 14.5,
@@ -461,9 +495,9 @@ const DETAILED_STAFF_LIST: StaffFullData[] = [
     rank: 7,
     salesId: "26026303",
     name: "Surya Adi Permana",
-    toyStoryChar: "Alien (LGM)",
-    toyStoryIcon: "👽",
-    avatarUrl: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80",
+    initials: "SA",
+    avatarBg: "bg-rose-500/20 border-2 border-rose-400",
+    avatarText: "text-rose-300",
     target: 1658446763,
     actual: 174451000,
     achievement: 10.5,
@@ -522,6 +556,7 @@ export default function Page() {
   const [filterMonth, setFilterMonth] = useState("2026-10");
   const [filterWeek, setFilterWeek] = useState("ALL");
   const [filterDate, setFilterDate] = useState("2026-10-24");
+  const [overviewDetailCategory, setOverviewDetailCategory] = useState<"apple" | "android" | "accessories" | "vas">("apple");
 
   // Shortcut Upload State
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -778,7 +813,7 @@ export default function Page() {
               <span>Overview Store & Kategori</span>
             </button>
 
-            {/* MENU DIUBAH MENJADI: "Weekly sales" */}
+            {/* MENU "Weekly sales" */}
             <button
               onClick={() => {
                 setActiveTab("weekly-sales");
@@ -833,7 +868,7 @@ export default function Page() {
 
       {/* KONTEN UTAMA */}
       <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-w-7xl mx-auto w-full">
-        {/* HEADER DENGAN FILTER */}
+        {/* HEADER DENGAN FILTER BULAN, WEEK, DAN TANGGAL BERJALAN */}
         <header className="mb-6 border-b border-[#3B3666] pb-5">
           <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
             <div>
@@ -899,7 +934,9 @@ export default function Page() {
           </div>
         </header>
 
-        {/* TAB 1: OVERVIEW STORE & KATEGORI */}
+        {/* ========================================================= */}
+        {/* TAB 1: OVERVIEW STORE & KATEGORI (DENGAN TIME GONE & RANK) */}
+        {/* ========================================================= */}
         {activeTab === "store-overview" && (
           <div className="space-y-6 sm:space-y-8">
             {/* TIME GONE ANALYTICS */}
@@ -937,7 +974,7 @@ export default function Page() {
                     <span className="font-bold text-[#F5BA42]">{TIME_GONE_DATA.percentageTimeGone}% ({TIME_GONE_DATA.daysPassed}/{TIME_GONE_DATA.totalDays} Hari)</span>
                   </div>
                   <div className="w-full bg-[#141226] h-2.5 rounded-full overflow-hidden">
-                    <div className="bg-[#F5BA42] h-full rounded-full" style={{ width: `${TIME_GONE_DATA.percentageTimeGone}%` }}></div>
+                    <div className="bg-[#F5BA42] h-full rounded-full transition-all" style={{ width: `${TIME_GONE_DATA.percentageTimeGone}%` }}></div>
                   </div>
                 </div>
 
@@ -970,7 +1007,7 @@ export default function Page() {
               </div>
             </div>
 
-            {/* TABEL LENGKAP LOB METRICS */}
+            {/* TABEL LENGKAP LOB METRICS (TERMASUK VAS MULTI-PROVIDER) */}
             <div>
               <div className="flex justify-between items-center mb-3">
                 <h2 className="text-base font-bold text-[#FFF6E9]">Matriks Kategori Produk (Apple, Android, Accessories & VAS)</h2>
@@ -1003,6 +1040,136 @@ export default function Page() {
                         </td>
                         <td className="py-4 px-4 text-right text-red-300 font-mono font-bold">{formatIDR(row.variance)}</td>
                         <td className="py-4 px-4 text-right text-emerald-300 font-mono font-bold">{formatIDR(row.estimate)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* TABEL RANK SALES PER STAFF DI OVERVIEW STORE */}
+            <div className="p-4 sm:p-6 bg-[#221F40] border border-[#3B3666] rounded-3xl shadow-xl">
+              <h3 className="text-base font-bold text-[#FFF6E9] mb-4">🏆 Rank Sales per Staff & Evaluasi Kuota</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs min-w-[550px]">
+                  <thead className="bg-[#141226] text-[#FFF6E9]/70 uppercase text-[11px] border-b border-[#3B3666]">
+                    <tr>
+                      <th className="py-3.5 px-4 text-center">Rank</th>
+                      <th className="py-3.5 px-4">Nama Salesperson</th>
+                      <th className="py-3.5 px-4 text-right">Target</th>
+                      <th className="py-3.5 px-4 text-right">Actual Penjualan</th>
+                      <th className="py-3.5 px-4 text-center">Achv %</th>
+                      <th className="py-3.5 px-4 text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#3B3666] font-medium">
+                    {ALL_STAFF_DETAILS.map((s) => (
+                      <tr key={s.rank} className={`hover:bg-[#2B274F]/50 transition ${s.rank === 1 ? "bg-[#F5BA42]/10 font-bold" : ""}`}>
+                        <td className="py-3.5 px-4 text-center">
+                          <span className={`w-6 h-6 rounded-full inline-flex items-center justify-center font-black text-xs ${s.rank === 1 ? "bg-[#F5BA42] text-[#1A1831]" : "text-[#FFF6E9]/60"}`}>
+                            {s.rank}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="text-[#FFF6E9] font-bold">{s.name}</div>
+                          <div className="text-[10px] text-[#FFF6E9]/50 font-mono">ID: {s.salesId}</div>
+                        </td>
+                        <td className="py-3.5 px-4 text-right text-[#FFF6E9]/70 font-mono">{s.target > 0 ? formatIDR(s.target) : "-"}</td>
+                        <td className="py-3.5 px-4 text-right font-extrabold text-emerald-300 text-sm">{formatIDR(s.actual)}</td>
+                        <td className="py-3.5 px-4 text-center">
+                          <span className={`font-black ${s.achievement >= 100 ? "text-emerald-300" : "text-[#F5BA42]"}`}>
+                            {s.achievement > 0 ? `${s.achievement.toFixed(1)}%` : "-"}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${s.status === "Tercapai" ? "bg-blue-500/15 text-blue-300 border border-blue-400/30" : "bg-red-500/15 text-red-300 border border-red-400/30"}`}>
+                            {s.status === "Tercapai" ? "🔵 Tercapai" : "🔻 Belum"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* DETAIL PRODUK PER KATEGORI (APPLE, ANDROID, ACC, VAS) */}
+            <div className="p-6 bg-[#221F40] border border-[#3B3666] rounded-3xl shadow-xl">
+              <div className="flex flex-wrap justify-between items-center gap-4 mb-5">
+                <div>
+                  <h3 className="text-base font-bold text-[#FFF6E9]">Rincian Detail Produk Terjual per Kategori</h3>
+                  <p className="text-xs text-[#FFF6E9]/70 mt-0.5">Komposisi item, revenue kontribusi, dan share produk (termasuk multi-provider VAS)</p>
+                </div>
+
+                <div className="flex flex-wrap gap-2 bg-[#141226] p-1.5 rounded-2xl border border-[#3B3666]">
+                  <button
+                    onClick={() => setOverviewDetailCategory("apple")}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                      overviewDetailCategory === "apple" ? "bg-sky-500 text-[#1A1831] shadow-md shadow-sky-500/20" : "text-[#FFF6E9]/70 hover:text-[#FFF6E9]"
+                    }`}
+                  >
+                    🍎 Apple Devices
+                  </button>
+                  <button
+                    onClick={() => setOverviewDetailCategory("android")}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                      overviewDetailCategory === "android" ? "bg-indigo-500 text-[#FFF6E9] shadow-md shadow-indigo-500/20" : "text-[#FFF6E9]/70 hover:text-[#FFF6E9]"
+                    }`}
+                  >
+                    🤖 Android Devices
+                  </button>
+                  <button
+                    onClick={() => setOverviewDetailCategory("accessories")}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                      overviewDetailCategory === "accessories" ? "bg-[#F5BA42] text-[#1A1831] shadow-md shadow-[#F5BA42]/20" : "text-[#FFF6E9]/70 hover:text-[#FFF6E9]"
+                    }`}
+                  >
+                    🔌 Accessories
+                  </button>
+                  <button
+                    onClick={() => setOverviewDetailCategory("vas")}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                      overviewDetailCategory === "vas" ? "bg-purple-500 text-[#FFF6E9] shadow-md shadow-purple-500/20" : "text-[#FFF6E9]/70 hover:text-[#FFF6E9]"
+                    }`}
+                  >
+                    🛡️ VAS (Qoala/Tsel/XL/Indosat)
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-[#141226] text-[#FFF6E9]/70 uppercase text-[11px] border-b border-[#3B3666]">
+                    <tr>
+                      <th className="py-3 px-4">Nama Produk & Layanan</th>
+                      <th className="py-3 px-4">Artikel SAP</th>
+                      <th className="py-3 px-4">Brand / Provider</th>
+                      <th className="py-3 px-4 text-center">Qty Terjual</th>
+                      <th className="py-3 px-4 text-right">Nilai Penjualan (Rp)</th>
+                      <th className="py-3 px-4 text-right">Kontribusi Share</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#3B3666] font-medium">
+                    {OVERVIEW_PRODUCT_BREAKDOWN[overviewDetailCategory].map((p, i) => (
+                      <tr key={i} className="hover:bg-[#2B274F]/50 transition">
+                        <td className="py-3.5 px-4 font-bold text-[#FFF6E9]">{p.name}</td>
+                        <td className="py-3.5 px-4 font-mono text-[#FFF6E9]/60 text-[11px]">{p.sku}</td>
+                        <td className="py-3.5 px-4">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                            p.brand === "QOALA" ? "bg-purple-500/20 border-purple-400/40 text-purple-200" :
+                            p.brand === "TELKOMSEL" ? "bg-red-500/20 border-red-400/40 text-red-200" :
+                            p.brand === "XL" ? "bg-blue-500/20 border-blue-400/40 text-blue-200" :
+                            p.brand === "INDOSAT" ? "bg-amber-500/20 border-amber-400/40 text-amber-200" :
+                            "bg-[#141226] border-[#3B3666] text-[#FFF6E9]/80"
+                          }`}>
+                            {p.brand}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-center font-bold text-[#FFF6E9]">{p.qty} Unit</td>
+                        <td className="py-3.5 px-4 text-right font-extrabold text-emerald-300">
+                          {formatIDR(p.revenue)}
+                        </td>
+                        <td className="py-3.5 px-4 text-right text-[#F5BA42] font-bold">{p.share}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1100,7 +1267,7 @@ export default function Page() {
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 3: STAFF PERFORMANCE DETAIL (DENGAN AVATAR KARAKTER TOY STORY)       */}
+        {/* TAB 3: STAFF PERFORMANCE DETAIL (SEMUA STAF DITAMPILKAN SEKALIGUS)       */}
         {/* ========================================================================= */}
         {activeTab === "staff-performance" && (
           <div className="space-y-6 sm:space-y-8">
@@ -1108,24 +1275,26 @@ export default function Page() {
               <div className="flex items-center justify-between">
                 <h2 className="text-base sm:text-lg font-black text-[#FFF6E9] tracking-wide flex items-center gap-2">
                   <span>👥</span>
-                  <span>RINCIAN DETAIL SELURUH STAF SALES ({DETAILED_STAFF_LIST.length} ORANG - TOY STORY EDITION)</span>
+                  <span>RINCIAN DETAIL SELURUH STAF SALES ({ALL_STAFF_DETAILS.length} ORANG)</span>
                 </h2>
               </div>
 
-              {DETAILED_STAFF_LIST.map((staff) => (
+              {ALL_STAFF_DETAILS.map((staff) => (
                 <div key={staff.salesId} className="p-4 sm:p-6 bg-[#221F40] border-2 border-[#3B3666] rounded-3xl shadow-2xl relative overflow-hidden space-y-5">
-                  {/* Header Staf dengan Foto Avatar Karakter Toy Story */}
+                  {/* Header Staf dengan Lencana Avatar Inisial */}
                   <div className="flex flex-wrap justify-between items-start gap-4 pb-4 border-b border-[#3B3666]">
                     <div className="flex items-center gap-3">
                       <div className="relative">
-                        <img
-                          src={staff.avatarUrl}
-                          alt={staff.name}
-                          className="w-14 h-14 rounded-2xl object-cover ring-2 ring-[#F5BA42]/50 shadow-lg"
-                        />
-                        <span className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full inline-flex items-center justify-center font-black text-xs ${
-                          staff.rank === 1 ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#141226] text-[#FFF6E9] border border-[#3B3666]"
-                        }`}>
+                        <div
+                          className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl tracking-wider shadow-lg ${staff.avatarBg} ${staff.avatarText}`}
+                        >
+                          {staff.initials}
+                        </div>
+                        <span
+                          className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full inline-flex items-center justify-center font-black text-xs ${
+                            staff.rank === 1 ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#141226] text-[#FFF6E9] border border-[#3B3666]"
+                          }`}
+                        >
                           #{staff.rank}
                         </span>
                       </div>
@@ -1133,10 +1302,6 @@ export default function Page() {
                       <div>
                         <h3 className="text-lg sm:text-xl font-black text-[#FFF6E9] flex items-center gap-2">
                           <span>{staff.name}</span>
-                          <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-[#141226] border border-[#F5BA42]/40 text-[#F5BA42] font-bold flex items-center gap-1">
-                            <span>{staff.toyStoryIcon}</span>
-                            <span>{staff.toyStoryChar}</span>
-                          </span>
                           {staff.rank === 1 && (
                             <span className="text-[10px] bg-[#F5BA42] text-[#1A1831] px-2 py-0.5 rounded-full font-black uppercase">
                               Top 1 👑
