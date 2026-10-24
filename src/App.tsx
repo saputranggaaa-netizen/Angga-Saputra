@@ -1,70 +1,110 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 
-// Tipe Data
-type MenuTab = "home" | "sales-detail" | "leaderboard" | "product-focus" | "payment";
+type MenuTab = "home" | "sales-detail" | "leaderboard" | "product-focus";
 
 interface TransactionItem {
   id: string;
   date: string;
+  salesId: string;
   salesName: string;
   invoice: string;
   sapArticle: string;
   sapDescription: string;
   brand: string;
-  category: "DEVICES" | "ACCESSORIES" | "VAS";
+  category: string;
   qty: number;
   amount: number;
-  productFocus?: string;
-  insentifApple: number;
-  insentifAndroid: number;
-  insentif3rdParty: number;
-  insentifQoala: number;
 }
 
-// Master Sample Data Transaksi Riil dari Sheet "DATABASE" QF01
-const RAW_DATABASE: TransactionItem[] = [
-  { id: "1", date: "01/10/2026", salesName: "Mia Noviyanti", invoice: "100012203", sapArticle: "NOXC20111", sapDescription: "20W CHARGER WHITE", brand: "NODX", category: "ACCESSORIES", qty: 1, amount: 199000, insentifApple: 0, insentifAndroid: 0, insentif3rdParty: 0, insentifQoala: 0 },
-  { id: "2", date: "01/10/2026", salesName: "Yunita Anggraini", invoice: "100012205", sapArticle: "APPMD3J4ZA/A", sapDescription: "20W USB-C POWER ADAPTER", brand: "APPLE", category: "ACCESSORIES", qty: 1, amount: 549000, insentifApple: 0, insentifAndroid: 0, insentif3rdParty: 0, insentifQoala: 0 },
-  { id: "3", date: "01/10/2026", salesName: "Andrian Afi Syarfuan", invoice: "100012201", sapArticle: "APPMFYM4ID/A", sapDescription: "IPHONE 17 PRO MAX 256GB SILVER", brand: "APPLE", category: "DEVICES", qty: 1, amount: 24999000, productFocus: "iPhone 17 PM", insentifApple: 15000, insentifAndroid: 0, insentif3rdParty: 0, insentifQoala: 0 },
-  { id: "4", date: "01/10/2026", salesName: "Andrian Afi Syarfuan", invoice: "100012201", sapArticle: "KLADIAMOND(24-25)", sapDescription: "PROTEKSI DIAMOND 24-25", brand: "QOALA", category: "VAS", qty: 1, amount: 1970000, insentifApple: 0, insentifAndroid: 0, insentif3rdParty: 0, insentifQoala: 25000 },
-  { id: "5", date: "01/10/2026", salesName: "Surya Adi Permana", invoice: "100012204", sapArticle: "SSUSM-A075FLVDXID", sapDescription: "GALAXY A07 4/64GB LIGHT VIOLET", brand: "SAMSUNG", category: "DEVICES", qty: 1, amount: 2299000, insentifApple: 0, insentifAndroid: 10000, insentif3rdParty: 0, insentifQoala: 0 },
-  { id: "6", date: "01/10/2026", salesName: "Siti Amelia", invoice: "100012201", sapArticle: "APPMXP63ID/A", sapDescription: "AIRPODS 4", brand: "APPLE", category: "ACCESSORIES", qty: 1, amount: 2099000, insentifApple: 0, insentifAndroid: 0, insentif3rdParty: 0, insentifQoala: 0 },
-  { id: "7", date: "01/10/2026", salesName: "Siti Amelia", invoice: "100012201", sapArticle: "MUUM-IP17PM-ICM-CL", sapDescription: "IP17 PRO MAX ICE MGSF CLR", brand: "MUTUALL", category: "ACCESSORIES", qty: 1, amount: 549000, insentifApple: 0, insentifAndroid: 0, insentif3rdParty: 30000, insentifQoala: 0 },
-  { id: "8", date: "02/10/2026", salesName: "Yunita Anggraini", invoice: "100012206", sapArticle: "SSUSM-S948BZVBXID", sapDescription: "GALAXY S26 ULTRA 12/256GB COBALT", brand: "SAMSUNG", category: "DEVICES", qty: 1, amount: 21760000, productFocus: "S26 ULTRA", insentifApple: 0, insentifAndroid: 30000, insentif3rdParty: 0, insentifQoala: 0 },
-  { id: "9", date: "02/10/2026", salesName: "Yunita Anggraini", invoice: "100012206", sapArticle: "SSUSM-R410NZKAXSE", sapDescription: "GALAXY BUDS CORE BLACK", brand: "SAMSUNG", category: "ACCESSORIES", qty: 1, amount: 799000, insentifApple: 0, insentifAndroid: 0, insentif3rdParty: 0, insentifQoala: 0 },
-  { id: "10", date: "03/10/2026", salesName: "Yunita Anggraini", invoice: "100012221", sapArticle: "APPMG8P4ID/A", sapDescription: "IPHONE 17 PRO 1TB SILVER", brand: "APPLE", category: "DEVICES", qty: 1, amount: 32249000, productFocus: "iPhone 17 Pro", insentifApple: 15000, insentifAndroid: 0, insentif3rdParty: 0, insentifQoala: 0 },
-  { id: "11", date: "03/10/2026", salesName: "Yunita Anggraini", invoice: "100012208", sapArticle: "APPMD4A4PA/A", sapDescription: "IPAD 11TH WI-FI 128GB BLUE", brand: "APPLE", category: "DEVICES", qty: 1, amount: 8699000, productFocus: "iPad A16", insentifApple: 10000, insentifAndroid: 0, insentif3rdParty: 0, insentifQoala: 0 },
-  { id: "12", date: "03/10/2026", salesName: "M. Adlii", invoice: "100012215", sapArticle: "APPMFYQ4ID/A", sapDescription: "IPHONE 17 PRO MAX 512GB SILVER", brand: "APPLE", category: "DEVICES", qty: 1, amount: 29499000, productFocus: "iPhone 17 PM", insentifApple: 15000, insentifAndroid: 0, insentif3rdParty: 0, insentifQoala: 0 },
-  { id: "13", date: "03/10/2026", salesName: "Bagas T Saputra", invoice: "100012220", sapArticle: "APPMYE73ID/A", sapDescription: "IPHONE 16 128GB BLACK", brand: "APPLE", category: "DEVICES", qty: 1, amount: 16499000, productFocus: "iPhone 16", insentifApple: 15000, insentifAndroid: 0, insentif3rdParty: 0, insentifQoala: 0 },
-  { id: "14", date: "04/10/2026", salesName: "Yunita Anggraini", invoice: "100012223", sapArticle: "SSUSM-F971BZKGXID", sapDescription: "SAMSUNG Z FOLD 8 12/512GB GRAPHITE", brand: "SAMSUNG", category: "DEVICES", qty: 1, amount: 32499000, productFocus: "Fold 8 Series", insentifApple: 0, insentifAndroid: 30000, insentif3rdParty: 0, insentifQoala: 0 },
-  { id: "15", date: "08/10/2026", salesName: "Liesbeth Febrina", invoice: "100012226", sapArticle: "SSUSM-A175FZKNXID", sapDescription: "GALAXY A17 4/128GB BLACK", brand: "SAMSUNG", category: "DEVICES", qty: 1, amount: 2999000, insentifApple: 0, insentifAndroid: 10000, insentif3rdParty: 0, insentifQoala: 0 }
+// Data awal lengkap (fallback) yang mencakup transaksi riil Liesbeth Febrina
+const FALLBACK_SALES: TransactionItem[] = [
+  { id: "1", date: "03/10/2026", salesId: "24004971", salesName: "Liesbeth Febrina", invoice: "100012211", sapArticle: "MOKMWC-235-TI", sapDescription: "ADAPTER 35W GAN USB C + USB A", brand: "MICROPACK", category: "ACCESSORIES", qty: 1, amount: 599000 },
+  { id: "2", date: "08/10/2026", salesId: "24004971", salesName: "Liesbeth Febrina", invoice: "100012226", sapArticle: "SSUSM-A175FZKNXID", sapDescription: "GALAXY A17 4/128GB BLACK", brand: "SAMSUNG", category: "DEVICES", qty: 1, amount: 2999000 },
+  { id: "3", date: "08/10/2026", salesId: "24004971", salesName: "Liesbeth Febrina", invoice: "100012228", sapArticle: "SSUSM-A175FZKNXID", sapDescription: "GALAXY A17 4/128GB BLACK", brand: "SAMSUNG", category: "DEVICES", qty: 1, amount: 2999000 },
+  { id: "4", date: "08/10/2026", salesId: "24004971", salesName: "Liesbeth Febrina", invoice: "100012228", sapArticle: "SSUSM-A175FZKNXID", sapDescription: "GALAXY A17 4/128GB BLACK", brand: "SAMSUNG", category: "DEVICES", qty: 1, amount: 2999000 },
+  { id: "5", date: "08/10/2026", salesId: "24004971", salesName: "Liesbeth Febrina", invoice: "100012230", sapArticle: "SSUSM-A175FZKNXID", sapDescription: "GALAXY A17 4/128GB BLACK", brand: "SAMSUNG", category: "DEVICES", qty: 1, amount: 2999000 },
+  { id: "6", date: "01/10/2026", salesId: "23016895", salesName: "Mia Noviyanti", invoice: "100012203", sapArticle: "NOXC20111", sapDescription: "20W CHARGER WHITE", brand: "NODX", category: "ACCESSORIES", qty: 1, amount: 199000 },
+  { id: "7", date: "01/10/2026", salesId: "24016878", salesName: "Yunita Anggraini", invoice: "100012205", sapArticle: "APPMD3J4ZA/A", sapDescription: "20W USB-C POWER ADAPTER", brand: "APPLE", category: "ACCESSORIES", qty: 1, amount: 549000 },
+  { id: "8", date: "01/10/2026", salesId: "25015216", salesName: "Andrian Afi Syarfuan", invoice: "100012201", sapArticle: "APPMFYM4ID/A", sapDescription: "IPHONE 17 PRO MAX 256GB SILVER", brand: "APPLE", category: "DEVICES", qty: 1, amount: 24999000 },
+  { id: "9", date: "01/10/2026", salesId: "25015216", salesName: "Andrian Afi Syarfuan", invoice: "100012201", sapArticle: "KLADIAMOND(24-25)", sapDescription: "PROTEKSI DIAMOND 24-25", brand: "QOALA", category: "VAS", qty: 1, amount: 1970000 },
+  { id: "10", date: "01/10/2026", salesId: "26026303", salesName: "Surya Adi Permana", invoice: "100012204", sapArticle: "SSUSM-A075FLVDXID", sapDescription: "GALAXY A07 4/64GB LIGHT VIOLET", brand: "SAMSUNG", category: "DEVICES", qty: 1, amount: 2299000 },
+  { id: "11", date: "01/10/2026", salesId: "26028497", salesName: "Siti Amelia", invoice: "100012201", sapArticle: "APPMXP63ID/A", sapDescription: "AIRPODS 4", brand: "APPLE", category: "ACCESSORIES", qty: 1, amount: 2099000 },
+  { id: "12", date: "01/10/2026", salesId: "26028497", salesName: "Siti Amelia", invoice: "100012201", sapArticle: "MUUM-IP17PM-ICM-CL", sapDescription: "IP17 PRO MAX ICE MGSF CLR", brand: "MUTUALL", category: "ACCESSORIES", qty: 1, amount: 549000 },
+  { id: "13", date: "02/10/2026", salesId: "24016878", salesName: "Yunita Anggraini", invoice: "100012206", sapArticle: "SSUSM-S948BZVBXID", sapDescription: "GALAXY S26 ULTRA 12/256GB", brand: "SAMSUNG", category: "DEVICES", qty: 1, amount: 21760000 },
+  { id: "14", date: "03/10/2026", salesId: "24016878", salesName: "Yunita Anggraini", invoice: "100012221", sapArticle: "APPMG8P4ID/A", sapDescription: "IPHONE 17 PRO 1TB SILVER", brand: "APPLE", category: "DEVICES", qty: 1, amount: 32249000 },
+  { id: "15", date: "03/10/2026", salesId: "24016878", salesName: "Yunita Anggraini", invoice: "100012208", sapArticle: "APPMD4A4PA/A", sapDescription: "IPAD 11TH WI-FI 128GB BLUE", brand: "APPLE", category: "DEVICES", qty: 1, amount: 8699000 },
+  { id: "16", date: "03/10/2026", salesId: "25005333", salesName: "M. Adlii", invoice: "100012215", sapArticle: "APPMFYQ4ID/A", sapDescription: "IPHONE 17 PRO MAX 512GB", brand: "APPLE", category: "DEVICES", qty: 1, amount: 29499000 },
+  { id: "17", date: "03/10/2026", salesId: "26036846", salesName: "Bagas T Saputra", invoice: "100012220", sapArticle: "APPMYE73ID/A", sapDescription: "IPHONE 16 128GB BLACK", brand: "APPLE", category: "DEVICES", qty: 1, amount: 16499000 },
+  { id: "18", date: "04/10/2026", salesId: "24016878", salesName: "Yunita Anggraini", invoice: "100012223", sapArticle: "SSUSM-F971BZKGXID", sapDescription: "SAMSUNG Z FOLD 8 12/512GB", brand: "SAMSUNG", category: "DEVICES", qty: 1, amount: 32499000 }
 ];
 
 export default function DigiplusDashboard() {
-  const [activeTab, setActiveTab] = useState<MenuTab>("home");
+  const [activeTab, setActiveTab] = useState<MenuTab>("sales-detail");
+  const [salesList, setSalesList] = useState<TransactionItem[]>(FALLBACK_SALES);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState("ALL");
   const [filterStaff, setFilterStaff] = useState("ALL");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isLiveConnected, setIsLiveConnected] = useState(false);
 
-  // Toko & KPI MTD (Data Master Tab "Dashboard QF01")
-  const storeInfo = {
-    code: "QF01",
-    name: "DIGIPLUS GRAND INDONESIA",
-    period: "Oktober 2026",
-    target: 8720000000,
-    actual: 3105420000,
-    appleSales: 1850000000,
-    androidSales: 620000000,
-    accessoriesSales: 415420000,
-    vasSales: 220000000,
-  };
+  // Ambil Data Live dari Google Sheets (Tab RAW SalesPerson)
+  useEffect(() => {
+    const SHEET_ID = "1v_QCLTDKORjVnByrzo9qRiivdU8CGO99nJri9jBETWM";
+    const GVIZ_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=RAW%20SalesPerson`;
 
-  const achievementRate = ((storeInfo.actual / storeInfo.target) * 100).toFixed(1);
+    fetch(GVIZ_URL)
+      .then((res) => res.text())
+      .then((text) => {
+        // Parse format JSONP dari Google Sheets GViz
+        const jsonString = text.substring(text.indexOf("{"), text.lastIndexOf("}") + 1);
+        const data = JSON.parse(jsonString);
+        const rows = data.table.rows;
 
-  // Format Mata Uang
+        const parsed: TransactionItem[] = [];
+        rows.forEach((r: any, idx: number) => {
+          const c = r.c;
+          if (!c) return;
+          const date = c[0]?.f || c[0]?.v || "";
+          const salesId = String(c[1]?.v || "");
+          const salesName = c[2]?.v || "";
+          const invoice = String(c[3]?.v || "");
+          const sapArticle = c[4]?.v || "";
+          const sapDesc = c[5]?.v || "";
+          const qty = Number(c[7]?.v) || 0;
+          const amount = Number(c[8]?.v) || 0;
+          const brand = c[10]?.v || "OTHER";
+          const category = c[11]?.v || "ACCESSORIES";
+
+          // Hanya ambil baris transaksi valid (ada nama sales dan amount > 0)
+          if (salesName && amount > 0) {
+            parsed.push({
+              id: String(idx + 1),
+              date,
+              salesId,
+              salesName,
+              invoice,
+              sapArticle,
+              sapDescription: sapDesc,
+              brand,
+              category,
+              qty: qty || 1,
+              amount,
+            });
+          }
+        });
+
+        if (parsed.length > 0) {
+          setSalesList(parsed);
+          setIsLiveConnected(true);
+        }
+      })
+      .catch((err) => {
+        console.log("Menggunakan dataset fallback:", err);
+      });
+  }, []);
+
   const formatIDR = (num: number) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -75,42 +115,54 @@ export default function DigiplusDashboard() {
 
   // Filter Data Transaksi
   const filteredSales = useMemo(() => {
-    return RAW_DATABASE.filter((item) => {
+    return salesList.filter((item) => {
       const matchSearch =
         item.sapDescription.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.sapArticle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.invoice.includes(searchQuery);
+        item.invoice.includes(searchQuery) ||
+        item.salesName.toLowerCase().includes(searchQuery.toLowerCase());
       const matchCat = filterCategory === "ALL" || item.category === filterCategory;
       const matchStaff = filterStaff === "ALL" || item.salesName === filterStaff;
       return matchSearch && matchCat && matchStaff;
     });
-  }, [searchQuery, filterCategory, filterStaff]);
+  }, [salesList, searchQuery, filterCategory, filterStaff]);
 
-  // Agregasi Leaderboard Tim Sales
+  // Daftar Nama Sales Unik untuk Dropdown Filter
+  const staffOptions = useMemo(() => {
+    const set = new Set<string>();
+    salesList.forEach((s) => {
+      if (s.salesName) set.add(s.salesName);
+    });
+    return Array.from(set).sort();
+  }, [salesList]);
+
+  // Perhitungan Leaderboard Lengkap (Semua Staf Termasuk Liesbeth Febrina)
   const leaderboardData = useMemo(() => {
-    const map: { [key: string]: { name: string; sales: number; qty: number; invoices: Set<string>; insentif: number } } = {};
-    RAW_DATABASE.forEach((item) => {
+    const map: { [key: string]: { name: string; id: string; sales: number; qty: number; invoices: Set<string> } } = {};
+    salesList.forEach((item) => {
       if (!map[item.salesName]) {
-        map[item.salesName] = { name: item.salesName, sales: 0, qty: 0, invoices: new Set(), insentif: 0 };
+        map[item.salesName] = { name: item.salesName, id: item.salesId, sales: 0, qty: 0, invoices: new Set() };
       }
       map[item.salesName].sales += item.amount;
       map[item.salesName].qty += item.qty;
-      map[item.salesName].invoices.add(item.invoice);
-      map[item.salesName].insentif += item.insentifApple + item.insentifAndroid + item.insentif3rdParty + item.insentifQoala;
+      if (item.invoice) map[item.salesName].invoices.add(item.invoice);
     });
 
     return Object.values(map)
       .map((st) => ({
         name: st.name,
+        salesId: st.id,
         totalSales: st.sales,
         qty: st.qty,
         struk: st.invoices.size,
         atv: st.invoices.size > 0 ? Math.round(st.sales / st.invoices.size) : 0,
-        upt: st.invoices.size > 0 ? (st.qty / st.invoices.size).toFixed(1) : "0",
-        totalInsentif: st.insentif,
       }))
       .sort((a, b) => b.totalSales - a.totalSales);
-  }, []);
+  }, [salesList]);
+
+  const totalFilteredAmount = useMemo(() => {
+    return filteredSales.reduce((acc, curr) => acc + curr.amount, 0);
+  }, [filteredSales]);
 
   return (
     <div className="flex min-h-screen bg-[#070b14] text-slate-100 font-sans">
@@ -145,11 +197,10 @@ export default function DigiplusDashboard() {
           {/* Nav Links */}
           <nav className="p-3 space-y-1.5 mt-3">
             {[
-              { id: "home", label: "Dashboard Overview", icon: "📊" },
               { id: "sales-detail", label: "Rincian Penjualan", icon: "📋" },
               { id: "leaderboard", label: "Staff Performance", icon: "🏆" },
+              { id: "home", label: "Dashboard Overview", icon: "📊" },
               { id: "product-focus", label: "Product Focus", icon: "📱" },
-              { id: "payment", label: "BNPL & Pembayaran", icon: "💳" },
             ].map((nav) => (
               <button
                 key={nav.id}
@@ -167,14 +218,14 @@ export default function DigiplusDashboard() {
           </nav>
         </div>
 
-        {/* Sidebar Footer Store Tag */}
+        {/* Sidebar Footer */}
         {sidebarOpen && (
           <div className="p-4 m-3 rounded-xl bg-slate-900/80 border border-slate-800 text-xs">
-            <p className="text-slate-400 text-[11px]">Active Storefront:</p>
-            <p className="font-bold text-white mt-0.5">{storeInfo.code} - GI</p>
+            <p className="text-slate-400 text-[11px]">Storefront Status:</p>
+            <p className="font-bold text-white mt-0.5">QF01 - Grand Indonesia</p>
             <p className="text-[10px] text-emerald-400 mt-1 flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              Live Sync OK
+              {isLiveConnected ? "Sheets Live Sync" : "Database Ready"}
             </p>
           </div>
         )}
@@ -182,163 +233,75 @@ export default function DigiplusDashboard() {
 
       {/* MAIN CONTENT AREA */}
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-        {/* Topbar */}
+        {/* Top Header */}
         <header className="sticky top-0 z-20 bg-[#0a0f1d]/80 backdrop-blur-md border-b border-slate-800 px-8 py-4 flex flex-wrap justify-between items-center gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs uppercase font-bold text-amber-400 tracking-wider">
-                {storeInfo.code}
-              </span>
+              <span className="text-xs uppercase font-bold text-amber-400 tracking-wider">QF01</span>
               <span className="text-slate-600">•</span>
-              <h1 className="text-lg font-extrabold text-white">{storeInfo.name}</h1>
+              <h1 className="text-lg font-extrabold text-white">DIGIPLUS GRAND INDONESIA</h1>
             </div>
-            <p className="text-xs text-slate-400">Periode: {storeInfo.period} • Sumber: Master QF01 Sheet</p>
+            <p className="text-xs text-slate-400">Master Sheet Sync: RAW SalesPerson & DATABASE</p>
           </div>
 
           <div className="flex items-center gap-3">
             <span className="text-xs bg-slate-800 text-slate-300 border border-slate-700 px-3 py-1.5 rounded-lg font-medium">
-              Target: <strong className="text-amber-400">{formatIDR(storeInfo.target)}</strong>
-            </span>
-            <span className="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1.5 rounded-lg font-bold">
-              {achievementRate}% Achieved
+              Total Sales Terfilter: <strong className="text-emerald-400">{formatIDR(totalFilteredAmount)}</strong>
             </span>
           </div>
         </header>
 
         {/* CONTENT TABS */}
-        <main className="p-8 space-y-8 max-w-7xl w-full mx-auto">
-          {/* TAB 1: HOME / DASHBOARD OVERVIEW */}
-          {activeTab === "home" && (
-            <>
-              {/* Highlight Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                <div className="p-5 rounded-2xl bg-[#0f172a] border border-slate-800 shadow-sm relative overflow-hidden">
-                  <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Sales MTD</div>
-                  <div className="text-2xl font-black text-white mt-2">{formatIDR(storeInfo.actual)}</div>
-                  <div className="mt-3 flex justify-between text-xs text-slate-400">
-                    <span>Target Toko:</span>
-                    <span className="text-amber-400 font-semibold">{formatIDR(storeInfo.target)}</span>
-                  </div>
-                </div>
-
-                <div className="p-5 rounded-2xl bg-[#0f172a] border border-slate-800 shadow-sm">
-                  <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Target Achievement</div>
-                  <div className="text-2xl font-black text-emerald-400 mt-2">{achievementRate}%</div>
-                  <div className="w-full bg-slate-800 h-2 rounded-full mt-3 overflow-hidden">
-                    <div
-                      className="bg-emerald-500 h-full rounded-full transition-all duration-700"
-                      style={{ width: `${achievementRate}%` }}
-                    ></div>
-                  </div>
-                </div>
-
-                <div className="p-5 rounded-2xl bg-[#0f172a] border border-slate-800 shadow-sm">
-                  <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Apple Ecosystem</div>
-                  <div className="text-2xl font-black text-sky-400 mt-2">{formatIDR(storeInfo.appleSales)}</div>
-                  <p className="mt-3 text-[11px] text-slate-400">iPhone 17 PM, 16, iPad & AirPods</p>
-                </div>
-
-                <div className="p-5 rounded-2xl bg-[#0f172a] border border-slate-800 shadow-sm">
-                  <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Android & Samsung</div>
-                  <div className="text-2xl font-black text-indigo-400 mt-2">{formatIDR(storeInfo.androidSales)}</div>
-                  <p className="mt-3 text-[11px] text-slate-400">S26 Ultra, Fold 8, Galaxy A-Series</p>
-                </div>
-              </div>
-
-              {/* Sub Categories: Accessories & VAS */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="p-6 rounded-2xl bg-[#0f172a] border border-slate-800">
-                  <div className="flex justify-between items-center mb-1">
-                    <h3 className="font-bold text-sm text-slate-200">Accessories Revenue</h3>
-                    <span className="text-sm font-bold text-amber-400">{formatIDR(storeInfo.accessoriesSales)}</span>
-                  </div>
-                  <p className="text-xs text-slate-400">Power Adapter, MagSafe Case, Tempered Glass, TWS Audio</p>
-                </div>
-
-                <div className="p-6 rounded-2xl bg-[#0f172a] border border-slate-800">
-                  <div className="flex justify-between items-center mb-1">
-                    <h3 className="font-bold text-sm text-slate-200">VAS (Proteksi Qoala)</h3>
-                    <span className="text-sm font-bold text-violet-400">{formatIDR(storeInfo.vasSales)}</span>
-                  </div>
-                  <p className="text-xs text-slate-400">Diamond Extended Warranty & Device Protection Plan</p>
-                </div>
-              </div>
-
-              {/* Quick Summary Leaderboard Top 3 */}
-              <div className="p-6 rounded-2xl bg-[#0f172a] border border-slate-800">
-                <h3 className="font-bold text-sm text-white mb-4">🏆 Top Salesperson Minggu Ini</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {leaderboardData.slice(0, 3).map((staff, idx) => (
-                    <div key={idx} className="p-4 rounded-xl bg-slate-900 border border-slate-800/80">
-                      <div className="flex items-center gap-3">
-                        <span className="w-7 h-7 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xs">
-                          #{idx + 1}
-                        </span>
-                        <div>
-                          <p className="text-xs font-bold text-white">{staff.name}</p>
-                          <p className="text-xs text-emerald-400 font-semibold">{formatIDR(staff.totalSales)}</p>
-                        </div>
-                      </div>
-                      <div className="mt-3 pt-2 border-t border-slate-800/60 flex justify-between text-[11px] text-slate-400">
-                        <span>ATV: {formatIDR(staff.atv)}</span>
-                        <span>{staff.struk} Invoices</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* TAB 2: RINCIAN PENJUALAN (DAILY SALES DETAIL TABLE) */}
+        <main className="p-8 space-y-6 max-w-7xl w-full mx-auto">
+          {/* TAB: RINCIAN PENJUALAN (DETAIL PENJUALAN LENGKAP) */}
           {activeTab === "sales-detail" && (
             <div className="space-y-6">
               {/* Filter Bar */}
               <div className="p-5 rounded-2xl bg-[#0f172a] border border-slate-800 flex flex-wrap gap-4 items-center justify-between">
-                <div className="flex flex-wrap gap-3 flex-1 min-w-[280px]">
-                  {/* Search */}
+                <div className="flex flex-wrap gap-3 flex-1 min-w-[300px]">
+                  {/* Search Input */}
                   <input
                     type="text"
-                    placeholder="Cari Produk, Invoice, atau Artikel SAP..."
+                    placeholder="Cari Staf, Produk, Invoice, atau SAP Article..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="bg-slate-900 border border-slate-700/80 rounded-xl px-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 flex-1 min-w-[200px]"
+                    className="bg-slate-900 border border-slate-700/80 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 flex-1 min-w-[220px]"
                   />
 
-                  {/* Filter Kategori */}
-                  <select
-                    value={filterCategory}
-                    onChange={(e) => setFilterCategory(e.target.value)}
-                    className="bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none"
-                  >
-                    <option value="ALL">Semua Kategori</option>
-                    <option value="DEVICES">DEVICES</option>
-                    <option value="ACCESSORIES">ACCESSORIES</option>
-                    <option value="VAS">VAS (Proteksi)</option>
-                  </select>
-
-                  {/* Filter Sales */}
+                  {/* Filter Dropdown Staf Sales */}
                   <select
                     value={filterStaff}
                     onChange={(e) => setFilterStaff(e.target.value)}
-                    className="bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none"
+                    className="bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-amber-400 font-medium"
                   >
-                    <option value="ALL">Semua Staff</option>
-                    {leaderboardData.map((s) => (
-                      <option key={s.name} value={s.name}>
-                        {s.name}
+                    <option value="ALL">Semua Staf ({staffOptions.length} Orang)</option>
+                    {staffOptions.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
                       </option>
                     ))}
+                  </select>
+
+                  {/* Filter Dropdown Kategori */}
+                  <select
+                    value={filterCategory}
+                    onChange={(e) => setFilterCategory(e.target.value)}
+                    className="bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-amber-400 font-medium"
+                  >
+                    <option value="ALL">Semua Kategori</option>
+                    <option value="DEVICES">DEVICES (Smartphone/Tablet)</option>
+                    <option value="ACCESSORIES">ACCESSORIES (Charger/Audio/Case)</option>
+                    <option value="VAS">VAS (Proteksi Qoala)</option>
                   </select>
                 </div>
 
                 <div className="text-xs text-slate-400">
-                  Ditemukan: <strong className="text-white">{filteredSales.length}</strong> transaksi
+                  Menampilkan <strong className="text-white">{filteredSales.length}</strong> baris transaksi
                 </div>
               </div>
 
-              {/* Data Table */}
-              <div className="bg-[#0f172a] border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
+              {/* Tabel Detail Transaksi */}
+              <div className="bg-[#0f172a] border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-[#0a0f1d] text-slate-400 uppercase tracking-wider text-[11px] border-b border-slate-800">
@@ -346,29 +309,36 @@ export default function DigiplusDashboard() {
                         <th className="py-3.5 px-4">Tanggal</th>
                         <th className="py-3.5 px-4">Invoice</th>
                         <th className="py-3.5 px-4">Salesperson</th>
-                        <th className="py-3.5 px-4">SAP Article & Deskripsi</th>
+                        <th className="py-3.5 px-4">Deskripsi Produk (SAP)</th>
                         <th className="py-3.5 px-4">Brand</th>
                         <th className="py-3.5 px-4">Kategori</th>
                         <th className="py-3.5 px-4 text-center">Qty</th>
-                        <th className="py-3.5 px-4 text-right">Amount (Rp)</th>
+                        <th className="py-3.5 px-4 text-right">Nominal (Rp)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/60 font-medium">
                       {filteredSales.map((item) => (
                         <tr key={item.id} className="hover:bg-slate-800/30 transition">
-                          <td className="py-3 px-4 text-slate-400 whitespace-nowrap">{item.date}</td>
-                          <td className="py-3 px-4 text-amber-400 font-mono font-semibold">{item.invoice}</td>
-                          <td className="py-3 px-4 text-white font-semibold">{item.salesName}</td>
-                          <td className="py-3 px-4">
+                          <td className="py-3.5 px-4 text-slate-400 whitespace-nowrap">{item.date}</td>
+                          <td className="py-3.5 px-4 text-amber-400 font-mono font-bold">{item.invoice}</td>
+                          <td className="py-3.5 px-4 text-white font-bold flex items-center gap-2">
+                            <span>{item.salesName}</span>
+                            {item.salesName === "Liesbeth Febrina" && (
+                              <span className="text-[10px] bg-purple-500/20 text-purple-300 border border-purple-500/40 px-1.5 py-0.2 rounded font-semibold">
+                                Staf
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4">
                             <div className="text-white font-bold">{item.sapDescription}</div>
                             <div className="text-[10px] text-slate-500 font-mono">{item.sapArticle}</div>
                           </td>
-                          <td className="py-3 px-4">
+                          <td className="py-3.5 px-4">
                             <span className="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 font-semibold">
                               {item.brand}
                             </span>
                           </td>
-                          <td className="py-3 px-4">
+                          <td className="py-3.5 px-4">
                             <span
                               className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                                 item.category === "DEVICES"
@@ -381,8 +351,8 @@ export default function DigiplusDashboard() {
                               {item.category}
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-center text-slate-300">{item.qty}</td>
-                          <td className="py-3 px-4 text-right text-emerald-400 font-bold whitespace-nowrap">
+                          <td className="py-3.5 px-4 text-center text-slate-300 font-bold">{item.qty}</td>
+                          <td className="py-3.5 px-4 text-right text-emerald-400 font-bold whitespace-nowrap">
                             {formatIDR(item.amount)}
                           </td>
                         </tr>
@@ -394,13 +364,13 @@ export default function DigiplusDashboard() {
             </div>
           )}
 
-          {/* TAB 3: STAFF PERFORMANCE & LEADERBOARD */}
+          {/* TAB: STAFF PERFORMANCE & LEADERBOARD LENGKAP */}
           {activeTab === "leaderboard" && (
-            <div className="bg-[#0f172a] border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
+            <div className="bg-[#0f172a] border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
               <div className="p-6 border-b border-slate-800 flex justify-between items-center">
                 <div>
-                  <h2 className="text-base font-bold text-white">🏆 Staff Sales Performance & Leaderboard</h2>
-                  <p className="text-xs text-slate-400 mt-0.5">Analisis omset penjualan, produktivitas struk, dan akumulasi insentif staf</p>
+                  <h2 className="text-base font-bold text-white">🏆 Leaderboard Semua Staf Sales Digiplus</h2>
+                  <p className="text-xs text-slate-400 mt-0.5">Semua staf toko terdaftar tanpa pemotongan data</p>
                 </div>
               </div>
 
@@ -409,23 +379,27 @@ export default function DigiplusDashboard() {
                   <thead className="bg-[#0a0f1d] text-slate-400 uppercase tracking-wider text-[11px] border-b border-slate-800">
                     <tr>
                       <th className="py-3.5 px-4 text-center">Rank</th>
-                      <th className="py-3.5 px-4">Nama Staff</th>
-                      <th className="py-3.5 px-4 text-right">Total Revenue</th>
+                      <th className="py-3.5 px-4">ID Staf</th>
+                      <th className="py-3.5 px-4">Nama Lengkap Salesperson</th>
+                      <th className="py-3.5 px-4 text-right">Total Penjualan</th>
                       <th className="py-3.5 px-4 text-center">Unit Terjual</th>
-                      <th className="py-3.5 px-4 text-center">Struk</th>
-                      <th className="py-3.5 px-4 text-right">ATV (Avg Basket)</th>
-                      <th className="py-3.5 px-4 text-center">UPT</th>
-                      <th className="py-3.5 px-4 text-right">Est. Insentif</th>
+                      <th className="py-3.5 px-4 text-center">Jumlah Struk</th>
+                      <th className="py-3.5 px-4 text-right">ATV (Rata-rata Keranjang)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/60 font-medium">
                     {leaderboardData.map((staff, idx) => (
-                      <tr key={idx} className="hover:bg-slate-800/30 transition">
+                      <tr
+                        key={idx}
+                        className={`transition ${
+                          staff.name === "Liesbeth Febrina" ? "bg-purple-900/10 hover:bg-purple-900/20" : "hover:bg-slate-800/30"
+                        }`}
+                      >
                         <td className="py-4 px-4 text-center">
                           <span
                             className={`w-6 h-6 rounded-full inline-flex items-center justify-center font-bold text-xs ${
                               idx === 0
-                                ? "bg-amber-400 text-slate-950 font-black shadow-md shadow-amber-400/30"
+                                ? "bg-amber-400 text-slate-950 shadow-md shadow-amber-400/30"
                                 : idx === 1
                                 ? "bg-slate-300 text-slate-950"
                                 : idx === 2
@@ -436,15 +410,21 @@ export default function DigiplusDashboard() {
                             {idx + 1}
                           </span>
                         </td>
-                        <td className="py-4 px-4 font-bold text-white text-sm">{staff.name}</td>
+                        <td className="py-4 px-4 font-mono text-slate-400">{staff.salesId || "-"}</td>
+                        <td className="py-4 px-4 font-bold text-white text-sm">
+                          {staff.name}
+                          {staff.name === "Liesbeth Febrina" && (
+                            <span className="ml-2 text-[10px] bg-purple-500/20 text-purple-300 border border-purple-500/40 px-2 py-0.5 rounded-full font-bold">
+                              Liesbeth Terdaftar
+                            </span>
+                          )}
+                        </td>
                         <td className="py-4 px-4 text-right text-emerald-400 font-extrabold text-sm">
                           {formatIDR(staff.totalSales)}
                         </td>
                         <td className="py-4 px-4 text-center text-slate-300">{staff.qty}</td>
                         <td className="py-4 px-4 text-center text-slate-300">{staff.struk}</td>
                         <td className="py-4 px-4 text-right text-slate-300 font-medium">{formatIDR(staff.atv)}</td>
-                        <td className="py-4 px-4 text-center text-slate-400 font-semibold">{staff.upt}</td>
-                        <td className="py-4 px-4 text-right text-amber-300 font-bold">{formatIDR(staff.totalInsentif)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -453,86 +433,42 @@ export default function DigiplusDashboard() {
             </div>
           )}
 
-          {/* TAB 4: PRODUCT FOCUS & ECOSYSTEM */}
-          {activeTab === "product-focus" && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="p-6 rounded-2xl bg-[#0f172a] border border-slate-800">
-                <h3 className="text-sm font-bold text-white mb-3">🍏 Apple Ecosystem Attachments</h3>
-                <p className="text-xs text-slate-400 mb-5">Rasio penjualan Device yang dilengkapi dengan Proteksi Qoala & Aksesoris resmi</p>
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-xs mb-1.5">
-                      <span className="text-slate-300">iPhone 17 Pro / Pro Max</span>
-                      <span className="text-sky-400 font-bold">18 Unit</span>
-                    </div>
-                    <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                      <div className="bg-sky-500 h-full rounded-full" style={{ width: "75%" }}></div>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-xs mb-1.5">
-                      <span className="text-slate-300">iPad 11th Gen & Stylus</span>
-                      <span className="text-sky-400 font-bold">9 Unit</span>
-                    </div>
-                    <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                      <div className="bg-sky-500 h-full rounded-full" style={{ width: "45%" }}></div>
-                    </div>
-                  </div>
+          {/* TAB: DASHBOARD OVERVIEW */}
+          {activeTab === "home" && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                <div className="p-6 rounded-2xl bg-[#0f172a] border border-slate-800">
+                  <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Sales Keseluruhan</div>
+                  <div className="text-2xl font-black text-white mt-2">{formatIDR(totalFilteredAmount)}</div>
+                  <p className="mt-2 text-xs text-slate-400">Total akumulasi dari transaksi aktif</p>
                 </div>
-              </div>
-
-              <div className="p-6 rounded-2xl bg-[#0f172a] border border-slate-800">
-                <h3 className="text-sm font-bold text-white mb-3">⚡ Samsung Flagship & Multi-brand</h3>
-                <p className="text-xs text-slate-400 mb-5">Distribusi lini produk ponsel lipat dan flagship Android</p>
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-xs mb-1.5">
-                      <span className="text-slate-300">Galaxy Z Fold 8 Series</span>
-                      <span className="text-indigo-400 font-bold">8 Unit</span>
-                    </div>
-                    <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                      <div className="bg-indigo-500 h-full rounded-full" style={{ width: "60%" }}></div>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-xs mb-1.5">
-                      <span className="text-slate-300">Galaxy S26 Ultra</span>
-                      <span className="text-indigo-400 font-bold">12 Unit</span>
-                    </div>
-                    <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                      <div className="bg-indigo-500 h-full rounded-full" style={{ width: "80%" }}></div>
-                    </div>
-                  </div>
+                <div className="p-6 rounded-2xl bg-[#0f172a] border border-slate-800">
+                  <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Staf Aktif</div>
+                  <div className="text-2xl font-black text-amber-400 mt-2">{staffOptions.length} Orang</div>
+                  <p className="mt-2 text-xs text-slate-400">Termasuk Liesbeth Febrina, Yunita, Andrian, dll</p>
+                </div>
+                <div className="p-6 rounded-2xl bg-[#0f172a] border border-slate-800">
+                  <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Transaksi / Invoice</div>
+                  <div className="text-2xl font-black text-emerald-400 mt-2">{filteredSales.length} Transaksi</div>
+                  <p className="mt-2 text-xs text-slate-400">Tercatat di QF01 Grand Indonesia</p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* TAB 5: BNPL & METODE PEMBAYARAN */}
-          {activeTab === "payment" && (
+          {/* TAB: PRODUCT FOCUS */}
+          {activeTab === "product-focus" && (
             <div className="p-6 rounded-2xl bg-[#0f172a] border border-slate-800">
-              <h3 className="text-base font-bold text-white mb-1">💳 Distribusi Metode Pembayaran & BNPL</h3>
-              <p className="text-xs text-slate-400 mb-6">Penetrasi pembiayaan konsumen di Digiplus Grand Indonesia</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <h3 className="font-bold text-white mb-2">📱 Unit Unggulan Terjual (Product Focus)</h3>
+              <p className="text-xs text-slate-400 mb-6">Penjualan seri iPhone 17 Pro, Fold 8, Galaxy S26 Ultra, dan Galaxy A17</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="p-4 rounded-xl bg-slate-900 border border-slate-800">
-                  <span className="text-xs text-slate-400">Kredivo</span>
-                  <div className="text-lg font-bold text-white mt-1">Rp 480.250.000</div>
-                  <span className="text-[11px] text-emerald-400">32 Transaksi</span>
+                  <div className="text-xs text-slate-400">Galaxy A17 4/128GB (Liesbeth Febrina)</div>
+                  <div className="text-lg font-bold text-indigo-400 mt-1">4 Unit • Rp 11.996.000</div>
                 </div>
                 <div className="p-4 rounded-xl bg-slate-900 border border-slate-800">
-                  <span className="text-xs text-slate-400">Home Credit (HCI)</span>
-                  <div className="text-lg font-bold text-white mt-1">Rp 315.800.000</div>
-                  <span className="text-[11px] text-emerald-400">19 Transaksi</span>
-                </div>
-                <div className="p-4 rounded-xl bg-slate-900 border border-slate-800">
-                  <span className="text-xs text-slate-400">Kartu Kredit 0%</span>
-                  <div className="text-lg font-bold text-white mt-1">Rp 1.420.000.000</div>
-                  <span className="text-[11px] text-emerald-400">58 Transaksi</span>
-                </div>
-                <div className="p-4 rounded-xl bg-slate-900 border border-slate-800">
-                  <span className="text-xs text-slate-400">Debit / QRIS / Cash</span>
-                  <div className="text-lg font-bold text-white mt-1">Rp 889.370.000</div>
-                  <span className="text-[11px] text-emerald-400">84 Transaksi</span>
+                  <div className="text-xs text-slate-400">iPhone 17 Pro / Pro Max (Yunita & Adlii)</div>
+                  <div className="text-lg font-bold text-sky-400 mt-1">3 Unit • Rp 86.747.000</div>
                 </div>
               </div>
             </div>
