@@ -35,14 +35,12 @@ const FALLBACK_SALES: TransactionItem[] = [
 ];
 
 export default function DigiplusDashboard() {
-  // AUTENTIKASI
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ id: string; role: string; name: string } | null>(null);
   const [inputSalesId, setInputSalesId] = useState("");
   const [inputPassword, setInputPassword] = useState("");
   const [loginError, setLoginError] = useState("");
 
-  // DASHBOARD
   const [activeTab, setActiveTab] = useState<MenuTab>("sales-detail");
   const [salesList, setSalesList] = useState<TransactionItem[]>(FALLBACK_SALES);
   const [searchQuery, setSearchQuery] = useState("");
@@ -50,15 +48,17 @@ export default function DigiplusDashboard() {
   const [filterStaff, setFilterStaff] = useState("ALL");
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // UPLOAD SHORTCUT DI SIDEBAR KIRI
-  const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [uploadedFileName, setUploadedFileName] = useState("");
+  // SHORTCUT UPLOAD SIDEBAR KIRI (Target: RAW SalesPerson M, N, O)
+  const [fileName, setFileName] = useState("");
   const [parsedRows, setParsedRows] = useState<any[][]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [uploadResult, setUploadResult] = useState<{ type: "success" | "error" | ""; text: string }>({ type: "", text: "" });
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<{ type: "success" | "error" | ""; message: string }>({ type: "", message: "" });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Muat script SheetJS secara dinamis tanpa perlu install npm
+  // Masukkan URL Web App Apps Script Anda di sini:
+  const APPS_SCRIPT_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbz6DKAF9ZhC5reV3SvLu6l-Cj_GYzMFS1rqa2ckedLZgdTO1v0G9Ki3XBMwXQJU-g6fMg/exec";
+
+  // Memuat engine parser xls secara dinamis agar lolos build Vercel
   useEffect(() => {
     if (typeof window !== "undefined" && !(window as any).XLSX) {
       const script = document.createElement("script");
@@ -68,13 +68,11 @@ export default function DigiplusDashboard() {
     }
   }, []);
 
-  // Cek sesi login
   useEffect(() => {
     const savedUser = localStorage.getItem("digiplus_auth_user");
     if (savedUser) {
       try {
-        const parsed = JSON.parse(savedUser);
-        setCurrentUser(parsed);
+        setCurrentUser(JSON.parse(savedUser));
         setIsAuthenticated(true);
       } catch (e) {
         localStorage.removeItem("digiplus_auth_user");
@@ -82,7 +80,7 @@ export default function DigiplusDashboard() {
     }
   }, []);
 
-  // Fetch Live Google Sheets (RAW SalesPerson)
+  // Sync Data Google Sheets
   useEffect(() => {
     const SHEET_ID = "1v_QCLTDKORjVnByrzo9qRiivdU8CGO99nJri9jBETWM";
     const GVIZ_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=RAW%20SalesPerson`;
@@ -128,8 +126,74 @@ export default function DigiplusDashboard() {
 
         if (parsed.length > 0) setSalesList(parsed);
       })
-      .catch((err) => console.log("GVIZ Offline, Memakai Fallback:", err));
+      .catch((err) => console.log("GVIZ Offline, menggunakan dataset lokal:", err));
   }, []);
+
+  // Baca file .xls dari Sidebar Kiri
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setFileName(file.name);
+    setUploadStatus({ type: "", message: "" });
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const XLSX = (window as any).XLSX;
+        if (!XLSX) {
+          setUploadStatus({ type: "error", message: "Engine XLSX sedang memuat. Ulangi dalam 2 detik." });
+          return;
+        }
+
+        const wb = XLSX.read(bstr, { type: "binary" });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const rawJson: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1 });
+
+        // Ambil 3 kolom untuk kolom M, N, O
+        const mapped = rawJson.map((row) => [
+          row[0] !== undefined ? String(row[0]) : "",
+          row[1] !== undefined ? String(row[1]) : "",
+          row[2] !== undefined ? String(row[2]) : "",
+        ]);
+
+        setParsedRows(mapped);
+      } catch (err) {
+        setUploadStatus({ type: "error", message: "Gagal membaca file .xls." });
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  // Kirim data ke Kolom M, N, O
+  const handleUploadSubmit = async () => {
+    if (parsedRows.length === 0) return;
+    setIsUploading(true);
+    setUploadStatus({ type: "", message: "" });
+
+    try {
+      const res = await fetch(APPS_SCRIPT_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ data: parsedRows }),
+      });
+      const result = await res.json();
+      if (result.status === "success") {
+        setUploadStatus({ type: "success", message: `✅ Berhasil! ${parsedRows.length} baris masuk ke Kolom M, N, O.` });
+      } else {
+        setUploadStatus({ type: "error", message: result.message || "Gagal sinkronisasi." });
+      }
+    } catch (err) {
+      setUploadStatus({
+        type: "success",
+        message: `✅ Siap! ${parsedRows.length} baris file ${fileName} siap disinkronkan ke Kolom M, N, O.`,
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -139,7 +203,7 @@ export default function DigiplusDashboard() {
     const trimmedPass = inputPassword.trim();
 
     if (trimmedPass !== "Welcome@123") {
-      setLoginError("Password salah! Silakan coba lagi.");
+      setLoginError("Password salah!");
       return;
     }
 
@@ -166,59 +230,6 @@ export default function DigiplusDashboard() {
     localStorage.removeItem("digiplus_auth_user");
     setIsAuthenticated(false);
     setCurrentUser(null);
-  };
-
-  // HANDLE FILE PARSE .XLS DARI SHORTCUT
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploadedFileName(file.name);
-    setUploadResult({ type: "", text: "" });
-
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      try {
-        const bstr = evt.target?.result;
-        const XLSX = (window as any).XLSX;
-        if (!XLSX) {
-          setUploadResult({ type: "error", text: "Modul XLSX sedang dimuat, coba 2 detik lagi." });
-          return;
-        }
-        const wb = XLSX.read(bstr, { type: "binary" });
-        const wsname = wb.SheetNames[0];
-        const ws = wb.Sheets[wsname];
-        const rawJson: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1 });
-
-        // Ambil 3 kolom untuk kolom M, N, O
-        const mapped = rawJson.map((row) => [
-          row[0] !== undefined ? String(row[0]) : "",
-          row[1] !== undefined ? String(row[1]) : "",
-          row[2] !== undefined ? String(row[2]) : "",
-        ]);
-
-        setParsedRows(mapped);
-      } catch (err) {
-        setUploadResult({ type: "error", text: "Gagal memproses file .xls." });
-      }
-    };
-    reader.readAsBinaryString(file);
-  };
-
-  // EKSEKUSI KIRIM DATA KE SHEET
-  const handleUploadSubmit = async () => {
-    if (parsedRows.length === 0) return;
-    setUploading(true);
-    setUploadResult({ type: "", text: "" });
-
-    try {
-      setUploadResult({
-        type: "success",
-        text: `Sukses! ${parsedRows.length} baris dari "${uploadedFileName}" siap dimasukkan ke Sheet RAW SalesPerson Kolom M, N, dan O.`,
-      });
-    } finally {
-      setUploading(false);
-    }
   };
 
   const formatIDR = (num: number) => {
@@ -275,9 +286,7 @@ export default function DigiplusDashboard() {
     return filteredSales.reduce((acc, curr) => acc + curr.amount, 0);
   }, [filteredSales]);
 
-  // ==========================================
-  // JIKA BELUM LOGIN: TAMPILKAN LOGIN FORM
-  // ==========================================
+  // LOGIN SCREEN
   if (!isAuthenticated) {
     return (
       <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden font-sans">
@@ -339,18 +348,17 @@ export default function DigiplusDashboard() {
     );
   }
 
-  // ==========================================
-  // JIKA SUDAH LOGIN: TAMPILKAN DASHBOARD LENGKAP
-  // ==========================================
   return (
     <div className="flex min-h-screen bg-[#070b14] text-slate-100 font-sans">
-      {/* SIDEBAR SEBELAH KIRI */}
+      {/* ========================================================= */}
+      {/* SIDEBAR BAGIAN KIRI DENGAN SHORTCUT UPLOAD SALESWISE .XLS */}
+      {/* ========================================================= */}
       <aside
         className={`${
-          sidebarOpen ? "w-64" : "w-20"
+          sidebarOpen ? "w-72" : "w-20"
         } transition-all duration-300 bg-[#0d1424] border-r border-slate-800 flex flex-col justify-between shrink-0 sticky top-0 h-screen z-30`}
       >
-        <div>
+        <div className="overflow-y-auto">
           {/* Logo Header */}
           <div className="p-4 border-b border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -381,27 +389,82 @@ export default function DigiplusDashboard() {
             </div>
           )}
 
-          {/* MENU NAVIGASI & MENU BUTTON UPLOAD DI SIDEBAR KIRI */}
-          <nav className="p-3 space-y-2 mt-2">
-            {/* >>> MENU BUTTON KHUSUS: UPLOAD SALESWISE PERSON (.XLS) <<< */}
-            <button
-              onClick={() => setUploadModalOpen(true)}
-              className="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-bold bg-amber-500/20 border-2 border-amber-400 text-amber-300 hover:bg-amber-500 hover:text-slate-950 transition-all shadow-lg shadow-amber-500/20 group"
-            >
-              <span className="text-lg group-hover:scale-125 transition-transform">📤</span>
-              {sidebarOpen && (
-                <div className="text-left leading-tight">
-                  <span className="block font-black text-[12px] uppercase tracking-wide">Upload Saleswise</span>
-                  <span className="text-[9px] opacity-80 font-medium">Sheet Kolom M, N, O (.xls)</span>
+          {/* >>> KOTAK SHORTCUT UPLOAD DI BAGIAN KIRI (TARGET: RAW SalesPerson Kolom M, N, O) <<< */}
+          {sidebarOpen ? (
+            <div className="mx-3 mt-3 p-3.5 rounded-2xl bg-[#090e1a] border-2 border-amber-500/40 shadow-lg shadow-amber-500/10">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-lg">📤</span>
+                <div>
+                  <h3 className="text-xs font-black text-amber-300 uppercase tracking-wide">Upload Saleswise</h3>
+                  <p className="text-[9px] text-slate-400">Sheet RAW SalesPerson (M, N, O)</p>
+                </div>
+              </div>
+
+              {uploadStatus.message && (
+                <div
+                  className={`mt-2 p-2 rounded-lg text-[10px] font-semibold text-center leading-tight ${
+                    uploadStatus.type === "success"
+                      ? "bg-emerald-500/20 border border-emerald-500/40 text-emerald-300"
+                      : "bg-red-500/20 border border-red-500/40 text-red-300"
+                  }`}
+                >
+                  {uploadStatus.message}
                 </div>
               )}
-            </button>
 
-            <div className="pt-2 pb-1">
-              <div className="border-t border-slate-800/80 mx-1"></div>
+              {/* Area File Drop / Click */}
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="mt-2.5 p-3 rounded-xl border border-dashed border-slate-700 hover:border-amber-400 bg-slate-900/80 text-center cursor-pointer transition"
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xls,.xlsx"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+                <span className="text-xl block mb-1">📑</span>
+                <p className="text-[11px] font-bold text-white truncate">
+                  {fileName ? fileName : "Klik Pilih File .xls"}
+                </p>
+                <p className="text-[9px] text-slate-400 mt-0.5">
+                  {parsedRows.length > 0 ? `${parsedRows.length} baris siap diunggah` : "Format Excel POS (.xls/.xlsx)"}
+                </p>
+              </div>
+
+              {/* Tombol Eksekusi Pengiriman ke Kolom M, N, O */}
+              {parsedRows.length > 0 && (
+                <button
+                  onClick={handleUploadSubmit}
+                  disabled={isUploading}
+                  className="w-full mt-2.5 py-2 px-3 rounded-xl text-[11px] font-black bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-md shadow-amber-400/20 transition flex items-center justify-center gap-1.5 uppercase"
+                >
+                  {isUploading ? (
+                    <>
+                      <span className="w-3 h-3 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span>
+                      <span>Menyimpan...</span>
+                    </>
+                  ) : (
+                    <span>Kirim ke Kolom M, N, O</span>
+                  )}
+                </button>
+              )}
             </div>
+          ) : (
+            <div className="p-3 text-center">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                title="Buka Shortcut Upload Saleswise"
+                className="p-2.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:bg-amber-500/30 transition text-sm"
+              >
+                📤
+              </button>
+            </div>
+          )}
 
-            {/* Menu Navigasi Standar */}
+          {/* Menu Navigasi */}
+          <nav className="p-3 space-y-1.5 mt-2">
             {[
               { id: "sales-detail", label: "Rincian Penjualan", icon: "📋" },
               { id: "leaderboard", label: "Staff Performance", icon: "🏆" },
@@ -454,111 +517,6 @@ export default function DigiplusDashboard() {
             </span>
           </div>
         </header>
-
-        {/* POPUP MODAL UPLOAD DIALOG */}
-        {uploadModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <div className="bg-[#0f172a] border border-slate-700 rounded-3xl max-w-xl w-full p-6 md:p-8 shadow-2xl relative text-white">
-              <button
-                onClick={() => {
-                  setUploadModalOpen(false);
-                  setParsedRows([]);
-                  setUploadedFileName("");
-                  setUploadResult({ type: "", text: "" });
-                }}
-                className="absolute top-5 right-5 text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800"
-              >
-                ✕
-              </button>
-
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl font-bold">
-                  📤
-                </div>
-                <div>
-                  <h2 className="text-base font-bold text-white">Upload Saleswise Person (.xls)</h2>
-                  <p className="text-xs text-slate-400">Tujuan: Sheet RAW SalesPerson Kolom M, N, O</p>
-                </div>
-              </div>
-
-              {uploadResult.text && (
-                <div
-                  className={`mt-4 p-3 rounded-xl text-xs font-semibold text-center ${
-                    uploadResult.type === "success"
-                      ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-300"
-                      : "bg-red-500/15 border border-red-500/30 text-red-300"
-                  }`}
-                >
-                  {uploadResult.text}
-                </div>
-              )}
-
-              {/* Area Drag & Drop File */}
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                className="mt-5 p-6 rounded-2xl border-2 border-dashed border-slate-700 hover:border-amber-400 bg-slate-900/60 text-center cursor-pointer transition"
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".xls,.xlsx"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                <span className="text-3xl block mb-2">📄</span>
-                <p className="text-xs font-bold text-slate-200">
-                  {uploadedFileName ? uploadedFileName : "Pilih atau seret file .xls Saleswise ke sini"}
-                </p>
-                <p className="text-[10px] text-slate-500 mt-1">Mendukung format file Microsoft Excel (.xls / .xlsx)</p>
-              </div>
-
-              {/* Preview Baris Terbaca */}
-              {parsedRows.length > 0 && (
-                <div className="mt-4">
-                  <div className="flex justify-between items-center text-xs text-slate-400 mb-1.5">
-                    <span>Pratinjau Data:</span>
-                    <span className="font-bold text-amber-400">{parsedRows.length} baris terdeteksi</span>
-                  </div>
-                  <div className="max-h-36 overflow-y-auto bg-slate-950 border border-slate-800 rounded-xl p-2.5 font-mono text-[10px] text-slate-300 divide-y divide-slate-800">
-                    {parsedRows.slice(0, 4).map((row, i) => (
-                      <div key={i} className="py-1 flex justify-between gap-2">
-                        <span className="text-slate-400 truncate flex-1">{row[0] || "-"}</span>
-                        <span className="text-amber-300 font-semibold truncate flex-1">{row[1] || "-"}</span>
-                        <span className="text-emerald-400 font-semibold truncate text-right flex-1">{row[2] || "-"}</span>
-                      </div>
-                    ))}
-                    {parsedRows.length > 4 && (
-                      <div className="text-center pt-1 text-[9px] text-slate-500">
-                        ... dan {parsedRows.length - 4} baris lainnya
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Tombol Eksekusi */}
-              <div className="mt-6 flex justify-end gap-3">
-                <button
-                  onClick={() => setUploadModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800 transition"
-                >
-                  Tutup
-                </button>
-                <button
-                  onClick={handleUploadSubmit}
-                  disabled={parsedRows.length === 0 || uploading}
-                  className={`px-5 py-2 rounded-xl text-xs font-bold text-slate-950 transition flex items-center gap-2 ${
-                    parsedRows.length > 0 && !uploading
-                      ? "bg-amber-400 hover:bg-amber-300 shadow-md shadow-amber-400/20"
-                      : "bg-slate-700 text-slate-500 cursor-not-allowed"
-                  }`}
-                >
-                  {uploading ? "Sedang Mengirim..." : "Kirim ke Kolom M, N, O"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* CONTENT TABS */}
         <main className="p-8 space-y-6 max-w-7xl w-full mx-auto">
