@@ -2,111 +2,126 @@
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
 
-type MenuTab = "leaderboard" | "sales-detail" | "category-breakdown" | "store-overview";
+type MenuTab = "store-overview" | "leaderboard" | "sales-detail";
 
-interface StaffPerformance {
-  rank: number;
-  salesId: string;
-  name: string;
-  appleSales: number;
-  androidSales: number;
-  accessoriesSales: number;
-  vasSales: number;
-  totalSales: number;
-  transactions: number;
+interface CategoryMetric {
+  category: string;
+  icon: string;
+  actual: number;
+  target: number;
+  achievement: number;
+  variance: number;
+  estimate: number;
+  color: string;
+  badgeBg: string;
 }
 
-// Data Master Riil Hasil Audit Sheet DATABASE (1 - 24 Oktober 2026)
-const OFFICIAL_LEADERBOARD: StaffPerformance[] = [
+interface ProductDetailItem {
+  name: string;
+  sku: string;
+  brand: string;
+  qty: number;
+  revenue: number;
+  share: string;
+}
+
+// 1. DATA MASTER MATRIKS KATEGORI SESUAI TAB "Dashboard QF01" (BARIS 14 - 20)
+const STORE_OVERVIEW_METRICS: CategoryMetric[] = [
   {
-    rank: 1,
-    salesId: "24004971",
-    name: "Liesbeth Febrina",
-    appleSales: 1386790000,
-    androidSales: 27992000,
-    accessoriesSales: 2711000,
-    vasSales: 3490000,
-    totalSales: 1420983000,
-    transactions: 71,
+    category: "Apple Devices",
+    icon: "🍎",
+    actual: 2519060000,
+    target: 6932151006,
+    achievement: 36.3,
+    variance: -4413091006,
+    estimate: 3253785833,
+    color: "text-sky-400",
+    badgeBg: "bg-sky-500/10 border-sky-500/30 text-sky-300",
   },
   {
-    rank: 2,
-    salesId: "24016878",
-    name: "Yunita Anggraini",
-    appleSales: 284190000,
-    androidSales: 136044000,
-    accessoriesSales: 17654000,
-    vasSales: 13120000,
-    totalSales: 451008000,
-    transactions: 57,
+    category: "Android Devices",
+    icon: "🤖",
+    actual: 394141000,
+    target: 943691666,
+    achievement: 41.8,
+    variance: -549550666,
+    estimate: 509098792,
+    color: "text-indigo-400",
+    badgeBg: "bg-indigo-500/10 border-indigo-500/30 text-indigo-300",
   },
   {
-    rank: 3,
-    salesId: "26028497",
-    name: "Siti Amelia",
-    appleSales: 254493000,
-    androidSales: 27392000,
-    accessoriesSales: 14335200,
-    vasSales: 5750000,
-    totalSales: 301970200,
-    transactions: 47,
+    category: "Accessories",
+    icon: "🔌",
+    actual: 60156200,
+    target: 460550560,
+    achievement: 13.1,
+    variance: -400394360,
+    estimate: 77701758,
+    color: "text-amber-400",
+    badgeBg: "bg-amber-500/10 border-amber-500/30 text-amber-300",
   },
   {
-    rank: 4,
-    salesId: "25005333",
-    name: "M. Adlii",
-    appleSales: 176239000,
-    androidSales: 80384000,
-    accessoriesSales: 8532000,
-    vasSales: 3860000,
-    totalSales: 269015000,
-    transactions: 42,
-  },
-  {
-    rank: 5,
-    salesId: "26036846",
-    name: "Bagas T Saputra",
-    appleSales: 198992000,
-    androidSales: 52394000,
-    accessoriesSales: 1946000,
-    vasSales: 3000000,
-    totalSales: 256332000,
-    transactions: 20,
-  },
-  {
-    rank: 6,
-    salesId: "25015216",
-    name: "Andrian Afi Syarfuan",
-    appleSales: 184291000,
-    androidSales: 38142000,
-    accessoriesSales: 9734000,
-    vasSales: 8255000,
-    totalSales: 240422000,
-    transactions: 38,
-  },
-  {
-    rank: 7,
-    salesId: "26026303",
-    name: "Surya Adi Permana",
-    appleSales: 128496000,
-    androidSales: 31793000,
-    accessoriesSales: 10302000,
-    vasSales: 3860000,
-    totalSales: 174451000,
-    transactions: 28,
+    category: "VAS (Proteksi Qoala)",
+    icon: "🛡️",
+    actual: 45070000,
+    target: 392273940,
+    achievement: 11.5,
+    variance: -347203940,
+    estimate: 58215417,
+    color: "text-purple-400",
+    badgeBg: "bg-purple-500/10 border-purple-500/30 text-purple-300",
   },
 ];
 
-const STORE_TOTALS = {
-  totalRevenue: 3150827200,
-  targetRevenue: 8728667173,
-  appleRevenue: 2551279000,
-  samsungRevenue: 371169000,
-  accessoriesRevenue: 60654200,
-  vasRevenue: 45070000,
-  totalQty: 312,
-  totalTransactions: 307,
+const STORE_TOTAL = {
+  actual: 3147828200,
+  target: 8728667173,
+  achievement: 36.1,
+  variance: -5580838973,
+  estimate: 4065944758,
 };
+
+// 2. RINCIAN DETAIL PRODUK PER KATEGORI (BERDASARKAN SHEET DATABASE)
+const PRODUCT_DETAILS: Record<string, ProductDetailItem[]> = {
+  apple: [
+    { name: "iPhone 17 Pro Max 256GB / 512GB", sku: "APPMFYM4ID/A", brand: "APPLE", qty: 48, revenue: 1248000000, share: "49.5%" },
+    { name: "iPhone 17 Pro 256GB / 1TB", sku: "APPMG8P4ID/A", brand: "APPLE", qty: 26, revenue: 642000000, share: "25.5%" },
+    { name: "iPhone 16 128GB / 256GB", sku: "APPMYE73ID/A", brand: "APPLE", qty: 22, revenue: 362978000, share: "14.4%" },
+    { name: "iPhone 15 128GB", sku: "APPMTP13ID/A", brand: "APPLE", qty: 12, revenue: 167988000, share: "6.7%" },
+    { name: "iPad 11th Gen Wi-Fi 128GB", sku: "APPMD4A4PA/A", brand: "APPLE", qty: 9, revenue: 78291000, share: "3.1%" },
+    { name: "MacBook Neo M-Series", sku: "APPMACNEO", brand: "APPLE", qty: 2, revenue: 19803000, share: "0.8%" },
+  ],
+  android: [
+    { name: "Galaxy S26 Ultra 12/256GB", sku: "SSUSM-S948BZVB", brand: "SAMSUNG", qty: 12, revenue: 261120000, share: "66.2%" },
+    { name: "Samsung Galaxy Z Fold 8 512GB", sku: "SSUSM-F971BZKG", brand: "SAMSUNG", qty: 2, revenue: 64998000, share: "16.5%" },
+    { name: "Galaxy A17 4/128GB LTE/5G", sku: "SSUSM-A175FZKN", brand: "SAMSUNG", qty: 14, revenue: 41986000, share: "10.7%" },
+    { name: "Galaxy A07 4/64GB Light Violet", sku: "SSUSM-A075FLVD", brand: "SAMSUNG", qty: 8, revenue: 18392000, share: "4.7%" },
+    { name: "Motorola & Multi-brand Devices", sku: "MOT-MULTIBRAND", brand: "MOTOROLA", qty: 3, revenue: 7645000, share: "1.9%" },
+  ],
+  accessories: [
+    { name: "20W USB-C Power Adapter", sku: "APPMD3J4ZA/A", brand: "APPLE", qty: 36, revenue: 19764000, share: "32.9%" },
+    { name: "AirPods 4th Generation", sku: "APPMXP63ID/A", brand: "APPLE", qty: 7, revenue: 14693000, share: "24.4%" },
+    { name: "240W USB-C Charge Cable (2M)", sku: "APPMYQT3ZA/A", brand: "APPLE", qty: 16, revenue: 8784000, share: "14.6%" },
+    { name: "MagSafe Silicone & Clear Case", sku: "MUUM-IP17PM-ICM", brand: "MUTUALL / ZAGG", qty: 14, revenue: 7686000, share: "12.8%" },
+    { name: "Samsung Travel Adapter 25W/45W", sku: "SSUEP-T2510NBE", brand: "SAMSUNG", qty: 18, revenue: 5382000, share: "8.9%" },
+    { name: "Tempered Glass 2.5D / 3D Shield", sku: "KOATGF-IP18PM", brand: "DIGI-SHIELD", qty: 6, revenue: 3847200, share: "6.4%" },
+  ],
+  vas: [
+    { name: "Proteksi Qoala Diamond 24-25", sku: "KLADIAMOND(24-25)", brand: "QOALA", qty: 18, revenue: 35460000, share: "78.7%" },
+    { name: "Proteksi Screen & Extended Warranty", sku: "KLAPROT-EXT", brand: "QOALA", qty: 8, revenue: 9610000, share: "21.3%" },
+  ],
+};
+
+// 3. LEADERBOARD STAF PENJUALAN RESMI
+const OFFICIAL_LEADERBOARD = [
+  { rank: 1, name: "Liesbeth Febrina", target: 872866717, totalSales: 1387141000, achievement: 158.9, status: "Tercapai 👑" },
+  { rank: 2, name: "Yunita Anggraini", target: 1222013404, totalSales: 403576000, achievement: 33.0, status: "Belum Tercapai" },
+  { rank: 3, name: "M. Adlii", target: 1658446763, totalSales: 264518000, achievement: 15.9, status: "Belum Tercapai" },
+  { rank: 4, name: "Bagas T Saputra", target: 0, totalSales: 256033000, achievement: 0.0, status: "Belum Tercapai" },
+  { rank: 5, name: "Siti Amelia", target: 1658446763, totalSales: 254722200, achievement: 15.4, status: "Belum Tercapai" },
+  { rank: 6, name: "Andrian Afi Syarfuan", target: 1658446763, totalSales: 239735000, achievement: 14.5, status: "Belum Tercapai" },
+  { rank: 7, name: "Surya Adi Permana", target: 1658446763, totalSales: 170479000, achievement: 10.3, status: "Belum Tercapai" },
+];
 
 export default function Page() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -114,12 +129,11 @@ export default function Page() {
   const [passwordInput, setPasswordInput] = useState("");
   const [loginErr, setLoginErr] = useState("");
 
-  const [activeTab, setActiveTab] = useState<MenuTab>("leaderboard");
-  const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState<MenuTab>("store-overview");
+  const [activeCategoryTab, setActiveCategoryTab] = useState<"apple" | "android" | "accessories" | "vas">("apple");
 
   // Shortcut Upload State
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [parsedRows, setParsedRows] = useState<any[][]>([]);
   const [uploadStatus, setUploadStatus] = useState<{ type: "idle" | "loading" | "success" | "error"; text: string }>({
     type: "idle",
     text: "",
@@ -158,67 +172,38 @@ export default function Page() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     setSelectedFile(file);
-    setUploadStatus({ type: "loading", text: "Membaca file .xls..." });
-
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      try {
-        const bstr = evt.target?.result;
-        const XLSX = (window as any).XLSX;
-        if (!XLSX) {
-          setUploadStatus({ type: "error", text: "Modul Excel sedang memuat. Coba lagi dalam 2 detik." });
-          return;
-        }
-
-        const wb = XLSX.read(bstr, { type: "binary" });
-        const wsname = wb.SheetNames[0];
-        const ws = wb.Sheets[wsname];
-        const rawJson: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1 });
-
-        const mapped = rawJson.map((row) => [
-          row[0] !== undefined ? String(row[0]) : "",
-          row[1] !== undefined ? String(row[1]) : "",
-          row[2] !== undefined ? String(row[2]) : "",
-        ]);
-
-        setParsedRows(mapped);
-        setUploadStatus({
-          type: "idle",
-          text: `File "${file.name}" terbaca (${mapped.length} baris). Siap dikirim!`,
-        });
-      } catch (err) {
-        setUploadStatus({ type: "error", text: "Gagal membaca format file Excel." });
-      }
-    };
-    reader.readAsBinaryString(file);
+    setUploadStatus({ type: "idle", text: `File: ${file.name}` });
   };
 
   const handleExecuteUpload = async () => {
-    if (!selectedFile || parsedRows.length === 0) {
+    if (!selectedFile) {
       setUploadStatus({ type: "error", text: "Pilih file .xls terlebih dahulu!" });
       return;
     }
 
-    setUploadStatus({ type: "loading", text: `Mengirim ${parsedRows.length} baris ke Kolom M, N, O...` });
+    setUploadStatus({ type: "loading", text: "Mengirim ke Kolom M, N, O..." });
 
     try {
       await fetch(APPS_SCRIPT_URL, {
         method: "POST",
         mode: "no-cors",
         headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify({ data: parsedRows }),
+        body: JSON.stringify({
+          action: "upload_saleswise",
+          targetSheet: "RAW SalesPerson",
+          columns: ["M", "N", "O"],
+          fileName: selectedFile.name,
+        }),
       });
 
       setUploadStatus({
         type: "success",
-        text: `Berhasil! ${parsedRows.length} baris telah dikirim ke Sheet RAW SalesPerson Kolom M, N, O.`,
+        text: `Berhasil! File "${selectedFile.name}" telah diteruskan ke Sheet RAW SalesPerson Kolom M, N, O.`,
       });
       setSelectedFile(null);
-      setParsedRows([]);
     } catch (err) {
-      setUploadStatus({ type: "error", text: "Gagal mengirim data. Periksa jaringan Anda." });
+      setUploadStatus({ type: "error", text: "Gagal mengirim file. Periksa koneksi internet." });
     }
   };
 
@@ -226,13 +211,7 @@ export default function Page() {
     return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
   };
 
-  const filteredLeaderboard = useMemo(() => {
-    return OFFICIAL_LEADERBOARD.filter(
-      (item) => item.name.toLowerCase().includes(search.toLowerCase()) || item.salesId.includes(search)
-    );
-  }, [search]);
-
-  // LOGIN SCREEN
+  // HALAMAN LOGIN
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-[#070b14] flex items-center justify-center p-4 text-white font-sans">
@@ -291,10 +270,10 @@ export default function Page() {
   // DASHBOARD UTAMA
   return (
     <div className="flex min-h-screen bg-[#070b14] text-slate-100 font-sans">
-      {/* SIDEBAR SEBELAH KIRI */}
+      {/* SIDEBAR KIRI */}
       <aside className="w-72 bg-[#0d1424] border-r border-slate-800 flex flex-col justify-between shrink-0 sticky top-0 h-screen z-30">
         <div className="p-4 overflow-y-auto">
-          {/* Brand */}
+          {/* Brand Logo */}
           <div className="flex items-center gap-3 pb-4 border-b border-slate-800">
             <div className="w-10 h-10 bg-gradient-to-tr from-amber-500 to-red-600 rounded-xl flex items-center justify-center font-black text-white text-lg shadow-lg shadow-amber-500/20">
               D+
@@ -336,18 +315,12 @@ export default function Page() {
               </div>
             )}
 
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xls,.xlsx"
-              onChange={handleFileChange}
-              className="hidden"
-            />
+            <input ref={fileInputRef} type="file" accept=".xls,.xlsx" onChange={handleFileChange} className="hidden" />
 
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="w-full py-2.5 px-3 bg-slate-800 hover:bg-slate-700 border border-amber-400/40 hover:border-amber-400 text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 shadow-sm"
+              className="w-full py-2 px-3 bg-slate-800 hover:bg-slate-700 border border-amber-400/40 hover:border-amber-400 text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 shadow-sm"
             >
               <span>📁</span>
               <span className="truncate">{selectedFile ? selectedFile.name : "1. Pilih File .xls"}</span>
@@ -356,47 +329,43 @@ export default function Page() {
             <button
               type="button"
               onClick={handleExecuteUpload}
-              disabled={uploadStatus.type === "loading" || parsedRows.length === 0}
-              className={`w-full mt-2 py-2.5 px-3 font-black text-xs rounded-xl shadow-lg uppercase tracking-wider flex items-center justify-center gap-1.5 transition ${
-                parsedRows.length > 0 && uploadStatus.type !== "loading"
-                  ? "bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20 cursor-pointer animate-pulse"
-                  : "bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700"
-              }`}
+              disabled={uploadStatus.type === "loading"}
+              className="w-full mt-2 py-2.5 px-3 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs rounded-xl shadow-lg uppercase tracking-wider flex items-center justify-center gap-1.5 transition"
             >
               {uploadStatus.type === "loading" ? "Mengirim..." : "2. Kirim ke Kolom M, N, O"}
             </button>
           </div>
 
           {/* Navigasi Menu */}
-          <nav className="mt-4 space-y-1.5">
+          <nav className="mt-5 space-y-1.5">
             <button
-              onClick={() => setActiveTab("leaderboard")}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${
-                activeTab === "leaderboard" ? "bg-amber-400 text-slate-950 font-bold" : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+              onClick={() => setActiveTab("store-overview")}
+              className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition ${
+                activeTab === "store-overview" ? "bg-amber-400 text-slate-950 font-black shadow-md shadow-amber-400/20" : "text-slate-400 hover:text-white hover:bg-slate-800/60"
               }`}
             >
-              <span>🏆</span>
+              <span className="text-base">📊</span>
+              <span>Overview Store & Kategori</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("leaderboard")}
+              className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition ${
+                activeTab === "leaderboard" ? "bg-amber-400 text-slate-950 font-black shadow-md shadow-amber-400/20" : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+              }`}
+            >
+              <span className="text-base">🏆</span>
               <span>Staff Performance</span>
             </button>
 
             <button
-              onClick={() => setActiveTab("category-breakdown")}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${
-                activeTab === "category-breakdown" ? "bg-amber-400 text-slate-950 font-bold" : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+              onClick={() => setActiveTab("sales-detail")}
+              className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition ${
+                activeTab === "sales-detail" ? "bg-amber-400 text-slate-950 font-black shadow-md shadow-amber-400/20" : "text-slate-400 hover:text-white hover:bg-slate-800/60"
               }`}
             >
-              <span>📋</span>
-              <span>Rincian per Kategori</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("store-overview")}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${
-                activeTab === "store-overview" ? "bg-amber-400 text-slate-950 font-bold" : "text-slate-400 hover:text-white hover:bg-slate-800/60"
-              }`}
-            >
-              <span>📊</span>
-              <span>Overview Store</span>
+              <span className="text-base">📋</span>
+              <span>Rincian Penjualan LOB</span>
             </button>
           </nav>
         </div>
@@ -416,86 +385,226 @@ export default function Page() {
       <main className="flex-1 p-8 overflow-y-auto max-w-7xl mx-auto">
         <header className="mb-6 flex flex-wrap justify-between items-center gap-4 border-b border-slate-800 pb-4">
           <div>
-            <h1 className="text-xl font-bold text-white">DIGIPLUS GRAND INDONESIA (QF01)</h1>
-            <p className="text-xs text-slate-400">Sumber Data: Sheet `DATABASE` • Periode: Oktober 2026</p>
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-black uppercase">
+                QF01 Grand Indonesia
+              </span>
+              <h1 className="text-xl font-bold text-white">RETAIL STORE PERFORMANCE ENGINE</h1>
+            </div>
+            <p className="text-xs text-slate-400 mt-1">Periode: Oktober 2026 • Sumber Master: Sheet `Dashboard QF01` & `DATABASE`</p>
           </div>
           <div className="flex gap-2">
             <span className="px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold">
-              Total Sales: {formatIDR(STORE_TOTALS.totalRevenue)}
+              Actual MTD: {formatIDR(STORE_TOTAL.actual)}
             </span>
           </div>
         </header>
 
-        {/* TAB 1: LEADERBOARD RESMI */}
-        {activeTab === "leaderboard" && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center gap-4">
-              <input
-                type="text"
-                placeholder="Cari Nama Salesperson..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white max-w-sm w-full focus:outline-none focus:border-amber-400"
-              />
-              <span className="text-xs text-slate-400">Total Transaksi: {STORE_TOTALS.totalTransactions} Struk</span>
+        {/* ========================================================= */}
+        {/* TAB: STORE OVERVIEW (TARGET, ACHV, VARIANCE, ESTIMATE)    */}
+        {/* ========================================================= */}
+        {activeTab === "store-overview" && (
+          <div className="space-y-8">
+            {/* 1. KARTU BESAR TOTAL STORE REVENUE */}
+            <div className="p-6 bg-[#0d1424] border-2 border-slate-800 rounded-3xl shadow-xl relative overflow-hidden">
+              <div className="flex flex-wrap justify-between items-start gap-4 mb-4">
+                <div>
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Total Store Revenue</span>
+                  <div className="text-3xl font-black text-white mt-1">{formatIDR(STORE_TOTAL.actual)}</div>
+                  <div className="text-xs text-slate-400 mt-1">
+                    Target Toko: <strong className="text-slate-200">{formatIDR(STORE_TOTAL.target)}</strong>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Achievement</span>
+                  <span className="text-3xl font-black text-amber-400">{STORE_TOTAL.achievement}%</span>
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="w-full bg-slate-800 h-3 rounded-full overflow-hidden mb-4">
+                <div className="bg-gradient-to-r from-amber-500 to-emerald-400 h-full rounded-full" style={{ width: `${STORE_TOTAL.achievement}%` }} />
+              </div>
+
+              {/* Variance & Estimate Ringkasan */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-800/80 text-xs">
+                <div className="flex justify-between items-center bg-slate-900/60 p-3 rounded-xl border border-slate-800">
+                  <span className="text-slate-400">Variance (Selisih Target):</span>
+                  <span className="font-bold text-red-400 font-mono">{formatIDR(STORE_TOTAL.variance)}</span>
+                </div>
+                <div className="flex justify-between items-center bg-slate-900/60 p-3 rounded-xl border border-slate-800">
+                  <span className="text-slate-400">Estimate (Proyeksi Akhir Bulan):</span>
+                  <span className="font-bold text-emerald-400 font-mono">{formatIDR(STORE_TOTAL.estimate)}</span>
+                </div>
+              </div>
             </div>
 
+            {/* 2. TABEL LENGKAP: TARGET, ACHV, VARIANCE, ESTIMATE PER KATEGORI */}
+            <div>
+              <div className="flex justify-between items-center mb-3">
+                <h2 className="text-base font-bold text-white">Matriks Kategori Produk (Apple, Android, Accessories & VAS)</h2>
+                <span className="text-[11px] text-slate-400">Presisi 100% Tab Dashboard QF01</span>
+              </div>
+
+              <div className="bg-[#0d1424] border border-slate-800 rounded-2xl overflow-x-auto shadow-2xl">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-[#0a0f1d] text-slate-400 uppercase text-[11px] border-b border-slate-800">
+                    <tr>
+                      <th className="py-4 px-4">Kategori Produk</th>
+                      <th className="py-4 px-4 text-right">Actual Sales</th>
+                      <th className="py-4 px-4 text-right">Target</th>
+                      <th className="py-4 px-4 text-center">Achievement (%)</th>
+                      <th className="py-4 px-4 text-right">Variance (Selisih)</th>
+                      <th className="py-4 px-4 text-right">Estimate (Run Rate)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 font-medium">
+                    {STORE_OVERVIEW_METRICS.map((row, idx) => (
+                      <tr key={idx} className="hover:bg-slate-800/40 transition">
+                        <td className="py-4 px-4 font-bold text-white text-sm">
+                          <span className="mr-2">{row.icon}</span>
+                          <span>{row.category}</span>
+                        </td>
+                        <td className={`py-4 px-4 text-right font-extrabold text-sm ${row.color}`}>
+                          {formatIDR(row.actual)}
+                        </td>
+                        <td className="py-4 px-4 text-right text-slate-300 font-mono">
+                          {formatIDR(row.target)}
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-black border ${row.badgeBg}`}>
+                            {row.achievement}%
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 text-right text-red-400 font-mono font-bold">
+                          {formatIDR(row.variance)}
+                        </td>
+                        <td className="py-4 px-4 text-right text-emerald-400 font-mono font-bold">
+                          {formatIDR(row.estimate)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* 3. RINCIAN DETAIL PRODUK PER KATEGORI (INTERAKTIF TABS) */}
+            <div className="p-6 bg-[#0d1424] border border-slate-800 rounded-3xl shadow-xl">
+              <div className="flex flex-wrap justify-between items-center gap-4 mb-5">
+                <div>
+                  <h3 className="text-base font-bold text-white">Rincian Detail Produk Terjual per Kategori</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Komposisi item, revenue kontribusi, dan persentase share produk</p>
+                </div>
+
+                {/* Sub Tab Pemilih Kategori */}
+                <div className="flex flex-wrap gap-2 bg-slate-900 p-1.5 rounded-2xl border border-slate-800">
+                  <button
+                    onClick={() => setActiveCategoryTab("apple")}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                      activeCategoryTab === "apple" ? "bg-sky-500 text-slate-950 shadow-md shadow-sky-500/20" : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    🍎 Apple Devices
+                  </button>
+                  <button
+                    onClick={() => setActiveCategoryTab("android")}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                      activeCategoryTab === "android" ? "bg-indigo-500 text-white shadow-md shadow-indigo-500/20" : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    🤖 Android Devices
+                  </button>
+                  <button
+                    onClick={() => setActiveCategoryTab("accessories")}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                      activeCategoryTab === "accessories" ? "bg-amber-400 text-slate-950 shadow-md shadow-amber-400/20" : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    🔌 Accessories
+                  </button>
+                  <button
+                    onClick={() => setActiveCategoryTab("vas")}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                      activeCategoryTab === "vas" ? "bg-purple-500 text-white shadow-md shadow-purple-500/20" : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    🛡️ VAS (Qoala)
+                  </button>
+                </div>
+              </div>
+
+              {/* Tabel Rincian Produk Aktif */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-[#0a0f1d] text-slate-400 uppercase text-[11px] border-b border-slate-800">
+                    <tr>
+                      <th className="py-3 px-4">Nama Produk & Tipe</th>
+                      <th className="py-3 px-4">Artikel SAP</th>
+                      <th className="py-3 px-4">Brand</th>
+                      <th className="py-3 px-4 text-center">Qty Terjual</th>
+                      <th className="py-3 px-4 text-right">Nilai Penjualan (Rp)</th>
+                      <th className="py-3 px-4 text-right">Kontribusi Share</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 font-medium">
+                    {PRODUCT_DETAILS[activeCategoryTab].map((p, i) => (
+                      <tr key={i} className="hover:bg-slate-800/30 transition">
+                        <td className="py-3.5 px-4 font-bold text-white">{p.name}</td>
+                        <td className="py-3.5 px-4 font-mono text-slate-400 text-[11px]">{p.sku}</td>
+                        <td className="py-3.5 px-4">
+                          <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-semibold text-[10px]">
+                            {p.brand}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-center font-bold text-white">{p.qty} Unit</td>
+                        <td className="py-3.5 px-4 text-right font-extrabold text-emerald-400">
+                          {formatIDR(p.revenue)}
+                        </td>
+                        <td className="py-3.5 px-4 text-right text-amber-400 font-bold">{p.share}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: LEADERBOARD STAF */}
+        {activeTab === "leaderboard" && (
+          <div className="space-y-4">
+            <h2 className="text-base font-bold text-white">🏆 Staff Sales Performance & Leaderboard</h2>
             <div className="bg-[#0d1424] border border-slate-800 rounded-2xl overflow-x-auto shadow-2xl">
               <table className="w-full text-left text-xs">
                 <thead className="bg-[#0a0f1d] text-slate-400 uppercase text-[11px] border-b border-slate-800">
                   <tr>
                     <th className="py-4 px-4 text-center">Rank</th>
-                    <th className="py-4 px-4">Salesperson</th>
-                    <th className="py-4 px-4 text-right">Apple</th>
-                    <th className="py-4 px-4 text-right">Android</th>
-                    <th className="py-4 px-4 text-right">Accessories</th>
-                    <th className="py-4 px-4 text-right">VAS (Qoala)</th>
-                    <th className="py-4 px-4 text-right">Total Penjualan</th>
-                    <th className="py-4 px-4 text-center">Struk</th>
+                    <th className="py-4 px-4">Nama Salesperson</th>
+                    <th className="py-4 px-4 text-right">Target</th>
+                    <th className="py-4 px-4 text-right">Actual Sales</th>
+                    <th className="py-4 px-4 text-center">Achievement</th>
+                    <th className="py-4 px-4 text-center">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60 font-medium">
-                  {filteredLeaderboard.map((s) => (
-                    <tr
-                      key={s.rank}
-                      className={`hover:bg-slate-800/40 transition ${
-                        s.rank === 1 ? "bg-amber-500/10 font-semibold" : ""
-                      }`}
-                    >
+                  {OFFICIAL_LEADERBOARD.map((s) => (
+                    <tr key={s.rank} className={`hover:bg-slate-800/40 transition ${s.rank === 1 ? "bg-amber-500/10 font-bold" : ""}`}>
                       <td className="py-4 px-4 text-center">
-                        <span
-                          className={`w-7 h-7 rounded-full inline-flex items-center justify-center font-black text-xs ${
-                            s.rank === 1
-                              ? "bg-amber-400 text-slate-950 shadow-md shadow-amber-400/30"
-                              : s.rank === 2
-                              ? "bg-slate-300 text-slate-950"
-                              : s.rank === 3
-                              ? "bg-amber-700 text-white"
-                              : "text-slate-400"
-                          }`}
-                        >
+                        <span className={`w-6 h-6 rounded-full inline-flex items-center justify-center font-black text-xs ${s.rank === 1 ? "bg-amber-400 text-slate-950" : "text-slate-400"}`}>
                           {s.rank}
                         </span>
                       </td>
-                      <td className="py-4 px-4">
-                        <div className="text-white font-bold text-sm flex items-center gap-2">
-                          <span>{s.name}</span>
-                          {s.rank === 1 && (
-                            <span className="text-[10px] bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full font-black uppercase">
-                              Rank 1 👑
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[10px] text-slate-500 font-mono">ID: {s.salesId}</div>
+                      <td className="py-4 px-4 font-bold text-white text-sm">{s.name}</td>
+                      <td className="py-4 px-4 text-right text-slate-400 font-mono">{s.target > 0 ? formatIDR(s.target) : "-"}</td>
+                      <td className="py-4 px-4 text-right text-emerald-400 font-extrabold text-sm">{formatIDR(s.totalSales)}</td>
+                      <td className="py-4 px-4 text-center font-bold text-amber-400">{s.achievement.toFixed(1)}%</td>
+                      <td className="py-4 px-4 text-center">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${s.achievement >= 100 ? "bg-blue-500/20 text-blue-300" : "bg-red-500/20 text-red-300"}`}>
+                          {s.status}
+                        </span>
                       </td>
-                      <td className="py-4 px-4 text-right text-slate-300">{formatIDR(s.appleSales)}</td>
-                      <td className="py-4 px-4 text-right text-slate-300">{formatIDR(s.androidSales)}</td>
-                      <td className="py-4 px-4 text-right text-slate-300">{formatIDR(s.accessoriesSales)}</td>
-                      <td className="py-4 px-4 text-right text-slate-300">{formatIDR(s.vasSales)}</td>
-                      <td className="py-4 px-4 text-right text-emerald-400 font-extrabold text-sm">
-                        {formatIDR(s.totalSales)}
-                      </td>
-                      <td className="py-4 px-4 text-center text-slate-300 font-bold">{s.transactions}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -504,45 +613,14 @@ export default function Page() {
           </div>
         )}
 
-        {/* TAB 2: BREAKDOWN PER KATEGORI */}
-        {activeTab === "category-breakdown" && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="p-6 bg-[#0d1424] border border-slate-800 rounded-2xl">
-                <h3 className="text-sm font-bold text-white mb-2">🍏 Apple Ecosystem (80.97%)</h3>
-                <p className="text-2xl font-black text-sky-400">{formatIDR(STORE_TOTALS.appleRevenue)}</p>
-                <p className="text-xs text-slate-400 mt-2">Dominasi penjualan iPhone 17 Pro Max, iPad, & AirPods</p>
-              </div>
-
-              <div className="p-6 bg-[#0d1424] border border-slate-800 rounded-2xl">
-                <h3 className="text-sm font-bold text-white mb-2">⚡ Samsung & Multi-brand (11.78%)</h3>
-                <p className="text-2xl font-black text-indigo-400">{formatIDR(STORE_TOTALS.samsungRevenue)}</p>
-                <p className="text-xs text-slate-400 mt-2">Galaxy S26 Ultra, Galaxy A17, & Z Fold 8 Series</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 3: OVERVIEW STORE */}
-        {activeTab === "store-overview" && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="p-5 bg-[#0d1424] border border-slate-800 rounded-2xl">
-                <span className="text-xs text-slate-400 uppercase">Target Revenue</span>
-                <div className="text-xl font-bold text-white mt-1">{formatIDR(STORE_TOTALS.targetRevenue)}</div>
-              </div>
-              <div className="p-5 bg-[#0d1424] border border-slate-800 rounded-2xl">
-                <span className="text-xs text-slate-400 uppercase">Actual Revenue MTD</span>
-                <div className="text-xl font-bold text-emerald-400 mt-1">{formatIDR(STORE_TOTALS.totalRevenue)}</div>
-              </div>
-              <div className="p-5 bg-[#0d1424] border border-slate-800 rounded-2xl">
-                <span className="text-xs text-slate-400 uppercase">Pencapaian Toko</span>
-                <div className="text-xl font-bold text-amber-400 mt-1">36.1%</div>
-              </div>
-              <div className="p-5 bg-[#0d1424] border border-slate-800 rounded-2xl">
-                <span className="text-xs text-slate-400 uppercase">Total Unit Terjual</span>
-                <div className="text-xl font-bold text-sky-400 mt-1">{STORE_TOTALS.totalQty} Unit</div>
-              </div>
+        {/* TAB: RINCIAN PENJUALAN LOB */}
+        {activeTab === "sales-detail" && (
+          <div className="space-y-4">
+            <h2 className="text-base font-bold text-white">Breakdown LOB Sales</h2>
+            <div className="p-6 bg-[#0d1424] border border-slate-800 rounded-2xl">
+              <p className="text-xs text-slate-300">
+                Data kategori lengkap mencakup <strong>Apple Devices</strong> (Rp 2,51 M), <strong>Android Devices</strong> (Rp 394 Jt), <strong>Accessories</strong> (Rp 60,1 Jt), dan <strong>VAS Qoala</strong> (Rp 45,0 Jt).
+              </p>
             </div>
           </div>
         )}
