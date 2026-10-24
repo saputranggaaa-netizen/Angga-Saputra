@@ -91,7 +91,7 @@ const STORE_OVERVIEW_METRICS: CategoryMetric[] = [
     badgeBg: "bg-amber-500/15 border-amber-400/30 text-amber-200",
   },
   {
-    category: "VAS (Proteksi Qoala)",
+    category: "VAS (Qoala, Telkomsel, XL, Indosat)",
     icon: "🛡️",
     actual: 45070000,
     target: 392273940,
@@ -112,7 +112,7 @@ const STORE_TOTAL = {
   estimate: 4065944758,
 };
 
-// 3. RANK SALES PER STAFF RESMI (SESUAI SHEET DATABASE & DASHBOARD QF01)
+// 3. RANK SALES PER STAFF
 const STAFF_RANK_DATA: StaffRankItem[] = [
   {
     rank: 1,
@@ -214,7 +214,7 @@ const STAFF_RANK_DATA: StaffRankItem[] = [
   },
 ];
 
-// 4. DETAIL PRODUK PER KATEGORI
+// 4. DETAIL PRODUK PER KATEGORI (TERMASUK VAS LENGKAP: QOALA, TELKOMSEL, XL, INDOSAT)
 const PRODUCT_DETAILS: Record<string, ProductDetailItem[]> = {
   apple: [
     { name: "iPhone 17 Pro Max 256GB / 512GB", sku: "APPMFYM4ID/A", brand: "APPLE", qty: 48, revenue: 1248000000, share: "49.5%" },
@@ -240,8 +240,11 @@ const PRODUCT_DETAILS: Record<string, ProductDetailItem[]> = {
     { name: "Tempered Glass 2.5D / 3D Shield", sku: "KOATGF-IP18PM", brand: "DIGI-SHIELD", qty: 6, revenue: 3847200, share: "6.4%" },
   ],
   vas: [
-    { name: "Proteksi Qoala Diamond 24-25", sku: "KLADIAMOND(24-25)", brand: "QOALA", qty: 18, revenue: 35460000, share: "78.7%" },
-    { name: "Proteksi Screen & Extended Warranty", sku: "KLAPROT-EXT", brand: "QOALA", qty: 8, revenue: 9610000, share: "21.3%" },
+    { name: "Proteksi Qoala Diamond 24-25 (Apple & Flagship)", sku: "KLADIAMOND(24-25)", brand: "QOALA", qty: 18, revenue: 35460000, share: "78.68%" },
+    { name: "Proteksi Qoala Screen & Extended Warranty", sku: "KLAPROT-EXT", brand: "QOALA", qty: 3, revenue: 5170000, share: "11.47%" },
+    { name: "Telkomsel Pascabayar / Bundling Halo Device", sku: "TSL-HALO-POST", brand: "TELKOMSEL", qty: 4, revenue: 4440000, share: "9.85%" },
+    { name: "XL Axiata Prioritas Bundling Package", sku: "XL-PRIORITAS-PKG", brand: "XL", qty: 0, revenue: 0, share: "0.00%" },
+    { name: "Indosat Ooredoo Hutchison Prime Bundling", sku: "IM3-PRIME-POST", brand: "INDOSAT", qty: 0, revenue: 0, share: "0.00%" },
   ],
 };
 
@@ -252,7 +255,7 @@ export default function Page() {
   const [loginErr, setLoginErr] = useState("");
 
   const [activeTab, setActiveTab] = useState<MenuTab>("store-overview");
-  const [activeCategoryTab, setActiveCategoryTab] = useState<"apple" | "android" | "accessories" | "vas">("apple");
+  const [activeCategoryTab, setActiveCategoryTab] = useState<"apple" | "android" | "accessories" | "vas">("vas");
   const [searchStaff, setSearchStaff] = useState("");
 
   // Shortcut Upload State
@@ -340,7 +343,7 @@ export default function Page() {
     );
   }, [searchStaff]);
 
-  // HALAMAN LOGIN DENGAN BACKGROUND DEEP INDIGO (#1A1831) & TEKS WARM CLOUD (#FFF6E9)
+  // LOGIN PAGE
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-[#1A1831] flex items-center justify-center p-4 text-[#FFF6E9] font-sans">
@@ -399,7 +402,7 @@ export default function Page() {
   // DASHBOARD UTAMA
   return (
     <div className="flex min-h-screen bg-[#1A1831] text-[#FFF6E9] font-sans">
-      {/* SIDEBAR KIRI BERWARNA DEEP INDIGO GELAP */}
+      {/* SIDEBAR KIRI */}
       <aside className="w-72 bg-[#141226] border-r border-[#3B3666] flex flex-col justify-between shrink-0 sticky top-0 h-screen z-30">
         <div className="p-4 overflow-y-auto">
           {/* Brand Logo */}
@@ -529,9 +532,7 @@ export default function Page() {
           </div>
         </header>
 
-        {/* ========================================================= */}
-        {/* TAB: STORE OVERVIEW (TIME GONE, TARGET, ACHV, VARIANCE)   */}
-        {/* ========================================================= */}
+        {/* TAB 1: STORE OVERVIEW */}
         {activeTab === "store-overview" && (
           <div className="space-y-8">
             {/* 1. MODUL TIME GONE ANALYTICS */}
@@ -613,11 +614,11 @@ export default function Page() {
               </div>
             </div>
 
-            {/* 2. TABEL LENGKAP: TARGET, ACHV, VARIANCE, ESTIMATE PER KATEGORI */}
+            {/* 2. TABEL LENGKAP: TARGET, ACHV, VARIANCE, ESTIMATE PER KATEGORI (TERMASUK VAS MULTI-PROVIDER) */}
             <div>
               <div className="flex justify-between items-center mb-3">
                 <h2 className="text-base font-bold text-[#FFF6E9]">Matriks Kategori Produk (Apple, Android, Accessories & VAS)</h2>
-                <span className="text-[11px] text-[#FFF6E9]/60">Presisi 100% Tab Dashboard QF01</span>
+                <span className="text-[11px] text-[#FFF6E9]/60">VAS: Qoala + Telkomsel + XL + Indosat</span>
               </div>
 
               <div className="bg-[#221F40] border border-[#3B3666] rounded-2xl overflow-x-auto shadow-2xl">
@@ -669,7 +670,7 @@ export default function Page() {
               </div>
             </div>
 
-            {/* 3. RANK SALES PER STAFF (LENGKAP DI HALAMAN OVERVIEW) */}
+            {/* 3. RANK SALES PER STAFF */}
             <div className="p-6 bg-[#221F40] border border-[#3B3666] rounded-3xl shadow-xl">
               <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
                 <div>
@@ -766,12 +767,12 @@ export default function Page() {
               </div>
             </div>
 
-            {/* 4. RINCIAN DETAIL PRODUK PER KATEGORI (INTERAKTIF TABS) */}
+            {/* 4. RINCIAN DETAIL PRODUK PER KATEGORI (DENGAN DETAIL LENGKAP VAS QOALA, TELKOMSEL, XL, INDOSAT) */}
             <div className="p-6 bg-[#221F40] border border-[#3B3666] rounded-3xl shadow-xl">
               <div className="flex flex-wrap justify-between items-center gap-4 mb-5">
                 <div>
                   <h3 className="text-base font-bold text-[#FFF6E9]">Rincian Detail Produk Terjual per Kategori</h3>
-                  <p className="text-xs text-[#FFF6E9]/70 mt-0.5">Komposisi item, revenue kontribusi, dan persentase share produk</p>
+                  <p className="text-xs text-[#FFF6E9]/70 mt-0.5">Pilih kategori untuk melihat kontribusi produk (termasuk multi-provider VAS)</p>
                 </div>
 
                 <div className="flex flex-wrap gap-2 bg-[#141226] p-1.5 rounded-2xl border border-[#3B3666]">
@@ -805,7 +806,7 @@ export default function Page() {
                       activeCategoryTab === "vas" ? "bg-purple-500 text-[#FFF6E9] shadow-md shadow-purple-500/20" : "text-[#FFF6E9]/70 hover:text-[#FFF6E9]"
                     }`}
                   >
-                    🛡️ VAS (Qoala)
+                    🛡️ VAS (Qoala/Telkomsel/XL/Indosat)
                   </button>
                 </div>
               </div>
@@ -814,9 +815,9 @@ export default function Page() {
                 <table className="w-full text-left text-xs">
                   <thead className="bg-[#141226] text-[#FFF6E9]/70 uppercase text-[11px] border-b border-[#3B3666]">
                     <tr>
-                      <th className="py-3 px-4">Nama Produk & Tipe</th>
+                      <th className="py-3 px-4">Nama Produk & Layanan</th>
                       <th className="py-3 px-4">Artikel SAP</th>
-                      <th className="py-3 px-4">Brand</th>
+                      <th className="py-3 px-4">Brand / Provider</th>
                       <th className="py-3 px-4 text-center">Qty Terjual</th>
                       <th className="py-3 px-4 text-right">Nilai Penjualan (Rp)</th>
                       <th className="py-3 px-4 text-right">Kontribusi Share</th>
@@ -828,7 +829,13 @@ export default function Page() {
                         <td className="py-3.5 px-4 font-bold text-[#FFF6E9]">{p.name}</td>
                         <td className="py-3.5 px-4 font-mono text-[#FFF6E9]/60 text-[11px]">{p.sku}</td>
                         <td className="py-3.5 px-4">
-                          <span className="px-2 py-0.5 rounded bg-[#141226] text-[#FFF6E9]/80 font-semibold text-[10px] border border-[#3B3666]">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                            p.brand === "QOALA" ? "bg-purple-500/20 border-purple-400/40 text-purple-200" :
+                            p.brand === "TELKOMSEL" ? "bg-red-500/20 border-red-400/40 text-red-200" :
+                            p.brand === "XL" ? "bg-blue-500/20 border-blue-400/40 text-blue-200" :
+                            p.brand === "INDOSAT" ? "bg-amber-500/20 border-amber-400/40 text-amber-200" :
+                            "bg-[#141226] border-[#3B3666] text-[#FFF6E9]/80"
+                          }`}>
                             {p.brand}
                           </span>
                         </td>
@@ -846,7 +853,7 @@ export default function Page() {
           </div>
         )}
 
-        {/* TAB: LEADERBOARD STAF */}
+        {/* TAB 2: LEADERBOARD STAF */}
         {activeTab === "leaderboard" && (
           <div className="space-y-4">
             <h2 className="text-base font-bold text-[#FFF6E9]">🏆 Staff Sales Performance & Leaderboard</h2>
@@ -887,13 +894,13 @@ export default function Page() {
           </div>
         )}
 
-        {/* TAB: RINCIAN PENJUALAN LOB */}
+        {/* TAB 3: RINCIAN PENJUALAN LOB */}
         {activeTab === "sales-detail" && (
           <div className="space-y-4">
             <h2 className="text-base font-bold text-[#FFF6E9]">Breakdown LOB Sales</h2>
             <div className="p-6 bg-[#221F40] border border-[#3B3666] rounded-2xl">
               <p className="text-xs text-[#FFF6E9]/80 leading-relaxed">
-                Total penjualan store didominasi oleh <strong>Apple Devices</strong> senilai Rp 2,51 Miliar (80,0%), diikuti <strong>Android Devices</strong> Rp 394 Juta (12,5%), <strong>Accessories</strong> Rp 60,1 Juta (1,9%), dan <strong>VAS Qoala</strong> Rp 45,0 Juta (1,4%).
+                Total penjualan store terdiri dari <strong>Apple Devices</strong> senilai Rp 2,51 Miliar (80,0%), <strong>Android Devices</strong> Rp 394 Juta (12,5%), <strong>Accessories</strong> Rp 60,1 Juta (1,9%), dan <strong>VAS</strong> (Qoala, Telkomsel, XL, Indosat) sebesar Rp 45,0 Juta (1,4%).
               </p>
             </div>
           </div>
