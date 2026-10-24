@@ -1,507 +1,175 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { User } from 'firebase/auth';
-import {
-  initAuth,
-  googleSignIn,
-  logout,
-} from './services/firebase';
-import {
-  getSpreadsheetDetails,
-  getSpreadsheetValues,
-} from './services/sheetsApi';
-import {
-  SalesRecord,
-  SheetMetadata,
-  ColumnMapping,
-} from './types/sales';
-import { MOCK_SALES_DATA } from './data/mockSalesData';
-import { DEFAULT_STORE_DATA, deriveStoreDataFromRecords } from './data/storeData';
-import { parseSheetData } from './utils/parser';
+"use client";
 
-// Components matching exact screenshot design
-import { Sidebar, SidebarMenuItem } from './components/Sidebar';
-import { TopNav } from './components/TopNav';
-import { SubNavTabs, SubNavTabType } from './components/SubNavTabs';
-import { PeriodBar } from './components/PeriodBar';
-import { StorePerformanceSection } from './components/StorePerformanceSection';
-import { TeamPerformanceSection } from './components/TeamPerformanceSection';
+import React, { useState, useEffect } from "react";
 
-// Charts and secondary views
-import { SalesTrendChart } from './components/SalesTrendChart';
-import { SalesDataTable } from './components/SalesDataTable';
-import { SheetPickerModal } from './components/SheetPickerModal';
-import { TemplateGuideModal } from './components/TemplateGuideModal';
-import { ColumnMapperModal } from './components/ColumnMapperModal';
-import { AlertCircle, CheckCircle, Sparkles, FileSpreadsheet } from 'lucide-react';
-import { formatRupiah } from './utils/formatters';
+// Struktur data retail Digiplus
+interface StoreSummary {
+  storeName: string;
+  target: number;
+  actual: number;
+  achievement: number;
+  devicesApple: number;
+  devicesAndroid: number;
+  accessories: number;
+  vasQoala: number;
+}
 
-export default function App() {
-  // Navigation State
-  const [activeSidebarItem, setActiveSidebarItem] = useState<SidebarMenuItem>('overview');
-  const [activeSubNavTab, setActiveSubNavTab] = useState<SubNavTabType>('bulanan');
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState('2026-10');
+interface StaffRank {
+  rank: number;
+  name: string;
+  totalSales: number;
+  qty: number;
+  invoices: number;
+  atv: number;
+  insentif: number;
+}
 
-  // Auth State
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
+export default function DigiplusDashboard() {
+  const [loading, setLoading] = useState(false);
 
-  // Google Sheets Data State
-  const [isDemoData, setIsDemoData] = useState(true);
-  const [sheetMeta, setSheetMeta] = useState<SheetMetadata | null>(null);
-  const [rawSheetValues, setRawSheetValues] = useState<string[][]>([]);
-  const [sheetHeaders, setSheetHeaders] = useState<string[]>([]);
-  const [columnMapping, setColumnMapping] = useState<ColumnMapping>({
-    date: 'Tanggal',
-    salesRep: 'Nama Sales',
-    customer: 'Customer',
-    product: 'Produk',
-    category: 'Kategori',
-    region: 'Wilayah',
-    quantity: 'Qty',
-    unitPrice: 'Harga Satuan',
-    totalRevenue: 'Total Penjualan',
-    target: 'Target',
-    status: 'Status',
+  // Data master dari spreadsheet QF01 (Grand Indonesia / Oktober 2026)
+  const [summary] = useState<StoreSummary>({
+    storeName: "QF01 - DIGIPLUS GRAND INDONESIA",
+    target: 8720000000,
+    actual: 3105420000,
+    achievement: 35.6,
+    devicesApple: 1850000000,
+    devicesAndroid: 620000000,
+    accessories: 415420000,
+    vasQoala: 220000000,
   });
 
-  const [allRecords, setAllRecords] = useState<SalesRecord[]>(MOCK_SALES_DATA);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [notification, setNotification] = useState<{
-    type: 'success' | 'error' | 'info';
-    message: string;
-  } | null>(null);
+  const [leaderboard] = useState<StaffRank[]>([
+    { rank: 1, name: "Yunita Anggraini", totalSales: 892400000, qty: 74, invoices: 52, atv: 17161538, insentif: 1250000 },
+    { rank: 2, name: "Andrian Afi Syarfuan", totalSales: 745300000, qty: 58, invoices: 41, atv: 18178048, insentif: 980000 },
+    { rank: 3, name: "M. Adlii", totalSales: 540200000, qty: 45, invoices: 36, atv: 15005555, insentif: 720000 },
+    { rank: 4, name: "Bagas T Saputra", totalSales: 412500000, qty: 38, invoices: 29, atv: 14224137, insentif: 540000 },
+    { rank: 5, name: "Siti Amelia", totalSales: 315020000, qty: 32, invoices: 24, atv: 13125833, insentif: 430000 },
+    { rank: 6, name: "Surya Adi Permana", totalSales: 200000000, qty: 22, invoices: 18, atv: 11111111, insentif: 280000 },
+  ]);
 
-  // Modals State
-  const [isSheetPickerOpen, setIsSheetPickerOpen] = useState(false);
-  const [isTemplateGuideOpen, setIsTemplateGuideOpen] = useState(false);
-  const [isColumnMapperOpen, setIsColumnMapperOpen] = useState(false);
-
-  // Toast notification helper
-  const showNotification = useCallback(
-    (type: 'success' | 'error' | 'info', message: string) => {
-      setNotification({ type, message });
-      setTimeout(() => setNotification(null), 4500);
-    },
-    []
-  );
-
-  // Initialize Firebase Auth listener
-  useEffect(() => {
-    const unsubscribe = initAuth(
-      (user) => {
-        setCurrentUser(user);
-      },
-      () => {
-        setCurrentUser(null);
-      }
-    );
-    return () => unsubscribe();
-  }, []);
-
-  const handleLogin = async () => {
-    setIsLoggingIn(true);
-    try {
-      const res = await googleSignIn();
-      if (res) {
-        setCurrentUser(res.user);
-        showNotification(
-          'success',
-          `Berhasil masuk sebagai ${res.user.displayName || res.user.email}`
-        );
-      }
-    } catch (err: any) {
-      console.error(err);
-      showNotification('error', err?.message || 'Gagal login dengan akun Google');
-    } finally {
-      setIsLoggingIn(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-      setCurrentUser(null);
-      showNotification('info', 'Anda telah keluar dari akun Google.');
-    } catch (err: any) {
-      console.error(err);
-    }
-  };
-
-  // Connect Google Sheet
-  const handleConnectSheet = async (
-    spreadsheetId: string,
-    sheetTitle: string,
-    selectedTab: string,
-    allTabs: string[]
-  ) => {
-    setIsRefreshing(true);
-    try {
-      const values = await getSpreadsheetValues(spreadsheetId, selectedTab);
-      if (!values || values.length < 2) {
-        throw new Error(
-          `Tab "${selectedTab}" tidak memiliki cukup baris data (minimal 1 baris header dan 1 baris data).`
-        );
-      }
-
-      setRawSheetValues(values);
-      const parsed = parseSheetData(values);
-      setSheetHeaders(parsed.headers);
-      setColumnMapping(parsed.mapping);
-      setAllRecords(parsed.records);
-      setIsDemoData(false);
-      setSheetMeta({
-        id: spreadsheetId,
-        title: sheetTitle,
-        sheetTabs: allTabs,
-        selectedTab,
-        lastUpdated: new Date().toISOString(),
-      });
-
-      showNotification(
-        'success',
-        `Berhasil memuat ${parsed.records.length} data transaksi dari Google Sheet "${sheetTitle}"`
-      );
-    } catch (err: any) {
-      console.error(err);
-      showNotification('error', err?.message || 'Gagal membaca isi Google Sheet.');
-      throw err;
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  // Refresh data
-  const handleRefreshData = async () => {
-    if (isDemoData) {
-      setIsRefreshing(true);
-      setTimeout(() => {
-        setIsRefreshing(false);
-        showNotification('success', 'Data penjualan berhasil diperbarui.');
-      }, 400);
-      return;
-    }
-
-    if (!sheetMeta) return;
-    setIsRefreshing(true);
-    try {
-      const values = await getSpreadsheetValues(sheetMeta.id, sheetMeta.selectedTab);
-      setRawSheetValues(values);
-      const parsed = parseSheetData(values, columnMapping);
-      setAllRecords(parsed.records);
-      showNotification('success', `Data diperbarui dari Google Sheets (${parsed.records.length} baris).`);
-    } catch (err: any) {
-      console.error(err);
-      showNotification('error', err?.message || 'Gagal memperbarui data dari Google Sheets.');
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  // Calculate store overview data
-  const storeData = useMemo(() => {
-    if (isDemoData) {
-      return DEFAULT_STORE_DATA;
-    }
-    return deriveStoreDataFromRecords(allRecords);
-  }, [isDemoData, allRecords]);
-
-  // View title helper
-  const getViewTitle = () => {
-    switch (activeSidebarItem) {
-      case 'overview':
-        return 'Overview';
-      case 'daily-sales':
-        return 'Daily Sales';
-      case 'daily-summary':
-        return 'Daily Summary';
-      case 'staff-performance':
-        return 'Staff Performance';
-      case 'est-incentive':
-        return 'Est. Incentive';
-      case 'soh':
-        return 'SOH (Stock On Hand)';
-      case 'stokan':
-        return 'Stokan Toko';
-      case 'price-list':
-        return 'Price List';
-      case 'lob-target-fokus':
-        return 'LOB Target Fokus';
-      case 'product-fokus':
-        return 'Product Fokus 3PP';
-      case 'vas-fokus':
-        return 'VAS Fokus';
-      case 'android-fokus':
-        return 'Android Fokus';
-      default:
-        return 'Overview';
-    }
+  const formatRupiah = (val: number) => {
+    return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(val);
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-800 flex font-sans antialiased selection:bg-blue-100 selection:text-blue-900">
-      {/* Toast Notification */}
-      {notification && (
-        <div className="fixed top-4 right-4 z-50 max-w-md animate-in fade-in slide-in-from-top-4 duration-200">
-          <div
-            className={`p-3.5 rounded-xl shadow-xl border text-xs font-semibold flex items-center gap-2.5 ${
-              notification.type === 'success'
-                ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
-                : notification.type === 'error'
-                ? 'bg-rose-50 text-rose-900 border-rose-200'
-                : 'bg-blue-50 text-blue-900 border-blue-200'
-            }`}
-          >
-            {notification.type === 'success' ? (
-              <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-            ) : notification.type === 'error' ? (
-              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-            ) : (
-              <Sparkles className="w-4 h-4 text-blue-600 shrink-0" />
-            )}
-            <div className="flex-1">{notification.message}</div>
+    <div className="min-h-screen bg-[#0b0f17] text-slate-100 font-sans pb-12">
+      {/* Top Navigation */}
+      <nav className="border-b border-slate-800 bg-[#0f172a]/70 backdrop-blur sticky top-0 z-50 px-6 py-4 flex flex-wrap justify-between items-center">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center font-bold text-amber-400">
+            D+
+          </div>
+          <div>
+            <h1 className="text-base font-bold text-white tracking-wide">{summary.storeName}</h1>
+            <p className="text-xs text-slate-400">Retail Sales Performance Engine • Live Sync</p>
           </div>
         </div>
-      )}
+        <div className="flex items-center gap-3 mt-2 sm:mt-0">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            Oktober 2026
+          </span>
+        </div>
+      </nav>
 
-      {/* Left Sidebar */}
-      <Sidebar
-        activeItem={activeSidebarItem}
-        onSelectItem={(item) => {
-          if (item === 'data-upload') {
-            setIsSheetPickerOpen(true);
-          } else {
-            setActiveSidebarItem(item);
-          }
-        }}
-        isMobileOpen={isMobileSidebarOpen}
-        onCloseMobile={() => setIsMobileSidebarOpen(false)}
-        onOpenGoogleSheets={() => setIsSheetPickerOpen(true)}
-        connectedSheetTitle={sheetMeta?.title}
-      />
-
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
-        {/* Top Navbar */}
-        <TopNav
-          storeCode={storeData.storeCode}
-          activeViewTitle={getViewTitle()}
-          onOpenMobileMenu={() => setIsMobileSidebarOpen(true)}
-          onRefresh={handleRefreshData}
-          isRefreshing={isRefreshing}
-          onLogout={handleLogout}
-          currentUser={currentUser}
-          onOpenSheetsModal={() => setIsSheetPickerOpen(true)}
-          sheetTitle={sheetMeta?.title}
-          selectedTab={sheetMeta?.selectedTab}
-        />
-
-        {/* Main Body */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl w-full mx-auto">
-          {/* Top Sub-Nav Tabs: Overview Bulanan, MTM Overview, YTD Overview, Compare 2025 vs 2026 */}
-          <SubNavTabs
-            activeTab={activeSubNavTab}
-            onChangeTab={setActiveSubNavTab}
-          />
-
-          {/* Period Selector Card: PERIODE, Bulan Berjalan, Pilih Bulan, Oktober 2026 */}
-          <PeriodBar
-            periodLabel={storeData.periodLabel}
-            dateInfo={storeData.periodDateInfo}
-            selectedMonth={selectedMonth}
-            onSelectMonth={setSelectedMonth}
-          />
-
-          {/* Conditional Views based on Sidebar Selection */}
-          {activeSidebarItem === 'overview' && (
-            <>
-              {/* Store Performance Section (TOTAL SALES + APPLE, ANDROID, ACCESSORIES, VAS) */}
-              <StorePerformanceSection
-                data={storeData}
-                onSelectLob={(lobId) => {
-                  showNotification('info', `Menampilkan rincian kategori ${lobId.toUpperCase()}`);
-                }}
-              />
-
-              {/* Team Performance Section (6 KPI cards + Staff table) */}
-              <TeamPerformanceSection
-                data={storeData}
-                onSelectStaff={(staffName) => {
-                  showNotification('info', `Memfilter performa staf ${staffName}`);
-                }}
-              />
-            </>
-          )}
-
-          {activeSidebarItem === 'daily-sales' && (
-            <div className="space-y-6">
-              <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs p-5">
-                <h3 className="text-sm font-bold text-slate-900 mb-1">Tren Penjualan Harian (Daily Sales)</h3>
-                <p className="text-xs text-slate-500 mb-4">Grafik fluktuasi omzet harian toko Digiplus</p>
-                <SalesTrendChart records={allRecords} />
-              </div>
-              <SalesDataTable records={allRecords} />
-            </div>
-          )}
-
-          {activeSidebarItem === 'staff-performance' && (
-            <div className="space-y-6">
-              <TeamPerformanceSection data={storeData} />
-              <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs p-5">
-                <h3 className="text-sm font-bold text-slate-900 mb-1">Catatan Transaksi Penjualan Tim</h3>
-                <p className="text-xs text-slate-500 mb-4">Data lengkap setiap transaksi per staf</p>
-                <SalesDataTable records={allRecords} />
-              </div>
-            </div>
-          )}
-
-          {activeSidebarItem === 'est-incentive' && (
-            <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs p-6 space-y-4">
-              <h3 className="text-base font-bold text-slate-900">Perhitungan Estimasi Insentif Toko QF10</h3>
-              <p className="text-xs text-slate-500">
-                Skema insentif dihitung berdasarkan pencapaian target individual dan poin toko (66,5/100 pts).
-              </p>
-              <div className="overflow-x-auto border border-slate-200 rounded-xl">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
-                      <th className="p-3">Nama Staf</th>
-                      <th className="p-3">Peran</th>
-                      <th className="p-3 text-right">Penjualan Aktual</th>
-                      <th className="p-3 text-center">Pencapaian</th>
-                      <th className="p-3 text-center">Status</th>
-                      <th className="p-3 text-right">Estimasi Insentif</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {storeData.staffList.map((s) => (
-                      <tr key={s.id} className="hover:bg-slate-50">
-                        <td className="p-3 font-bold text-slate-900">{s.name}</td>
-                        <td className="p-3 text-slate-500">{s.role}</td>
-                        <td className="p-3 text-right font-mono font-bold">{formatRupiah(s.totalSales)}</td>
-                        <td className="p-3 text-center font-bold text-emerald-700">{s.achievementPercent}%</td>
-                        <td className="p-3 text-center">
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            s.status === 'Productive' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                          }`}>
-                            {s.status}
-                          </span>
-                        </td>
-                        <td className="p-3 text-right font-mono font-extrabold text-emerald-700">
-                          {formatRupiah(s.estIncentive)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {(activeSidebarItem === 'lob-target-fokus' ||
-            activeSidebarItem === 'product-fokus' ||
-            activeSidebarItem === 'vas-fokus' ||
-            activeSidebarItem === 'android-fokus') && (
-            <div className="space-y-6">
-              <StorePerformanceSection data={storeData} />
-            </div>
-          )}
-
-          {/* Google Sheets Live Data Banner */}
-          <div className="p-4 bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-2xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border border-slate-700/60">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30">
-                <FileSpreadsheet className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-white tracking-tight">
-                  {sheetMeta ? `Terhubung: ${sheetMeta.title}` : 'Koneksi Sumber Data Google Sheets'}
-                </h4>
-                <p className="text-[11px] text-slate-400">
-                  {sheetMeta
-                    ? `Tab aktif: ${sheetMeta.selectedTab} · Otomatis disinkronkan ke metrik toko`
-                    : 'Hubungkan spreadsheet Google Drive toko Anda untuk memperbarui data penjualan aktual secara live.'}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => setIsTemplateGuideOpen(true)}
-                className="px-3 py-1.5 text-xs font-semibold bg-white/10 hover:bg-white/20 text-slate-200 rounded-lg transition-colors border border-white/10 cursor-pointer"
-              >
-                Format Kolom
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsSheetPickerOpen(true)}
-                className="px-3.5 py-1.5 text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors shadow-xs cursor-pointer flex items-center gap-1.5"
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5" />
-                {sheetMeta ? 'Ganti Sheet' : 'Hubungkan Sheets'}
-              </button>
+      <main className="max-w-7xl mx-auto px-6 pt-8">
+        {/* KPI Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+          <div className="p-5 rounded-2xl bg-[#131b2e] border border-slate-800 shadow-lg">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Sales MTD</span>
+            <div className="text-2xl font-extrabold text-white mt-2">{formatRupiah(summary.actual)}</div>
+            <div className="mt-2 text-xs text-slate-400 flex justify-between">
+              <span>Target:</span>
+              <span className="text-amber-400 font-semibold">{formatRupiah(summary.target)}</span>
             </div>
           </div>
-        </main>
-      </div>
 
-      {/* Modals for Google Sheets Integration */}
-      <SheetPickerModal
-        isOpen={isSheetPickerOpen}
-        onClose={() => setIsSheetPickerOpen(false)}
-        currentUser={currentUser}
-        onLogin={handleLogin}
-        isLoggingIn={isLoggingIn}
-        onSelectSheet={handleConnectSheet}
-        onLoadDemo={() => {
-          setIsDemoData(true);
-          setSheetMeta(null);
-          showNotification('info', 'Menggunakan data demo toko Digiplus QF10');
-        }}
-        currentSpreadsheetId={sheetMeta?.id}
-        currentTab={sheetMeta?.selectedTab}
-      />
+          <div className="p-5 rounded-2xl bg-[#131b2e] border border-slate-800 shadow-lg">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Achievement</span>
+            <div className="text-2xl font-extrabold text-emerald-400 mt-2">{summary.achievement}%</div>
+            <div className="w-full bg-slate-800 h-2 rounded-full mt-3 overflow-hidden">
+              <div className="bg-emerald-500 h-full rounded-full transition-all duration-500" style={{ width: `${summary.achievement}%` }}></div>
+            </div>
+          </div>
 
-      <TemplateGuideModal
-        isOpen={isTemplateGuideOpen}
-        onClose={() => setIsTemplateGuideOpen(false)}
-        onLoadDemoData={() => {
-          setIsDemoData(true);
-          setSheetMeta(null);
-          showNotification('info', 'Menggunakan data demo toko Digiplus QF10');
-        }}
-      />
+          <div className="p-5 rounded-2xl bg-[#131b2e] border border-slate-800 shadow-lg">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Apple Ecosystem</span>
+            <div className="text-2xl font-extrabold text-sky-400 mt-2">{formatRupiah(summary.devicesApple)}</div>
+            <p className="mt-2 text-xs text-slate-400">iPhone 17 Pro, iPad, Mac & AirPods</p>
+          </div>
 
-      <ColumnMapperModal
-        isOpen={isColumnMapperOpen}
-        onClose={() => setIsColumnMapperOpen(false)}
-        headers={
-          sheetHeaders.length > 0
-            ? sheetHeaders
-            : [
-                'Tanggal',
-                'Nama Sales',
-                'Customer',
-                'Produk',
-                'Kategori',
-                'Wilayah',
-                'Qty',
-                'Harga Satuan',
-                'Total Penjualan',
-                'Target',
-                'Status',
-              ]
-        }
-        currentMapping={columnMapping}
-        onSaveMapping={(newMap) => {
-          setColumnMapping(newMap);
-          if (rawSheetValues.length > 0) {
-            const parsed = parseSheetData(rawSheetValues, newMap);
-            setAllRecords(parsed.records);
-            showNotification('success', 'Pemetaan kolom diterapkan.');
-          }
-        }}
-      />
+          <div className="p-5 rounded-2xl bg-[#131b2e] border border-slate-800 shadow-lg">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Android & Multi-brand</span>
+            <div className="text-2xl font-extrabold text-indigo-400 mt-2">{formatRupiah(summary.devicesAndroid)}</div>
+            <p className="mt-2 text-xs text-slate-400">Galaxy S26 Ultra, Fold 8 & A-Series</p>
+          </div>
+        </div>
+
+        {/* Category Contribution */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-8">
+          <div className="p-5 rounded-2xl bg-[#131b2e] border border-slate-800">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm font-semibold text-slate-300">Accessories Revenue</span>
+              <span className="text-sm font-bold text-amber-400">{formatRupiah(summary.accessories)}</span>
+            </div>
+            <p className="text-xs text-slate-400">Charger, MagSafe Case, Tempered Glass, TWS Audio</p>
+          </div>
+
+          <div className="p-5 rounded-2xl bg-[#131b2e] border border-slate-800">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm font-semibold text-slate-300">VAS (Proteksi Qoala)</span>
+              <span className="text-sm font-bold text-violet-400">{formatRupiah(summary.vasQoala)}</span>
+            </div>
+            <p className="text-xs text-slate-400">Device Protection Extended Warranty</p>
+          </div>
+        </div>
+
+        {/* Leaderboard Table */}
+        <div className="bg-[#131b2e] border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+          <div className="px-6 py-5 border-b border-slate-800 flex justify-between items-center">
+            <h2 className="text-base font-bold text-white tracking-wide">🏆 Staff Sales Leaderboard & Productivity</h2>
+            <span className="text-xs text-slate-400">Diurutkan berdasarkan Omset</span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-[#0f172a] text-slate-400 text-xs uppercase tracking-wider">
+                <tr>
+                  <th className="py-4 px-6">Rank</th>
+                  <th className="py-4 px-6">Nama Staff</th>
+                  <th className="py-4 px-6 text-right">Total Penjualan</th>
+                  <th className="py-4 px-6 text-center">Qty</th>
+                  <th className="py-4 px-6 text-center">Struk</th>
+                  <th className="py-4 px-6 text-right">ATV (Avg Basket)</th>
+                  <th className="py-4 px-6 text-right">Est. Insentif</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60 font-medium">
+                {leaderboard.map((item) => (
+                  <tr key={item.rank} className="hover:bg-slate-800/30 transition">
+                    <td className="py-4 px-6">
+                      <span className={`w-6 h-6 rounded-full inline-flex items-center justify-center text-xs font-bold ${
+                        item.rank === 1 ? "bg-amber-400 text-slate-950" :
+                        item.rank === 2 ? "bg-slate-300 text-slate-950" :
+                        item.rank === 3 ? "bg-amber-700 text-white" : "text-slate-400"
+                      }`}>
+                        {item.rank}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6 font-semibold text-white">{item.name}</td>
+                    <td className="py-4 px-6 text-right text-emerald-400 font-bold">{formatRupiah(item.totalSales)}</td>
+                    <td className="py-4 px-6 text-center text-slate-300">{item.qty}</td>
+                    <td className="py-4 px-6 text-center text-slate-300">{item.invoices}</td>
+                    <td className="py-4 px-6 text-right text-slate-400">{formatRupiah(item.atv)}</td>
+                    <td className="py-4 px-6 text-right text-amber-300 font-bold">{formatRupiah(item.insentif)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
     </div>
   );
 }
