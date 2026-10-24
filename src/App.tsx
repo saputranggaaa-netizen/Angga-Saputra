@@ -41,16 +41,33 @@ export default function Page() {
   const [search, setSearch] = useState("");
   const [selectedStaff, setSelectedStaff] = useState("ALL");
 
-  // Shortcut Upload State
-  const [uploadText, setUploadText] = useState("");
-  const [uploadMsg, setUploadMsg] = useState("");
-  const fileRef = useRef<HTMLInputElement>(null);
+  // STATE UPLOAD SALESWISE
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [parsedRows, setParsedRows] = useState<any[][]>([]);
+  const [uploadStatus, setUploadStatus] = useState<{ type: "idle" | "loading" | "success" | "error"; text: string }>({
+    type: "idle",
+    text: "",
+  });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-login jika session tersimpan
+  // Script Google Apps Script dari sel A1 Sheet RAW SalesPerson
+  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz2VUsReKqqJgPsG15L1pOAkmqoIWF2vApyD18jr5e_z0OVqagasa9yHXEe5fzMhoQmOw/exec";
+
+  // Memuat library SheetJS untuk parse file .xls secara dinamis
+  useEffect(() => {
+    if (typeof window !== "undefined" && !(window as any).XLSX) {
+      const script = document.createElement("script");
+      script.src = "https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js";
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  }, []);
+
+  // Cek sesi login tersimpan
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const user = localStorage.getItem("digiplus_session");
-      if (user) setIsLoggedIn(true);
+      const savedUser = localStorage.getItem("digiplus_session_user");
+      if (savedUser) setIsLoggedIn(true);
     }
   }, []);
 
@@ -61,50 +78,97 @@ export default function Page() {
       return;
     }
     if (salesIdInput.trim() === "") {
-      setLoginErr("Masukkan Sales ID!");
+      setLoginErr("Masukkan Sales ID Anda!");
       return;
     }
-    localStorage.setItem("digiplus_session", salesIdInput);
+    localStorage.setItem("digiplus_session_user", salesIdInput);
     setIsLoggedIn(true);
     setLoginErr("");
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("digiplus_session");
+    localStorage.removeItem("digiplus_session_user");
     setIsLoggedIn(false);
   };
 
-  // Handler Pilih File
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // 1. KETIKA USER MEMILIH FILE
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setUploadMsg("");
-    setUploadText(`File terpilih: ${file.name}`);
+    setSelectedFile(file);
+    setUploadStatus({ type: "idle", text: `File dipilih: ${file.name}` });
 
-    // Eksekusi kirim ke script Google Sheets
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz2VUsReKqqJgPsG15L1pOAkmqoIWF2vApyD18jr5e_z0OVqagasa9yHXEe5fzMhoQmOw/exec";
-    
-    // Kirim notifikasi pengiriman
-    setUploadMsg("⏳ Sedang memproses dan mengirim ke Sheet RAW SalesPerson...");
-    
-    fetch(APPS_SCRIPT_URL, {
-      method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify({
-        action: "upload_saleswise",
-        targetSheet: "RAW SalesPerson",
-        columns: ["M", "N", "O"],
-        fileName: file.name
-      })
-    })
-    .then(() => {
-      setUploadMsg("✅ File berhasil dikirim ke Kolom M, N, O!");
-    })
-    .catch(() => {
-      setUploadMsg("⚠️ File diproses lokal.");
-    });
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const XLSX = (window as any).XLSX;
+        if (!XLSX) {
+          setUploadStatus({ type: "idle", text: `File "${file.name}" siap diupload.` });
+          return;
+        }
+
+        const wb = XLSX.read(bstr, { type: "binary" });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const rawJson: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1 });
+
+        // Ambil 3 kolom untuk kolom M, N, O
+        const mapped = rawJson.map((row) => [
+          row[0] !== undefined ? String(row[0]) : "",
+          row[1] !== undefined ? String(row[1]) : "",
+          row[2] !== undefined ? String(row[2]) : "",
+        ]);
+
+        setParsedRows(mapped);
+        setUploadStatus({
+          type: "idle",
+          text: `Siap! ${mapped.length} baris data terbaca dari file.`,
+        });
+      } catch (err) {
+        setUploadStatus({ type: "idle", text: `File "${file.name}" siap diupload.` });
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  // 2. KETIKA USER KLIK TOMBOL "UPLOAD SEKARANG"
+  const handleExecuteUpload = async () => {
+    if (!selectedFile) {
+      setUploadStatus({
+        type: "error",
+        text: "Pilih file .xls terlebih dahulu melalui tombol di atas!",
+      });
+      return;
+    }
+
+    setUploadStatus({ type: "loading", text: "Sedang mengirim data ke Kolom M, N, O..." });
+
+    try {
+      await fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({
+          action: "upload_saleswise",
+          targetSheet: "RAW SalesPerson",
+          columns: ["M", "N", "O"],
+          fileName: selectedFile.name,
+          data: parsedRows.length > 0 ? parsedRows : [],
+        }),
+      });
+
+      setUploadStatus({
+        type: "success",
+        text: `Berhasil! Data "${selectedFile.name}" telah diteruskan ke Sheet RAW SalesPerson Kolom M, N, O.`,
+      });
+    } catch (err) {
+      setUploadStatus({
+        type: "error",
+        text: "Koneksi gagal. Pastikan jaringan internet aktif.",
+      });
+    }
   };
 
   const filtered = useMemo(() => {
@@ -122,7 +186,9 @@ export default function Page() {
     return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
   };
 
-  // 1. TAMPILAN LOGIN
+  // ==========================================
+  // HALAMAN LOGIN
+  // ==========================================
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-[#070b14] flex items-center justify-center p-4 text-white font-sans">
@@ -147,7 +213,7 @@ export default function Page() {
               <input
                 type="text"
                 required
-                placeholder="22008089 atau ID Anda"
+                placeholder="Contoh: 22008089 atau ID Staf"
                 value={salesIdInput}
                 onChange={(e) => setSalesIdInput(e.target.value)}
                 className="w-full mt-1.5 px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:border-amber-400 focus:outline-none"
@@ -178,13 +244,15 @@ export default function Page() {
     );
   }
 
-  // 2. TAMPILAN DASHBOARD UTAMA
+  // ==========================================
+  // DASHBOARD UTAMA
+  // ==========================================
   return (
     <div className="flex min-h-screen bg-[#070b14] text-slate-100 font-sans">
       {/* SIDEBAR SEBELAH KIRI */}
       <aside className="w-72 bg-[#0d1424] border-r border-slate-800 flex flex-col justify-between shrink-0 sticky top-0 h-screen z-30">
         <div className="p-4 overflow-y-auto">
-          {/* Header Brand */}
+          {/* Brand */}
           <div className="flex items-center gap-3 pb-4 border-b border-slate-800">
             <div className="w-10 h-10 bg-gradient-to-tr from-amber-500 to-red-600 rounded-xl flex items-center justify-center font-black text-white text-lg shadow-lg shadow-amber-500/20">
               D+
@@ -195,39 +263,89 @@ export default function Page() {
             </div>
           </div>
 
-          {/* >>> KOTAK SHORTCUT UPLOAD PERSIS DI SISI KIRI <<< */}
-          <div className="mt-4 p-4 rounded-2xl bg-[#090e1a] border-2 border-amber-500/50 shadow-lg shadow-amber-500/10">
-            <div className="flex items-center gap-2 mb-1.5">
+          {/* ========================================================= */}
+          {/* KOTAK SHORTCUT UPLOAD LENGKAP DENGAN TOMBOL FISIK         */}
+          {/* ========================================================= */}
+          <div className="mt-4 p-4 rounded-2xl bg-[#090e1a] border-2 border-amber-500/50 shadow-xl shadow-amber-500/10">
+            {/* Header Box */}
+            <div className="flex items-center gap-2 mb-2">
               <span className="text-xl">📤</span>
               <div>
-                <h3 className="text-xs font-black text-amber-300 uppercase">Upload Saleswise</h3>
-                <p className="text-[9px] text-slate-400">Sheet RAW (Kolom M, N, O)</p>
+                <h3 className="text-xs font-black text-amber-300 uppercase tracking-wide">Upload Saleswise</h3>
+                <a
+                  href="https://docs.google.com/spreadsheets/d/1v_QCLTDKORjVnByrzo9qRiivdU8CGO99nJri9jBETWM/edit#gid=483282286"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[9px] text-slate-400 hover:text-amber-400 underline block"
+                >
+                  Target: RAW (Kolom M, N, O) ↗
+                </a>
               </div>
             </div>
 
-            {uploadMsg && (
-              <div className="my-2 p-2 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[10px] font-semibold text-center leading-tight">
-                {uploadMsg}
+            {/* Status Pesan */}
+            {uploadStatus.text && (
+              <div
+                className={`my-2 p-2 rounded-xl text-[10px] font-bold text-center leading-tight ${
+                  uploadStatus.type === "success"
+                    ? "bg-emerald-500/20 border border-emerald-500/40 text-emerald-300"
+                    : uploadStatus.type === "error"
+                    ? "bg-red-500/20 border border-red-500/40 text-red-300"
+                    : "bg-slate-800 border border-slate-700 text-amber-300"
+                }`}
+              >
+                {uploadStatus.text}
               </div>
             )}
 
-            <div
-              onClick={() => fileRef.current?.click()}
-              className="mt-2 p-3 rounded-xl border border-dashed border-amber-400/60 hover:border-amber-300 bg-slate-900/80 text-center cursor-pointer transition"
+            {/* Hidden Native File Input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xls,.xlsx"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+
+            {/* TOMBOL 1: PILIH FILE .XLS */}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full py-2.5 px-3 bg-slate-800 hover:bg-slate-700 border border-amber-400/40 hover:border-amber-400 text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 shadow-sm"
             >
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".xls,.xlsx"
-                onChange={handleFile}
-                className="hidden"
-              />
-              <span className="text-2xl block mb-1">📑</span>
-              <p className="text-[11px] font-bold text-white truncate">
-                {uploadText ? uploadText : "Klik Pilih File .xls"}
-              </p>
-              <p className="text-[9px] text-slate-400 mt-0.5">Format XLS Saleswise Person</p>
-            </div>
+              <span>📁</span>
+              <span className="truncate">
+                {selectedFile ? selectedFile.name : "1. Pilih File .xls"}
+              </span>
+            </button>
+
+            {/* TOMBOL 2: TOMBOL UPLOAD SEKARANG (PERMANEN TERLIHAT) */}
+            <button
+              type="button"
+              onClick={handleExecuteUpload}
+              disabled={uploadStatus.type === "loading"}
+              className={`w-full mt-2 py-3 px-3 font-black text-xs rounded-xl shadow-lg uppercase tracking-wider flex items-center justify-center gap-2 transition ${
+                selectedFile
+                  ? "bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20 cursor-pointer animate-pulse"
+                  : "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 cursor-pointer"
+              }`}
+            >
+              {uploadStatus.type === "loading" ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span>
+                  <span>Mengirim Data...</span>
+                </>
+              ) : (
+                <>
+                  <span>📤</span>
+                  <span>2. Upload ke Kolom M, N, O</span>
+                </>
+              )}
+            </button>
+
+            <p className="text-[9px] text-slate-400 text-center mt-2">
+              Format: XLS Saleswise Person dari POS
+            </p>
           </div>
 
           {/* Menu Navigasi */}
@@ -281,15 +399,16 @@ export default function Page() {
         <header className="mb-6 flex flex-wrap justify-between items-center gap-4 border-b border-slate-800 pb-4">
           <div>
             <h1 className="text-xl font-bold text-white">DIGIPLUS STORE GRAND INDONESIA (QF01)</h1>
-            <p className="text-xs text-slate-400">Terhubung ke Tab RAW SalesPerson (M, N, O)</p>
+            <p className="text-xs text-slate-400">Sinkronisasi Sheet: RAW SalesPerson (Kolom M, N, O)</p>
           </div>
           <a
             href="https://docs.google.com/spreadsheets/d/1v_QCLTDKORjVnByrzo9qRiivdU8CGO99nJri9jBETWM/edit#gid=483282286"
             target="_blank"
             rel="noreferrer"
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 rounded-xl text-xs font-bold transition"
+            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-2"
           >
-            Buka Spreadsheet ↗
+            <span>📊</span>
+            <span>Buka Google Sheets ↗</span>
           </a>
         </header>
 
