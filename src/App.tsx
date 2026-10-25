@@ -1,29 +1,84 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
-import { 
-  ThemeMode, 
-  TabType, 
-  PeriodType, 
-  TransactionRecord, 
-  BnplRecord, 
-  StaffPerformanceMetric, 
-  ActivityStaffLog 
-} from "@/types/dashboard";
-import { 
-  calculateAchievement, 
-  calculateVariance, 
-  calculateEstimate, 
-  calculateUPT, 
-  calculateGrowthWoW, 
-  formatCurrencyIDR 
-} from "@/lib/calculations";
-import { fetchLiveDatabase, fetchLiveBNPL } from "@/lib/datasource";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 
-export default function RetailOperationsDashboard() {
-  // Theme & Layout States
+type MenuTab = "store-overview" | "weekly-sales" | "staff-performance" | "bnpl" | "sales-detail" | "admin-audit";
+type ThemeMode = "dark" | "light";
+type PeriodType = "daily" | "weekly" | "monthly";
+
+// ==========================================
+// 1. DATA CONTRACT & SCHEMA INTERFACES
+// ==========================================
+interface RawTransaction {
+  date: string;
+  salesId: string;
+  salesName: string;
+  invoice: string;
+  sapArticle: string;
+  productName: string;
+  qty: number;
+  amount: number;
+  productType: string;
+  brand: string;
+  groupCategory: string;
+  weekLabel: string;
+  month: string;
+}
+
+interface BnplRecord {
+  date: string;
+  invoice: string;
+  amount: number;
+  tender: string;
+  product: string;
+  qty: number;
+  month: string;
+}
+
+interface ActivityLog {
+  id: string;
+  salesId: string;
+  salesName: string;
+  timestamp: string;
+  deviceType: string;
+  browser: string;
+  location: string;
+  coords: string;
+}
+
+interface SubLOBMetric {
+  name: string;
+  icon: string;
+  qty: number;
+  actual: number;
+}
+
+// ==========================================
+// 2. HELPER FORMULA OPERASIONAL RETAIL
+// ==========================================
+const formatIDR = (n: number): string => {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  }).format(n);
+};
+
+const calcAchv = (actual: number, target: number): number => {
+  if (target <= 0) return 0;
+  return Number(((actual / target) * 100).toFixed(1));
+};
+
+const calcUpt = (qty: number, invoices: number): number => {
+  if (invoices <= 0) return 0;
+  return Number((qty / invoices).toFixed(2));
+};
+
+export default function DigiplusRetailOperations() {
+  // Theme & Tab Navigation
   const [theme, setTheme] = useState<ThemeMode>("dark");
-  const [activeTab, setActiveTab] = useState<TabType>("store-overview");
+  const [activeTab, setActiveTab] = useState<MenuTab>("store-overview");
+  const [overviewDetailCategory, setOverviewDetailCategory] = useState<"apple" | "android" | "accessories" | "vas">("apple");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Authentication State
@@ -35,65 +90,162 @@ export default function RetailOperationsDashboard() {
   const [currentSalesName, setCurrentSalesName] = useState("");
 
   // Live Sheets Data State
-  const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
+  const [transactions, setTransactions] = useState<RawTransaction[]>([]);
   const [bnplData, setBnplData] = useState<BnplRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [lastSyncTime, setLastSyncTime] = useState("");
 
-  // Period & Filter States
+  // Period Filter States (Daily, Weekly, Monthly)
   const [periodType, setPeriodType] = useState<PeriodType>("monthly");
   const [selectedMonth, setSelectedMonth] = useState("2026-10");
   const [selectedWeek, setSelectedWeek] = useState("ALL");
   const [selectedDate, setSelectedDate] = useState("2026-10-24");
-  const [overviewDetailCategory, setOverviewDetailCategory] = useState<"apple" | "android" | "accessories" | "vas">("apple");
 
-  // Admin Activity Log State
-  const [activityLogs, setActivityLogs] = useState<ActivityStaffLog[]>([]);
+  // Admin Logs State (Sales ID: 22008089)
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
 
   const SPREADSHEET_ID = "1v_QCLTDKORjVnByrzo9qRiivdU8CGO99nJri9jBETWM";
   const ADMIN_ID = "22008089";
 
-  // Pemanggilan Data Real-Time
-  const refreshData = async () => {
+  // ==============================================================
+  // 3. LIVE FETCHING HOOK KE GOOGLE SHEETS (GViz)
+  // ==============================================================
+  const fetchGoogleSheetsRealtime = async () => {
     setIsLoading(true);
     try {
-      const [trx, bnpl] = await Promise.all([
-        fetchLiveDatabase(SPREADSHEET_ID),
-        fetchLiveBNPL(SPREADSHEET_ID),
-      ]);
-      setTransactions(trx);
-      setBnplData(bnpl);
+      const dbUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=602901290`;
+      const bnplUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=2697970`;
+
+      const [resDb, resBnpl] = await Promise.all([fetch(dbUrl), fetch(bnplUrl)]);
+      const textDb = await resDb.text();
+      const textBnpl = await resBnpl.text();
+
+      // Parse JSONP Tab DATABASE
+      const startDb = textDb.indexOf("{");
+      const endDb = textDb.lastIndexOf("}") + 1;
+      const jsonDb = JSON.parse(textDb.substring(startDb, endDb));
+      const rowsDb = jsonDb.table.rows;
+
+      const parsedTrx: RawTransaction[] = [];
+      rowsDb.forEach((r: any) => {
+        const c = r.c;
+        if (!c) return;
+
+        const date = c[0]?.f || c[0]?.v || "";
+        const salesId = String(c[1]?.v || "").trim();
+        const salesName = String(c[2]?.v || "").trim();
+        const invoice = String(c[3]?.v || "").trim();
+        const sapArticle = String(c[4]?.v || "").trim();
+        const productName = String(c[5]?.v || "").trim();
+        const qty = Number(c[7]?.v) || 1;
+        const rawAmount = c[8]?.v;
+        const amount = typeof rawAmount === "number" ? rawAmount : Number(String(rawAmount || 0).replace(/[^0-9]/g, ""));
+        const productType = String(c[9]?.v || "").trim();
+        const brand = String(c[10]?.v || "").trim().toUpperCase();
+        let groupCategory = String(c[11]?.v || "").trim().toUpperCase();
+        const month = String(c[12]?.v || "").trim();
+        const weekLabel = String(c[14]?.v || "").trim();
+
+        // Normalisasi Kategori yang Kosong (Hasil Audit)
+        const pUpper = productName.toUpperCase();
+        if (!groupCategory || groupCategory === "NAN" || groupCategory === "N/A") {
+          if (brand === "APPLE" || pUpper.includes("IPHONE") || pUpper.includes("IPAD") || pUpper.includes("AIRPOD")) {
+            groupCategory = "DEVICES";
+          } else if (["SAMSUNG", "OPPO", "MOTOROLA", "HUAWEI", "INFINIX", "XIAOMI"].includes(brand)) {
+            groupCategory = "DEVICES";
+          } else if (brand === "QOALA" || brand === "TELKOMSEL" || brand === "XL" || brand === "INDOSAT" || pUpper.includes("PROTEKSI") || pUpper.includes("MYPRIO")) {
+            groupCategory = "VAS";
+          } else {
+            groupCategory = "ACCESSORIES";
+          }
+        }
+
+        if (invoice && amount > 0 && salesName) {
+          parsedTrx.push({
+            date,
+            salesId,
+            salesName,
+            invoice,
+            sapArticle,
+            productName,
+            qty,
+            amount,
+            productType,
+            brand,
+            groupCategory,
+            weekLabel,
+            month,
+          });
+        }
+      });
+
+      // Parse JSONP Tab BNPL DATABASE
+      const startBnpl = textBnpl.indexOf("{");
+      const endBnpl = textBnpl.lastIndexOf("}") + 1;
+      const jsonBnpl = JSON.parse(textBnpl.substring(startBnpl, endBnpl));
+      const rowsBnpl = jsonBnpl.table.rows;
+
+      const parsedBnpl: BnplRecord[] = [];
+      rowsBnpl.forEach((r: any) => {
+        const c = r.c;
+        if (!c) return;
+
+        const date = c[0]?.f || c[0]?.v || "";
+        const invoice = String(c[1]?.v || "").trim();
+        const rawAmount = c[2]?.v;
+        const amount = typeof rawAmount === "number" ? rawAmount : Number(String(rawAmount || 0).replace(/[^0-9]/g, ""));
+        const tender = String(c[3]?.v || "Other").trim();
+        const product = String(c[4]?.v || "").trim();
+        const qty = Number(c[5]?.v) || 1;
+        const month = String(c[6]?.v || "").trim();
+
+        if (invoice && amount > 0) {
+          parsedBnpl.push({
+            date,
+            invoice,
+            amount,
+            tender,
+            product,
+            qty,
+            month,
+          });
+        }
+      });
+
+      setTransactions(parsedTrx);
+      setBnplData(parsedBnpl);
       setLastSyncTime(new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }));
 
-      // Sapaan otomatis nama staf saat live data masuk
+      // Update Nama Sapaan Personal
       if (currentSalesId && !currentSalesName) {
         if (currentSalesId === ADMIN_ID) {
           setCurrentSalesName("Store Leader Admin");
         } else {
-          const found = trx.find((t) => t.salesId === currentSalesId);
-          if (found) setCurrentSalesName(found.salesName);
+          const match = parsedTrx.find((t) => t.salesId === currentSalesId);
+          if (match) setCurrentSalesName(match.salesName);
         }
       }
-    } catch (e) {
-      console.error("Sinkronisasi gagal:", e);
+    } catch (err) {
+      console.error("Gagal sinkronisasi data Google Sheets:", err);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    refreshData();
+    fetchGoogleSheetsRealtime();
+
     if (typeof window !== "undefined") {
-      const savedUser = localStorage.getItem("ops_user");
-      const savedName = localStorage.getItem("ops_name");
-      const savedTheme = localStorage.getItem("ops_theme") as ThemeMode;
+      const savedUser = localStorage.getItem("digi_ops_user");
+      const savedName = localStorage.getItem("digi_ops_name");
+      const savedTheme = localStorage.getItem("digi_ops_theme") as ThemeMode;
       if (savedTheme) setTheme(savedTheme);
       if (savedUser) {
         setIsLoggedIn(true);
         setCurrentSalesId(savedUser);
         setCurrentSalesName(savedName || `Sales ${savedUser}`);
       }
-      const savedLogs = localStorage.getItem("ops_admin_logs");
+      const savedLogs = localStorage.getItem("digi_ops_admin_logs");
       if (savedLogs) {
         try { setActivityLogs(JSON.parse(savedLogs)); } catch (e) {}
       }
@@ -104,20 +256,20 @@ export default function RetailOperationsDashboard() {
     const nextTheme = theme === "dark" ? "light" : "dark";
     setTheme(nextTheme);
     if (typeof window !== "undefined") {
-      localStorage.setItem("ops_theme", nextTheme);
+      localStorage.setItem("digi_ops_theme", nextTheme);
     }
   };
 
-  // Login Execution & Audit Logging
+  // Login Handler & Activity Audit
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordInput !== "Welcome@123") {
-      setLoginErr("Kata sandi salah! Gunakan: Welcome@123");
+      setLoginErr("Password salah! Gunakan: Welcome@123");
       return;
     }
     const cleanId = salesIdInput.trim();
     if (!cleanId) {
-      setLoginErr("Masukkan Sales ID / NIK Anda!");
+      setLoginErr("Masukkan Sales ID Anda!");
       return;
     }
 
@@ -129,19 +281,16 @@ export default function RetailOperationsDashboard() {
       if (match) detectedName = match.salesName;
     }
 
-    localStorage.setItem("ops_user", cleanId);
-    localStorage.setItem("ops_name", detectedName);
+    localStorage.setItem("digi_ops_user", cleanId);
+    localStorage.setItem("digi_ops_name", detectedName);
     setCurrentSalesId(cleanId);
     setCurrentSalesName(detectedName);
     setIsLoggedIn(true);
     setLoginErr("");
 
-    // Catat Activity Audit
-    const isMobile = /Mobile|Android|iP(hone|od)/i.test(navigator.userAgent);
-    const isTablet = /(tablet|ipad|playbook|silk)|(android(?!.*mobi))/i.test(navigator.userAgent);
-    const device = isTablet ? "Tablet" : isMobile ? "Handphone / Mobile" : "Komputer / PC";
-
-    const log: ActivityStaffLog = {
+    // Audit Logging
+    const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+    const log: ActivityLog = {
       id: Date.now().toString(),
       salesId: cleanId,
       salesName: detectedName,
@@ -152,29 +301,31 @@ export default function RetailOperationsDashboard() {
         hour: "2-digit",
         minute: "2-digit",
       }) + " WIB",
-      deviceType: device,
-      browser: navigator.userAgent.includes("Chrome") ? "Chrome" : "Safari",
-      location: "Store Grand Indonesia (Jakarta Pusat)",
+      deviceType: isMobile ? "Handphone / Mobile" : "Komputer / PC",
+      browser: typeof navigator !== "undefined" && navigator.userAgent.includes("Chrome") ? "Chrome" : "Safari",
+      location: "Store Grand Indonesia (Jakarta)",
       coords: "-6.1953, 106.8219",
     };
 
     setActivityLogs((prev) => {
       const updated = [log, ...prev.slice(0, 49)];
-      localStorage.setItem("ops_admin_logs", JSON.stringify(updated));
+      if (typeof window !== "undefined") {
+        localStorage.setItem("digi_ops_admin_logs", JSON.stringify(updated));
+      }
       return updated;
     });
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("ops_user");
-    localStorage.removeItem("ops_name");
+    localStorage.removeItem("digi_ops_user");
+    localStorage.removeItem("digi_ops_name");
     setIsLoggedIn(false);
     setCurrentSalesId("");
     setCurrentSalesName("");
   };
 
   // -------------------------------------------------------------
-  // DEFINISI PERIODE WEEKLY DENGAN START & END DATE DARI KOLOM O
+  // RENTANG TANGGAL MINGGUAN RESMI (KOLOM O DATABASE)
   // -------------------------------------------------------------
   const WEEK_DEFINITIONS = useMemo(() => [
     { key: "W1", label: "Week 1 (03/10/26)", range: "01 Okt 2026 s.d. 03 Okt 2026", days: 3 },
@@ -184,7 +335,7 @@ export default function RetailOperationsDashboard() {
   ], []);
 
   // -------------------------------------------------------------
-  // FILTER TRANSAKSI AKTIF (DAILY / WEEKLY / MONTHLY)
+  // 4. FILTERING TRANSAKSI DINAMIS (DAILY / WEEKLY / MONTHLY)
   // -------------------------------------------------------------
   const activeTransactions = useMemo(() => {
     return transactions.filter((t) => {
@@ -192,92 +343,97 @@ export default function RetailOperationsDashboard() {
         return t.date.includes(selectedDate) || t.date === selectedDate;
       }
       if (periodType === "weekly" && selectedWeek !== "ALL") {
-        const targetDef = WEEK_DEFINITIONS.find((w) => w.key === selectedWeek);
-        return targetDef ? t.weekLabel.toLowerCase().includes(targetDef.label.toLowerCase()) : true;
+        const wDef = WEEK_DEFINITIONS.find((w) => w.key === selectedWeek);
+        return wDef ? t.weekLabel.toLowerCase().includes(wDef.label.toLowerCase()) : true;
       }
       return true; // Monthly
     });
   }, [transactions, periodType, selectedDate, selectedWeek, WEEK_DEFINITIONS]);
 
   // -------------------------------------------------------------
-  // KALKULASI OVERVIEW METRICS DINAMIS
+  // 5. KALKULASI OVERVIEW METRICS (VARIABLE NAME: overviewStats)
   // -------------------------------------------------------------
-  const overviewMetrics = useMemo(() => {
-    const actualTotal = activeTransactions.reduce((acc, t) => acc + t.amount, 0);
-    const targetTotal = periodType === "daily" 
-      ? Math.round(8728667173 / 31) 
-      : periodType === "weekly" 
-      ? Math.round((8728667173 / 31) * (WEEK_DEFINITIONS.find(w => w.key === selectedWeek)?.days || 7))
+  const overviewStats = useMemo(() => {
+    const actual = activeTransactions.reduce((acc, t) => acc + t.amount, 0);
+    const target = periodType === "daily"
+      ? Math.round(8728667173 / 31)
+      : periodType === "weekly"
+      ? Math.round((8728667173 / 31) * (WEEK_DEFINITIONS.find((w) => w.key === selectedWeek)?.days || 7))
       : 8728667173;
 
-    const achv = calculateAchievement(actualTotal, targetTotal);
-    const variance = calculateVariance(actualTotal, targetTotal);
-    const estimate = calculateEstimate(actualTotal, 24, 31);
+    const achv = calcAchv(actual, target);
+    const variance = actual - target;
+    const estimate = Math.round(actual * 1.29);
     const qtyTotal = activeTransactions.reduce((acc, t) => acc + t.qty, 0);
     const invoiceCount = new Set(activeTransactions.map((t) => t.invoice)).size;
-    const storeUPT = calculateUPT(qtyTotal, invoiceCount);
+    const storeUPT = calcUpt(qtyTotal, invoiceCount);
 
-    // Filter LOB
+    // Kategori LOB
     const appleItems = activeTransactions.filter((t) => t.brand === "APPLE" || t.productName.toUpperCase().includes("IPHONE"));
     const appleActual = appleItems.reduce((acc, t) => acc + t.amount, 0);
-    const appleTarget = Math.round(targetTotal * 0.794);
+    const appleTarget = Math.round(target * 0.794);
 
-    const androidItems = activeTransactions.filter((t) => 
-      ["SAMSUNG", "OPPO", "MOTOROLA", "HUAWEI", "INFINIX", "XIAOMI"].includes(t.brand) || 
+    const androidItems = activeTransactions.filter((t) =>
+      ["SAMSUNG", "OPPO", "MOTOROLA", "HUAWEI", "INFINIX", "XIAOMI"].includes(t.brand) ||
       (t.groupCategory === "DEVICES" && t.brand !== "APPLE")
     );
     const androidActual = androidItems.reduce((acc, t) => acc + t.amount, 0);
-    const androidTarget = Math.round(targetTotal * 0.108);
+    const androidTarget = Math.round(target * 0.108);
 
     const accItems = activeTransactions.filter((t) => t.groupCategory === "ACCESSORIES");
     const accActual = accItems.reduce((acc, t) => acc + t.amount, 0);
-    const accTarget = Math.round(targetTotal * 0.053);
+    const accTarget = Math.round(target * 0.053);
 
-    const vasItems = activeTransactions.filter((t) => 
-      t.groupCategory === "VAS" || 
+    const vasItems = activeTransactions.filter((t) =>
+      t.groupCategory === "VAS" ||
       ["QOALA", "TELKOMSEL", "XL", "INDOSAT"].includes(t.brand) ||
       t.productName.toUpperCase().includes("QOALA") ||
       t.productName.toUpperCase().includes("PROTEKSI")
     );
     const vasActual = vasItems.reduce((acc, t) => acc + t.amount, 0);
-    const vasTarget = Math.round(targetTotal * 0.045);
+    const vasTarget = Math.round(target * 0.045);
+
+    // Penjualan Hari Berjalan
+    const todayItems = transactions.filter((t) => t.date.includes("24-10-2026") || t.date.includes(selectedDate));
+    const todayActual = todayItems.reduce((acc, t) => acc + t.amount, 0);
 
     return {
-      actualTotal,
-      targetTotal,
+      actual,
+      target,
       achv,
       variance,
       estimate,
       qtyTotal,
       invoiceCount,
       storeUPT,
+      todayActual,
       lobs: [
-        { name: "Apple Devices", icon: "🍎", actual: appleActual, target: appleTarget, achv: calculateAchievement(appleActual, appleTarget), variance: calculateVariance(appleActual, appleTarget), estimate: calculateEstimate(appleActual, 24, 31), color: "text-sky-400" },
-        { name: "Android Devices", icon: "🤖", actual: androidActual, target: androidTarget, achv: calculateAchievement(androidActual, androidTarget), variance: calculateVariance(androidActual, androidTarget), estimate: calculateEstimate(androidActual, 24, 31), color: "text-indigo-400" },
-        { name: "Accessories", icon: "🔌", actual: accActual, target: accTarget, achv: calculateAchievement(accActual, accTarget), variance: calculateVariance(accActual, accTarget), estimate: calculateEstimate(accActual, 24, 31), color: "text-amber-400" },
-        { name: "VAS (Qoala, Telkomsel, XL, Indosat)", icon: "🛡️", actual: vasActual, target: vasTarget, achv: calculateAchievement(vasActual, vasTarget), variance: calculateVariance(vasActual, vasTarget), estimate: calculateEstimate(vasActual, 24, 31), color: "text-purple-400" },
+        { name: "Apple Devices", icon: "🍎", actual: appleActual, target: appleTarget, achv: calcAchv(appleActual, appleTarget), variance: appleActual - appleTarget, estimate: Math.round(appleActual * 1.29), color: "text-sky-400" },
+        { name: "Android Devices", icon: "🤖", actual: androidActual, target: androidTarget, achv: calcAchv(androidActual, androidTarget), variance: androidActual - androidTarget, estimate: Math.round(androidActual * 1.29), color: "text-indigo-400" },
+        { name: "Accessories", icon: "🔌", actual: accActual, target: accTarget, achv: calcAchv(accActual, accTarget), variance: accActual - accTarget, estimate: Math.round(accActual * 1.29), color: "text-amber-400" },
+        { name: "VAS (Qoala, Telkomsel, XL, Indosat)", icon: "🛡️", actual: vasActual, target: vasTarget, achv: calcAchv(vasActual, vasTarget), variance: vasActual - vasTarget, estimate: Math.round(vasActual * 1.29), color: "text-purple-400" },
       ],
       appleItems,
       androidItems,
       accItems,
       vasItems,
     };
-  }, [activeTransactions, periodType, selectedWeek, WEEK_DEFINITIONS]);
+  }, [activeTransactions, periodType, selectedWeek, selectedDate, transactions, WEEK_DEFINITIONS]);
 
   // -------------------------------------------------------------
-  // REKAP MINGGUAN (WOW) DARI DATABASE KOLOM O
+  // 6. KALKULASI WEEKLY SALES (WoW DARI DATABASE KOLOM O)
   // -------------------------------------------------------------
   const weeklyReport = useMemo(() => {
     return WEEK_DEFINITIONS.map((wDef, idx) => {
-      const matchTrx = transactions.filter((t) => t.weekLabel.toLowerCase().includes(wDef.label.toLowerCase()));
-      const sales = matchTrx.reduce((acc, t) => acc + t.amount, 0);
-      const qty = matchTrx.reduce((acc, t) => acc + t.qty, 0);
-      const invCount = new Set(matchTrx.map((t) => t.invoice)).size;
+      const match = transactions.filter((t) => t.weekLabel.toLowerCase().includes(wDef.label.toLowerCase()));
+      const sales = match.reduce((acc, t) => acc + t.amount, 0);
+      const qty = match.reduce((acc, t) => acc + t.qty, 0);
+      const invCount = new Set(match.map((t) => t.invoice)).size;
       const target = Math.round((8728667173 / 31) * wDef.days);
 
       const prevMatch = idx > 0 ? transactions.filter((t) => t.weekLabel.toLowerCase().includes(WEEK_DEFINITIONS[idx - 1].label.toLowerCase())) : [];
       const prevSales = prevMatch.reduce((acc, t) => acc + t.amount, 0);
-      const wowGrowth = idx > 0 ? calculateGrowthWoW(sales, prevSales) : 0;
+      const wowGrowth = idx > 0 && prevSales > 0 ? Number((((sales - prevSales) / prevSales) * 100).toFixed(1)) : 0;
 
       return {
         ...wDef,
@@ -285,16 +441,16 @@ export default function RetailOperationsDashboard() {
         qty,
         invCount,
         target,
-        achv: calculateAchievement(sales, target),
+        achv: calcAchv(sales, target),
         wowGrowth,
       };
     });
   }, [transactions, WEEK_DEFINITIONS]);
 
   // -------------------------------------------------------------
-  // REKAP KINERJA SELURUH STAF TOKO (LENGKAP SEMUA SUB-LINI)
+  // 7. KALKULASI STAFF PERFORMANCE (SEMUA STAF TANPA DROPDOWN)
   // -------------------------------------------------------------
-  const staffReport: StaffPerformanceMetric[] = useMemo(() => {
+  const staffList = useMemo(() => {
     const map: Record<string, {
       salesId: string;
       name: string;
@@ -370,7 +526,7 @@ export default function RetailOperationsDashboard() {
       else if (t.brand === "INFINIX") { map[id].androidMap["Infinix Devices"].actual += t.amount; map[id].androidMap["Infinix Devices"].qty += t.qty; }
       else if (t.brand === "XIAOMI") { map[id].androidMap["Xiaomi Devices"].actual += t.amount; map[id].androidMap["Xiaomi Devices"].qty += t.qty; }
 
-      // Accessories Sub
+      // Accessories Sub (Diurutkan dari Nominal Besar ke Kecil)
       if (t.groupCategory === "ACCESSORIES") {
         const item = t.productName.trim() || "Aksesoris";
         if (!map[id].accMap[item]) map[id].accMap[item] = { actual: 0, qty: 0, icon: "🔌" };
@@ -394,26 +550,25 @@ export default function RetailOperationsDashboard() {
       }
     });
 
-    const sortedStaff = Object.values(map).sort((a, b) => b.total - a.total);
+    const sorted = Object.values(map).sort((a, b) => b.total - a.total);
 
-    return sortedStaff.map((s, idx) => {
+    return sorted.map((s, idx) => {
       const invCount = s.invoices.size;
-      const upt = calculateUPT(s.qty, invCount);
+      const upt = calcUpt(s.qty, invCount);
       const targetQuota = 1658446763;
-      const achv = calculateAchievement(s.total, targetQuota);
-      const variance = calculateVariance(s.total, targetQuota);
-      const estimate = calculateEstimate(s.total, 24, 31);
+      const achv = calcAchv(s.total, targetQuota);
+      const variance = s.total - targetQuota;
 
       const words = s.name.split(" ");
       const initials = words.length > 1 ? (words[0][0] + words[1][0]).toUpperCase() : words[0].slice(0, 2).toUpperCase();
 
       // Urutkan Accessories Dari Nominal Besar ke Kecil
       const sortedAcc = Object.entries(s.accMap)
-        .map(([name, d]) => ({ name, ...d, target: 0, achievement: 0, variance: 0, estimate: 0 }))
+        .map(([name, d]) => ({ name, ...d }))
         .sort((a, b) => b.actual - a.actual);
 
-      const totalAccActual = sortedAcc.reduce((acc, c) => acc + c.actual, 0);
-      const totalVasActual = Object.values(s.vasMap).reduce((acc, c) => acc + c.actual, 0);
+      const totalAcc = sortedAcc.reduce((acc, c) => acc + c.actual, 0);
+      const totalVas = Object.values(s.vasMap).reduce((acc, c) => acc + c.actual, 0);
 
       const targetAcc = 80000000;
       const targetVas = 60000000;
@@ -439,37 +594,36 @@ export default function RetailOperationsDashboard() {
         initials,
         actual: s.total,
         target: targetQuota,
-        achievement: achv,
+        achv,
         variance,
-        estimate,
-        invoicesCount: invCount,
+        invoices: invCount,
         qty: s.qty,
         upt,
-        totalAccActual,
+        totalAcc,
         targetAcc,
-        achvAcc: calculateAchievement(totalAccActual, targetAcc),
-        totalVasActual,
+        achvAcc: calcAchv(totalAcc, targetAcc),
+        totalVas,
         targetVas,
-        achvVas: calculateAchievement(totalVasActual, targetVas),
+        achvVas: calcAchv(totalVas, targetVas),
         status,
         ringkasan,
         rekomendasi,
-        appleSub: Object.entries(s.appleMap).map(([name, d]) => ({ name, ...d, target: 0, achievement: 0, variance: 0, estimate: 0 })),
-        androidSub: Object.entries(s.androidMap).map(([name, d]) => ({ name, ...d, target: 0, achievement: 0, variance: 0, estimate: 0 })),
+        appleSub: Object.entries(s.appleMap).map(([name, d]) => ({ name, ...d })),
+        androidSub: Object.entries(s.androidMap).map(([name, d]) => ({ name, ...d })),
         accessoriesSub: sortedAcc,
-        vasSub: Object.entries(s.vasMap).map(([name, d]) => ({ name, ...d, target: 0, achievement: 0, variance: 0, estimate: 0 })),
+        vasSub: Object.entries(s.vasMap).map(([name, d]) => ({ name, ...d })),
         weekSales: s.weekSales,
       };
     });
   }, [transactions]);
 
   // -------------------------------------------------------------
-  // REKAP BNPL TENDER & KONTRIBUSI TOKO
+  // 8. KALKULASI DINAMIS BNPL (DARI GID 2697970)
   // -------------------------------------------------------------
   const bnplSummary = useMemo(() => {
     const totalAmount = bnplData.reduce((acc, b) => acc + b.amount, 0);
     const totalQty = bnplData.reduce((acc, b) => acc + b.qty, 0);
-    const storeActual = overviewMetrics.actualTotal;
+    const storeActual = overviewStats.actual;
 
     const map: Record<string, { amount: number; qty: number }> = {};
     bnplData.forEach((b) => {
@@ -481,49 +635,49 @@ export default function RetailOperationsDashboard() {
 
     const tenders = Object.entries(map).map(([tender, d]) => {
       const share = storeActual > 0 ? Number(((d.amount / storeActual) * 100).toFixed(1)) : 0;
-      const estimate = calculateEstimate(d.amount, 24, 31);
+      const estimate = Math.round((d.amount / 24) * 31);
       return { tender, amount: d.amount, qty: d.qty, share, estimate };
     }).sort((a, b) => b.amount - a.amount);
 
     return { totalAmount, totalQty, tenders, list: bnplData };
-  }, [bnplData, overviewMetrics.actualTotal]);
+  }, [bnplData, overviewStats.actual]);
 
-  // -------------------------------------------------------------
-  // SHARE DAILY WHATSAPP TEMPLATE
-  // -------------------------------------------------------------
+  // Template Share WhatsApp Ringkas
   const handleShareDaily = () => {
-    const appleLob = overviewMetrics.lobs.find((l) => l.name.includes("Apple"))?.actual || 0;
-    const androidLob = overviewMetrics.lobs.find((l) => l.name.includes("Android"))?.actual || 0;
-    const accLob = overviewMetrics.lobs.find((l) => l.name.includes("Accessories"))?.actual || 0;
-    const vasLob = overviewMetrics.lobs.find((l) => l.name.includes("VAS"))?.actual || 0;
+    const appleVal = overviewStats.lobs.find((l) => l.name.includes("Apple"))?.actual || 0;
+    const androidVal = overviewStats.lobs.find((l) => l.name.includes("Android"))?.actual || 0;
+    const accVal = overviewStats.lobs.find((l) => l.name.includes("Accessories"))?.actual || 0;
+    const vasVal = overviewStats.lobs.find((l) => l.name.includes("VAS"))?.actual || 0;
 
     const text = 
 `*DAILY RETAIL SALES REPORT - DIGIPLUS GRAND INDONESIA*
 Tanggal: ${selectedDate} (Cut-off)
 
 📊 *Pencapaian Store:*
-• Sales: ${formatIDR(overviewMetrics.actualTotal)}
-• Target: ${formatIDR(overviewMetrics.targetTotal)}
-• Achievement: ${overviewMetrics.achv}%
-• Gap / Sisa: ${formatIDR(overviewMetrics.variance)}
+• Sales: ${formatIDR(overviewStats.actual)}
+• Target: ${formatIDR(overviewStats.target)}
+• Achievement: ${overviewStats.achv}%
+• Gap / Sisa: ${formatIDR(overviewStats.variance)}
 
 📦 *Breakdown Kategori:*
-• Apple Devices: ${formatIDR(appleLob)}
-• Android Devices: ${formatIDR(androidLob)}
-• Accessories: ${formatIDR(accLob)}
-• VAS: ${formatIDR(vasLob)}
+• Apple Devices: ${formatIDR(appleVal)}
+• Android Devices: ${formatIDR(androidVal)}
+• Accessories: ${formatIDR(accVal)}
+• VAS: ${formatIDR(vasVal)}
 
 📈 *Metrik Operasional:*
-• UPT: ${overviewMetrics.storeUPT}
-• Invoice: ${overviewMetrics.invoiceCount} Struk
-• Qty: ${overviewMetrics.qtyTotal} Unit
+• UPT: ${overviewStats.storeUPT}
+• Invoice: ${overviewStats.invoiceCount} Struk
+• Qty: ${overviewStats.qtyTotal} Unit
 
-_Generated live via Store Performance Engine._`;
+_Diperbarui otomatis via Store Performance Engine._`;
 
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   };
 
   // Color Theme Variables
+  // Dark: Deep Indigo (#1A1831) & Warm Cloud (#FFF6E9)
+  // Light: Linen Bone (#F9F8F3) & Kinetic Cobalt (#054ff0)
   const isDark = theme === "dark";
   const bgMain = isDark ? "bg-[#1A1831]" : "bg-[#F9F8F3]";
   const textMain = isDark ? "text-[#FFF6E9]" : "text-[#1E293B]";
@@ -531,10 +685,10 @@ _Generated live via Store Performance Engine._`;
   const cardBg = isDark ? "bg-[#221F40] border-[#3B3666]" : "bg-white border-[#E5E2D9] shadow-sm";
   const innerBg = isDark ? "bg-[#141226] border-[#3B3666]" : "bg-[#F2EFE9] border-[#E5E2D9]";
   const accentText = isDark ? "text-[#F5BA42]" : "text-[#054ff0]";
-  const activeTabBtn = isDark ? "bg-[#F5BA42] text-[#1A1831] font-black" : "bg-[#054ff0] text-white font-black";
+  const activeTabBtn = isDark ? "bg-[#F5BA42] text-[#1A1831] font-black shadow-md" : "bg-[#054ff0] text-white font-black shadow-md";
 
   // =============================================================
-  // RENDER: LOGIN PORTAL
+  // RENDER: HALAMAN LOGIN SECURE
   // =============================================================
   if (!isLoggedIn) {
     return (
@@ -617,7 +771,7 @@ _Generated live via Store Performance Engine._`;
         } w-72 ${isDark ? "bg-[#141226] border-[#3B3666]" : "bg-[#F2EFE9] border-[#E5E2D9]"} border-r flex flex-col justify-between shrink-0 shadow-2xl lg:shadow-none`}
       >
         <div className="p-4 overflow-y-auto">
-          {/* Brand Logo */}
+          {/* Logo Brand */}
           <div className="flex items-center gap-3 pb-4 border-b border-inherit">
             <div className={`w-10 h-10 ${isDark ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#054ff0] text-white"} rounded-xl flex items-center justify-center font-black text-lg`}>
               D+
@@ -628,7 +782,7 @@ _Generated live via Store Performance Engine._`;
             </div>
           </div>
 
-          {/* User Tag Sapaan */}
+          {/* User Tag */}
           <div className={`mt-3 p-3 rounded-2xl ${cardBg} border flex items-center justify-between`}>
             <div>
               <span className="text-[9px] uppercase tracking-wider opacity-60 block font-bold">User Terotentikasi</span>
@@ -704,7 +858,7 @@ _Generated live via Store Performance Engine._`;
           </nav>
         </div>
 
-        {/* Footer Sidebar */}
+        {/* Footer Sidebar: Mode & Logout */}
         <div className="p-4 border-t border-inherit space-y-2">
           <button
             onClick={toggleTheme}
@@ -725,7 +879,7 @@ _Generated live via Store Performance Engine._`;
 
       {/* KONTEN UTAMA */}
       <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-w-7xl mx-auto w-full">
-        {/* HEADER: SAPAAN PERSONAL, LIVE SYNC, & SHARE WA */}
+        {/* HEADER: PERSONALISASI "HALO [NAMA SALES] 👋" & FILTER */}
         <header className="mb-6 border-b border-inherit pb-5">
           <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
             <div>
@@ -733,7 +887,7 @@ _Generated live via Store Performance Engine._`;
                 <span>Halo, {currentSalesName} 👋</span>
               </div>
               <p className={`text-xs ${textMuted} mt-1`}>
-                Live Sync Sheet: <code>DATABASE</code> (gid: 602901290) & <code>BNPL DATABASE</code> (gid: 2697970)
+                Live Sync: <code>DATABASE</code> (gid: 602901290) & <code>BNPL DATABASE</code> (gid: 2697970)
               </p>
             </div>
 
@@ -747,7 +901,7 @@ _Generated live via Store Performance Engine._`;
               </button>
 
               <button
-                onClick={refreshData}
+                onClick={fetchGoogleSheetsRealtime}
                 disabled={isLoading}
                 className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 ${innerBg}`}
               >
@@ -758,12 +912,12 @@ _Generated live via Store Performance Engine._`;
               <span className={`px-3 py-1.5 rounded-lg border text-xs font-bold ${
                 isDark ? "bg-emerald-500/15 text-emerald-300 border-emerald-400/30" : "bg-emerald-50 text-emerald-600 border-emerald-200"
               }`}>
-                Actual Terfilter: {formatIDR(overviewMetrics.actualTotal)}
+                Actual Terfilter: {formatIDR(overviewStats.actual)}
               </span>
             </div>
           </div>
 
-          {/* BARIS FILTER DINAMIS: DAILY, WEEKLY, MONTHLY */}
+          {/* Baris Filter Dinamis: Daily, Weekly, Monthly */}
           <div className={`p-3 ${cardBg} border rounded-2xl flex flex-wrap items-center gap-3 justify-between text-xs`}>
             <div className="flex flex-wrap items-center gap-3">
               {/* Toggle Mode Periode */}
@@ -867,7 +1021,7 @@ _Generated live via Store Performance Engine._`;
                       <div className="h-8 w-px bg-inherit mx-1 opacity-20"></div>
                       <div className="text-right">
                         <span className="text-[10px] uppercase font-bold opacity-60 block">Achv Pace</span>
-                        <span className="text-2xl font-black text-emerald-500">{overviewMetrics.achv}%</span>
+                        <span className="text-2xl font-black text-emerald-500">{overviewStats.achv}%</span>
                       </div>
                     </div>
                   </div>
@@ -885,11 +1039,11 @@ _Generated live via Store Performance Engine._`;
 
                     <div>
                       <div className="flex justify-between text-[11px] mb-1">
-                        <span className={textMuted}>Pencapaian Omset Aktual:</span>
-                        <span className="font-bold text-emerald-500">{overviewMetrics.achv}% ({formatIDR(overviewMetrics.actualTotal)})</span>
+                        <span className={textMuted}>Pencapaian Omset Terfilter:</span>
+                        <span className="font-bold text-emerald-500">{overviewStats.achv}% ({formatIDR(overviewStats.actual)})</span>
                       </div>
                       <div className={`w-full ${innerBg} h-2.5 rounded-full overflow-hidden`}>
-                        <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${Math.min(overviewMetrics.achv, 100)}%` }}></div>
+                        <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${Math.min(overviewStats.achv, 100)}%` }}></div>
                       </div>
                     </div>
                   </div>
@@ -897,19 +1051,19 @@ _Generated live via Store Performance Engine._`;
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-4 border-t border-inherit text-xs">
                     <div className={`p-3 ${innerBg} rounded-xl border`}>
                       <span className="opacity-60 text-[11px]">Kesenjangan Pace:</span>
-                      <div className="text-sm font-black text-red-500 mt-0.5">-{(77.4 - overviewMetrics.achv).toFixed(1)}% (Tertinggal)</div>
+                      <div className="text-sm font-black text-red-500 mt-0.5">-{(77.4 - overviewStats.achv).toFixed(1)}% (Tertinggal)</div>
                     </div>
                     <div className={`p-3 ${innerBg} rounded-xl border`}>
                       <span className="opacity-60 text-[11px]">Daily Run Rate Aktual:</span>
-                      <div className="text-sm font-black text-sky-500 mt-0.5">{formatIDR(Math.round(overviewMetrics.actualTotal / 24))} / hari</div>
+                      <div className="text-sm font-black text-sky-500 mt-0.5">{formatIDR(Math.round(overviewStats.actual / 24))} / hari</div>
                     </div>
                     <div className={`p-3 ${innerBg} rounded-xl border`}>
                       <span className="opacity-60 text-[11px]">Target Periode:</span>
-                      <div className={`text-sm font-black ${accentText} mt-0.5`}>{formatIDR(overviewMetrics.targetTotal)}</div>
+                      <div className={`text-sm font-black ${accentText} mt-0.5`}>{formatIDR(overviewStats.target)}</div>
                     </div>
                     <div className={`p-3 ${innerBg} rounded-xl border`}>
-                      <span className="opacity-60 text-[11px]">Store UPT:</span>
-                      <div className="text-sm font-black text-emerald-500 mt-0.5">{overviewMetrics.storeUPT} Unit/Struk</div>
+                      <span className="opacity-60 text-[11px]">Penjualan Hari Ini:</span>
+                      <div className="text-sm font-black text-emerald-500 mt-0.5">{formatIDR(overviewStats.todayActual)}</div>
                     </div>
                   </div>
                 </div>
@@ -934,7 +1088,7 @@ _Generated live via Store Performance Engine._`;
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-inherit font-medium">
-                        {overviewMetrics.lobs.map((row, idx) => (
+                        {overviewStats.lobs.map((row, idx) => (
                           <tr key={idx} className="hover:opacity-90 transition">
                             <td className="py-4 px-4 font-bold text-sm">
                               <span className="mr-2">{row.icon}</span>
@@ -977,7 +1131,7 @@ _Generated live via Store Performance Engine._`;
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-inherit font-medium">
-                        {staffReport.map((s) => (
+                        {staffList.map((s) => (
                           <tr key={s.salesId} className="hover:opacity-90 transition">
                             <td className="py-3.5 px-4 text-center">
                               <span className={`w-6 h-6 rounded-full inline-flex items-center justify-center font-black text-xs ${
@@ -992,7 +1146,7 @@ _Generated live via Store Performance Engine._`;
                             </td>
                             <td className="py-3.5 px-4 text-right font-extrabold text-emerald-500 text-sm">{formatIDR(s.actual)}</td>
                             <td className="py-3.5 px-4 text-center font-bold">{s.qty}</td>
-                            <td className="py-3.5 px-4 text-center opacity-70">{s.invoicesCount}</td>
+                            <td className="py-3.5 px-4 text-center opacity-70">{s.invoices}</td>
                             <td className="py-3.5 px-4 text-center font-black text-sky-500">{s.upt}</td>
                             <td className="py-3.5 px-4 text-center">
                               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -1013,7 +1167,7 @@ _Generated live via Store Performance Engine._`;
                   <div className="flex flex-wrap justify-between items-center gap-4 mb-5">
                     <div>
                       <h3 className="text-base font-bold">Rincian Detail Produk Terjual per Kategori</h3>
-                      <p className={`text-xs ${textMuted} mt-0.5`}>Pilih tab di bawah untuk melihat rincian SKU, qty, dan revenue tanpa reload</p>
+                      <p className={`text-xs ${textMuted} mt-0.5`}>Pilih tab di bawah untuk melihat rincian produk aktual dari Google Sheets</p>
                     </div>
 
                     <div className={`flex flex-wrap gap-2 ${innerBg} p-1.5 rounded-2xl border`}>
@@ -1047,12 +1201,12 @@ _Generated live via Store Performance Engine._`;
                       </thead>
                       <tbody className="divide-y divide-inherit font-medium">
                         {(overviewDetailCategory === "apple"
-                          ? overviewMetrics.appleItems
+                          ? overviewStats.appleItems
                           : overviewDetailCategory === "android"
-                          ? overviewMetrics.androidItems
+                          ? overviewStats.androidItems
                           : overviewDetailCategory === "accessories"
-                          ? overviewMetrics.accItems
-                          : overviewMetrics.vasItems
+                          ? overviewStats.accItems
+                          : overviewStats.vasItems
                         ).slice(0, 15).map((p, i) => (
                           <tr key={i} className="hover:opacity-90 transition">
                             <td className="py-3.5 px-4 font-bold">{p.productName}</td>
@@ -1076,7 +1230,7 @@ _Generated live via Store Performance Engine._`;
             )}
 
             {/* ========================================================= */}
-            {/* TAB 2: WEEKLY SALES (DARI SHEET DATABASE KOLOM O)        */}
+            {/* TAB 2: WEEKLY SALES (WoW DARI DATABASE KOLOM O)          */}
             {/* ========================================================= */}
             {activeTab === "weekly-sales" && (
               <div className="space-y-6 sm:space-y-8">
@@ -1091,6 +1245,14 @@ _Generated live via Store Performance Engine._`;
                         Data dikelompokkan secara otomatis berdasarkan label minggu di Kolom O dengan rentang tanggal eksplisit.
                       </p>
                     </div>
+
+                    <button
+                      onClick={handleShareDaily}
+                      className="px-3.5 py-1.5 rounded-xl bg-emerald-500 text-white text-xs font-bold transition flex items-center gap-1.5"
+                    >
+                      <span>📲</span>
+                      <span>Share Rekap Mingguan</span>
+                    </button>
                   </div>
 
                   {/* 4 Kartu Week */}
@@ -1166,11 +1328,19 @@ _Generated live via Store Performance Engine._`;
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <h2 className="text-base sm:text-lg font-black tracking-wide flex items-center gap-2">
                     <span>👥</span>
-                    <span>RINCIAN DETAIL SELURUH STAF SALES ({staffReport.length} ORANG)</span>
+                    <span>RINCIAN DETAIL SELURUH STAF SALES ({staffList.length} ORANG)</span>
                   </h2>
+
+                  <button
+                    onClick={handleShareDaily}
+                    className="px-3.5 py-1.5 rounded-xl bg-emerald-500 text-white text-xs font-bold transition flex items-center gap-1.5"
+                  >
+                    <span>📲</span>
+                    <span>Share Evaluasi Staf</span>
+                  </button>
                 </div>
 
-                {staffReport.map((staff) => (
+                {staffList.map((staff) => (
                   <div key={staff.salesId} className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl relative overflow-hidden space-y-5`}>
                     {/* Header Staf */}
                     <div className="flex flex-wrap justify-between items-start gap-4 pb-4 border-b border-inherit">
@@ -1195,7 +1365,7 @@ _Generated live via Store Performance Engine._`;
                               </span>
                             )}
                           </h3>
-                          <p className={`text-xs ${textMuted} font-mono`}>ID Staf: {staff.salesId} • {staff.invoicesCount} Struk Terbit</p>
+                          <p className={`text-xs ${textMuted} font-mono`}>ID Staf: {staff.salesId} • {staff.invoices} Struk Terbit</p>
                         </div>
                       </div>
 
@@ -1206,8 +1376,8 @@ _Generated live via Store Performance Engine._`;
                         </div>
                         <div className={`px-3 py-1.5 rounded-xl border ${innerBg}`}>
                           <span className="text-[9px] opacity-60 uppercase block">Achievement</span>
-                          <span className={`text-xs sm:text-sm font-black ${staff.achievement >= 100 ? "text-emerald-400" : accentText}`}>
-                            {staff.achievement}%
+                          <span className={`text-xs sm:text-sm font-black ${staff.achv >= 100 ? "text-emerald-400" : accentText}`}>
+                            {staff.achv}%
                           </span>
                         </div>
                         <div className={`px-3 py-1.5 rounded-xl border ${innerBg}`}>
@@ -1217,7 +1387,7 @@ _Generated live via Store Performance Engine._`;
                       </div>
                     </div>
 
-                    {/* Evaluasi Ringkas */}
+                    {/* Evaluasi Ringkas Bahasa Indonesia */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                       <div className={`p-3 rounded-xl border ${innerBg}`}>
                         <span className={`font-bold ${accentText} block mb-1`}>📌 Evaluasi Kinerja:</span>
@@ -1229,19 +1399,19 @@ _Generated live via Store Performance Engine._`;
                       </div>
                     </div>
 
-                    {/* Target & Pencapaian Acc / VAS */}
+                    {/* Kartu Pencapaian Accessories & VAS */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className={`p-4 rounded-2xl border ${innerBg}`}>
                         <div className="flex justify-between items-center mb-1">
                           <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
                             <span>🔌</span>
-                            <span>Target & Pencapaian Accessories</span>
+                            <span>Accessories Pencapaian</span>
                           </span>
-                          <span className="text-xs font-black text-amber-400">{staff.achvAcc}%</span>
+                          <span className="text-xs font-black text-amber-400">{formatIDR(staff.totalAcc)}</span>
                         </div>
                         <div className="flex justify-between text-xs opacity-80 mt-1">
-                          <span>Actual: {formatIDR(staff.totalAccActual)}</span>
                           <span>Target: {formatIDR(staff.targetAcc)}</span>
+                          <span>Achv: <strong>{staff.achvAcc}%</strong></span>
                         </div>
                       </div>
 
@@ -1249,13 +1419,13 @@ _Generated live via Store Performance Engine._`;
                         <div className="flex justify-between items-center mb-1">
                           <span className="text-xs font-bold text-purple-400 flex items-center gap-1.5">
                             <span>🛡️</span>
-                            <span>Target & Pencapaian VAS</span>
+                            <span>VAS Pencapaian (Qoala/Telco)</span>
                           </span>
-                          <span className="text-xs font-black text-purple-400">{staff.achvVas}%</span>
+                          <span className="text-xs font-black text-purple-400">{formatIDR(staff.totalVas)}</span>
                         </div>
                         <div className="flex justify-between text-xs opacity-80 mt-1">
-                          <span>Actual: {formatIDR(staff.totalVasActual)}</span>
                           <span>Target: {formatIDR(staff.targetVas)}</span>
+                          <span>Achv: <strong>{staff.achvVas}%</strong></span>
                         </div>
                       </div>
                     </div>
@@ -1495,7 +1665,7 @@ _Generated live via Store Performance Engine._`;
 
                     <button
                       onClick={() => {
-                        localStorage.removeItem("ops_admin_logs");
+                        localStorage.removeItem("digi_ops_admin_logs");
                         setActivityLogs([]);
                       }}
                       className="px-3 py-1.5 rounded-xl bg-red-500/20 text-red-400 border border-red-500/40 text-xs font-bold hover:bg-red-500/30 transition"
@@ -1550,7 +1720,7 @@ _Generated live via Store Performance Engine._`;
             )}
 
             {/* ========================================================= */}
-            {/* TAB 6: RINCIAN TRANSAKSI LOG                              */}
+            {/* TAB 6: DETAIL LOG TRANSAKSI                               */}
             {/* ========================================================= */}
             {activeTab === "sales-detail" && (
               <div className="space-y-4">
