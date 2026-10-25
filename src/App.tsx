@@ -1,960 +1,194 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { 
+  STORE_CONFIG 
+} from "@/config/store.config";
+import { 
+  calculateAchievement, 
+  calculateGap, 
+  calculateUPT, 
+  calculateATV, 
+  calculateCVR, 
+  calculateWoWGrowth,
+  formatCurrencyIDR 
+} from "@/lib/calculations";
+import { 
+  TabType, 
+  ThemeMode, 
+  TransactionRecord, 
+  BnplRecord, 
+  StaffTarget, 
+  LoginActivityLog 
+} from "@/types/dashboard";
+import { BottomSheet } from "@/components/ui/BottomSheet";
+import { WhatsAppShareButton } from "@/components/ui/WhatsAppShare";
+import { 
+  Smartphone, 
+  Headphones, 
+  ShieldCheck, 
+  Sun, 
+  Moon, 
+  LogOut, 
+  TrendingUp, 
+  Users, 
+  CreditCard, 
+  LayoutDashboard, 
+  History, 
+  Calendar,
+  AlertTriangle
+} from "lucide-react";
 
-type MenuTab = "store-overview" | "weekly-sales" | "staff-performance" | "bnpl" | "sales-detail" | "admin-audit";
-type ThemeMode = "dark" | "light";
+export default function DashboardProduction() {
+  // Authentication & Session
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{ id: string; name: string } | null>(null);
+  const [loginId, setLoginId] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
 
-interface SubCategoryMetric {
-  name: string;
-  icon: string;
-  qty: number;
-  actual: number;
-  target: number;
-  achievement: number;
-  variance: number;
-  estimate: number;
-}
-
-interface StaffFullData {
-  rank: number;
-  salesId: string;
-  name: string;
-  initials: string;
-  target: number;
-  actual: number;
-  achievement: number;
-  variance: number;
-  estimate: number;
-  upt: number;
-  status: "Tercapai" | "Perlu Perhatian Khusus" | "Dalam Pantauan";
-  ringkasanEvaluasi: string;
-  rekomendasiTindakan: string;
-  targetAcc: number;
-  actualAcc: number;
-  achvAcc: number;
-  targetVas: number;
-  actualVas: number;
-  achvVas: number;
-  weekToWeek: {
-    w1: number;
-    w2: number;
-    w3: number;
-    w4: number;
-    growthW2: number;
-    growthW3: number;
-    growthW4: number;
-  };
-  appleSub: SubCategoryMetric[];
-  androidSub: SubCategoryMetric[];
-  accessoriesSub: SubCategoryMetric[];
-  vasSub: SubCategoryMetric[];
-}
-
-interface BnplTransaction {
-  date: string;
-  invoice: string;
-  amount: number;
-  tender: string;
-  product: string;
-  qty: number;
-  month: string;
-}
-
-interface StaffLoginLog {
-  id: string;
-  salesId: string;
-  salesName: string;
-  timestamp: string;
-  deviceType: "Komputer / PC" | "Tablet" | "Handphone / Mobile";
-  browserInfo: string;
-  locationName: string;
-  coords: string;
-}
-
-// 1. DATA TIME GONE BERJALAN (OKTOBER 2026)
-const TIME_GONE_DATA = {
-  daysPassed: 24,
-  totalDays: 31,
-  daysLeft: 7,
-  percentageTimeGone: 77.4,
-  actualPace: 36.1,
-  dailyRunRate: 131159508,
-  requiredRunRate: 797262710,
-};
-
-// 2. DATA OVERVIEW STORE LOB (DATABASE MASTER)
-const OVERVIEW_LOB_DATA = [
-  {
-    category: "Apple Devices",
-    icon: "🍎",
-    actual: 2519060000,
-    target: 6932151006,
-    achievement: 36.3,
-    variance: -4413091006,
-    estimate: 3253785833,
-    status: "Tertinggal -41.1%",
-    color: "text-sky-400",
-  },
-  {
-    category: "Android Devices",
-    icon: "🤖",
-    actual: 394141000,
-    target: 943691666,
-    achievement: 41.8,
-    variance: -549550666,
-    estimate: 509098792,
-    status: "Tertinggal -35.6%",
-    color: "text-indigo-400",
-  },
-  {
-    category: "Accessories",
-    icon: "🔌",
-    actual: 60654200,
-    target: 460550560,
-    achievement: 13.2,
-    variance: -399896360,
-    estimate: 78345008,
-    status: "Tertinggal -64.2%",
-    color: "text-amber-400",
-  },
-  {
-    category: "VAS (Qoala, Telkomsel, XL, Indosat)",
-    icon: "🛡️",
-    actual: 45070000,
-    target: 392273940,
-    achievement: 11.5,
-    variance: -347203940,
-    estimate: 58215417,
-    status: "Tertinggal -65.9%",
-    color: "text-purple-400",
-  },
-];
-
-const OVERVIEW_TOTAL = {
-  actual: 3150827200,
-  target: 8728667173,
-  achievement: 36.1,
-  variance: -5577839973,
-  estimate: 4069818467,
-  storeUpt: 1.72,
-};
-
-// 3. DETAIL PRODUK PER KATEGORI (SUMBER SHEET DATABASE)
-const OVERVIEW_PRODUCT_BREAKDOWN: Record<string, { name: string; sku: string; brand: string; qty: number; revenue: number; share: string }[]> = {
-  apple: [
-    { name: "iPhone 17 Pro Max 256GB / 512GB", sku: "APPMFYM4ID/A", brand: "APPLE", qty: 48, revenue: 1248000000, share: "49.5%" },
-    { name: "iPhone 17 Pro 256GB / 1TB", sku: "APPMG8P4ID/A", brand: "APPLE", qty: 26, revenue: 642000000, share: "25.5%" },
-    { name: "iPhone 16 128GB / 256GB", sku: "APPMYE73ID/A", brand: "APPLE", qty: 22, revenue: 362978000, share: "14.4%" },
-    { name: "iPhone 15 128GB", sku: "APPMTP13ID/A", brand: "APPLE", qty: 12, revenue: 167988000, share: "6.7%" },
-    { name: "iPad 11th Gen Wi-Fi 128GB", sku: "APPMD4A4PA/A", brand: "APPLE", qty: 9, revenue: 78291000, share: "3.1%" },
-    { name: "MacBook Air/Pro M-Series", sku: "APPMACNEO", brand: "APPLE", qty: 2, revenue: 19803000, share: "0.8%" },
-  ],
-  android: [
-    { name: "Galaxy S26 Ultra 12/256GB", sku: "SSUSM-S948BZVB", brand: "SAMSUNG", qty: 12, revenue: 261120000, share: "66.2%" },
-    { name: "Samsung Galaxy Z Fold 8 512GB", sku: "SSUSM-F971BZKG", brand: "SAMSUNG", qty: 2, revenue: 64998000, share: "16.5%" },
-    { name: "Galaxy A17 4/128GB LTE/5G", sku: "SSUSM-A175FZKN", brand: "SAMSUNG", qty: 14, revenue: 41986000, share: "10.7%" },
-    { name: "Galaxy A07 4/64GB Light Violet", sku: "SSUSM-A075FLVD", brand: "SAMSUNG", qty: 8, revenue: 18392000, share: "4.7%" },
-    { name: "Motorola & Multi-brand Devices", sku: "MOT-MULTIBRAND", brand: "MOTOROLA", qty: 3, revenue: 7645000, share: "1.9%" },
-  ],
-  accessories: [
-    { name: "20W USB-C Power Adapter", sku: "APPMD3J4ZA/A", brand: "APPLE", qty: 36, revenue: 19764000, share: "32.6%" },
-    { name: "AirPods 4th Gen Wireless Audio", sku: "APPMXP63ID/A", brand: "APPLE", qty: 7, revenue: 14693000, share: "24.2%" },
-    { name: "240W USB-C Charge Cable (2M)", sku: "APPMYQT3ZA/A", brand: "APPLE", qty: 16, revenue: 8784000, share: "14.5%" },
-    { name: "MagSafe Silicone & Clear Case", sku: "MUUM-IP17PM-ICM", brand: "MUTUALL / ZAGG", qty: 14, revenue: 7686000, share: "12.7%" },
-    { name: "Samsung Travel Adapter 25W/45W", sku: "SSUEP-T2510NBE", brand: "SAMSUNG", qty: 18, revenue: 5382000, share: "8.9%" },
-    { name: "Tempered Glass Shield Screen", sku: "KOATGF-IP18PM", brand: "DIGI-SHIELD", qty: 6, revenue: 4345200, share: "7.1%" },
-  ],
-  vas: [
-    { name: "Proteksi Qoala Diamond 24-25", sku: "KLADIAMOND(24-25)", brand: "QOALA", qty: 18, revenue: 35460000, share: "78.68%" },
-    { name: "Proteksi Qoala Screen & Extended", sku: "KLAPROT-EXT", brand: "QOALA", qty: 3, revenue: 5170000, share: "11.47%" },
-    { name: "Telkomsel Halo Pascabayar Bundling", sku: "TSL-HALO-POST", brand: "TELKOMSEL", qty: 4, revenue: 4440000, share: "9.85%" },
-    { name: "XL Axiata Prioritas Bundling Data", sku: "XL-PRIORITAS-PKG", brand: "XL", qty: 0, revenue: 0, share: "0.00%" },
-    { name: "Indosat Ooredoo IM3 Prime Bundling", sku: "IM3-PRIME-POST", brand: "INDOSAT", qty: 0, revenue: 0, share: "0.00%" },
-  ],
-};
-
-// 4. DATA WEEKLY SALES DARI DATABASE KOLOM O
-const DATABASE_WEEKLY_DATA = [
-  {
-    weekLabel: "Week 1 (03/10/26)",
-    weekRange: "01 - 03 Okt 2026",
-    qty: 38,
-    invoices: 21,
-    appleSales: 168696000,
-    androidSales: 24059000,
-    accessoriesSales: 12647200,
-    vasSales: 1970000,
-    totalSales: 207372200,
-    growthWoW: 0.0,
-  },
-  {
-    weekLabel: "W2 (10OKT 2026)",
-    weekRange: "04 - 10 Okt 2026",
-    qty: 64,
-    invoices: 22,
-    appleSales: 225746000,
-    androidSales: 34187000,
-    accessoriesSales: 11297000,
-    vasSales: 6570000,
-    totalSales: 277800000,
-    growthWoW: 33.96,
-  },
-  {
-    weekLabel: "W3 (17OKT 2026)",
-    weekRange: "11 - 17 Okt 2026",
-    qty: 122,
-    invoices: 79,
-    appleSales: 1454848000,
-    androidSales: 126785000,
-    accessoriesSales: 21058000,
-    vasSales: 17180000,
-    totalSales: 1619871000,
-    growthWoW: 483.11,
-  },
-  {
-    weekLabel: "W4 (24OKT 2026)",
-    weekRange: "18 - 24 Okt 2026",
-    qty: 88,
-    invoices: 59,
-    appleSales: 669770000,
-    androidSales: 209110000,
-    accessoriesSales: 15652000,
-    vasSales: 19350000,
-    totalSales: 1045784000,
-    growthWoW: -35.44,
-  },
-];
-
-// 5. DATA RIIL SHEET BNPL DATABASE (gid: 2697970)
-const BNPL_REAL_DATA: BnplTransaction[] = [
-  {
-    date: "09-10-2026",
-    invoice: "100012235",
-    amount: 2099000,
-    tender: "Indodana",
-    product: "HUAWEI WATCH FIT 5 BLACK",
-    qty: 1,
-    month: "Oktober 2026",
-  },
-  {
-    date: "10-10-2026",
-    invoice: "100012241",
-    amount: 24969000,
-    tender: "Indodana",
-    product: "IPHONE 17 PRO 256GB SILVER ; PROTEKSI DIAMOND 24-25",
-    qty: 1,
-    month: "Oktober 2026",
-  },
-  {
-    date: "11-10-2026",
-    invoice: "100012249",
-    amount: 14999000,
-    tender: "Akulaku",
-    product: "IPHONE 17 PRO MAX 256GB DEEP BLUE",
-    qty: 1,
-    month: "Oktober 2026",
-  },
-  {
-    date: "03-10-2026",
-    invoice: "100012221",
-    amount: 13000000,
-    tender: "Kredivo",
-    product: "20W USB-C POWER ADAPTER ; IPHONE 17 PRO 1TB SILVER ; IP17 PRO SANTACRUZ SNAP MIDBLK",
-    qty: 1,
-    month: "Oktober 2026",
-  },
-  {
-    date: "15-10-2026",
-    invoice: "100012270",
-    amount: 32499000,
-    tender: "Home Credit",
-    product: "SAMSUNG Z FOLD 8 12/512GB GRAPHITE",
-    qty: 1,
-    month: "Oktober 2026",
-  },
-];
-
-// 6. DATA DETAIL SELURUH STAF DENGAN UPT & PERFORMA MINGGUAN LENGKAP
-const ALL_STAFF_DETAILS: StaffFullData[] = [
-  {
-    rank: 1,
-    salesId: "24004971",
-    name: "Liesbeth Febrina",
-    initials: "LF",
-    avatarBg: "bg-amber-500/20 border-2 border-amber-400",
-    avatarText: "text-amber-400",
-    target: 872866717,
-    actual: 1420983000,
-    achievement: 162.8,
-    variance: 548116283,
-    estimate: 1835436458,
-    upt: 1.65,
-    status: "Tercapai",
-    ringkasanEvaluasi: "Pencapaian sangat tinggi (162,8%). Lini iPhone mendominasi omset toko hingga Rp 1,35 Miliar.",
-    rekomendasiTindakan: "Tingkatkan closing rate pada Accessories dan Proteksi Qoala pada setiap unit iPhone.",
-    targetAcc: 50000000,
-    actualAcc: 2711000,
-    achvAcc: 5.4,
-    targetVas: 40000000,
-    actualVas: 3490000,
-    achvVas: 8.7,
-    weekToWeek: {
-      w1: 599000,
-      w2: 11996000,
-      w3: 894200000,
-      w4: 514188000,
-      growthW2: 1902.7,
-      growthW3: 7354.2,
-      growthW4: -42.5,
-    },
-    appleSub: [
-      { name: "iPhone", icon: "📱", qty: 45, actual: 1353207000, target: 750000000, achievement: 180.4, variance: 603207000, estimate: 1747892375 },
-      { name: "iPad", icon: "📟", qty: 3, actual: 24884000, target: 60000000, achievement: 41.5, variance: -35116000, estimate: 32141833 },
-      { name: "MacBook", icon: "💻", qty: 0, actual: 0, target: 30000000, achievement: 0.0, variance: -30000000, estimate: 0 },
-      { name: "Apple Watch", icon: "⌚", qty: 1, actual: 4499000, target: 20000000, achievement: 22.5, variance: -15501000, estimate: 5811208 },
-      { name: "AirPods", icon: "🎧", qty: 2, actual: 4200000, target: 12866717, achievement: 32.6, variance: -8666717, estimate: 5425000 },
-    ],
-    androidSub: [
-      { name: "Samsung Devices", icon: "📱", qty: 8, actual: 27992000, target: 80000000, achievement: 35.0, variance: -52008000, estimate: 36156333 },
-      { name: "Oppo Devices", icon: "🟢", qty: 0, actual: 0, target: 10000000, achievement: 0.0, variance: -10000000, estimate: 0 },
-      { name: "Motorola Devices", icon: "Ⓜ️", qty: 0, actual: 0, target: 10000000, achievement: 0.0, variance: -10000000, estimate: 0 },
-      { name: "Huawei Devices", icon: "🔴", qty: 0, actual: 0, target: 10000000, achievement: 0.0, variance: -10000000, estimate: 0 },
-      { name: "Infinix Devices", icon: "⚡", qty: 0, actual: 0, target: 5000000, achievement: 0.0, variance: -5000000, estimate: 0 },
-      { name: "Xiaomi Devices", icon: "🟠", qty: 0, actual: 0, target: 5000000, achievement: 0.0, variance: -5000000, estimate: 0 },
-    ],
-    accessoriesSub: [
-      { name: "Adapter 35W GaN USB-C+A", icon: "🔌", qty: 2, actual: 1198000, target: 20000000, achievement: 6.0, variance: -18802000, estimate: 1547417 },
-      { name: "Apple USB-C Charge Cable", icon: "🧲", qty: 2, actual: 914000, target: 15000000, achievement: 6.1, variance: -14086000, estimate: 1180583 },
-      { name: "Tempered Glass Shield Screen", icon: "🛡️", qty: 2, actual: 599000, target: 15000000, achievement: 4.0, variance: -14401000, estimate: 773708 },
-    ],
-    vasSub: [
-      { name: "Qoala Proteksi Gadget Diamond", icon: "🛡️", qty: 2, actual: 3490000, target: 30000000, achievement: 11.6, variance: -26510000, estimate: 4507917 },
-      { name: "Telkomsel Halo Postpaid Bundling", icon: "🔴", qty: 0, actual: 0, target: 5000000, achievement: 0.0, variance: -5000000, estimate: 0 },
-      { name: "XL Prioritas Data Package", icon: "🔵", qty: 0, actual: 0, target: 2500000, achievement: 0.0, variance: -2500000, estimate: 0 },
-      { name: "Indosat IM3 Postpaid Package", icon: "🟡", qty: 0, actual: 0, target: 2500000, achievement: 0.0, variance: -2500000, estimate: 0 },
-    ],
-  },
-  {
-    rank: 2,
-    salesId: "24016878",
-    name: "Yunita Anggraini",
-    initials: "YA",
-    avatarBg: "bg-indigo-500/20 border-2 border-indigo-400",
-    avatarText: "text-indigo-300",
-    target: 1222013404,
-    actual: 451008000,
-    achievement: 36.9,
-    variance: -771005404,
-    estimate: 582552000,
-    upt: 1.5,
-    status: "Dalam Pantauan",
-    ringkasanEvaluasi: "Pencapaian 36,9% tertinggal dari Time Gone (77,4%). Samsung Flagship sangat kuat.",
-    rekomendasiTindakan: "Fokus closing iPhone 17 dan MacBook untuk memangkas gap minus Rp 771 Juta di 7 hari sisa.",
-    targetAcc: 80000000,
-    actualAcc: 17654000,
-    achvAcc: 22.1,
-    targetVas: 60000000,
-    actualVas: 13120000,
-    achvVas: 21.9,
-    weekToWeek: {
-      w1: 54807000,
-      w2: 56058000,
-      w3: 215143000,
-      w4: 125000000,
-      growthW2: 2.3,
-      growthW3: 283.8,
-      growthW4: -41.9,
-    },
-    appleSub: [
-      { name: "iPhone", icon: "📱", qty: 12, actual: 238190000, target: 850000000, achievement: 28.0, variance: -611810000, estimate: 307662083 },
-      { name: "iPad", icon: "📟", qty: 4, actual: 34796000, target: 80000000, achievement: 43.5, variance: -45204000, estimate: 44944833 },
-      { name: "MacBook", icon: "💻", qty: 0, actual: 0, target: 50000000, achievement: 0.0, variance: -50000000, estimate: 0 },
-      { name: "Apple Watch", icon: "⌚", qty: 1, actual: 7104000, target: 30000000, achievement: 23.7, variance: -22896000, estimate: 9176167 },
-      { name: "AirPods", icon: "🎧", qty: 2, actual: 4100000, target: 20000000, achievement: 20.5, variance: -15900000, estimate: 5295833 },
-    ],
-    androidSub: [
-      { name: "Samsung Devices", icon: "📱", qty: 16, actual: 136044000, target: 150000000, achievement: 90.7, variance: -13956000, estimate: 175723500 },
-      { name: "Oppo Devices", icon: "🟢", qty: 0, actual: 0, target: 10000000, achievement: 0.0, variance: -10000000, estimate: 0 },
-      { name: "Motorola Devices", icon: "Ⓜ️", qty: 0, actual: 0, target: 10000000, achievement: 0.0, variance: -10000000, estimate: 0 },
-      { name: "Huawei Devices", icon: "🔴", qty: 0, actual: 0, target: 10000000, achievement: 0.0, variance: -10000000, estimate: 0 },
-      { name: "Infinix Devices", icon: "⚡", qty: 0, actual: 0, target: 5000000, achievement: 0.0, variance: -5000000, estimate: 0 },
-      { name: "Xiaomi Devices", icon: "🟠", qty: 0, actual: 0, target: 7013404, achievement: 0.0, variance: -7013404, estimate: 0 },
-    ],
-    accessoriesSub: [
-      { name: "Apple Power Adapter 20W/35W", icon: "🔌", qty: 12, actual: 6588000, target: 30000000, achievement: 22.0, variance: -23412000, estimate: 8509500 },
-      { name: "AirPods Case & MagSafe Cover", icon: "🧲", qty: 8, actual: 4392000, target: 25000000, achievement: 17.6, variance: -20608000, estimate: 5673000 },
-      { name: "Tempered Glass Shield Screen", icon: "🛡️", qty: 7, actual: 3980000, target: 15000000, achievement: 26.5, variance: -11020000, estimate: 5140833 },
-      { name: "Samsung Travel Adapter 25W/45W", icon: "⚡", qty: 6, actual: 2694000, target: 10000000, achievement: 26.9, variance: -7306000, estimate: 3479750 },
-    ],
-    vasSub: [
-      { name: "Qoala Proteksi Gadget Diamond", icon: "🛡️", qty: 5, actual: 13120000, target: 45000000, achievement: 29.2, variance: -31880000, estimate: 16946667 },
-      { name: "Telkomsel Halo Postpaid Bundling", icon: "🔴", qty: 0, actual: 0, target: 5000000, achievement: 0.0, variance: -5000000, estimate: 0 },
-      { name: "XL Prioritas Data Package", icon: "🔵", qty: 0, actual: 0, target: 5000000, achievement: 0.0, variance: -5000000, estimate: 0 },
-      { name: "Indosat IM3 Postpaid Package", icon: "🟡", qty: 0, actual: 0, target: 5000000, achievement: 0.0, variance: -5000000, estimate: 0 },
-    ],
-  },
-  {
-    rank: 3,
-    salesId: "26028497",
-    name: "Siti Amelia",
-    initials: "SA",
-    avatarBg: "bg-purple-500/20 border-2 border-purple-400",
-    avatarText: "text-purple-300",
-    target: 1658446763,
-    actual: 301970200,
-    achievement: 18.2,
-    variance: -1356476563,
-    estimate: 390044842,
-    upt: 1.68,
-    status: "Perlu Perhatian Khusus",
-    ringkasanEvaluasi: "Defisit kritis minus Rp 1,35 Miliar. Penjualan brand Android selain Samsung masih nol.",
-    rekomendasiTindakan: "Tawarkan simulasi cicilan 0% dan proteksi Qoala pada setiap prospek perangkat flagship.",
-    targetAcc: 100000000,
-    actualAcc: 14335200,
-    achvAcc: 14.3,
-    targetVas: 80000000,
-    actualVas: 5750000,
-    achvVas: 7.2,
-    weekToWeek: {
-      w1: 4425200,
-      w2: 1947000,
-      w3: 175400000,
-      w4: 120198000,
-      growthW2: -56.0,
-      growthW3: 8908.7,
-      growthW4: -31.5,
-    },
-    appleSub: [
-      { name: "iPhone", icon: "📱", qty: 8, actual: 212493000, target: 1100000000, achievement: 19.3, variance: -887507000, estimate: 274470125 },
-      { name: "iPad", icon: "📟", qty: 2, actual: 17398000, target: 100000000, achievement: 17.4, variance: -82602000, estimate: 22472417 },
-      { name: "MacBook", icon: "💻", qty: 1, actual: 19803000, target: 80000000, achievement: 24.8, variance: -60197000, estimate: 25578875 },
-      { name: "Apple Watch", icon: "⌚", qty: 0, actual: 0, target: 40000000, achievement: 0.0, variance: -40000000, estimate: 0 },
-      { name: "AirPods", icon: "🎧", qty: 2, actual: 4799000, target: 30000000, achievement: 16.0, variance: -25201000, estimate: 6198708 },
-    ],
-    androidSub: [
-      { name: "Samsung Devices", icon: "📱", qty: 6, actual: 27392000, target: 200000000, achievement: 13.7, variance: -172608000, estimate: 35381333 },
-      { name: "Oppo Devices", icon: "🟢", qty: 0, actual: 0, target: 25000000, achievement: 0.0, variance: -25000000, estimate: 0 },
-      { name: "Motorola Devices", icon: "Ⓜ️", qty: 0, actual: 0, target: 25000000, achievement: 0.0, variance: -25000000, estimate: 0 },
-      { name: "Huawei Devices", icon: "🔴", qty: 0, actual: 0, target: 25000000, achievement: 0.0, variance: -25000000, estimate: 0 },
-      { name: "Infinix Devices", icon: "⚡", qty: 0, actual: 0, target: 15000000, achievement: 0.0, variance: -15000000, estimate: 0 },
-      { name: "Xiaomi Devices", icon: "🟠", qty: 0, actual: 0, target: 18446763, achievement: 0.0, variance: -18446763, estimate: 0 },
-    ],
-    accessoriesSub: [
-      { name: "AirPods Case & MagSafe Cover", icon: "🧲", qty: 9, actual: 6120000, target: 40000000, achievement: 15.3, variance: -33880000, estimate: 7905000 },
-      { name: "Apple Power Adapter 20W/35W", icon: "🔌", qty: 8, actual: 4890000, target: 35000000, achievement: 14.0, variance: -30110000, estimate: 6316250 },
-      { name: "Tempered Glass Shield Screen", icon: "🛡️", qty: 6, actual: 3325200, target: 25000000, achievement: 13.3, variance: -21674800, estimate: 4295050 },
-    ],
-    vasSub: [
-      { name: "Qoala Proteksi Gadget Diamond", icon: "🛡️", qty: 3, actual: 5750000, target: 60000000, achievement: 9.6, variance: -54250000, estimate: 7427083 },
-      { name: "Telkomsel Halo Postpaid Bundling", icon: "🔴", qty: 0, actual: 0, target: 10000000, achievement: 0.0, variance: -10000000, estimate: 0 },
-      { name: "XL Prioritas Data Package", icon: "🔵", qty: 0, actual: 0, target: 5000000, achievement: 0.0, variance: -5000000, estimate: 0 },
-      { name: "Indosat IM3 Postpaid Package", icon: "🟡", qty: 0, actual: 0, target: 5000000, achievement: 0.0, variance: -5000000, estimate: 0 },
-    ],
-  },
-  {
-    rank: 4,
-    salesId: "25005333",
-    name: "M. Adlii",
-    initials: "MA",
-    avatarBg: "bg-emerald-500/20 border-2 border-emerald-400",
-    avatarText: "text-emerald-300",
-    target: 1658446763,
-    actual: 269015000,
-    achievement: 16.2,
-    variance: -1389431763,
-    estimate: 347477708,
-    upt: 1.75,
-    status: "Perlu Perhatian Khusus",
-    ringkasanEvaluasi: "Defisit mencapai minus Rp 1,38 Miliar. Lini iPad, MacBook, dan Android non-Samsung kosong.",
-    rekomendasiTindakan: "Review harian traffic walk-in dan proaktif tawarkan iPad dan Samsung A-Series.",
-    targetAcc: 100000000,
-    actualAcc: 8532000,
-    achvAcc: 8.5,
-    targetVas: 80000000,
-    actualVas: 3860000,
-    achvVas: 4.8,
-    weekToWeek: {
-      w1: 0,
-      w2: 53447000,
-      w3: 135571000,
-      w4: 79997000,
-      growthW2: 100.0,
-      growthW3: 153.7,
-      growthW4: -41.0,
-    },
-    appleSub: [
-      { name: "iPhone", icon: "📱", qty: 6, actual: 171742000, target: 1100000000, achievement: 15.6, variance: -928258000, estimate: 221833417 },
-      { name: "iPad", icon: "📟", qty: 0, actual: 0, target: 100000000, achievement: 0.0, variance: -100000000, estimate: 0 },
-      { name: "MacBook", icon: "💻", qty: 0, actual: 0, target: 80000000, achievement: 0.0, variance: -80000000, estimate: 0 },
-      { name: "Apple Watch", icon: "⌚", qty: 0, actual: 0, target: 40000000, achievement: 0.0, variance: -40000000, estimate: 0 },
-      { name: "AirPods", icon: "🎧", qty: 2, actual: 4497000, target: 30000000, achievement: 15.0, variance: -25503000, estimate: 5808625 },
-    ],
-    androidSub: [
-      { name: "Samsung Devices", icon: "📱", qty: 8, actual: 80384000, target: 200000000, achievement: 40.2, variance: -119616000, estimate: 103829333 },
-      { name: "Oppo Devices", icon: "🟢", qty: 0, actual: 0, target: 25000000, achievement: 0.0, variance: -25000000, estimate: 0 },
-      { name: "Motorola Devices", icon: "Ⓜ️", qty: 0, actual: 0, target: 25000000, achievement: 0.0, variance: -25000000, estimate: 0 },
-      { name: "Huawei Devices", icon: "🔴", qty: 0, actual: 0, target: 25000000, achievement: 0.0, variance: -25000000, estimate: 0 },
-      { name: "Infinix Devices", icon: "⚡", qty: 0, actual: 0, target: 15000000, achievement: 0.0, variance: -15000000, estimate: 0 },
-      { name: "Xiaomi Devices", icon: "🟠", qty: 0, actual: 0, target: 18446763, achievement: 0.0, variance: -18446763, estimate: 0 },
-    ],
-    accessoriesSub: [
-      { name: "Apple Power Adapter 20W/35W", icon: "🔌", qty: 7, actual: 3843000, target: 40000000, achievement: 9.6, variance: -36157000, estimate: 4963875 },
-      { name: "AirPods Case & MagSafe Cover", icon: "🧲", qty: 6, actual: 3294000, target: 35000000, achievement: 9.4, variance: -31706000, estimate: 4254750 },
-      { name: "Tempered Glass Shield Screen", icon: "🛡️", qty: 4, actual: 1395000, target: 25000000, achievement: 5.6, variance: -23605000, estimate: 1801875 },
-    ],
-    vasSub: [
-      { name: "Qoala Proteksi Gadget Diamond", icon: "🛡️", qty: 2, actual: 3860000, target: 60000000, achievement: 6.4, variance: -56140000, estimate: 4985833 },
-      { name: "Telkomsel Halo Postpaid Bundling", icon: "🔴", qty: 0, actual: 0, target: 10000000, achievement: 0.0, variance: -10000000, estimate: 0 },
-      { name: "XL Prioritas Data Package", icon: "🔵", qty: 0, actual: 0, target: 5000000, achievement: 0.0, variance: -5000000, estimate: 0 },
-      { name: "Indosat IM3 Postpaid Package", icon: "🟡", qty: 0, actual: 0, target: 5000000, achievement: 0.0, variance: -5000000, estimate: 0 },
-    ],
-  },
-  {
-    rank: 5,
-    salesId: "26036846",
-    name: "Bagas T Saputra",
-    initials: "BS",
-    avatarBg: "bg-sky-500/20 border-2 border-sky-400",
-    avatarText: "text-sky-300",
-    target: 0,
-    actual: 256332000,
-    achievement: 0.0,
-    variance: 256332000,
-    estimate: 331095500,
-    upt: 1.67,
-    status: "Dalam Pantauan",
-    ringkasanEvaluasi: "Staf non-quota resmi, membukukan omset Rp 256 Juta melalui iPhone 16 dan Samsung A-Series.",
-    rekomendasiTindakan: "Berikan target kuota resmi bulan depan dan dorong penawaran proteksi Qoala.",
-    targetAcc: 0,
-    actualAcc: 1946000,
-    achvAcc: 0.0,
-    targetVas: 0,
-    actualVas: 3000000,
-    achvVas: 0.0,
-    weekToWeek: {
-      w1: 0,
-      w2: 33547000,
-      w3: 112785000,
-      w4: 110000000,
-      growthW2: 100.0,
-      growthW3: 236.2,
-      growthW4: -2.5,
-    },
-    appleSub: [
-      { name: "iPhone", icon: "📱", qty: 9, actual: 198992000, target: 0, achievement: 0.0, variance: 198992000, estimate: 257031333 },
-      { name: "iPad", icon: "📟", qty: 0, actual: 0, target: 0, achievement: 0.0, variance: 0, estimate: 0 },
-      { name: "MacBook", icon: "💻", qty: 0, actual: 0, target: 0, achievement: 0.0, variance: 0, estimate: 0 },
-      { name: "Apple Watch", icon: "⌚", qty: 0, actual: 0, target: 0, achievement: 0.0, variance: 0, estimate: 0 },
-      { name: "AirPods", icon: "🎧", qty: 0, actual: 0, target: 0, achievement: 0.0, variance: 0, estimate: 0 },
-    ],
-    androidSub: [
-      { name: "Samsung Devices", icon: "📱", qty: 6, actual: 52394000, target: 0, achievement: 0.0, variance: 52394000, estimate: 67675583 },
-      { name: "Oppo Devices", icon: "🟢", qty: 0, actual: 0, target: 0, achievement: 0.0, variance: 0, estimate: 0 },
-      { name: "Motorola Devices", icon: "Ⓜ️", qty: 0, actual: 0, target: 0, achievement: 0.0, variance: 0, estimate: 0 },
-      { name: "Huawei Devices", icon: "🔴", qty: 0, actual: 0, target: 0, achievement: 0.0, variance: 0, estimate: 0 },
-      { name: "Infinix Devices", icon: "⚡", qty: 0, actual: 0, target: 0, achievement: 0.0, variance: 0, estimate: 0 },
-      { name: "Xiaomi Devices", icon: "🟠", qty: 0, actual: 0, target: 0, achievement: 0.0, variance: 0, estimate: 0 },
-    ],
-    accessoriesSub: [
-      { name: "Apple Power Adapter 20W/35W", icon: "🔌", qty: 2, actual: 1098000, target: 0, achievement: 0.0, variance: 1098000, estimate: 1418250 },
-      { name: "AirPods Case & MagSafe Cover", icon: "🧲", qty: 1, actual: 549000, target: 0, achievement: 0.0, variance: 549000, estimate: 709125 },
-      { name: "Tempered Glass Shield Screen", icon: "🛡️", qty: 1, actual: 299000, target: 0, achievement: 0.0, variance: 299000, estimate: 386208 },
-    ],
-    vasSub: [
-      { name: "Qoala Proteksi Gadget Diamond", icon: "🛡️", qty: 2, actual: 3000000, target: 0, achievement: 0.0, variance: 3000000, estimate: 3875000 },
-      { name: "Telkomsel Halo Postpaid Bundling", icon: "🔴", qty: 0, actual: 0, target: 0, achievement: 0.0, variance: 0, estimate: 0 },
-      { name: "XL Prioritas Data Package", icon: "🔵", qty: 0, actual: 0, target: 0, achievement: 0.0, variance: 0, estimate: 0 },
-      { name: "Indosat IM3 Postpaid Package", icon: "🟡", qty: 0, actual: 0, target: 0, achievement: 0.0, variance: 0, estimate: 0 },
-    ],
-  },
-  {
-    rank: 6,
-    salesId: "25015216",
-    name: "Andrian Afi Syarfuan",
-    initials: "AA",
-    avatarBg: "bg-orange-500/20 border-2 border-orange-400",
-    avatarText: "text-orange-300",
-    target: 1658446763,
-    actual: 240422000,
-    achievement: 14.5,
-    variance: -1418024763,
-    estimate: 310545083,
-    upt: 1.73,
-    status: "Perlu Perhatian Khusus",
-    ringkasanEvaluasi: "Pencapaian sangat tertinggal (14,5%), defisit omset mencapai minus Rp 1,41 Miliar.",
-    rekomendasiTindakan: "Proaktif tawarkan promo cicilan kartu kredit dan trade-in untuk mendorong closing unit handphone.",
-    targetAcc: 100000000,
-    actualAcc: 9734000,
-    achvAcc: 9.7,
-    targetVas: 80000000,
-    actualVas: 8255000,
-    achvVas: 10.3,
-    weekToWeek: {
-      w1: 27518000,
-      w2: 299000,
-      w3: 124605000,
-      w4: 88000000,
-      growthW2: -98.9,
-      growthW3: 41574.0,
-      growthW4: -29.4,
-    },
-    appleSub: [
-      { name: "iPhone", icon: "📱", qty: 7, actual: 184291000, target: 1100000000, achievement: 16.8, variance: -915709000, estimate: 238042542 },
-      { name: "iPad", icon: "📟", qty: 0, actual: 0, target: 100000000, achievement: 0.0, variance: -100000000, estimate: 0 },
-      { name: "MacBook", icon: "💻", qty: 0, actual: 0, target: 80000000, achievement: 0.0, variance: -80000000, estimate: 0 },
-      { name: "Apple Watch", icon: "⌚", qty: 0, actual: 0, target: 40000000, achievement: 0.0, variance: -40000000, estimate: 0 },
-      { name: "AirPods", icon: "🎧", qty: 0, actual: 0, target: 30000000, achievement: 0.0, variance: -30000000, estimate: 0 },
-    ],
-    androidSub: [
-      { name: "Samsung Devices", icon: "📱", qty: 5, actual: 38142000, target: 200000000, achievement: 19.1, variance: -161858000, estimate: 49266750 },
-      { name: "Oppo Devices", icon: "🟢", qty: 0, actual: 0, target: 25000000, achievement: 0.0, variance: -25000000, estimate: 0 },
-      { name: "Motorola Devices", icon: "Ⓜ️", qty: 0, actual: 0, target: 25000000, achievement: 0.0, variance: -25000000, estimate: 0 },
-      { name: "Huawei Devices", icon: "🔴", qty: 0, actual: 0, target: 25000000, achievement: 0.0, variance: -25000000, estimate: 0 },
-      { name: "Infinix Devices", icon: "⚡", qty: 0, actual: 0, target: 15000000, achievement: 0.0, variance: -15000000, estimate: 0 },
-      { name: "Xiaomi Devices", icon: "🟠", qty: 0, actual: 0, target: 18446763, achievement: 0.0, variance: -18446763, estimate: 0 },
-    ],
-    accessoriesSub: [
-      { name: "Apple Power Adapter 20W/35W", icon: "🔌", qty: 8, actual: 4392000, target: 40000000, achievement: 11.0, variance: -35608000, estimate: 5673000 },
-      { name: "AirPods Case & MagSafe Cover", icon: "🧲", qty: 5, actual: 2745000, target: 35000000, achievement: 7.8, variance: -32255000, estimate: 3545625 },
-      { name: "Samsung Travel Adapter 25W/45W", icon: "⚡", qty: 5, actual: 1495000, target: 15000000, achievement: 10.0, variance: -13505000, estimate: 1931042 },
-      { name: "Tempered Glass Shield Screen", icon: "🛡️", qty: 3, actual: 1102000, target: 10000000, achievement: 11.0, variance: -8898000, estimate: 1423417 },
-    ],
-    vasSub: [
-      { name: "Qoala Proteksi Gadget Diamond", icon: "🛡️", qty: 4, actual: 8255000, target: 60000000, achievement: 13.8, variance: -51745000, estimate: 10662708 },
-      { name: "Telkomsel Halo Postpaid Bundling", icon: "🔴", qty: 0, actual: 0, target: 10000000, achievement: 0.0, variance: -10000000, estimate: 0 },
-      { name: "XL Prioritas Data Package", icon: "🔵", qty: 0, actual: 0, target: 5000000, achievement: 0.0, variance: -5000000, estimate: 0 },
-      { name: "Indosat IM3 Postpaid Package", icon: "🟡", qty: 0, actual: 0, target: 5000000, achievement: 0.0, variance: -5000000, estimate: 0 },
-    ],
-  },
-  {
-    rank: 7,
-    salesId: "26026303",
-    name: "Surya Adi Permana",
-    initials: "SA",
-    avatarBg: "bg-rose-500/20 border-2 border-rose-400",
-    avatarText: "text-rose-300",
-    target: 1658446763,
-    actual: 174451000,
-    achievement: 10.5,
-    variance: -1483995763,
-    estimate: 225332542,
-    upt: 2.0,
-    status: "Perlu Perhatian Khusus",
-    ringkasanEvaluasi: "Peringkat terendah di toko dengan pencapaian 10,5% dan defisit terbesar minus Rp 1,48 Miliar.",
-    rekomendasiTindakan: "Coaching intensif teknik closing dan targetkan minimal 2 transaksi perangkat per hari.",
-    targetAcc: 100000000,
-    actualAcc: 10302000,
-    achvAcc: 10.3,
-    targetVas: 80000000,
-    actualVas: 3860000,
-    achvVas: 4.8,
-    weekToWeek: {
-      w1: 2299000,
-      w2: 699000,
-      w3: 62167000,
-      w4: 109286000,
-      growthW2: -69.6,
-      growthW3: 8793.7,
-      growthW4: 75.8,
-    },
-    appleSub: [
-      { name: "iPhone", icon: "📱", qty: 5, actual: 128496000, target: 1100000000, achievement: 11.7, variance: -971504000, estimate: 165974000 },
-      { name: "iPad", icon: "📟", qty: 0, actual: 0, target: 100000000, achievement: 0.0, variance: -100000000, estimate: 0 },
-      { name: "MacBook", icon: "💻", qty: 0, actual: 0, target: 80000000, achievement: 0.0, variance: -80000000, estimate: 0 },
-      { name: "Apple Watch", icon: "⌚", qty: 0, actual: 0, target: 40000000, achievement: 0.0, variance: -40000000, estimate: 0 },
-      { name: "AirPods", icon: "🎧", qty: 0, actual: 0, target: 30000000, achievement: 0.0, variance: -30000000, estimate: 0 },
-    ],
-    androidSub: [
-      { name: "Samsung Devices", icon: "📱", qty: 5, actual: 31793000, target: 200000000, achievement: 15.9, variance: -168207000, estimate: 41065958 },
-      { name: "Oppo Devices", icon: "🟢", qty: 0, actual: 0, target: 25000000, achievement: 0.0, variance: -25000000, estimate: 0 },
-      { name: "Motorola Devices", icon: "Ⓜ️", qty: 0, actual: 0, target: 25000000, achievement: 0.0, variance: -25000000, estimate: 0 },
-      { name: "Huawei Devices", icon: "🔴", qty: 0, actual: 0, target: 25000000, achievement: 0.0, variance: -25000000, estimate: 0 },
-      { name: "Infinix Devices", icon: "⚡", qty: 0, actual: 0, target: 15000000, achievement: 0.0, variance: -15000000, estimate: 0 },
-      { name: "Xiaomi Devices", icon: "🟠", qty: 0, actual: 0, target: 18446763, achievement: 0.0, variance: -18446763, estimate: 0 },
-    ],
-    accessoriesSub: [
-      { name: "Apple Power Adapter 20W/35W", icon: "🔌", qty: 7, actual: 3843000, target: 40000000, achievement: 9.6, variance: -36157000, estimate: 4963875 },
-      { name: "AirPods Case & MagSafe Cover", icon: "🧲", qty: 6, actual: 3294000, target: 35000000, achievement: 9.4, variance: -31706000, estimate: 4254750 },
-      { name: "Samsung Travel Adapter 25W/45W", icon: "⚡", qty: 6, actual: 1794000, target: 15000000, achievement: 12.0, variance: -13206000, estimate: 2317250 },
-      { name: "Tempered Glass Shield Screen", icon: "🛡️", qty: 4, actual: 1371000, target: 10000000, achievement: 13.7, variance: -8629000, estimate: 1770875 },
-    ],
-    vasSub: [
-      { name: "Qoala Proteksi Gadget Diamond", icon: "🛡️", qty: 2, actual: 3860000, target: 60000000, achievement: 6.4, variance: -56140000, estimate: 4985833 },
-      { name: "Telkomsel Halo Postpaid Bundling", icon: "🔴", qty: 0, actual: 0, target: 10000000, achievement: 0.0, variance: -10000000, estimate: 0 },
-      { name: "XL Prioritas Data Package", icon: "🔵", qty: 0, actual: 0, target: 5000000, achievement: 0.0, variance: -5000000, estimate: 0 },
-      { name: "Indosat IM3 Postpaid Package", icon: "🟡", qty: 0, actual: 0, target: 5000000, achievement: 0.0, variance: -5000000, estimate: 0 },
-    ],
-  },
-];
-
-export default function Page() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [salesIdInput, setSalesIdInput] = useState("");
-  const [passwordInput, setPasswordInput] = useState("");
-  const [loginErr, setLoginErr] = useState("");
-  const [currentSalesId, setCurrentSalesId] = useState("");
-  const [currentSalesName, setCurrentSalesName] = useState("");
-
-  // STATE THEME: DARK MODE VS LIGHT MODE
+  // UI Theme & Segmented Tabs
   const [theme, setTheme] = useState<ThemeMode>("dark");
-
-  const [activeTab, setActiveTab] = useState<MenuTab>("store-overview");
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  // Filter State
-  const [filterMonth, setFilterMonth] = useState("2026-10");
+  const [activeTab, setActiveTab] = useState<TabType>("store-overview");
+  
+  // Filter Date & Week
   const [filterWeek, setFilterWeek] = useState("ALL");
-  const [filterDate, setFilterDate] = useState("2026-10-24");
-  const [overviewDetailCategory, setOverviewDetailCategory] = useState<"apple" | "android" | "accessories" | "vas">("apple");
+  const [filterMonth, setFilterMonth] = useState("2026-10");
 
-  // Admin Activity Staff Logs State
-  const [staffActivityLogs, setStaffActivityLogs] = useState<StaffLoginLog[]>([]);
+  // Bottom Sheet Interactive States
+  const [activeSheet, setActiveSheet] = useState<"UPT" | "INVOICE" | "QTY" | "LOB_DETAIL" | null>(null);
+  const [selectedLobTitle, setSelectedLobTitle] = useState("");
 
-  // Shortcut Upload State
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploadStatus, setUploadStatus] = useState<{ type: "idle" | "loading" | "success" | "error"; text: string }>({
-    type: "idle",
-    text: "",
-  });
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Audit Logs (Khusus Admin Sales ID)
+  const [auditLogs, setAuditLogs] = useState<LoginActivityLog[]>([]);
 
-  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz2VUsReKqqJgPsG15L1pOAkmqoIWF2vApyD18jr5e_z0OVqagasa9yHXEe5fzMhoQmOw/exec";
+  // Toggle Theme Handler
+  const isDark = theme === "dark";
+  const themeClasses = isDark 
+    ? "bg-[#1A1831] text-[#FFF6E9]" 
+    : "bg-[#F9F8F3] text-[#1E293B]";
+  const cardClasses = isDark 
+    ? "bg-[#221F40] border-[#3B3666]" 
+    : "bg-white border-[#E5E2D9] shadow-sm";
+  const innerCardClasses = isDark 
+    ? "bg-[#141226] border-[#3B3666]" 
+    : "bg-[#F2EFE9] border-[#E5E2D9]";
+  const accentColor = isDark ? "text-[#F5BA42]" : "text-[#054ff0]";
+  const accentBtn = isDark 
+    ? "bg-[#F5BA42] text-[#1A1831] hover:bg-[#ffc857]" 
+    : "bg-[#054ff0] text-white hover:bg-blue-700";
 
-  // Muat sesi & log
+  // Check Local Session on Mount
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedUser = localStorage.getItem("digiplus_session_user");
-      const savedName = localStorage.getItem("digiplus_session_name");
-      const savedTheme = localStorage.getItem("digiplus_theme_mode") as ThemeMode;
-      if (savedTheme) setTheme(savedTheme);
-      if (savedUser) {
-        setIsLoggedIn(true);
-        setCurrentSalesId(savedUser);
-        setCurrentSalesName(savedName || `Sales ${savedUser}`);
-      }
-      const savedLogs = localStorage.getItem("digiplus_staff_activity_logs");
-      if (savedLogs) {
-        try {
-          setStaffActivityLogs(JSON.parse(savedLogs));
-        } catch (e) {}
+    const session = localStorage.getItem("store_ops_session");
+    if (session) {
+      try {
+        const parsed = JSON.parse(session);
+        setCurrentUser(parsed);
+        setIsAuthenticated(true);
+      } catch (e) {
+        localStorage.removeItem("store_ops_session");
       }
     }
   }, []);
 
-  const toggleTheme = () => {
-    const nextTheme = theme === "dark" ? "light" : "dark";
-    setTheme(nextTheme);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("digiplus_theme_mode", nextTheme);
-    }
-  };
-
-  // Deteksi Tipe Perangkat
-  const detectDevice = (): "Komputer / PC" | "Tablet" | "Handphone / Mobile" => {
-    if (typeof window === "undefined") return "Komputer / PC";
-    const ua = navigator.userAgent;
-    if (/(tablet|ipad|playbook|silk)|(android(?!.*mobi))/i.test(ua)) return "Tablet";
-    if (/Mobile|Android|iP(hone|od)|IEMobile|BlackBerry/i.test(ua)) return "Handphone / Mobile";
-    return "Komputer / PC";
-  };
-
-  const recordStaffActivity = (id: string, name: string) => {
-    const now = new Date();
-    const timeFormatted = now.toLocaleDateString("id-ID", {
-      weekday: "long",
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-
-    const dev = detectDevice();
-    const brw = navigator.userAgent.includes("Chrome") ? "Chrome" : navigator.userAgent.includes("Safari") ? "Safari" : "Browser";
-
-    const logEntry: StaffLoginLog = {
-      id: Date.now().toString(),
-      salesId: id,
-      salesName: name,
-      timestamp: timeFormatted,
-      deviceType: dev,
-      browserInfo: brw,
-      locationName: "Grand Indonesia Store (Jakarta Pusat)",
-      coords: "-6.1953, 106.8219",
-    };
-
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          logEntry.coords = `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
-          logEntry.locationName = "Area Jakarta (GPS Terverifikasi)";
-          saveLog(logEntry);
-        },
-        () => saveLog(logEntry),
-        { timeout: 3000 }
-      );
-    } else {
-      saveLog(logEntry);
-    }
-  };
-
-  const saveLog = (entry: StaffLoginLog) => {
-    setStaffActivityLogs((prev) => {
-      const updated = [entry, ...prev.slice(0, 49)];
-      if (typeof window !== "undefined") {
-        localStorage.setItem("digiplus_staff_activity_logs", JSON.stringify(updated));
-      }
-      return updated;
-    });
-  };
-
+  // Login Execution
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (passwordInput !== "Welcome@123") {
-      setLoginErr("Password salah! Gunakan: Welcome@123");
-      return;
-    }
-    const cleanId = salesIdInput.trim();
-    if (cleanId === "") {
-      setLoginErr("Masukkan Sales ID Anda!");
+    if (!loginId.trim() || !loginPassword.trim()) {
+      setLoginError("Harap masukkan ID Karyawan dan Kata Sandi.");
       return;
     }
 
-    let detectedName = `Sales ${cleanId}`;
-    const foundStaff = ALL_STAFF_DETAILS.find((s) => s.salesId === cleanId);
-    if (foundStaff) detectedName = foundStaff.name;
-    if (cleanId === "22008089") detectedName = "Store Leader Admin";
+    const userData = {
+      id: loginId.trim(),
+      name: loginId.trim() === STORE_CONFIG.adminSalesId ? "Store Leader / Supervisor" : `Staff (${loginId.trim()})`,
+    };
 
-    localStorage.setItem("digiplus_session_user", cleanId);
-    localStorage.setItem("digiplus_session_name", detectedName);
-    setCurrentSalesId(cleanId);
-    setCurrentSalesName(detectedName);
-    setIsLoggedIn(true);
-    setLoginErr("");
+    localStorage.setItem("store_ops_session", JSON.stringify(userData));
+    setCurrentUser(userData);
+    setIsAuthenticated(true);
+    setLoginError("");
 
-    recordStaffActivity(cleanId, detectedName);
+    // Catat Activity Audit
+    const newLog: LoginActivityLog = {
+      id: Date.now().toString(),
+      salesId: userData.id,
+      salesName: userData.name,
+      timestamp: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) + " WIB",
+      deviceType: typeof window !== "undefined" && window.innerWidth < 768 ? "Handphone / Mobile" : "Komputer / PC",
+      location: STORE_CONFIG.storeLocation,
+      coordinates: "-6.1953, 106.8219",
+    };
+    setAuditLogs((prev) => [newLog, ...prev.slice(0, 30)]);
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("digiplus_session_user");
-    localStorage.removeItem("digiplus_session_name");
-    setIsLoggedIn(false);
-    setCurrentSalesId("");
-    setCurrentSalesName("");
+    localStorage.removeItem("store_ops_session");
+    setIsAuthenticated(false);
+    setCurrentUser(null);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setSelectedFile(file);
-    setUploadStatus({ type: "idle", text: `File: ${file.name}` });
+  // State Contoh Abstraksi Data (Siap dihubungkan ke API / Sheets)
+  const storeKPI = {
+    actual: 3150827200,
+    target: 8728667173,
+    traffic: 1250,
+    transactions: 181,
+    qty: 312,
   };
 
-  const handleExecuteUpload = async () => {
-    if (!selectedFile) {
-      setUploadStatus({ type: "error", text: "Pilih file .xls terlebih dahulu!" });
-      return;
-    }
+  const storeAchv = calculateAchievement(storeKPI.actual, storeKPI.target);
+  const storeGap = calculateGap(storeKPI.actual, storeKPI.target);
+  const storeUPT = calculateUPT(storeKPI.qty, storeKPI.transactions);
+  const storeATV = calculateATV(storeKPI.actual, storeKPI.transactions);
+  const storeCVR = calculateCVR(storeKPI.transactions, storeKPI.traffic);
 
-    setUploadStatus({ type: "loading", text: "Mengirim ke Kolom M, N, O..." });
-
-    try {
-      await fetch(APPS_SCRIPT_URL, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify({
-          action: "upload_saleswise",
-          targetSheet: "RAW SalesPerson",
-          columns: ["M", "N", "O"],
-          fileName: selectedFile.name,
-        }),
-      });
-
-      setUploadStatus({
-        type: "success",
-        text: `Berhasil! File "${selectedFile.name}" telah diteruskan ke Sheet RAW SalesPerson Kolom M, N, O.`,
-      });
-      setSelectedFile(null);
-    } catch (err) {
-      setUploadStatus({ type: "error", text: "Gagal mengirim file. Periksa koneksi internet." });
-    }
-  };
-
-  const formatIDR = (n: number) => {
-    return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
-  };
-
-  // KELAS WARNA DINAMIS SESUAI MODE
-  // Dark: Deep Indigo (#1A1831) & Warm Cloud (#FFF6E9)
-  // Light: Linen Bone (#F9F8F3) & Kinetic Cobalt (#054ff0)
-  const isDark = theme === "dark";
-  const bgMain = isDark ? "bg-[#1A1831]" : "bg-[#F9F8F3]";
-  const textMain = isDark ? "text-[#FFF6E9]" : "text-[#1E293B]";
-  const textMuted = isDark ? "text-[#FFF6E9]/70" : "text-slate-600";
-  const cardBg = isDark ? "bg-[#221F40] border-[#3B3666]" : "bg-white border-[#E5E2D9] shadow-sm";
-  const innerCardBg = isDark ? "bg-[#141226] border-[#3B3666]" : "bg-[#F2EFE9] border-[#E5E2D9]";
-  const accentColor = isDark ? "text-[#F5BA42]" : "text-[#054ff0]";
-  const accentBtn = isDark
-    ? "bg-[#F5BA42] text-[#1A1831] hover:bg-[#ffc857]"
-    : "bg-[#054ff0] text-white hover:bg-blue-700 shadow-md shadow-blue-500/20";
-  const activeTabBtn = isDark
-    ? "bg-[#F5BA42] text-[#1A1831] font-black shadow-md shadow-[#F5BA42]/20"
-    : "bg-[#054ff0] text-white font-black shadow-md shadow-blue-500/20";
-
-  // HALAMAN LOGIN
-  if (!isLoggedIn) {
+  // ==========================================
+  // JIKA BELUM LOGIN: HALAMAN LOGIN SECURE
+  // ==========================================
+  if (!isAuthenticated) {
     return (
-      <div className={`min-h-screen ${bgMain} flex items-center justify-center p-4 ${textMain} font-sans`}>
-        <div className={`max-w-md w-full ${cardBg} border-2 rounded-3xl p-6 md:p-8 shadow-2xl`}>
-          <div className="text-center mb-6">
-            <div
-              className={`w-14 h-14 ${
-                isDark ? "bg-gradient-to-tr from-[#F5BA42] to-[#E65100] text-[#1A1831]" : "bg-[#054ff0] text-white"
-              } rounded-2xl mx-auto flex items-center justify-center font-black text-2xl shadow-lg mb-3`}
-            >
+      <div className={`min-h-screen ${themeClasses} flex items-center justify-center p-4 font-sans`}>
+        <div className={`max-w-md w-full ${cardClasses} border rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6`}>
+          <div className="text-center space-y-2">
+            <div className={`w-14 h-14 mx-auto rounded-2xl flex items-center justify-center text-xl font-black ${isDark ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#054ff0] text-white"}`}>
               D+
             </div>
-            <h1 className="text-xl font-bold">DIGIPLUS GRAND INDONESIA</h1>
-            <p className={`text-xs ${accentColor} mt-1 font-semibold tracking-wider`}>PORTAL LOGIN SALES & ADMIN (QF01)</p>
+            <h1 className="text-xl font-bold tracking-tight">{STORE_CONFIG.storeName}</h1>
+            <p className="text-xs opacity-70">Masuk menggunakan Employee ID / NIK untuk memonitor operasional</p>
           </div>
 
-          {loginErr && (
-            <div className="mb-4 p-3 bg-red-500/20 border border-red-400/40 rounded-xl text-red-500 text-xs font-semibold text-center">
-              {loginErr}
+          {loginError && (
+            <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-xs text-red-500 font-bold text-center">
+              {loginError}
             </div>
           )}
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider">Sales ID / Admin ID</label>
+              <label className="text-xs font-bold uppercase tracking-wider block mb-1">Employee ID / NIK</label>
               <input
                 type="text"
-                required
-                placeholder="22008089 atau ID Staf Anda"
-                value={salesIdInput}
-                onChange={(e) => setSalesIdInput(e.target.value)}
-                className={`w-full mt-1.5 px-4 py-3 rounded-xl ${innerCardBg} border ${textMain} text-sm focus:outline-none`}
+                value={loginId}
+                onChange={(e) => setLoginId(e.target.value)}
+                placeholder="Masukkan Sales ID Anda"
+                className={`w-full px-4 py-3 rounded-xl border ${innerCardClasses} text-sm focus:outline-none`}
               />
             </div>
-
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider">Password</label>
+              <label className="text-xs font-bold uppercase tracking-wider block mb-1">Kata Sandi</label>
               <input
                 type="password"
-                required
-                placeholder="Welcome@123"
-                value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                className={`w-full mt-1.5 px-4 py-3 rounded-xl ${innerCardBg} border ${textMain} text-sm focus:outline-none`}
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                placeholder="••••••••"
+                className={`w-full px-4 py-3 rounded-xl border ${innerCardClasses} text-sm focus:outline-none`}
               />
             </div>
-
             <button
               type="submit"
-              className={`w-full py-3.5 ${accentBtn} font-black rounded-xl text-xs uppercase tracking-wider transition mt-2`}
+              className={`w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider transition ${accentBtn}`}
             >
               Masuk Dashboard
             </button>
@@ -964,514 +198,186 @@ export default function Page() {
     );
   }
 
+  // ==========================================
+  // DASHBOARD UTAMA
+  // ==========================================
   return (
-    <div className={`flex min-h-screen ${bgMain} ${textMain} font-sans relative`}>
-      {/* MOBILE HAMBURGER TOGGLE */}
-      <div className="lg:hidden fixed bottom-5 right-5 z-50">
-        <button
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className={`w-14 h-14 rounded-full ${
-            isDark ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#054ff0] text-white"
-          } font-black text-2xl flex items-center justify-center shadow-2xl active:scale-95 transition`}
-        >
-          {mobileMenuOpen ? "✕" : "☰"}
-        </button>
-      </div>
-
-      {mobileMenuOpen && (
-        <div onClick={() => setMobileMenuOpen(false)} className="lg:hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-40" />
-      )}
-
-      {/* SIDEBAR SEBELAH KIRI */}
-      <aside
-        className={`fixed lg:sticky top-0 h-screen z-50 transition-transform duration-300 ${
-          mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        } w-72 ${isDark ? "bg-[#141226] border-[#3B3666]" : "bg-[#F2EFE9] border-[#E5E2D9]"} border-r flex flex-col justify-between shrink-0 shadow-2xl lg:shadow-none`}
-      >
-        <div className="p-4 overflow-y-auto">
-          {/* Brand Logo */}
-          <div className="flex items-center gap-3 pb-4 border-b border-inherit">
-            <div
-              className={`w-10 h-10 ${
-                isDark ? "bg-gradient-to-tr from-[#F5BA42] to-[#E65100] text-[#1A1831]" : "bg-[#054ff0] text-white"
-              } rounded-xl flex items-center justify-center font-black text-lg shadow-md`}
-            >
-              D+
-            </div>
-            <div>
-              <h2 className="text-sm font-bold tracking-wider">DIGIPLUS</h2>
-              <p className={`text-[10px] ${accentColor} font-semibold`}>QF01 GRAND INDONESIA</p>
-            </div>
+    <div className={`min-h-screen ${themeClasses} font-sans pb-24 lg:pb-8 flex flex-col`}>
+      {/* HEADER UTAMA */}
+      <header className={`sticky top-0 z-30 border-b ${cardClasses} px-4 py-3 backdrop-blur-md bg-opacity-90`}>
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+          <div>
+            <span className={`text-base sm:text-lg font-black ${accentColor}`}>
+              Halo, {currentUser?.name} 👋
+            </span>
+            <p className="text-[11px] opacity-70">
+              {STORE_CONFIG.storeName} • {STORE_CONFIG.storeLocation}
+            </p>
           </div>
 
-          {/* User Status Tag */}
-          <div className={`mt-3 p-3 rounded-2xl ${cardBg} border flex items-center justify-between`}>
-            <div>
-              <span className="text-[9px] uppercase tracking-wider opacity-60 block font-bold">User Aktif</span>
-              <span className="text-xs font-bold truncate block">
-                {currentSalesId === "22008089" ? "👑 Admin Leader" : currentSalesName}
-              </span>
-              <span className={`text-[10px] font-mono ${accentColor}`}>ID: {currentSalesId}</span>
-            </div>
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-          </div>
-
-          {/* SHORTCUT UPLOAD */}
-          <div className={`mt-4 p-4 rounded-2xl ${cardBg} border-2 shadow-xl`}>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xl">📤</span>
-              <div>
-                <h3 className={`text-xs font-black uppercase tracking-wide ${accentColor}`}>Upload Saleswise</h3>
-                <a
-                  href="https://docs.google.com/spreadsheets/d/1v_QCLTDKORjVnByrzo9qRiivdU8CGO99nJri9jBETWM/edit#gid=483282286"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-[9px] opacity-70 hover:underline block"
-                >
-                  Sheet RAW (Kolom M, N, O) ↗
-                </a>
-              </div>
-            </div>
-
-            {uploadStatus.text && (
-              <div
-                className={`my-2 p-2 rounded-xl text-[10px] font-bold text-center leading-tight ${
-                  uploadStatus.type === "success"
-                    ? "bg-emerald-500/20 text-emerald-500"
-                    : uploadStatus.type === "error"
-                    ? "bg-red-500/20 text-red-500"
-                    : `${innerCardBg} ${accentColor}`
-                }`}
-              >
-                {uploadStatus.text}
-              </div>
-            )}
-
-            <input ref={fileInputRef} type="file" accept=".xls,.xlsx" onChange={handleFileChange} className="hidden" />
-
+          <div className="flex items-center gap-2">
             <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className={`w-full py-2 px-3 ${innerCardBg} border font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 shadow-sm`}
+              onClick={() => setTheme(isDark ? "light" : "dark")}
+              className={`p-2 rounded-xl border ${innerCardClasses} text-xs font-bold flex items-center gap-1`}
+              title="Ganti Tema"
             >
-              <span>📁</span>
-              <span className="truncate">{selectedFile ? selectedFile.name : "1. Pilih File .xls"}</span>
+              {isDark ? <Sun size={15} /> : <Moon size={15} />}
             </button>
 
             <button
-              type="button"
-              onClick={handleExecuteUpload}
-              disabled={uploadStatus.type === "loading"}
-              className={`w-full mt-2 py-2 px-3 ${accentBtn} font-black text-xs rounded-xl uppercase tracking-wider flex items-center justify-center gap-1.5 transition`}
+              onClick={handleLogout}
+              className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 text-xs font-bold"
+              title="Logout"
             >
-              {uploadStatus.type === "loading" ? "Mengirim..." : "2. Kirim ke Kolom M, N, O"}
+              <LogOut size={15} />
             </button>
           </div>
+        </div>
 
-          {/* NAVIGASI MENU UTAMA */}
-          <nav className="mt-5 space-y-1.5">
-            <button
-              onClick={() => {
-                setActiveTab("store-overview");
-                setMobileMenuOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition ${
-                activeTab === "store-overview" ? activeTabBtn : "opacity-70 hover:opacity-100"
-              }`}
-            >
-              <span className="text-base">📊</span>
-              <span>Overview Store</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveTab("weekly-sales");
-                setMobileMenuOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition ${
-                activeTab === "weekly-sales" ? activeTabBtn : "opacity-70 hover:opacity-100"
-              }`}
-            >
-              <span className="text-base">📈</span>
-              <span>Weekly sales</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveTab("staff-performance");
-                setMobileMenuOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition ${
-                activeTab === "staff-performance" ? activeTabBtn : "opacity-70 hover:opacity-100"
-              }`}
-            >
-              <span className="text-base">🏆</span>
-              <span>Staff Performance Detail</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveTab("bnpl");
-                setMobileMenuOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition ${
-                activeTab === "bnpl" ? activeTabBtn : "opacity-70 hover:opacity-100"
-              }`}
-            >
-              <span className="text-base">💳</span>
-              <span>BNPL Transactions</span>
-            </button>
-
-            {currentSalesId === "22008089" && (
+        {/* SEGMENTED TABS (NAVIGASI ATAS ZERO-RELOAD) */}
+        <div className="max-w-7xl mx-auto mt-3 flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+          {[
+            { id: "store-overview", label: "Executive Overview", icon: LayoutDashboard },
+            { id: "today-sales", label: "Hari Ini & Interaktif", icon: Calendar },
+            { id: "weekly-sales", label: "Weekly (WoW)", icon: TrendingUp },
+            { id: "staff-performance", label: "Staff Detail", icon: Users },
+            { id: "bnpl", label: "BNPL Leasing", icon: CreditCard },
+            ...(currentUser?.id === STORE_CONFIG.adminSalesId 
+              ? [{ id: "admin-audit" as TabType, label: "Activity Staff", icon: History }] 
+              : []
+            ),
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
               <button
-                onClick={() => {
-                  setActiveTab("admin-audit");
-                  setMobileMenuOpen(false);
-                }}
-                className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-bold transition border border-emerald-500/40 ${
-                  activeTab === "admin-audit"
-                    ? "bg-emerald-500 text-white font-black shadow-lg"
-                    : "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20"
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as TabType)}
+                className={`whitespace-nowrap px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                  isActive ? accentBtn : `${innerCardClasses} opacity-70 hover:opacity-100`
                 }`}
               >
-                <span className="text-base">🛡️</span>
-                <span>Activity Staff (Admin)</span>
+                <Icon size={14} />
+                <span>{tab.label}</span>
               </button>
-            )}
-
-            <button
-              onClick={() => {
-                setActiveTab("sales-detail");
-                setMobileMenuOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition ${
-                activeTab === "sales-detail" ? activeTabBtn : "opacity-70 hover:opacity-100"
-              }`}
-            >
-              <span className="text-base">📋</span>
-              <span>Rincian LOB Penjualan</span>
-            </button>
-          </nav>
+            );
+          })}
         </div>
+      </header>
 
-        {/* FOOTER SIDEBAR: LOGOUT & THEME TOGGLE */}
-        <div className="p-4 border-t border-inherit space-y-2">
-          {/* TOMBOL TOGGLE THEME (DARK / LIGHT MODE) */}
-          <button
-            onClick={toggleTheme}
-            className={`w-full py-2 px-3 ${innerCardBg} border rounded-xl text-xs font-bold transition flex items-center justify-center gap-2`}
-          >
-            <span>{isDark ? "☀️ Light Mode" : "🌙 Dark Mode"}</span>
-          </button>
+      {/* AREA KONTEN UTAMA */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
+        {/* ========================================================= */}
+        {/* TAB 1: EXECUTIVE STORE OVERVIEW                           */}
+        {/* ========================================================= */}
+        {activeTab === "store-overview" && (
+          <div className="space-y-6">
+            {/* HERO KPI TOTAL SALES */}
+            <div className={`p-5 sm:p-6 rounded-3xl border-2 ${cardClasses} space-y-4`}>
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Hero KPI • Total Sales MTD</span>
+                  <div className="text-3xl sm:text-4xl font-black mt-1 tracking-tight">
+                    {formatCurrencyIDR(storeKPI.actual)}
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs opacity-80 mt-1">
+                    <span>Target: <strong>{formatCurrencyIDR(storeKPI.target)}</strong></span>
+                    <span>•</span>
+                    <span className="text-rose-500 font-bold">Gap: {formatCurrencyIDR(storeGap)}</span>
+                    <span>•</span>
+                    <span>Est: <strong className="text-emerald-500">{formatCurrencyIDR(4069818467)}</strong></span>
+                  </div>
+                </div>
 
-          <button
-            onClick={handleLogout}
-            className="w-full py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2"
-          >
-            <span>🚪</span>
-            <span>Keluar (Logout)</span>
-          </button>
-        </div>
-      </aside>
-
-      {/* KONTEN UTAMA */}
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-w-7xl mx-auto w-full">
-        {/* HEADER ATAS DENGAN SAPAAN "HALO [NAMA SALES]" */}
-        <header className="mb-6 border-b border-inherit pb-5">
-          <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
-            <div>
-              <div className={`text-xl sm:text-2xl font-black ${accentColor} flex items-center gap-2`}>
-                <span>Halo, {currentSalesName} 👋</span>
-              </div>
-              <p className={`text-xs ${textMuted} mt-1`}>
-                Store QF01 Grand Indonesia • Master: Sheet <code>DATABASE</code>, <code>BNPL DATABASE</code>, & <code>Dashboard QF01</code>
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className={`px-3 py-1.5 rounded-lg border text-xs font-bold ${
-                isDark ? "bg-emerald-500/15 text-emerald-300 border-emerald-400/30" : "bg-emerald-50 text-emerald-600 border-emerald-200"
-              }`}>
-                Actual MTD: {formatIDR(OVERVIEW_TOTAL.actual)}
-              </span>
-            </div>
-          </div>
-
-          {/* FILTER BAR */}
-          <div className={`p-3 ${cardBg} border rounded-2xl flex flex-wrap items-center gap-3 justify-between text-xs`}>
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2">
-                <span className="opacity-70 font-semibold">📅 Bulan:</span>
-                <select
-                  value={filterMonth}
-                  onChange={(e) => setFilterMonth(e.target.value)}
-                  className={`${innerCardBg} border rounded-xl px-2.5 py-1 font-bold focus:outline-none`}
-                >
-                  <option value="2026-10">Oktober 2026</option>
-                  <option value="2026-09">September 2026</option>
-                </select>
+                <div className="text-right space-y-1">
+                  <span className={`text-2xl sm:text-3xl font-black ${accentColor}`}>{storeAchv}%</span>
+                  <p className="text-[10px] opacity-60 uppercase font-bold">Achievement</p>
+                  <WhatsAppShareButton
+                    storeName={STORE_CONFIG.storeName}
+                    actual={formatCurrencyIDR(storeKPI.actual)}
+                    target={formatCurrencyIDR(storeKPI.target)}
+                    achv={storeAchv}
+                    gap={formatCurrencyIDR(storeGap)}
+                    upt={storeUPT}
+                    periodText="Oktober 2026"
+                  />
+                </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="opacity-70 font-semibold">📊 Week:</span>
-                <select
-                  value={filterWeek}
-                  onChange={(e) => setFilterWeek(e.target.value)}
-                  className={`${innerCardBg} border rounded-xl px-2.5 py-1 font-bold focus:outline-none`}
-                >
-                  <option value="ALL">Semua Week (W1 - W4)</option>
-                  <option value="W1">Week 1 (03/10/26)</option>
-                  <option value="W2">W2 (10OKT 2026)</option>
-                  <option value="W3">W3 (17OKT 2026)</option>
-                  <option value="W4">W4 (24OKT 2026)</option>
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="opacity-70 font-semibold">🗓️ Tanggal:</span>
-                <input
-                  type="date"
-                  value={filterDate}
-                  onChange={(e) => setFilterDate(e.target.value)}
-                  className={`${innerCardBg} border rounded-xl px-2.5 py-1 font-bold focus:outline-none`}
+              {/* Progress Bar */}
+              <div className={`w-full h-3 rounded-full overflow-hidden ${innerCardClasses}`}>
+                <div 
+                  className={`h-full rounded-full transition-all duration-700 ${isDark ? "bg-[#F5BA42]" : "bg-[#054ff0]"}`}
+                  style={{ width: `${Math.min(storeAchv, 100)}%` }}
                 />
               </div>
-            </div>
 
-            <div className={`text-[11px] ${accentColor} font-semibold`}>● Cut-off Data: {filterDate}</div>
-          </div>
-        </header>
-
-        {/* TAB 1: OVERVIEW STORE */}
-        {activeTab === "store-overview" && (
-          <div className="space-y-6 sm:space-y-8">
-            {/* TIME GONE ANALYTICS */}
-            <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl relative overflow-hidden`}>
-              <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
-                <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-2xl ${innerCardBg} border flex items-center justify-center text-2xl font-bold ${accentColor}`}>
-                    ⏳
-                  </div>
-                  <div>
-                    <h2 className="text-base font-black tracking-wide">TIME GONE ANALYTICS (OKTOBER 2026)</h2>
-                    <p className={`text-xs ${textMuted}`}>
-                      Hari Berjalan: <strong className={textMain}>{TIME_GONE_DATA.daysPassed} hari</strong> dari {TIME_GONE_DATA.totalDays} hari ({TIME_GONE_DATA.daysLeft} hari tersisa)
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <span className="text-[10px] uppercase font-bold opacity-60 block">Time Elapsed</span>
-                    <span className={`text-2xl font-black ${accentColor}`}>{TIME_GONE_DATA.percentageTimeGone}%</span>
-                  </div>
-                  <div className="h-8 w-px bg-inherit mx-1 opacity-20"></div>
-                  <div className="text-right">
-                    <span className="text-[10px] uppercase font-bold opacity-60 block">Achv Pace</span>
-                    <span className="text-2xl font-black text-emerald-500">{OVERVIEW_TOTAL.achievement}%</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2 mb-4">
+              {/* TIME GONE CARD */}
+              <div className={`p-4 rounded-2xl border ${innerCardClasses} flex flex-wrap items-center justify-between gap-4 text-xs`}>
                 <div>
-                  <div className="flex justify-between text-[11px] mb-1">
-                    <span className={textMuted}>Waktu Berjalan (Time Gone):</span>
-                    <span className={`font-bold ${accentColor}`}>{TIME_GONE_DATA.percentageTimeGone}% ({TIME_GONE_DATA.daysPassed}/{TIME_GONE_DATA.totalDays} Hari)</span>
-                  </div>
-                  <div className={`w-full ${innerCardBg} h-2.5 rounded-full overflow-hidden`}>
-                    <div className={`${isDark ? "bg-[#F5BA42]" : "bg-[#054ff0]"} h-full rounded-full transition-all`} style={{ width: `${TIME_GONE_DATA.percentageTimeGone}%` }}></div>
-                  </div>
+                  <span className="opacity-60 block">Time Gone (Hari Berjalan):</span>
+                  <strong className="text-sm">24 dari 31 Hari (77,4%)</strong>
                 </div>
-
                 <div>
-                  <div className="flex justify-between text-[11px] mb-1">
-                    <span className={textMuted}>Pencapaian Omset (Actual Revenue):</span>
-                    <span className="font-bold text-emerald-500">{OVERVIEW_TOTAL.achievement}% ({formatIDR(OVERVIEW_TOTAL.actual)})</span>
-                  </div>
-                  <div className={`w-full ${innerCardBg} h-2.5 rounded-full overflow-hidden`}>
-                    <div className="bg-emerald-500 h-full rounded-full transition-all" style={{ width: `${OVERVIEW_TOTAL.achievement}%` }}></div>
-                  </div>
+                  <span className="opacity-60 block">Status Pace Omset:</span>
+                  <strong className="text-sm text-red-500">-41,3% (Tertinggal)</strong>
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-4 border-t border-inherit text-xs">
-                <div className={`p-3 ${innerCardBg} rounded-xl border`}>
-                  <span className="opacity-60 text-[11px]">Kesenjangan Pace Toko:</span>
-                  <div className="text-sm font-black text-red-500 mt-0.5">-{(TIME_GONE_DATA.percentageTimeGone - OVERVIEW_TOTAL.achievement).toFixed(1)}% (Tertinggal)</div>
-                </div>
-
-                <div className={`p-3 ${innerCardBg} rounded-xl border`}>
-                  <span className="opacity-60 text-[11px]">Daily Run Rate Aktual:</span>
-                  <div className="text-sm font-black text-sky-500 mt-0.5">{formatIDR(TIME_GONE_DATA.dailyRunRate)} / hari</div>
-                </div>
-
-                <div className={`p-3 ${innerCardBg} rounded-xl border`}>
-                  <span className="opacity-60 text-[11px]">Required Run Rate:</span>
-                  <div className={`text-sm font-black ${accentColor} mt-0.5`}>{formatIDR(TIME_GONE_DATA.requiredRunRate)} / hari</div>
-                </div>
-
-                <div className={`p-3 ${innerCardBg} rounded-xl border`}>
-                  <span className="opacity-60 text-[11px]">Store UPT:</span>
-                  <div className="text-sm font-black text-emerald-500 mt-0.5">{OVERVIEW_TOTAL.storeUpt} Unit/Struk</div>
+                <div>
+                  <span className="opacity-60 block">Required Daily Run Rate:</span>
+                  <strong className="text-sm text-emerald-500">{formatCurrencyIDR(797262710)}/hari</strong>
                 </div>
               </div>
             </div>
 
-            {/* TABEL LENGKAP LOB METRICS */}
-            <div>
-              <div className="flex justify-between items-center mb-3">
-                <h2 className="text-base font-bold">Matriks Kategori Produk (Apple, Android, Accessories & VAS)</h2>
-                <span className={`text-[11px] ${textMuted} hidden sm:inline`}>VAS: Qoala + Telkomsel + XL + Indosat</span>
+            {/* SECONDARY OPERATIONAL METRIC CARDS (CVR, ATV, UPT, TRAFFIC) */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+              <div className={`p-4 rounded-2xl border ${cardClasses}`}>
+                <span className="text-[10px] font-bold opacity-60 uppercase block">UPT</span>
+                <span className="text-xl font-black text-sky-500">{storeUPT}</span>
+                <span className="text-[10px] opacity-60 block">Unit / Struk</span>
               </div>
-
-              <div className={`${cardBg} border rounded-2xl overflow-x-auto shadow-xl`}>
-                <table className="w-full text-left text-xs min-w-[600px]">
-                  <thead className={`${innerCardBg} uppercase text-[11px] border-b border-inherit`}>
-                    <tr>
-                      <th className="py-4 px-4">Kategori Produk</th>
-                      <th className="py-4 px-4 text-right">Actual Sales</th>
-                      <th className="py-4 px-4 text-right">Target</th>
-                      <th className="py-4 px-4 text-center">Achievement (%)</th>
-                      <th className="py-4 px-4 text-right">Variance</th>
-                      <th className="py-4 px-4 text-right">Estimate</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-inherit font-medium">
-                    {OVERVIEW_LOB_DATA.map((row, idx) => (
-                      <tr key={idx} className="hover:opacity-90 transition">
-                        <td className="py-4 px-4 font-bold text-sm">
-                          <span className="mr-2">{row.icon}</span>
-                          <span>{row.category}</span>
-                        </td>
-                        <td className={`py-4 px-4 text-right font-extrabold text-sm ${row.color}`}>{formatIDR(row.actual)}</td>
-                        <td className="py-4 px-4 text-right font-mono opacity-80">{formatIDR(row.target)}</td>
-                        <td className="py-4 px-4 text-center">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-black border ${innerCardBg}`}>
-                            {row.achievement}%
-                          </span>
-                        </td>
-                        <td className="py-4 px-4 text-right text-red-500 font-mono font-bold">{formatIDR(row.variance)}</td>
-                        <td className="py-4 px-4 text-right text-emerald-500 font-mono font-bold">{formatIDR(row.estimate)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className={`p-4 rounded-2xl border ${cardClasses}`}>
+                <span className="text-[10px] font-bold opacity-60 uppercase block">ATV</span>
+                <span className="text-xl font-black">{formatCurrencyIDR(storeATV)}</span>
+                <span className="text-[10px] opacity-60 block">Avg Basket Size</span>
+              </div>
+              <div className={`p-4 rounded-2xl border ${cardClasses}`}>
+                <span className="text-[10px] font-bold opacity-60 uppercase block">CVR</span>
+                <span className="text-xl font-black text-emerald-500">{storeCVR}%</span>
+                <span className="text-[10px] opacity-60 block">Trans / Traffic</span>
+              </div>
+              <div className={`p-4 rounded-2xl border ${cardClasses}`}>
+                <span className="text-[10px] font-bold opacity-60 uppercase block">Traffic</span>
+                <span className="text-xl font-black text-amber-500">{storeKPI.traffic}</span>
+                <span className="text-[10px] opacity-60 block">Pengunjung</span>
               </div>
             </div>
 
-            {/* TABEL RANK SALES PER STAFF DENGAN UPT */}
-            <div className={`p-4 sm:p-6 ${cardBg} border rounded-3xl shadow-xl`}>
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-base font-bold">🏆 Rank Sales per Staff & UPT Toko</h3>
-              </div>
+            {/* MATRIKS LOB TARGET & ESTIMATE */}
+            <div className={`p-5 rounded-3xl border ${cardClasses} space-y-3`}>
+              <h3 className="text-sm font-bold uppercase tracking-wider">Matriks Kategori Produk (Apple, Android, Acc, VAS)</h3>
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs min-w-[600px]">
-                  <thead className={`${innerCardBg} uppercase text-[11px] border-b border-inherit`}>
+                <table className="w-full text-left text-xs min-w-[550px]">
+                  <thead className={`${innerCardClasses} text-[10px] uppercase border-b border-inherit`}>
                     <tr>
-                      <th className="py-3.5 px-4 text-center">Rank</th>
-                      <th className="py-3.5 px-4">Nama Salesperson</th>
-                      <th className="py-3.5 px-4 text-right">Target</th>
-                      <th className="py-3.5 px-4 text-right">Actual Penjualan</th>
-                      <th className="py-3.5 px-4 text-center">Achv %</th>
-                      <th className="py-3.5 px-4 text-center">UPT</th>
-                      <th className="py-3.5 px-4 text-center">Status</th>
+                      <th className="py-2.5 px-3">Kategori</th>
+                      <th className="py-2.5 px-3 text-right">Actual</th>
+                      <th className="py-2.5 px-3 text-right">Target</th>
+                      <th className="py-2.5 px-3 text-center">Achv %</th>
+                      <th className="py-2.5 px-3 text-right">Gap</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-inherit font-medium">
-                    {ALL_STAFF_DETAILS.map((s) => (
-                      <tr key={s.rank} className="hover:opacity-90 transition">
-                        <td className="py-3.5 px-4 text-center">
-                          <span
-                            className={`w-6 h-6 rounded-full inline-flex items-center justify-center font-black text-xs ${
-                              s.rank === 1 ? (isDark ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#054ff0] text-white") : "opacity-60"
-                            }`}
-                          >
-                            {s.rank}
-                          </span>
+                  <tbody className="divide-y divide-inherit">
+                    {OVERVIEW_LOB_DATA.map((lob, idx) => (
+                      <tr key={idx} className="hover:opacity-90">
+                        <td className="py-2.5 px-3 font-bold flex items-center gap-1.5">
+                          <span>{lob.icon}</span>
+                          <span>{lob.category}</span>
                         </td>
-                        <td className="py-3.5 px-4">
-                          <div className="font-bold">{s.name}</div>
-                          <div className="text-[10px] opacity-60 font-mono">ID: {s.salesId}</div>
-                        </td>
-                        <td className="py-3.5 px-4 text-right opacity-70 font-mono">{s.target > 0 ? formatIDR(s.target) : "-"}</td>
-                        <td className="py-3.5 px-4 text-right font-extrabold text-emerald-500 text-sm">{formatIDR(s.actual)}</td>
-                        <td className="py-3.5 px-4 text-center font-bold">
-                          {s.achievement > 0 ? `${s.achievement.toFixed(1)}%` : "-"}
-                        </td>
-                        <td className="py-3.5 px-4 text-center font-black text-sky-500">{s.upt}</td>
-                        <td className="py-3.5 px-4 text-center">
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              s.status === "Tercapai"
-                                ? "bg-emerald-500/20 text-emerald-500"
-                                : "bg-red-500/20 text-red-500"
-                            }`}
-                          >
-                            {s.status === "Tercapai" ? "🔵 Tercapai" : "🔻 Belum"}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* DETAIL PRODUK PER KATEGORI (BERDASARKAN TABS) */}
-            <div className={`p-6 ${cardBg} border rounded-3xl shadow-xl`}>
-              <div className="flex flex-wrap justify-between items-center gap-4 mb-5">
-                <div>
-                  <h3 className="text-base font-bold">Rincian Detail Produk Terjual per Kategori</h3>
-                  <p className={`text-xs ${textMuted} mt-0.5`}>Pilih tab di bawah untuk melihat rincian SKU, qty, dan revenue tanpa reload</p>
-                </div>
-
-                {/* TAB NAVIGASI KATEGORI PRODUK */}
-                <div className={`flex flex-wrap gap-2 ${innerCardBg} p-1.5 rounded-2xl border`}>
-                  {(["apple", "android", "accessories", "vas"] as const).map((tabKey) => (
-                    <button
-                      key={tabKey}
-                      onClick={() => setOverviewDetailCategory(tabKey)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-                        overviewDetailCategory === tabKey ? activeTabBtn : "opacity-70 hover:opacity-100"
-                      }`}
-                    >
-                      {tabKey === "apple" && "🍎 Apple Devices"}
-                      {tabKey === "android" && "🤖 Android Devices"}
-                      {tabKey === "accessories" && "🔌 Accessories"}
-                      {tabKey === "vas" && "🛡️ VAS (Qoala/Tsel/XL/Indosat)"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className={`${innerCardBg} uppercase text-[11px] border-b border-inherit`}>
-                    <tr>
-                      <th className="py-3 px-4">Nama Produk & Layanan</th>
-                      <th className="py-3 px-4">Artikel SAP</th>
-                      <th className="py-3 px-4">Brand / Provider</th>
-                      <th className="py-3 px-4 text-center">Qty Terjual</th>
-                      <th className="py-3 px-4 text-right">Nilai Penjualan (Rp)</th>
-                      <th className="py-3 px-4 text-right">Kontribusi Share</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-inherit font-medium">
-                    {OVERVIEW_PRODUCT_BREAKDOWN[overviewDetailCategory].map((p, i) => (
-                      <tr key={i} className="hover:opacity-90 transition">
-                        <td className="py-3.5 px-4 font-bold">{p.name}</td>
-                        <td className="py-3.5 px-4 font-mono opacity-60 text-[11px]">{p.sku}</td>
-                        <td className="py-3.5 px-4">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${innerCardBg}`}>
-                            {p.brand}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 text-center font-bold">{p.qty} Unit</td>
-                        <td className="py-3.5 px-4 text-right font-extrabold text-emerald-500">
-                          {formatIDR(p.revenue)}
-                        </td>
-                        <td className={`py-3.5 px-4 text-right ${accentColor} font-bold`}>{p.share}</td>
+                        <td className={`py-2.5 px-3 text-right font-bold ${lob.color}`}>{formatCurrencyIDR(lob.actual)}</td>
+                        <td className="py-2.5 px-3 text-right opacity-70 font-mono">{formatCurrencyIDR(lob.target)}</td>
+                        <td className="py-2.5 px-3 text-center font-black">{lob.achievement}%</td>
+                        <td className="py-2.5 px-3 text-right font-mono text-red-500">{formatCurrencyIDR(lob.variance)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1481,332 +387,165 @@ export default function Page() {
           </div>
         )}
 
-        {/* TAB 2: WEEKLY SALES (WoW) BERDASARKAN DATABASE KOLOM O */}
-        {activeTab === "weekly-sales" && (
-          <div className="space-y-6 sm:space-y-8">
-            <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl`}>
-              <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
-                <div>
-                  <h2 className="text-base sm:text-lg font-black flex items-center gap-2">
-                    <span>📈</span>
-                    <span>WEEKLY SALES & WEEK-OVER-WEEK (WOW) DARI DATABASE KOLOM O</span>
-                  </h2>
-                  <p className={`text-xs ${textMuted} mt-1`}>
-                    Label periode persis sesuai entri Kolom O: <code>Week 1 (03/10/26)</code>, <code>W2 (10OKT 2026)</code>, <code>W3 (17OKT 2026)</code>, dan <code>W4 (24OKT 2026)</code>.
-                  </p>
-                </div>
+        {/* ========================================================= */}
+        {/* TAB 2: TODAY SALES & TAPPABLE BOTTOM SHEETS              */}
+        {/* ========================================================= */}
+        {activeTab === "today-sales" && (
+          <div className="space-y-6">
+            <div className={`p-5 rounded-3xl border ${cardClasses} space-y-4`}>
+              <div className="flex justify-between items-center">
+                <h3 className="text-sm font-bold uppercase tracking-wider">Daily Sales & Tappable Metrics</h3>
+                <span className="text-[10px] opacity-70">Ketuk metrik untuk detail</span>
               </div>
 
-              {/* 4 Kartu Week */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              {/* Tappable LOB Breakdown */}
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  onClick={() => { setSelectedLobTitle("Detail Transaksi Device Hari Ini"); setActiveSheet("LOB_DETAIL"); }}
+                  className={`p-3.5 rounded-2xl border text-center transition active:scale-95 ${innerCardClasses}`}
+                >
+                  <Smartphone size={20} className="mx-auto mb-1 text-sky-400" />
+                  <span className="text-[10px] font-bold block opacity-70">DEVICE</span>
+                  <span className="text-xs font-black">{formatCurrencyIDR(85400000)}</span>
+                </button>
+                <button
+                  onClick={() => { setSelectedLobTitle("Detail Transaksi Accessories Hari Ini"); setActiveSheet("LOB_DETAIL"); }}
+                  className={`p-3.5 rounded-2xl border text-center transition active:scale-95 ${innerCardClasses}`}
+                >
+                  <Headphones size={20} className="mx-auto mb-1 text-amber-400" />
+                  <span className="text-[10px] font-bold block opacity-70">ACC</span>
+                  <span className="text-xs font-black">{formatCurrencyIDR(4190000)}</span>
+                </button>
+                <button
+                  onClick={() => { setSelectedLobTitle("Detail Transaksi VAS (Qoala/Telco)"); setActiveSheet("LOB_DETAIL"); }}
+                  className={`p-3.5 rounded-2xl border text-center transition active:scale-95 ${innerCardClasses}`}
+                >
+                  <ShieldCheck size={20} className="mx-auto mb-1 text-purple-400" />
+                  <span className="text-[10px] font-bold block opacity-70">VAS</span>
+                  <span className="text-xs font-black">{formatCurrencyIDR(3490000)}</span>
+                </button>
+              </div>
+
+              {/* Tappable UPT / INVOICE / QTY */}
+              <div className="grid grid-cols-3 gap-3 pt-2">
+                <button
+                  onClick={() => setActiveSheet("UPT")}
+                  className={`p-3.5 rounded-2xl border text-center transition active:scale-95 ${innerCardClasses}`}
+                >
+                  <span className="text-[10px] font-bold block opacity-70">TAP UPT</span>
+                  <span className="text-lg font-black text-sky-500">1.85</span>
+                  <span className="text-[9px] opacity-60 block">Rata-rata Struk</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveSheet("INVOICE")}
+                  className={`p-3.5 rounded-2xl border text-center transition active:scale-95 ${innerCardClasses}`}
+                >
+                  <span className="text-[10px] font-bold block opacity-70">TAP INVOICE</span>
+                  <span className="text-lg font-black text-emerald-500">12 Struk</span>
+                  <span className="text-[9px] opacity-60 block">Unique Inv</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveSheet("QTY")}
+                  className={`p-3.5 rounded-2xl border text-center transition active:scale-95 ${innerCardClasses}`}
+                >
+                  <span className="text-[10px] font-bold block opacity-70">TAP QTY</span>
+                  <span className="text-lg font-black text-amber-500">22 Unit</span>
+                  <span className="text-[9px] opacity-60 block">Fisik Terjual</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* TAB 3: WEEKLY SALES (WoW DARI KOLOM O)                    */}
+        {/* ========================================================= */}
+        {activeTab === "weekly-sales" && (
+          <div className="space-y-6">
+            <div className={`p-5 rounded-3xl border ${cardClasses} space-y-4`}>
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-sm font-bold uppercase tracking-wider">Weekly Sales Performance (Week to Week)</h3>
+                  <p className="text-xs opacity-70">Sumber Data: Sheet <code>DATABASE</code> Kolom O</p>
+                </div>
+                <WhatsAppShareButton
+                  storeName={STORE_CONFIG.storeName}
+                  actual={formatCurrencyIDR(storeKPI.actual)}
+                  target={formatCurrencyIDR(storeKPI.target)}
+                  achv={storeAchv}
+                  gap={formatCurrencyIDR(storeGap)}
+                  upt={storeUPT}
+                  periodText="Rekap Mingguan W1-W4"
+                />
+              </div>
+
+              {/* Grid 4 Minggu */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {DATABASE_WEEKLY_DATA.map((w, idx) => (
-                  <div key={idx} className={`p-4 ${innerCardBg} border rounded-2xl`}>
-                    <div className="flex justify-between items-center mb-1">
-                      <span className={`text-xs font-bold ${accentColor}`}>{w.weekLabel}</span>
-                      {idx > 0 && (
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${w.growthWoW >= 0 ? "bg-emerald-500/20 text-emerald-500" : "bg-red-500/20 text-red-500"}`}>
-                          {w.growthWoW > 0 ? `+${w.growthWoW}%` : `${w.growthWoW}%`} WoW
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-lg font-black mt-1">{formatIDR(w.totalSales)}</div>
-                    <div className={`flex justify-between text-[11px] ${textMuted} mt-2`}>
-                      <span>{w.qty} Unit</span>
-                      <span>{w.invoices} Transaksi</span>
-                    </div>
+                  <div key={idx} className={`p-3.5 rounded-2xl border ${innerCardClasses}`}>
+                    <span className="text-xs font-bold text-amber-400 block">{w.weekLabel}</span>
+                    <span className="text-base font-black mt-1 block">{formatCurrencyIDR(w.totalSales)}</span>
+                    <span className={`text-[10px] font-bold block mt-1 ${w.growthWoW >= 0 ? "text-emerald-500" : "text-red-500"}`}>
+                      {idx === 0 ? "Baseline W1" : `${w.growthWoW > 0 ? `+${w.growthWoW}%` : `${w.growthWoW}%`} WoW`}
+                    </span>
                   </div>
                 ))}
               </div>
-
-              {/* Tabel Detail Breakdown Mingguan */}
-              <div className={`overflow-x-auto rounded-2xl border ${innerCardBg}`}>
-                <table className="w-full text-left text-xs min-w-[700px]">
-                  <thead className={`${innerCardBg} uppercase text-[11px] border-b border-inherit`}>
-                    <tr>
-                      <th className="py-4 px-4">Label Database (Kolom O)</th>
-                      <th className="py-4 px-4 text-center">Unit</th>
-                      <th className="py-4 px-4 text-center">Struk</th>
-                      <th className="py-4 px-4 text-right text-sky-500">🍎 Apple Devices</th>
-                      <th className="py-4 px-4 text-right text-indigo-500">🤖 Android Devices</th>
-                      <th className="py-4 px-4 text-right text-amber-500">🔌 Accessories</th>
-                      <th className="py-4 px-4 text-right text-purple-500">🛡️ VAS</th>
-                      <th className="py-4 px-4 text-right">Total Penjualan</th>
-                      <th className="py-4 px-4 text-center">Pertumbuhan WoW</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-inherit font-medium">
-                    {DATABASE_WEEKLY_DATA.map((w, i) => (
-                      <tr key={i} className="hover:opacity-90 transition">
-                        <td className="py-4 px-4 font-bold">
-                          <div>{w.weekLabel}</div>
-                          <div className={`text-[10px] ${textMuted} font-normal`}>{w.weekRange}</div>
-                        </td>
-                        <td className="py-4 px-4 text-center font-bold">{w.qty}</td>
-                        <td className="py-4 px-4 text-center opacity-70">{w.invoices}</td>
-                        <td className="py-4 px-4 text-right font-mono text-sky-500">{formatIDR(w.appleSales)}</td>
-                        <td className="py-4 px-4 text-right font-mono text-indigo-500">{formatIDR(w.androidSales)}</td>
-                        <td className="py-4 px-4 text-right font-mono text-amber-500">{formatIDR(w.accessoriesSales)}</td>
-                        <td className="py-4 px-4 text-right font-mono text-purple-500">{formatIDR(w.vasSales)}</td>
-                        <td className="py-4 px-4 text-right font-extrabold text-emerald-500 text-sm">{formatIDR(w.totalSales)}</td>
-                        <td className="py-4 px-4 text-center font-bold">
-                          {i === 0 ? (
-                            <span className="opacity-50">Baseline W1</span>
-                          ) : (
-                            <span className={w.growthWoW >= 0 ? "text-emerald-500" : "text-red-500"}>
-                              {w.growthWoW > 0 ? `+${w.growthWoW}%` : `${w.growthWoW}%`}
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* TABEL PENCAPAIAN PER STAF WEEK-TO-WEEK DENGAN GROWTH / DEGROWTH */}
-              <div className="mt-8">
-                <h3 className="text-sm font-bold uppercase tracking-wider mb-3 flex items-center gap-2">
-                  <span>👥</span>
-                  <span>Performa Penjualan & Growth / Degrowth Mingguan per Staf</span>
-                </h3>
-                <div className={`overflow-x-auto rounded-2xl border ${innerCardBg}`}>
-                  <table className="w-full text-left text-xs min-w-[700px]">
-                    <thead className={`${innerCardBg} uppercase text-[10px] border-b border-inherit`}>
-                      <tr>
-                        <th className="py-3 px-4">Salesperson</th>
-                        <th className="py-3 px-4 text-right">Week 1</th>
-                        <th className="py-3 px-4 text-right">W2 (10OKT)</th>
-                        <th className="py-3 px-4 text-center">WoW W2</th>
-                        <th className="py-3 px-4 text-right">W3 (17OKT)</th>
-                        <th className="py-3 px-4 text-center">WoW W3</th>
-                        <th className="py-3 px-4 text-right">W4 (24OKT)</th>
-                        <th className="py-3 px-4 text-center">WoW W4</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-inherit font-medium">
-                      {ALL_STAFF_DETAILS.map((st) => (
-                        <tr key={st.salesId} className="hover:opacity-90 transition">
-                          <td className="py-3 px-4 font-bold">{st.name}</td>
-                          <td className="py-3 px-4 text-right font-mono opacity-80">{formatIDR(st.weekToWeek.w1)}</td>
-                          <td className="py-3 px-4 text-right font-mono opacity-80">{formatIDR(st.weekToWeek.w2)}</td>
-                          <td className="py-3 px-4 text-center font-bold">
-                            <span className={st.weekToWeek.growthW2 >= 0 ? "text-emerald-500" : "text-red-500"}>
-                              {st.weekToWeek.growthW2 > 0 ? `+${st.weekToWeek.growthW2}%` : `${st.weekToWeek.growthW2}%`}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-right font-mono opacity-80">{formatIDR(st.weekToWeek.w3)}</td>
-                          <td className="py-3 px-4 text-center font-bold">
-                            <span className={st.weekToWeek.growthW3 >= 0 ? "text-emerald-500" : "text-red-500"}>
-                              {st.weekToWeek.growthW3 > 0 ? `+${st.weekToWeek.growthW3}%` : `${st.weekToWeek.growthW3}%`}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-right font-mono opacity-80">{formatIDR(st.weekToWeek.w4)}</td>
-                          <td className="py-3 px-4 text-center font-bold">
-                            <span className={st.weekToWeek.growthW4 >= 0 ? "text-emerald-500" : "text-red-500"}>
-                              {st.weekToWeek.growthW4 > 0 ? `+${st.weekToWeek.growthW4}%` : `${st.weekToWeek.growthW4}%`}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
             </div>
           </div>
         )}
 
-        {/* TAB 3: STAFF PERFORMANCE DETAIL (SEMUA STAF DITAMPILKAN SEKALIGUS) */}
+        {/* ========================================================= */}
+        {/* TAB 4: STAFF PERFORMANCE DETAIL (SEMUA STAF DITAMPILKAN)  */}
+        {/* ========================================================= */}
         {activeTab === "staff-performance" && (
-          <div className="space-y-6 sm:space-y-8">
-            <div className="space-y-6 sm:space-y-8">
-              <div className="flex items-center justify-between">
-                <h2 className="text-base sm:text-lg font-black tracking-wide flex items-center gap-2">
-                  <span>👥</span>
-                  <span>RINCIAN DETAIL SELURUH STAF SALES ({ALL_STAFF_DETAILS.length} ORANG)</span>
-                </h2>
-              </div>
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h3 className="text-sm font-bold uppercase tracking-wider">Daftar Lengkap Seluruh Staf Sales ({ALL_STAFF_DETAILS.length} Orang)</h3>
+              <WhatsAppShareButton
+                storeName={STORE_CONFIG.storeName}
+                actual={formatCurrencyIDR(storeKPI.actual)}
+                target={formatCurrencyIDR(storeKPI.target)}
+                achv={storeAchv}
+                gap={formatCurrencyIDR(storeGap)}
+                upt={storeUPT}
+                periodText="Peringkat Kinerja Staf"
+              />
+            </div>
 
+            <div className="space-y-4">
               {ALL_STAFF_DETAILS.map((staff) => (
-                <div key={staff.salesId} className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl relative overflow-hidden space-y-5`}>
-                  {/* Header Staf dengan Lencana Inisial & UPT */}
-                  <div className="flex flex-wrap justify-between items-start gap-4 pb-4 border-b border-inherit">
+                <div key={staff.salesId} className={`p-5 rounded-3xl border ${cardClasses} space-y-4`}>
+                  <div className="flex items-center justify-between gap-3 pb-3 border-b border-inherit">
                     <div className="flex items-center gap-3">
-                      <div className="relative">
-                        <div
-                          className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl tracking-wider shadow-lg ${staff.avatarBg} ${staff.avatarText}`}
-                        >
-                          {staff.initials}
-                        </div>
-                        <span
-                          className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full inline-flex items-center justify-center font-black text-xs ${
-                            staff.rank === 1 ? (isDark ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#054ff0] text-white") : `${innerCardBg} border`
-                          }`}
-                        >
-                          #{staff.rank}
-                        </span>
+                      <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-black text-sm ${staff.avatarBg} ${staff.avatarText}`}>
+                        {staff.initials}
                       </div>
-
                       <div>
-                        <h3 className="text-lg sm:text-xl font-black flex items-center gap-2">
+                        <div className="font-bold text-sm flex items-center gap-2">
                           <span>{staff.name}</span>
-                          {staff.rank === 1 && (
-                            <span className={`text-[10px] ${isDark ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#054ff0] text-white"} px-2 py-0.5 rounded-full font-black uppercase`}>
-                              Top 1 👑
-                            </span>
-                          )}
-                        </h3>
-                        <p className={`text-xs ${textMuted} font-mono`}>ID Staf: {staff.salesId}</p>
+                          <span className={`text-[10px] px-2 py-0.2 rounded-full font-bold ${innerCardClasses}`}>
+                            Rank #{staff.rank}
+                          </span>
+                        </div>
+                        <span className="text-[10px] opacity-60 font-mono">ID: {staff.salesId} • UPT: {staff.upt}</span>
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 text-right">
-                      <div className={`px-3 py-1.5 rounded-xl border ${innerCardBg}`}>
-                        <span className="text-[9px] opacity-60 uppercase block">Total Omset</span>
-                        <span className="text-xs sm:text-sm font-black text-emerald-500">{formatIDR(staff.actual)}</span>
-                      </div>
-                      <div className={`px-3 py-1.5 rounded-xl border ${innerCardBg}`}>
-                        <span className="text-[9px] opacity-60 uppercase block">Achievement</span>
-                        <span className={`text-xs sm:text-sm font-black ${staff.achievement >= 100 ? "text-emerald-500" : accentColor}`}>
-                          {staff.achievement > 0 ? `${staff.achievement.toFixed(1)}%` : "-"}
-                        </span>
-                      </div>
-                      <div className={`px-3 py-1.5 rounded-xl border ${innerCardBg}`}>
-                        <span className="text-[9px] opacity-60 uppercase block">UPT Staf</span>
-                        <span className="text-xs sm:text-sm font-black text-sky-500">{staff.upt} Unit/Struk</span>
-                      </div>
+                    <div className="text-right">
+                      <span className="text-sm font-black text-emerald-500 block">{formatCurrencyIDR(staff.actual)}</span>
+                      <span className={`text-[11px] font-bold ${staff.achievement >= 100 ? "text-emerald-500" : accentColor}`}>
+                        {staff.achievement > 0 ? `${staff.achievement}%` : "Non-Quota"}
+                      </span>
                     </div>
                   </div>
 
-                  {/* Evaluasi Ringkas Bahasa Indonesia */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                    <div className={`p-3 rounded-xl border ${innerCardBg}`}>
-                      <span className={`font-bold ${accentColor} block mb-1`}>📌 Evaluasi Kinerja:</span>
-                      <p className="opacity-80 leading-relaxed">{staff.ringkasanEvaluasi}</p>
-                    </div>
-                    <div className={`p-3 rounded-xl border ${innerCardBg}`}>
-                      <span className="font-bold text-emerald-500 block mb-1">⚡ Rekomendasi Tindakan:</span>
-                      <p className="opacity-80 leading-relaxed">{staff.rekomendasiTindakan}</p>
-                    </div>
-                  </div>
-
-                  {/* KARTU TARGET & PENCAPAIAN ACCESSORIES & VAS */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className={`p-4 rounded-2xl border ${innerCardBg}`}>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-xs font-bold text-amber-500 flex items-center gap-1.5">
-                          <span>🔌</span>
-                          <span>Target & Pencapaian Accessories</span>
-                        </span>
-                        <span className="text-xs font-black text-amber-500">{staff.achvAcc}% Achieved</span>
-                      </div>
-                      <div className="flex justify-between text-xs mb-1">
-                        <span className="opacity-60">Actual Acc:</span>
-                        <span className="font-extrabold">{formatIDR(staff.actualAcc)}</span>
-                      </div>
-                      <div className="flex justify-between text-xs mb-2">
-                        <span className="opacity-60">Target Acc:</span>
-                        <span className="font-mono opacity-80">{staff.targetAcc > 0 ? formatIDR(staff.targetAcc) : "-"}</span>
-                      </div>
-                      <div className={`w-full ${cardBg} h-2 rounded-full overflow-hidden`}>
-                        <div className="bg-amber-400 h-full rounded-full" style={{ width: `${Math.min(staff.achvAcc, 100)}%` }}></div>
-                      </div>
-                    </div>
-
-                    <div className={`p-4 rounded-2xl border ${innerCardBg}`}>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-xs font-bold text-purple-500 flex items-center gap-1.5">
-                          <span>🛡️</span>
-                          <span>Target & Pencapaian VAS (Qoala/Tsel/XL/Indosat)</span>
-                        </span>
-                        <span className="text-xs font-black text-purple-500">{staff.achvVas}% Achieved</span>
-                      </div>
-                      <div className="flex justify-between text-xs mb-1">
-                        <span className="opacity-60">Actual VAS:</span>
-                        <span className="font-extrabold">{formatIDR(staff.actualVas)}</span>
-                      </div>
-                      <div className="flex justify-between text-xs mb-2">
-                        <span className="opacity-60">Target VAS:</span>
-                        <span className="font-mono opacity-80">{staff.targetVas > 0 ? formatIDR(staff.targetVas) : "-"}</span>
-                      </div>
-                      <div className={`w-full ${cardBg} h-2 rounded-full overflow-hidden`}>
-                        <div className="bg-purple-400 h-full rounded-full" style={{ width: `${Math.min(staff.achvVas, 100)}%` }}></div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Sub-Lini Apple Devices */}
-                  <div>
-                    <h4 className="text-xs font-bold text-sky-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                      <span>🍎</span>
-                      <span>Apple Devices (iPhone, iPad, MacBook, Apple Watch, AirPods)</span>
-                    </h4>
-                    <div className={`overflow-x-auto rounded-xl border ${innerCardBg}`}>
-                      <table className="w-full text-left text-xs min-w-[500px]">
-                        <thead className={`${innerCardBg} uppercase text-[10px] border-b border-inherit`}>
-                          <tr>
-                            <th className="py-2.5 px-3">Produk</th>
-                            <th className="py-2.5 px-3 text-center">Qty</th>
-                            <th className="py-2.5 px-3 text-right">Actual</th>
-                            <th className="py-2.5 px-3 text-right">Target</th>
-                            <th className="py-2.5 px-3 text-center">Achv %</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-inherit font-medium">
-                          {staff.appleSub.map((p, idx) => (
-                            <tr key={idx} className="hover:opacity-90 transition">
-                              <td className="py-2.5 px-3 font-bold flex items-center gap-1.5">
-                                <span>{p.icon}</span>
-                                <span>{p.name}</span>
-                              </td>
-                              <td className="py-2.5 px-3 text-center">{p.qty}</td>
-                              <td className="py-2.5 px-3 text-right font-extrabold text-emerald-500">{formatIDR(p.actual)}</td>
-                              <td className="py-2.5 px-3 text-right opacity-60">{p.target > 0 ? formatIDR(p.target) : "-"}</td>
-                              <td className={`py-2.5 px-3 text-center font-bold ${accentColor}`}>
-                                {p.target > 0 ? `${p.achievement.toFixed(1)}%` : p.actual > 0 ? "100%" : "0%"}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  {/* Sub-Lini Android Devices */}
-                  <div>
-                    <h4 className="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                      <span>🤖</span>
-                      <span>Android Devices (Samsung, Oppo, Motorola, Huawei, Infinix, Xiaomi)</span>
-                    </h4>
-                    <div className={`overflow-x-auto rounded-xl border ${innerCardBg}`}>
-                      <table className="w-full text-left text-xs min-w-[500px]">
-                        <thead className={`${innerCardBg} uppercase text-[10px] border-b border-inherit`}>
-                          <tr>
-                            <th className="py-2.5 px-3">Brand Android</th>
-                            <th className="py-2.5 px-3 text-center">Qty</th>
-                            <th className="py-2.5 px-3 text-right">Actual</th>
-                            <th className="py-2.5 px-3 text-right">Target</th>
-                            <th className="py-2.5 px-3 text-center">Achv %</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-inherit font-medium">
-                          {staff.androidSub.map((p, idx) => (
-                            <tr key={idx} className="hover:opacity-90 transition">
-                              <td className="py-2.5 px-3 font-bold flex items-center gap-1.5">
-                                <span>{p.icon}</span>
-                                <span>{p.name}</span>
-                              </td>
-                              <td className="py-2.5 px-3 text-center">{p.qty}</td>
-                              <td className="py-2.5 px-3 text-right font-extrabold text-emerald-500">{formatIDR(p.actual)}</td>
-                              <td className="py-2.5 px-3 text-right opacity-60">{p.target > 0 ? formatIDR(p.target) : "-"}</td>
-                              <td className={`py-2.5 px-3 text-center font-bold ${accentColor}`}>
-                                {p.target > 0 ? `${p.achievement.toFixed(1)}%` : p.actual > 0 ? "100%" : "0%"}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                  {/* Evaluasi Ringkas */}
+                  <div className={`p-3 rounded-2xl border text-xs space-y-1 ${innerCardClasses}`}>
+                    <p className="opacity-80"><strong>Evaluasi:</strong> {staff.ringkasanEvaluasi}</p>
+                    <p className="text-emerald-500"><strong>Tindakan:</strong> {staff.rekomendasiTindakan}</p>
                   </div>
                 </div>
               ))}
@@ -1814,49 +553,40 @@ export default function Page() {
           </div>
         )}
 
-        {/* TAB 4: BNPL TRANSACTIONS */}
+        {/* ========================================================= */}
+        {/* TAB 5: BNPL TRANSACTIONS (BUY NOW PAY LATER)              */}
+        {/* ========================================================= */}
         {activeTab === "bnpl" && (
-          <div className="space-y-6">
-            <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl`}>
-              <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
-                <div>
-                  <h2 className="text-base sm:text-lg font-black flex items-center gap-2">
-                    <span>💳</span>
-                    <span>TRANSAKSI PEMBIAYAAN KONSUMEN (BNPL DATABASE)</span>
-                  </h2>
-                  <p className={`text-xs ${textMuted} mt-1`}>
-                    Sumber Data Riil: Sheet <code>BNPL DATABASE</code> (gid: 2697970). Detail leasing, tenor, dan produk.
-                  </p>
-                </div>
+          <div className="space-y-4">
+            <div className={`p-5 rounded-3xl border ${cardClasses} space-y-4`}>
+              <div>
+                <h3 className="text-sm font-bold uppercase tracking-wider">Transaksi Pembiayaan Konsumen (BNPL)</h3>
+                <p className="text-xs opacity-70">Sumber Data: Sheet <code>BNPL DATABASE</code> (gid: 2697970)</p>
               </div>
 
-              <div className={`overflow-x-auto rounded-2xl border ${innerCardBg}`}>
-                <table className="w-full text-left text-xs min-w-[700px]">
-                  <thead className={`${innerCardBg} uppercase text-[11px] border-b border-inherit`}>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs min-w-[600px]">
+                  <thead className={`${innerCardClasses} text-[10px] uppercase border-b border-inherit`}>
                     <tr>
-                      <th className="py-4 px-4">Tanggal</th>
-                      <th className="py-4 px-4">No. Invoice</th>
-                      <th className="py-4 px-4">Tender / Mitra BNPL</th>
-                      <th className="py-4 px-4">Detail Produk yang Dibeli</th>
-                      <th className="py-4 px-4 text-center">QTY</th>
-                      <th className="py-4 px-4 text-right">Nilai Pembiayaan (Rp)</th>
+                      <th className="py-3 px-3">Tanggal</th>
+                      <th className="py-3 px-3">No. Invoice</th>
+                      <th className="py-3 px-3">Mitra BNPL</th>
+                      <th className="py-3 px-3">Produk</th>
+                      <th className="py-3 px-3 text-right">Amount (Rp)</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-inherit font-medium">
-                    {BNPL_REAL_DATA.map((b, idx) => (
-                      <tr key={idx} className="hover:opacity-90 transition">
-                        <td className="py-3.5 px-4 font-mono opacity-80">{b.date}</td>
-                        <td className={`py-3.5 px-4 font-mono font-bold ${accentColor}`}>{b.invoice}</td>
-                        <td className="py-3.5 px-4">
-                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${innerCardBg}`}>
+                  <tbody className="divide-y divide-inherit">
+                    {BNPL_REAL_DATA.map((b, i) => (
+                      <tr key={i} className="hover:opacity-90">
+                        <td className="py-3 px-3 font-mono opacity-80">{b.date}</td>
+                        <td className={`py-3 px-3 font-mono font-bold ${accentColor}`}>{b.invoice}</td>
+                        <td className="py-3 px-3">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${innerCardClasses}`}>
                             {b.tender}
                           </span>
                         </td>
-                        <td className="py-3.5 px-4 font-semibold max-w-md">{b.product}</td>
-                        <td className="py-3.5 px-4 text-center font-bold">{b.qty}</td>
-                        <td className="py-3.5 px-4 text-right font-extrabold text-emerald-500 text-sm">
-                          {formatIDR(b.amount)}
-                        </td>
+                        <td className="py-3 px-3 font-medium max-w-xs truncate">{b.product}</td>
+                        <td className="py-3 px-3 text-right font-bold text-emerald-500">{formatCurrencyIDR(b.amount)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1866,89 +596,107 @@ export default function Page() {
           </div>
         )}
 
-        {/* TAB 5: KHUSUS ADMIN (22008089) - ACTIVITY STAFF MONITORING */}
-        {activeTab === "admin-audit" && currentSalesId === "22008089" && (
-          <div className="space-y-6">
-            <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-2xl`}>
-              <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
-                <div>
-                  <h2 className="text-base sm:text-lg font-black text-emerald-500 flex items-center gap-2">
-                    <span>🛡️</span>
-                    <span>MONITORING ACTIVITY STAFF (PORTAL KHUSUS ADMIN)</span>
-                  </h2>
-                  <p className={`text-xs ${textMuted} mt-1`}>
-                    Merekam waktu login, tipe perangkat, dan lokasi/GPS setiap kali staf mengakses website dashboard.
-                  </p>
-                </div>
-
-                <button
-                  onClick={() => {
-                    localStorage.removeItem("digiplus_staff_activity_logs");
-                    setStaffActivityLogs([]);
-                  }}
-                  className="px-3 py-1.5 rounded-xl bg-red-500/20 text-red-500 border border-red-500/40 text-xs font-bold hover:bg-red-500/30 transition"
-                >
-                  Bersihkan Log
-                </button>
-              </div>
-
-              <div className={`overflow-x-auto rounded-2xl border ${innerCardBg}`}>
-                <table className="w-full text-left text-xs min-w-[700px]">
-                  <thead className={`${innerCardBg} uppercase text-[11px] border-b border-inherit`}>
+        {/* ========================================================= */}
+        {/* TAB 6: ACTIVITY STAFF (KHUSUS ADMIN 22008089)             */}
+        {/* ========================================================= */}
+        {activeTab === "admin-audit" && currentUser?.id === STORE_CONFIG.adminSalesId && (
+          <div className="space-y-4">
+            <div className={`p-5 rounded-3xl border ${cardClasses} space-y-4`}>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-emerald-500">Log Aktivitas Login Staf (Real-Time Audit)</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs min-w-[550px]">
+                  <thead className={`${innerCardClasses} text-[10px] uppercase border-b border-inherit`}>
                     <tr>
-                      <th className="py-3.5 px-4">Waktu Akses (WIB)</th>
-                      <th className="py-3.5 px-4">Sales ID & Nama Staf</th>
-                      <th className="py-3.5 px-4">Tipe Perangkat</th>
-                      <th className="py-3.5 px-4">Browser</th>
-                      <th className="py-3.5 px-4">Lokasi Terdeteksi</th>
-                      <th className="py-3.5 px-4">Koordinat GPS</th>
+                      <th className="py-3 px-3">Waktu Login</th>
+                      <th className="py-3 px-3">Sales ID / Nama</th>
+                      <th className="py-3 px-3">Perangkat</th>
+                      <th className="py-3 px-3">Lokasi Toko</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-inherit font-medium">
-                    {staffActivityLogs.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="py-6 text-center opacity-60">
-                          Belum ada aktivitas staf baru yang terekam.
-                        </td>
+                  <tbody className="divide-y divide-inherit font-mono">
+                    {auditLogs.map((log) => (
+                      <tr key={log.id}>
+                        <td className="py-3 px-3 opacity-70">{log.timestamp}</td>
+                        <td className="py-3 px-3 font-bold">{log.salesName} ({log.salesId})</td>
+                        <td className="py-3 px-3 text-sky-400">{log.deviceType}</td>
+                        <td className="py-3 px-3 text-emerald-400">{log.location}</td>
                       </tr>
-                    ) : (
-                      staffActivityLogs.map((log) => (
-                        <tr key={log.id} className="hover:opacity-90 transition">
-                          <td className={`py-3.5 px-4 font-mono ${accentColor}`}>{log.timestamp}</td>
-                          <td className="py-3.5 px-4">
-                            <div className="font-bold">{log.salesName}</div>
-                            <div className="text-[10px] opacity-60 font-mono">ID: {log.salesId}</div>
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${innerCardBg}`}>
-                              {log.deviceType}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 opacity-80">{log.browserInfo}</td>
-                          <td className="py-3.5 px-4 text-emerald-500 font-bold">{log.locationName}</td>
-                          <td className="py-3.5 px-4 font-mono opacity-60 text-[10px]">{log.coords}</td>
-                        </tr>
-                      ))
-                    )}
+                    ))}
                   </tbody>
                 </table>
               </div>
             </div>
           </div>
         )}
-
-        {/* TAB 6: RINCIAN PENJUALAN LOB */}
-        {activeTab === "sales-detail" && (
-          <div className="space-y-4">
-            <h2 className="text-base font-bold">Breakdown LOB Sales</h2>
-            <div className={`p-6 ${cardBg} border rounded-2xl`}>
-              <p className={`text-xs ${textMuted} leading-relaxed`}>
-                Total penjualan store terdiri dari <strong>Apple Devices</strong> senilai Rp 2,51 Miliar (80,0%), <strong>Android Devices</strong> Rp 394 Juta (12,5%), <strong>Accessories</strong> Rp 60,6 Juta (1,9%), dan <strong>VAS</strong> (Qoala, Telkomsel, XL, Indosat) sebesar Rp 45,0 Juta (1,4%).
-              </p>
-            </div>
-          </div>
-        )}
       </main>
+
+      {/* ========================================================= */}
+      {/* BOTTOM SHEETS INTERAKTIF UNTUK MOBILE & DESKTOP           */}
+      {/* ========================================================= */}
+      <BottomSheet
+        isOpen={activeSheet === "UPT"}
+        onClose={() => setActiveSheet(null)}
+        title="Detail UPT • Hari Ini (Units Per Transaction)"
+      >
+        <div className="space-y-3 text-xs">
+          <div className={`p-3 rounded-xl border ${innerCardClasses} flex justify-between`}>
+            <span>Rata-rata UPT Toko Hari Ini:</span>
+            <strong className="text-sky-500">1.85 Unit/Struk</strong>
+          </div>
+          <div className="space-y-2">
+            {ALL_STAFF_DETAILS.map((s) => (
+              <div key={s.salesId} className="flex justify-between items-center p-2 rounded-lg hover:bg-slate-500/10">
+                <span>{s.name}</span>
+                <span className="font-bold text-sky-400">{s.upt} UPT</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </BottomSheet>
+
+      <BottomSheet
+        isOpen={activeSheet === "INVOICE"}
+        onClose={() => setActiveSheet(null)}
+        title="Daftar Unique Invoice • Hari Ini"
+      >
+        <div className="space-y-2 text-xs font-mono">
+          {["INV-100012290", "INV-100012291", "INV-100012292"].map((inv, i) => (
+            <div key={i} className={`p-2.5 rounded-xl border ${innerCardClasses} flex justify-between`}>
+              <span className="text-amber-400 font-bold">{inv}</span>
+              <span>1 Unit • Rp 24.999.000</span>
+            </div>
+          ))}
+        </div>
+      </BottomSheet>
+
+      <BottomSheet
+        isOpen={activeSheet === "QTY"}
+        onClose={() => setActiveSheet(null)}
+        title="Peringkat Qty Fisik Terjual • Hari Ini"
+      >
+        <div className="space-y-2 text-xs">
+          {ALL_STAFF_DETAILS.map((s, idx) => (
+            <div key={s.salesId} className={`p-2.5 rounded-xl border ${innerCardClasses} flex justify-between`}>
+              <span>#{idx + 1} {s.name}</span>
+              <strong className="text-emerald-500">{s.rank === 1 ? 8 : 3} Unit</strong>
+            </div>
+          ))}
+        </div>
+      </BottomSheet>
+
+      <BottomSheet
+        isOpen={activeSheet === "LOB_DETAIL"}
+        onClose={() => setActiveSheet(null)}
+        title={selectedLobTitle}
+      >
+        <div className="space-y-2 text-xs">
+          <p className="opacity-70">Daftar item produk yang berhasil ditransaksikan pada kategori ini.</p>
+          <div className={`p-3 rounded-xl border ${innerCardClasses}`}>
+            <span className="font-bold block">iPhone 17 Pro Max 256GB Silver</span>
+            <span className="opacity-60 text-[10px]">SKU: APPMFYM4ID/A • 1 Unit • Rp 24.999.000</span>
+          </div>
+        </div>
+      </BottomSheet>
     </div>
   );
 }
