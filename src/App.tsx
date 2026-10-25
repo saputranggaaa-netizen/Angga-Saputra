@@ -21,8 +21,6 @@ interface StaffFullData {
   salesId: string;
   name: string;
   initials: string;
-  avatarBg: string;
-  avatarText: string;
   target: number;
   actual: number;
   achievement: number;
@@ -38,11 +36,14 @@ interface StaffFullData {
   targetVas: number;
   actualVas: number;
   achvVas: number;
-  weekSales: {
+  weekToWeek: {
     w1: number;
     w2: number;
     w3: number;
     w4: number;
+    growthW2: number;
+    growthW3: number;
+    growthW4: number;
   };
   appleSub: SubCategoryMetric[];
   androidSub: SubCategoryMetric[];
@@ -71,15 +72,113 @@ interface StaffLoginLog {
   coords: string;
 }
 
-// ==========================================
-// DATASET MASTER MINGGUAN (DATABASE KOLOM O)
-// ==========================================
-const RAW_WEEKLY_DATA = [
+// 1. DATA TIME GONE BERJALAN (OKTOBER 2026)
+const TIME_GONE_DATA = {
+  daysPassed: 24,
+  totalDays: 31,
+  daysLeft: 7,
+  percentageTimeGone: 77.4,
+  actualPace: 36.1,
+  dailyRunRate: 131159508,
+  requiredRunRate: 797262710,
+};
+
+// 2. DATA OVERVIEW STORE LOB (DATABASE MASTER)
+const OVERVIEW_LOB_DATA = [
   {
-    weekKey: "W1",
+    category: "Apple Devices",
+    icon: "🍎",
+    actual: 2519060000,
+    target: 6932151006,
+    achievement: 36.3,
+    variance: -4413091006,
+    estimate: 3253785833,
+    status: "Tertinggal -41.1%",
+    color: "text-sky-400",
+  },
+  {
+    category: "Android Devices",
+    icon: "🤖",
+    actual: 394141000,
+    target: 943691666,
+    achievement: 41.8,
+    variance: -549550666,
+    estimate: 509098792,
+    status: "Tertinggal -35.6%",
+    color: "text-indigo-400",
+  },
+  {
+    category: "Accessories",
+    icon: "🔌",
+    actual: 60654200,
+    target: 460550560,
+    achievement: 13.2,
+    variance: -399896360,
+    estimate: 78345008,
+    status: "Tertinggal -64.2%",
+    color: "text-amber-400",
+  },
+  {
+    category: "VAS (Qoala, Telkomsel, XL, Indosat)",
+    icon: "🛡️",
+    actual: 45070000,
+    target: 392273940,
+    achievement: 11.5,
+    variance: -347203940,
+    estimate: 58215417,
+    status: "Tertinggal -65.9%",
+    color: "text-purple-400",
+  },
+];
+
+const OVERVIEW_TOTAL = {
+  actual: 3150827200,
+  target: 8728667173,
+  achievement: 36.1,
+  variance: -5577839973,
+  estimate: 4069818467,
+  storeUpt: 1.72,
+};
+
+// 3. DETAIL PRODUK PER KATEGORI (SUMBER SHEET DATABASE)
+const OVERVIEW_PRODUCT_BREAKDOWN: Record<string, { name: string; sku: string; brand: string; qty: number; revenue: number; share: string }[]> = {
+  apple: [
+    { name: "iPhone 17 Pro Max 256GB / 512GB", sku: "APPMFYM4ID/A", brand: "APPLE", qty: 48, revenue: 1248000000, share: "49.5%" },
+    { name: "iPhone 17 Pro 256GB / 1TB", sku: "APPMG8P4ID/A", brand: "APPLE", qty: 26, revenue: 642000000, share: "25.5%" },
+    { name: "iPhone 16 128GB / 256GB", sku: "APPMYE73ID/A", brand: "APPLE", qty: 22, revenue: 362978000, share: "14.4%" },
+    { name: "iPhone 15 128GB", sku: "APPMTP13ID/A", brand: "APPLE", qty: 12, revenue: 167988000, share: "6.7%" },
+    { name: "iPad 11th Gen Wi-Fi 128GB", sku: "APPMD4A4PA/A", brand: "APPLE", qty: 9, revenue: 78291000, share: "3.1%" },
+    { name: "MacBook Air/Pro M-Series", sku: "APPMACNEO", brand: "APPLE", qty: 2, revenue: 19803000, share: "0.8%" },
+  ],
+  android: [
+    { name: "Galaxy S26 Ultra 12/256GB", sku: "SSUSM-S948BZVB", brand: "SAMSUNG", qty: 12, revenue: 261120000, share: "66.2%" },
+    { name: "Samsung Galaxy Z Fold 8 512GB", sku: "SSUSM-F971BZKG", brand: "SAMSUNG", qty: 2, revenue: 64998000, share: "16.5%" },
+    { name: "Galaxy A17 4/128GB LTE/5G", sku: "SSUSM-A175FZKN", brand: "SAMSUNG", qty: 14, revenue: 41986000, share: "10.7%" },
+    { name: "Galaxy A07 4/64GB Light Violet", sku: "SSUSM-A075FLVD", brand: "SAMSUNG", qty: 8, revenue: 18392000, share: "4.7%" },
+    { name: "Motorola & Multi-brand Devices", sku: "MOT-MULTIBRAND", brand: "MOTOROLA", qty: 3, revenue: 7645000, share: "1.9%" },
+  ],
+  accessories: [
+    { name: "20W USB-C Power Adapter", sku: "APPMD3J4ZA/A", brand: "APPLE", qty: 36, revenue: 19764000, share: "32.6%" },
+    { name: "AirPods 4th Gen Wireless Audio", sku: "APPMXP63ID/A", brand: "APPLE", qty: 7, revenue: 14693000, share: "24.2%" },
+    { name: "240W USB-C Charge Cable (2M)", sku: "APPMYQT3ZA/A", brand: "APPLE", qty: 16, revenue: 8784000, share: "14.5%" },
+    { name: "MagSafe Silicone & Clear Case", sku: "MUUM-IP17PM-ICM", brand: "MUTUALL / ZAGG", qty: 14, revenue: 7686000, share: "12.7%" },
+    { name: "Samsung Travel Adapter 25W/45W", sku: "SSUEP-T2510NBE", brand: "SAMSUNG", qty: 18, revenue: 5382000, share: "8.9%" },
+    { name: "Tempered Glass Shield Screen", sku: "KOATGF-IP18PM", brand: "DIGI-SHIELD", qty: 6, revenue: 4345200, share: "7.1%" },
+  ],
+  vas: [
+    { name: "Proteksi Qoala Diamond 24-25", sku: "KLADIAMOND(24-25)", brand: "QOALA", qty: 18, revenue: 35460000, share: "78.68%" },
+    { name: "Proteksi Qoala Screen & Extended", sku: "KLAPROT-EXT", brand: "QOALA", qty: 3, revenue: 5170000, share: "11.47%" },
+    { name: "Telkomsel Halo Pascabayar Bundling", sku: "TSL-HALO-POST", brand: "TELKOMSEL", qty: 4, revenue: 4440000, share: "9.85%" },
+    { name: "XL Axiata Prioritas Bundling Data", sku: "XL-PRIORITAS-PKG", brand: "XL", qty: 0, revenue: 0, share: "0.00%" },
+    { name: "Indosat Ooredoo IM3 Prime Bundling", sku: "IM3-PRIME-POST", brand: "INDOSAT", qty: 0, revenue: 0, share: "0.00%" },
+  ],
+};
+
+// 4. DATA WEEKLY SALES DARI DATABASE KOLOM O
+const DATABASE_WEEKLY_DATA = [
+  {
     weekLabel: "Week 1 (03/10/26)",
     weekRange: "01 - 03 Okt 2026",
-    daysCount: 3,
     qty: 38,
     invoices: 21,
     appleSales: 168696000,
@@ -87,14 +186,11 @@ const RAW_WEEKLY_DATA = [
     accessoriesSales: 12647200,
     vasSales: 1970000,
     totalSales: 207372200,
-    target: 844710000,
     growthWoW: 0.0,
   },
   {
-    weekKey: "W2",
     weekLabel: "W2 (10OKT 2026)",
     weekRange: "04 - 10 Okt 2026",
-    daysCount: 7,
     qty: 64,
     invoices: 22,
     appleSales: 225746000,
@@ -102,14 +198,11 @@ const RAW_WEEKLY_DATA = [
     accessoriesSales: 11297000,
     vasSales: 6570000,
     totalSales: 277800000,
-    target: 1969000000,
     growthWoW: 33.96,
   },
   {
-    weekKey: "W3",
     weekLabel: "W3 (17OKT 2026)",
     weekRange: "11 - 17 Okt 2026",
-    daysCount: 7,
     qty: 122,
     invoices: 79,
     appleSales: 1454848000,
@@ -117,14 +210,11 @@ const RAW_WEEKLY_DATA = [
     accessoriesSales: 21058000,
     vasSales: 17180000,
     totalSales: 1619871000,
-    target: 1969000000,
     growthWoW: 483.11,
   },
   {
-    weekKey: "W4",
     weekLabel: "W4 (24OKT 2026)",
     weekRange: "18 - 24 Okt 2026",
-    daysCount: 7,
     qty: 88,
     invoices: 59,
     appleSales: 669770000,
@@ -132,27 +222,61 @@ const RAW_WEEKLY_DATA = [
     accessoriesSales: 15652000,
     vasSales: 19350000,
     totalSales: 1045784000,
-    target: 3945957173,
     growthWoW: -35.44,
   },
 ];
 
-// DATASET HISTORIS BULANAN
-const MONTHLY_LOOKUP: Record<string, { target: number; actual: number; note: string }> = {
-  "2026-10": {
-    target: 8728667173,
-    actual: 3150827200,
-    note: "Oktober 2026 (Live Cut-off 24 Okt)",
+// 5. DATA RIIL SHEET BNPL DATABASE (gid: 2697970)
+const BNPL_REAL_DATA: BnplTransaction[] = [
+  {
+    date: "09-10-2026",
+    invoice: "100012235",
+    amount: 2099000,
+    tender: "Indodana",
+    product: "HUAWEI WATCH FIT 5 BLACK",
+    qty: 1,
+    month: "Oktober 2026",
   },
-  "2026-09": {
-    target: 8250000000,
-    actual: 7842150000,
-    note: "September 2026 (Final Closed 95.1%)",
+  {
+    date: "10-10-2026",
+    invoice: "100012241",
+    amount: 24969000,
+    tender: "Indodana",
+    product: "IPHONE 17 PRO 256GB SILVER ; PROTEKSI DIAMOND 24-25",
+    qty: 1,
+    month: "Oktober 2026",
   },
-};
+  {
+    date: "11-10-2026",
+    invoice: "100012249",
+    amount: 14999000,
+    tender: "Akulaku",
+    product: "IPHONE 17 PRO MAX 256GB DEEP BLUE",
+    qty: 1,
+    month: "Oktober 2026",
+  },
+  {
+    date: "03-10-2026",
+    invoice: "100012221",
+    amount: 13000000,
+    tender: "Kredivo",
+    product: "20W USB-C POWER ADAPTER ; IPHONE 17 PRO 1TB SILVER ; IP17 PRO SANTACRUZ SNAP MIDBLK",
+    qty: 1,
+    month: "Oktober 2026",
+  },
+  {
+    date: "15-10-2026",
+    invoice: "100012270",
+    amount: 32499000,
+    tender: "Home Credit",
+    product: "SAMSUNG Z FOLD 8 12/512GB GRAPHITE",
+    qty: 1,
+    month: "Oktober 2026",
+  },
+];
 
-// 4. DATA DETAIL STAF DENGAN PERFORMA PER-MINGGU (W1-W4)
-const RAW_STAFF_DETAILS: StaffFullData[] = [
+// 6. DATA DETAIL SELURUH STAF DENGAN UPT & PERFORMA MINGGUAN LENGKAP
+const ALL_STAFF_DETAILS: StaffFullData[] = [
   {
     rank: 1,
     salesId: "24004971",
@@ -167,7 +291,7 @@ const RAW_STAFF_DETAILS: StaffFullData[] = [
     estimate: 1835436458,
     upt: 1.65,
     status: "Tercapai",
-    ringkasanEvaluasi: "Pencapaian sangat tinggi (162,8%) berkat volume penjualan iPhone yang dominan.",
+    ringkasanEvaluasi: "Pencapaian sangat tinggi (162,8%). Lini iPhone mendominasi omset toko hingga Rp 1,35 Miliar.",
     rekomendasiTindakan: "Tingkatkan closing rate pada Accessories dan Proteksi Qoala pada setiap unit iPhone.",
     targetAcc: 50000000,
     actualAcc: 2711000,
@@ -175,7 +299,15 @@ const RAW_STAFF_DETAILS: StaffFullData[] = [
     targetVas: 40000000,
     actualVas: 3490000,
     achvVas: 8.7,
-    weekSales: { w1: 599000, w2: 11996000, w3: 894200000, w4: 514188000 },
+    weekToWeek: {
+      w1: 599000,
+      w2: 11996000,
+      w3: 894200000,
+      w4: 514188000,
+      growthW2: 1902.7,
+      growthW3: 7354.2,
+      growthW4: -42.5,
+    },
     appleSub: [
       { name: "iPhone", icon: "📱", qty: 45, actual: 1353207000, target: 750000000, achievement: 180.4, variance: 603207000, estimate: 1747892375 },
       { name: "iPad", icon: "📟", qty: 3, actual: 24884000, target: 60000000, achievement: 41.5, variance: -35116000, estimate: 32141833 },
@@ -225,7 +357,15 @@ const RAW_STAFF_DETAILS: StaffFullData[] = [
     targetVas: 60000000,
     actualVas: 13120000,
     achvVas: 21.9,
-    weekSales: { w1: 54807000, w2: 56058000, w3: 215143000, w4: 125000000 },
+    weekToWeek: {
+      w1: 54807000,
+      w2: 56058000,
+      w3: 215143000,
+      w4: 125000000,
+      growthW2: 2.3,
+      growthW3: 283.8,
+      growthW4: -41.9,
+    },
     appleSub: [
       { name: "iPhone", icon: "📱", qty: 12, actual: 238190000, target: 850000000, achievement: 28.0, variance: -611810000, estimate: 307662083 },
       { name: "iPad", icon: "📟", qty: 4, actual: 34796000, target: 80000000, achievement: 43.5, variance: -45204000, estimate: 44944833 },
@@ -276,7 +416,15 @@ const RAW_STAFF_DETAILS: StaffFullData[] = [
     targetVas: 80000000,
     actualVas: 5750000,
     achvVas: 7.2,
-    weekSales: { w1: 4425200, w2: 1947000, w3: 175400000, w4: 120198000 },
+    weekToWeek: {
+      w1: 4425200,
+      w2: 1947000,
+      w3: 175400000,
+      w4: 120198000,
+      growthW2: -56.0,
+      growthW3: 8908.7,
+      growthW4: -31.5,
+    },
     appleSub: [
       { name: "iPhone", icon: "📱", qty: 8, actual: 212493000, target: 1100000000, achievement: 19.3, variance: -887507000, estimate: 274470125 },
       { name: "iPad", icon: "📟", qty: 2, actual: 17398000, target: 100000000, achievement: 17.4, variance: -82602000, estimate: 22472417 },
@@ -326,7 +474,15 @@ const RAW_STAFF_DETAILS: StaffFullData[] = [
     targetVas: 80000000,
     actualVas: 3860000,
     achvVas: 4.8,
-    weekSales: { w1: 0, w2: 53447000, w3: 135571000, w4: 79997000 },
+    weekToWeek: {
+      w1: 0,
+      w2: 53447000,
+      w3: 135571000,
+      w4: 79997000,
+      growthW2: 100.0,
+      growthW3: 153.7,
+      growthW4: -41.0,
+    },
     appleSub: [
       { name: "iPhone", icon: "📱", qty: 6, actual: 171742000, target: 1100000000, achievement: 15.6, variance: -928258000, estimate: 221833417 },
       { name: "iPad", icon: "📟", qty: 0, actual: 0, target: 100000000, achievement: 0.0, variance: -100000000, estimate: 0 },
@@ -376,7 +532,15 @@ const RAW_STAFF_DETAILS: StaffFullData[] = [
     targetVas: 0,
     actualVas: 3000000,
     achvVas: 0.0,
-    weekSales: { w1: 0, w2: 33547000, w3: 112785000, w4: 110000000 },
+    weekToWeek: {
+      w1: 0,
+      w2: 33547000,
+      w3: 112785000,
+      w4: 110000000,
+      growthW2: 100.0,
+      growthW3: 236.2,
+      growthW4: -2.5,
+    },
     appleSub: [
       { name: "iPhone", icon: "📱", qty: 9, actual: 198992000, target: 0, achievement: 0.0, variance: 198992000, estimate: 257031333 },
       { name: "iPad", icon: "📟", qty: 0, actual: 0, target: 0, achievement: 0.0, variance: 0, estimate: 0 },
@@ -426,7 +590,15 @@ const RAW_STAFF_DETAILS: StaffFullData[] = [
     targetVas: 80000000,
     actualVas: 8255000,
     achvVas: 10.3,
-    weekSales: { w1: 27518000, w2: 299000, w3: 124605000, w4: 88000000 },
+    weekToWeek: {
+      w1: 27518000,
+      w2: 299000,
+      w3: 124605000,
+      w4: 88000000,
+      growthW2: -98.9,
+      growthW3: 41574.0,
+      growthW4: -29.4,
+    },
     appleSub: [
       { name: "iPhone", icon: "📱", qty: 7, actual: 184291000, target: 1100000000, achievement: 16.8, variance: -915709000, estimate: 238042542 },
       { name: "iPad", icon: "📟", qty: 0, actual: 0, target: 100000000, achievement: 0.0, variance: -100000000, estimate: 0 },
@@ -477,7 +649,15 @@ const RAW_STAFF_DETAILS: StaffFullData[] = [
     targetVas: 80000000,
     actualVas: 3860000,
     achvVas: 4.8,
-    weekSales: { w1: 2299000, w2: 699000, w3: 62167000, w4: 109286000 },
+    weekToWeek: {
+      w1: 2299000,
+      w2: 699000,
+      w3: 62167000,
+      w4: 109286000,
+      growthW2: -69.6,
+      growthW3: 8793.7,
+      growthW4: 75.8,
+    },
     appleSub: [
       { name: "iPhone", icon: "📱", qty: 5, actual: 128496000, target: 1100000000, achievement: 11.7, variance: -971504000, estimate: 165974000 },
       { name: "iPad", icon: "📟", qty: 0, actual: 0, target: 100000000, achievement: 0.0, variance: -100000000, estimate: 0 },
@@ -508,48 +688,6 @@ const RAW_STAFF_DETAILS: StaffFullData[] = [
   },
 ];
 
-// DETAIL PRODUK MASTER
-const RAW_PRODUCT_BREAKDOWN: Record<string, { name: string; sku: string; brand: string; qty: number; revenue: number; share: string }[]> = {
-  apple: [
-    { name: "iPhone 17 Pro Max 256GB / 512GB", sku: "APPMFYM4ID/A", brand: "APPLE", qty: 48, revenue: 1248000000, share: "49.5%" },
-    { name: "iPhone 17 Pro 256GB / 1TB", sku: "APPMG8P4ID/A", brand: "APPLE", qty: 26, revenue: 642000000, share: "25.5%" },
-    { name: "iPhone 16 128GB / 256GB", sku: "APPMYE73ID/A", brand: "APPLE", qty: 22, revenue: 362978000, share: "14.4%" },
-    { name: "iPhone 15 128GB", sku: "APPMTP13ID/A", brand: "APPLE", qty: 12, revenue: 167988000, share: "6.7%" },
-    { name: "iPad 11th Gen Wi-Fi 128GB", sku: "APPMD4A4PA/A", brand: "APPLE", qty: 9, revenue: 78291000, share: "3.1%" },
-    { name: "MacBook Air/Pro M-Series", sku: "APPMACNEO", brand: "APPLE", qty: 2, revenue: 19803000, share: "0.8%" },
-  ],
-  android: [
-    { name: "Galaxy S26 Ultra 12/256GB", sku: "SSUSM-S948BZVB", brand: "SAMSUNG", qty: 12, revenue: 261120000, share: "66.2%" },
-    { name: "Samsung Galaxy Z Fold 8 512GB", sku: "SSUSM-F971BZKG", brand: "SAMSUNG", qty: 2, revenue: 64998000, share: "16.5%" },
-    { name: "Galaxy A17 4/128GB LTE/5G", sku: "SSUSM-A175FZKN", brand: "SAMSUNG", qty: 14, revenue: 41986000, share: "10.7%" },
-    { name: "Galaxy A07 4/64GB Light Violet", sku: "SSUSM-A075FLVD", brand: "SAMSUNG", qty: 8, revenue: 18392000, share: "4.7%" },
-    { name: "Motorola & Multi-brand Devices", sku: "MOT-MULTIBRAND", brand: "MOTOROLA", qty: 3, revenue: 7645000, share: "1.9%" },
-  ],
-  accessories: [
-    { name: "20W USB-C Power Adapter", sku: "APPMD3J4ZA/A", brand: "APPLE", qty: 36, revenue: 19764000, share: "32.6%" },
-    { name: "AirPods 4th Gen Wireless Audio", sku: "APPMXP63ID/A", brand: "APPLE", qty: 7, revenue: 14693000, share: "24.2%" },
-    { name: "240W USB-C Charge Cable (2M)", sku: "APPMYQT3ZA/A", brand: "APPLE", qty: 16, revenue: 8784000, share: "14.5%" },
-    { name: "MagSafe Silicone & Clear Case", sku: "MUUM-IP17PM-ICM", brand: "MUTUALL / ZAGG", qty: 14, revenue: 7686000, share: "12.7%" },
-    { name: "Samsung Travel Adapter 25W/45W", sku: "SSUEP-T2510NBE", brand: "SAMSUNG", qty: 18, revenue: 5382000, share: "8.9%" },
-    { name: "Tempered Glass Shield Screen", sku: "KOATGF-IP18PM", brand: "DIGI-SHIELD", qty: 6, revenue: 4345200, share: "7.1%" },
-  ],
-  vas: [
-    { name: "Proteksi Qoala Diamond 24-25", sku: "KLADIAMOND(24-25)", brand: "QOALA", qty: 18, revenue: 35460000, share: "78.68%" },
-    { name: "Proteksi Qoala Screen & Extended", sku: "KLAPROT-EXT", brand: "QOALA", qty: 3, revenue: 5170000, share: "11.47%" },
-    { name: "Telkomsel Halo Pascabayar Bundling", sku: "TSL-HALO-POST", brand: "TELKOMSEL", qty: 4, revenue: 4440000, share: "9.85%" },
-    { name: "XL Axiata Prioritas Bundling Data", sku: "XL-PRIORITAS-PKG", brand: "XL", qty: 0, revenue: 0, share: "0.00%" },
-    { name: "Indosat Ooredoo IM3 Prime Bundling", sku: "IM3-PRIME-POST", brand: "INDOSAT", qty: 0, revenue: 0, share: "0.00%" },
-  ],
-};
-
-const BNPL_REAL_DATA: BnplTransaction[] = [
-  { date: "09-10-2026", invoice: "100012235", amount: 2099000, tender: "Indodana", product: "HUAWEI WATCH FIT 5 BLACK", qty: 1, month: "Oktober 2026" },
-  { date: "10-10-2026", invoice: "100012241", amount: 24969000, tender: "Indodana", product: "IPHONE 17 PRO 256GB SILVER ; PROTEKSI DIAMOND 24-25", qty: 1, month: "Oktober 2026" },
-  { date: "11-10-2026", invoice: "100012249", amount: 14999000, tender: "Akulaku", product: "IPHONE 17 PRO MAX 256GB DEEP BLUE", qty: 1, month: "Oktober 2026" },
-  { date: "03-10-2026", invoice: "100012221", amount: 13000000, tender: "Kredivo", product: "20W USB-C POWER ADAPTER ; IPHONE 17 PRO 1TB SILVER ; IP17 PRO SANTACRUZ SNAP MIDBLK", qty: 1, month: "Oktober 2026" },
-  { date: "15-10-2026", invoice: "100012270", amount: 32499000, tender: "Home Credit", product: "SAMSUNG Z FOLD 8 12/512GB GRAPHITE", qty: 1, month: "Oktober 2026" },
-];
-
 export default function Page() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [salesIdInput, setSalesIdInput] = useState("");
@@ -558,7 +696,9 @@ export default function Page() {
   const [currentSalesId, setCurrentSalesId] = useState("");
   const [currentSalesName, setCurrentSalesName] = useState("");
 
+  // STATE THEME: DARK MODE VS LIGHT MODE
   const [theme, setTheme] = useState<ThemeMode>("dark");
+
   const [activeTab, setActiveTab] = useState<MenuTab>("store-overview");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -568,7 +708,7 @@ export default function Page() {
   const [filterDate, setFilterDate] = useState("2026-10-24");
   const [overviewDetailCategory, setOverviewDetailCategory] = useState<"apple" | "android" | "accessories" | "vas">("apple");
 
-  // Admin Logs State
+  // Admin Activity Staff Logs State
   const [staffActivityLogs, setStaffActivityLogs] = useState<StaffLoginLog[]>([]);
 
   // Shortcut Upload State
@@ -581,7 +721,7 @@ export default function Page() {
 
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz2VUsReKqqJgPsG15L1pOAkmqoIWF2vApyD18jr5e_z0OVqagasa9yHXEe5fzMhoQmOw/exec";
 
-  // Cek sesi login
+  // Muat sesi & log
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedUser = localStorage.getItem("digiplus_session_user");
@@ -610,126 +750,15 @@ export default function Page() {
     }
   };
 
-  // ==============================================================
-  // LOGIKA DINAMIS FILTER BULAN & WEEK (REAKTIF 100%)
-  // ==============================================================
-  const filteredMetrics = useMemo(() => {
-    // 1. Filter Berdasarkan Bulan
-    const monthData = MONTHLY_LOOKUP[filterMonth] || MONTHLY_LOOKUP["2026-10"];
+  // Deteksi Tipe Perangkat
+  const detectDevice = (): "Komputer / PC" | "Tablet" | "Handphone / Mobile" => {
+    if (typeof window === "undefined") return "Komputer / PC";
+    const ua = navigator.userAgent;
+    if (/(tablet|ipad|playbook|silk)|(android(?!.*mobi))/i.test(ua)) return "Tablet";
+    if (/Mobile|Android|iP(hone|od)|IEMobile|BlackBerry/i.test(ua)) return "Handphone / Mobile";
+    return "Komputer / PC";
+  };
 
-    // 2. Filter Berdasarkan Week
-    let activeActual = monthData.actual;
-    let activeTarget = monthData.target;
-    let appleAct = 2519060000;
-    let androidAct = 394141000;
-    let accAct = 60654200;
-    let vasAct = 45070000;
-
-    if (filterWeek !== "ALL") {
-      const selectedW = RAW_WEEKLY_DATA.find((w) => w.weekKey === filterWeek);
-      if (selectedW) {
-        activeActual = selectedW.totalSales;
-        activeTarget = selectedW.target;
-        appleAct = selectedW.appleSales;
-        androidAct = selectedW.androidSales;
-        accAct = selectedW.accessoriesSales;
-        vasAct = selectedW.vasSales;
-      }
-    }
-
-    const achv = Number(((activeActual / activeTarget) * 100).toFixed(1));
-    const variance = activeActual - activeTarget;
-    const est = Math.round(activeActual * (filterWeek === "ALL" ? 1.29 : 1.15));
-
-    return {
-      actual: activeActual,
-      target: activeTarget,
-      achievement: achv,
-      variance: variance,
-      estimate: est,
-      lobs: [
-        {
-          category: "Apple Devices",
-          icon: "🍎",
-          actual: appleAct,
-          target: Math.round(activeTarget * 0.794),
-          achievement: Number(((appleAct / (activeTarget * 0.794)) * 100).toFixed(1)),
-          variance: appleAct - Math.round(activeTarget * 0.794),
-          estimate: Math.round(appleAct * 1.28),
-          status: "Tertinggal",
-          color: "text-sky-400",
-        },
-        {
-          category: "Android Devices",
-          icon: "🤖",
-          actual: androidAct,
-          target: Math.round(activeTarget * 0.108),
-          achievement: Number(((androidAct / (activeTarget * 0.108)) * 100).toFixed(1)),
-          variance: androidAct - Math.round(activeTarget * 0.108),
-          estimate: Math.round(androidAct * 1.3),
-          status: "Tertinggal",
-          color: "text-indigo-400",
-        },
-        {
-          category: "Accessories",
-          icon: "🔌",
-          actual: accAct,
-          target: Math.round(activeTarget * 0.053),
-          achievement: Number(((accAct / (activeTarget * 0.053)) * 100).toFixed(1)),
-          variance: accAct - Math.round(activeTarget * 0.053),
-          estimate: Math.round(accAct * 1.25),
-          status: "Tertinggal",
-          color: "text-amber-400",
-        },
-        {
-          category: "VAS (Qoala, Telkomsel, XL, Indosat)",
-          icon: "🛡️",
-          actual: vasAct,
-          target: Math.round(activeTarget * 0.045),
-          achievement: Number(((vasAct / (activeTarget * 0.045)) * 100).toFixed(1)),
-          variance: vasAct - Math.round(activeTarget * 0.045),
-          estimate: Math.round(vasAct * 1.22),
-          status: "Tertinggal",
-          color: "text-purple-400",
-        },
-      ],
-    };
-  }, [filterMonth, filterWeek]);
-
-  // Filter Staf Sesuai Week Terpilih
-  const staffFilteredList = useMemo(() => {
-    return RAW_STAFF_DETAILS.map((s) => {
-      let salesAmount = s.actual;
-      let targetAmount = s.target;
-
-      if (filterWeek === "W1") {
-        salesAmount = s.weekSales.w1;
-        targetAmount = Math.round(s.target * 0.1);
-      } else if (filterWeek === "W2") {
-        salesAmount = s.weekSales.w2;
-        targetAmount = Math.round(s.target * 0.25);
-      } else if (filterWeek === "W3") {
-        salesAmount = s.weekSales.w3;
-        targetAmount = Math.round(s.target * 0.25);
-      } else if (filterWeek === "W4") {
-        salesAmount = s.weekSales.w4;
-        targetAmount = Math.round(s.target * 0.4);
-      }
-
-      const achv = targetAmount > 0 ? Number(((salesAmount / targetAmount) * 100).toFixed(1)) : 0;
-      const variance = salesAmount - targetAmount;
-
-      return {
-        ...s,
-        actual: salesAmount,
-        target: targetAmount,
-        achievement: achv,
-        variance: variance,
-      };
-    }).sort((a, b) => b.actual - a.actual);
-  }, [filterWeek]);
-
-  // Deteksi Perangkat & Simpan Activity
   const recordStaffActivity = (id: string, name: string) => {
     const now = new Date();
     const timeFormatted = now.toLocaleDateString("id-ID", {
@@ -742,9 +771,7 @@ export default function Page() {
       second: "2-digit",
     });
 
-    const isMobile = /Mobile|Android|iP(hone|od)/i.test(navigator.userAgent);
-    const isTablet = /(tablet|ipad|playbook|silk)|(android(?!.*mobi))/i.test(navigator.userAgent);
-    const dev = isTablet ? "Tablet" : isMobile ? "Handphone / Mobile" : "Komputer / PC";
+    const dev = detectDevice();
     const brw = navigator.userAgent.includes("Chrome") ? "Chrome" : navigator.userAgent.includes("Safari") ? "Safari" : "Browser";
 
     const logEntry: StaffLoginLog = {
@@ -796,7 +823,7 @@ export default function Page() {
     }
 
     let detectedName = `Sales ${cleanId}`;
-    const foundStaff = RAW_STAFF_DETAILS.find((s) => s.salesId === cleanId);
+    const foundStaff = ALL_STAFF_DETAILS.find((s) => s.salesId === cleanId);
     if (foundStaff) detectedName = foundStaff.name;
     if (cleanId === "22008089") detectedName = "Store Leader Admin";
 
@@ -860,7 +887,9 @@ export default function Page() {
     return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
   };
 
-  // KELAS WARNA DINAMIS
+  // KELAS WARNA DINAMIS SESUAI MODE
+  // Dark: Deep Indigo (#1A1831) & Warm Cloud (#FFF6E9)
+  // Light: Linen Bone (#F9F8F3) & Kinetic Cobalt (#054ff0)
   const isDark = theme === "dark";
   const bgMain = isDark ? "bg-[#1A1831]" : "bg-[#F9F8F3]";
   const textMain = isDark ? "text-[#FFF6E9]" : "text-[#1E293B]";
@@ -937,7 +966,7 @@ export default function Page() {
 
   return (
     <div className={`flex min-h-screen ${bgMain} ${textMain} font-sans relative`}>
-      {/* MOBILE FLOATING HAMBURGER TOGGLE */}
+      {/* MOBILE HAMBURGER TOGGLE */}
       <div className="lg:hidden fixed bottom-5 right-5 z-50">
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -987,7 +1016,7 @@ export default function Page() {
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
           </div>
 
-          {/* KOTAK SHORTCUT UPLOAD */}
+          {/* SHORTCUT UPLOAD */}
           <div className={`mt-4 p-4 rounded-2xl ${cardBg} border-2 shadow-xl`}>
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xl">📤</span>
@@ -1125,8 +1154,9 @@ export default function Page() {
           </nav>
         </div>
 
-        {/* FOOTER SIDEBAR */}
+        {/* FOOTER SIDEBAR: LOGOUT & THEME TOGGLE */}
         <div className="p-4 border-t border-inherit space-y-2">
+          {/* TOMBOL TOGGLE THEME (DARK / LIGHT MODE) */}
           <button
             onClick={toggleTheme}
             className={`w-full py-2 px-3 ${innerCardBg} border rounded-xl text-xs font-bold transition flex items-center justify-center gap-2`}
@@ -1146,7 +1176,7 @@ export default function Page() {
 
       {/* KONTEN UTAMA */}
       <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-w-7xl mx-auto w-full">
-        {/* HEADER DENGAN FILTER REAL-TIME */}
+        {/* HEADER ATAS DENGAN SAPAAN "HALO [NAMA SALES]" */}
         <header className="mb-6 border-b border-inherit pb-5">
           <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
             <div>
@@ -1162,15 +1192,14 @@ export default function Page() {
               <span className={`px-3 py-1.5 rounded-lg border text-xs font-bold ${
                 isDark ? "bg-emerald-500/15 text-emerald-300 border-emerald-400/30" : "bg-emerald-50 text-emerald-600 border-emerald-200"
               }`}>
-                Filter Aktif: {formatIDR(filteredMetrics.actual)}
+                Actual MTD: {formatIDR(OVERVIEW_TOTAL.actual)}
               </span>
             </div>
           </div>
 
-          {/* BARIS FILTER DINAMIS */}
+          {/* FILTER BAR */}
           <div className={`p-3 ${cardBg} border rounded-2xl flex flex-wrap items-center gap-3 justify-between text-xs`}>
             <div className="flex flex-wrap items-center gap-3">
-              {/* Filter Bulan */}
               <div className="flex items-center gap-2">
                 <span className="opacity-70 font-semibold">📅 Bulan:</span>
                 <select
@@ -1183,7 +1212,6 @@ export default function Page() {
                 </select>
               </div>
 
-              {/* Filter Week */}
               <div className="flex items-center gap-2">
                 <span className="opacity-70 font-semibold">📊 Week:</span>
                 <select
@@ -1199,9 +1227,8 @@ export default function Page() {
                 </select>
               </div>
 
-              {/* Filter Tanggal */}
               <div className="flex items-center gap-2">
-                <span className="opacity-70 font-semibold">🗓️ Cut-off:</span>
+                <span className="opacity-70 font-semibold">🗓️ Tanggal:</span>
                 <input
                   type="date"
                   value={filterDate}
@@ -1211,14 +1238,11 @@ export default function Page() {
               </div>
             </div>
 
-            <div className={`text-[11px] ${accentColor} font-semibold flex items-center gap-1.5`}>
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>Periode Terpilih: {filterWeek === "ALL" ? "Akumulasi Bulan" : filterWeek} ({MONTHLY_LOOKUP[filterMonth]?.note || filterMonth})</span>
-            </div>
+            <div className={`text-[11px] ${accentColor} font-semibold`}>● Cut-off Data: {filterDate}</div>
           </div>
         </header>
 
-        {/* TAB 1: OVERVIEW STORE (TERINTEGRASI DINAMIS DENGAN FILTER) */}
+        {/* TAB 1: OVERVIEW STORE */}
         {activeTab === "store-overview" && (
           <div className="space-y-6 sm:space-y-8">
             {/* TIME GONE ANALYTICS */}
@@ -1229,9 +1253,7 @@ export default function Page() {
                     ⏳
                   </div>
                   <div>
-                    <h2 className="text-base font-black tracking-wide">
-                      TIME GONE ANALYTICS ({filterMonth === "2026-10" ? "OKTOBER 2026" : "SEPTEMBER 2026"})
-                    </h2>
+                    <h2 className="text-base font-black tracking-wide">TIME GONE ANALYTICS (OKTOBER 2026)</h2>
                     <p className={`text-xs ${textMuted}`}>
                       Hari Berjalan: <strong className={textMain}>{TIME_GONE_DATA.daysPassed} hari</strong> dari {TIME_GONE_DATA.totalDays} hari ({TIME_GONE_DATA.daysLeft} hari tersisa)
                     </p>
@@ -1246,17 +1268,16 @@ export default function Page() {
                   <div className="h-8 w-px bg-inherit mx-1 opacity-20"></div>
                   <div className="text-right">
                     <span className="text-[10px] uppercase font-bold opacity-60 block">Achv Pace</span>
-                    <span className="text-2xl font-black text-emerald-500">{filteredMetrics.achievement}%</span>
+                    <span className="text-2xl font-black text-emerald-500">{OVERVIEW_TOTAL.achievement}%</span>
                   </div>
                 </div>
               </div>
 
-              {/* Progress Bar Dual */}
               <div className="space-y-2 mb-4">
                 <div>
                   <div className="flex justify-between text-[11px] mb-1">
                     <span className={textMuted}>Waktu Berjalan (Time Gone):</span>
-                    <span className={`font-bold ${accentColor}`}>{TIME_GONE_DATA.percentageTimeGone}%</span>
+                    <span className={`font-bold ${accentColor}`}>{TIME_GONE_DATA.percentageTimeGone}% ({TIME_GONE_DATA.daysPassed}/{TIME_GONE_DATA.totalDays} Hari)</span>
                   </div>
                   <div className={`w-full ${innerCardBg} h-2.5 rounded-full overflow-hidden`}>
                     <div className={`${isDark ? "bg-[#F5BA42]" : "bg-[#054ff0]"} h-full rounded-full transition-all`} style={{ width: `${TIME_GONE_DATA.percentageTimeGone}%` }}></div>
@@ -1265,21 +1286,19 @@ export default function Page() {
 
                 <div>
                   <div className="flex justify-between text-[11px] mb-1">
-                    <span className={textMuted}>Pencapaian Omset ({filterWeek === "ALL" ? "Bulan Berjalan" : filterWeek}):</span>
-                    <span className="font-bold text-emerald-500">{filteredMetrics.achievement}% ({formatIDR(filteredMetrics.actual)})</span>
+                    <span className={textMuted}>Pencapaian Omset (Actual Revenue):</span>
+                    <span className="font-bold text-emerald-500">{OVERVIEW_TOTAL.achievement}% ({formatIDR(OVERVIEW_TOTAL.actual)})</span>
                   </div>
                   <div className={`w-full ${innerCardBg} h-2.5 rounded-full overflow-hidden`}>
-                    <div className="bg-emerald-500 h-full rounded-full transition-all" style={{ width: `${Math.min(filteredMetrics.achievement, 100)}%` }}></div>
+                    <div className="bg-emerald-500 h-full rounded-full transition-all" style={{ width: `${OVERVIEW_TOTAL.achievement}%` }}></div>
                   </div>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-4 border-t border-inherit text-xs">
                 <div className={`p-3 ${innerCardBg} rounded-xl border`}>
-                  <span className="opacity-60 text-[11px]">Kesenjangan Pace:</span>
-                  <div className="text-sm font-black text-red-500 mt-0.5">
-                    -{(TIME_GONE_DATA.percentageTimeGone - filteredMetrics.achievement).toFixed(1)}% (Tertinggal)
-                  </div>
+                  <span className="opacity-60 text-[11px]">Kesenjangan Pace Toko:</span>
+                  <div className="text-sm font-black text-red-500 mt-0.5">-{(TIME_GONE_DATA.percentageTimeGone - OVERVIEW_TOTAL.achievement).toFixed(1)}% (Tertinggal)</div>
                 </div>
 
                 <div className={`p-3 ${innerCardBg} rounded-xl border`}>
@@ -1288,8 +1307,8 @@ export default function Page() {
                 </div>
 
                 <div className={`p-3 ${innerCardBg} rounded-xl border`}>
-                  <span className="opacity-60 text-[11px]">Target Periode Filter:</span>
-                  <div className={`text-sm font-black ${accentColor} mt-0.5`}>{formatIDR(filteredMetrics.target)}</div>
+                  <span className="opacity-60 text-[11px]">Required Run Rate:</span>
+                  <div className={`text-sm font-black ${accentColor} mt-0.5`}>{formatIDR(TIME_GONE_DATA.requiredRunRate)} / hari</div>
                 </div>
 
                 <div className={`p-3 ${innerCardBg} rounded-xl border`}>
@@ -1299,10 +1318,10 @@ export default function Page() {
               </div>
             </div>
 
-            {/* TABEL LOB METRICS (DINAMIS TERFILTER) */}
+            {/* TABEL LENGKAP LOB METRICS */}
             <div>
               <div className="flex justify-between items-center mb-3">
-                <h2 className="text-base font-bold">Matriks Kategori Produk ({filterWeek === "ALL" ? "Semua Week" : filterWeek})</h2>
+                <h2 className="text-base font-bold">Matriks Kategori Produk (Apple, Android, Accessories & VAS)</h2>
                 <span className={`text-[11px] ${textMuted} hidden sm:inline`}>VAS: Qoala + Telkomsel + XL + Indosat</span>
               </div>
 
@@ -1319,7 +1338,7 @@ export default function Page() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-inherit font-medium">
-                    {filteredMetrics.lobs.map((row, idx) => (
+                    {OVERVIEW_LOB_DATA.map((row, idx) => (
                       <tr key={idx} className="hover:opacity-90 transition">
                         <td className="py-4 px-4 font-bold text-sm">
                           <span className="mr-2">{row.icon}</span>
@@ -1332,9 +1351,7 @@ export default function Page() {
                             {row.achievement}%
                           </span>
                         </td>
-                        <td className={`py-4 px-4 text-right font-mono font-bold ${row.variance >= 0 ? "text-emerald-500" : "text-red-500"}`}>
-                          {formatIDR(row.variance)}
-                        </td>
+                        <td className="py-4 px-4 text-right text-red-500 font-mono font-bold">{formatIDR(row.variance)}</td>
                         <td className="py-4 px-4 text-right text-emerald-500 font-mono font-bold">{formatIDR(row.estimate)}</td>
                       </tr>
                     ))}
@@ -1343,10 +1360,10 @@ export default function Page() {
               </div>
             </div>
 
-            {/* TABEL RANK SALES PER STAFF DENGAN UPT (TERFILTER) */}
+            {/* TABEL RANK SALES PER STAFF DENGAN UPT */}
             <div className={`p-4 sm:p-6 ${cardBg} border rounded-3xl shadow-xl`}>
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-base font-bold">🏆 Rank Sales per Staff & UPT ({filterWeek === "ALL" ? "Bulan Penuh" : filterWeek})</h3>
+                <h3 className="text-base font-bold">🏆 Rank Sales per Staff & UPT Toko</h3>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs min-w-[600px]">
@@ -1362,15 +1379,15 @@ export default function Page() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-inherit font-medium">
-                    {staffFilteredList.map((s, idx) => (
-                      <tr key={s.salesId} className="hover:opacity-90 transition">
+                    {ALL_STAFF_DETAILS.map((s) => (
+                      <tr key={s.rank} className="hover:opacity-90 transition">
                         <td className="py-3.5 px-4 text-center">
                           <span
                             className={`w-6 h-6 rounded-full inline-flex items-center justify-center font-black text-xs ${
-                              idx === 0 ? (isDark ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#054ff0] text-white") : "opacity-60"
+                              s.rank === 1 ? (isDark ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#054ff0] text-white") : "opacity-60"
                             }`}
                           >
-                            {idx + 1}
+                            {s.rank}
                           </span>
                         </td>
                         <td className="py-3.5 px-4">
@@ -1386,12 +1403,12 @@ export default function Page() {
                         <td className="py-3.5 px-4 text-center">
                           <span
                             className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              s.achievement >= 100
+                              s.status === "Tercapai"
                                 ? "bg-emerald-500/20 text-emerald-500"
                                 : "bg-red-500/20 text-red-500"
                             }`}
                           >
-                            {s.achievement >= 100 ? "🔵 Tercapai" : "🔻 Belum"}
+                            {s.status === "Tercapai" ? "🔵 Tercapai" : "🔻 Belum"}
                           </span>
                         </td>
                       </tr>
@@ -1401,7 +1418,7 @@ export default function Page() {
               </div>
             </div>
 
-            {/* DETAIL PRODUK BERBASIS TABS */}
+            {/* DETAIL PRODUK PER KATEGORI (BERDASARKAN TABS) */}
             <div className={`p-6 ${cardBg} border rounded-3xl shadow-xl`}>
               <div className="flex flex-wrap justify-between items-center gap-4 mb-5">
                 <div>
@@ -1409,6 +1426,7 @@ export default function Page() {
                   <p className={`text-xs ${textMuted} mt-0.5`}>Pilih tab di bawah untuk melihat rincian SKU, qty, dan revenue tanpa reload</p>
                 </div>
 
+                {/* TAB NAVIGASI KATEGORI PRODUK */}
                 <div className={`flex flex-wrap gap-2 ${innerCardBg} p-1.5 rounded-2xl border`}>
                   {(["apple", "android", "accessories", "vas"] as const).map((tabKey) => (
                     <button
@@ -1440,7 +1458,7 @@ export default function Page() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-inherit font-medium">
-                    {RAW_PRODUCT_BREAKDOWN[overviewDetailCategory].map((p, i) => (
+                    {OVERVIEW_PRODUCT_BREAKDOWN[overviewDetailCategory].map((p, i) => (
                       <tr key={i} className="hover:opacity-90 transition">
                         <td className="py-3.5 px-4 font-bold">{p.name}</td>
                         <td className="py-3.5 px-4 font-mono opacity-60 text-[11px]">{p.sku}</td>
@@ -1463,7 +1481,7 @@ export default function Page() {
           </div>
         )}
 
-        {/* TAB 2: WEEKLY SALES (WoW DARI DATABASE KOLOM O) */}
+        {/* TAB 2: WEEKLY SALES (WoW) BERDASARKAN DATABASE KOLOM O */}
         {activeTab === "weekly-sales" && (
           <div className="space-y-6 sm:space-y-8">
             <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl`}>
@@ -1481,7 +1499,7 @@ export default function Page() {
 
               {/* 4 Kartu Week */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                {RAW_WEEKLY_DATA.map((w, idx) => (
+                {DATABASE_WEEKLY_DATA.map((w, idx) => (
                   <div key={idx} className={`p-4 ${innerCardBg} border rounded-2xl`}>
                     <div className="flex justify-between items-center mb-1">
                       <span className={`text-xs font-bold ${accentColor}`}>{w.weekLabel}</span>
@@ -1500,7 +1518,7 @@ export default function Page() {
                 ))}
               </div>
 
-              {/* Tabel Breakdown Mingguan */}
+              {/* Tabel Detail Breakdown Mingguan */}
               <div className={`overflow-x-auto rounded-2xl border ${innerCardBg}`}>
                 <table className="w-full text-left text-xs min-w-[700px]">
                   <thead className={`${innerCardBg} uppercase text-[11px] border-b border-inherit`}>
@@ -1517,7 +1535,7 @@ export default function Page() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-inherit font-medium">
-                    {RAW_WEEKLY_DATA.map((w, i) => (
+                    {DATABASE_WEEKLY_DATA.map((w, i) => (
                       <tr key={i} className="hover:opacity-90 transition">
                         <td className="py-4 px-4 font-bold">
                           <div>{w.weekLabel}</div>
@@ -1545,11 +1563,11 @@ export default function Page() {
                 </table>
               </div>
 
-              {/* TABEL PERFORMA PER STAF WEEK-TO-WEEK DENGAN GROWTH / DEGROWTH */}
+              {/* TABEL PENCAPAIAN PER STAF WEEK-TO-WEEK DENGAN GROWTH / DEGROWTH */}
               <div className="mt-8">
                 <h3 className="text-sm font-bold uppercase tracking-wider mb-3 flex items-center gap-2">
                   <span>👥</span>
-                  <span>Performa Penjualan Mingguan & Growth / Degrowth per Staf</span>
+                  <span>Performa Penjualan & Growth / Degrowth Mingguan per Staf</span>
                 </h3>
                 <div className={`overflow-x-auto rounded-2xl border ${innerCardBg}`}>
                   <table className="w-full text-left text-xs min-w-[700px]">
@@ -1566,36 +1584,30 @@ export default function Page() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-inherit font-medium">
-                      {RAW_STAFF_DETAILS.map((st) => {
-                        const gW2 = st.weekSales.w1 > 0 ? (((st.weekSales.w2 - st.weekSales.w1) / st.weekSales.w1) * 100).toFixed(1) : "+100";
-                        const gW3 = st.weekSales.w2 > 0 ? (((st.weekSales.w3 - st.weekSales.w2) / st.weekSales.w2) * 100).toFixed(1) : "+100";
-                        const gW4 = st.weekSales.w3 > 0 ? (((st.weekSales.w4 - st.weekSales.w3) / st.weekSales.w3) * 100).toFixed(1) : "-100";
-
-                        return (
-                          <tr key={st.salesId} className="hover:opacity-90 transition">
-                            <td className="py-3 px-4 font-bold">{st.name}</td>
-                            <td className="py-3 px-4 text-right font-mono opacity-80">{formatIDR(st.weekSales.w1)}</td>
-                            <td className="py-3 px-4 text-right font-mono opacity-80">{formatIDR(st.weekSales.w2)}</td>
-                            <td className="py-3 px-4 text-center font-bold">
-                              <span className={Number(gW2) >= 0 ? "text-emerald-500" : "text-red-500"}>
-                                {Number(gW2) > 0 ? `+${gW2}%` : `${gW2}%`}
-                              </span>
-                            </td>
-                            <td className="py-3 px-4 text-right font-mono opacity-80">{formatIDR(st.weekSales.w3)}</td>
-                            <td className="py-3 px-4 text-center font-bold">
-                              <span className={Number(gW3) >= 0 ? "text-emerald-500" : "text-red-500"}>
-                                {Number(gW3) > 0 ? `+${gW3}%` : `${gW3}%`}
-                              </span>
-                            </td>
-                            <td className="py-3 px-4 text-right font-mono opacity-80">{formatIDR(st.weekSales.w4)}</td>
-                            <td className="py-3 px-4 text-center font-bold">
-                              <span className={Number(gW4) >= 0 ? "text-emerald-500" : "text-red-500"}>
-                                {Number(gW4) > 0 ? `+${gW4}%` : `${gW4}%`}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
+                      {ALL_STAFF_DETAILS.map((st) => (
+                        <tr key={st.salesId} className="hover:opacity-90 transition">
+                          <td className="py-3 px-4 font-bold">{st.name}</td>
+                          <td className="py-3 px-4 text-right font-mono opacity-80">{formatIDR(st.weekToWeek.w1)}</td>
+                          <td className="py-3 px-4 text-right font-mono opacity-80">{formatIDR(st.weekToWeek.w2)}</td>
+                          <td className="py-3 px-4 text-center font-bold">
+                            <span className={st.weekToWeek.growthW2 >= 0 ? "text-emerald-500" : "text-red-500"}>
+                              {st.weekToWeek.growthW2 > 0 ? `+${st.weekToWeek.growthW2}%` : `${st.weekToWeek.growthW2}%`}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono opacity-80">{formatIDR(st.weekToWeek.w3)}</td>
+                          <td className="py-3 px-4 text-center font-bold">
+                            <span className={st.weekToWeek.growthW3 >= 0 ? "text-emerald-500" : "text-red-500"}>
+                              {st.weekToWeek.growthW3 > 0 ? `+${st.weekToWeek.growthW3}%` : `${st.weekToWeek.growthW3}%`}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono opacity-80">{formatIDR(st.weekToWeek.w4)}</td>
+                          <td className="py-3 px-4 text-center font-bold">
+                            <span className={st.weekToWeek.growthW4 >= 0 ? "text-emerald-500" : "text-red-500"}>
+                              {st.weekToWeek.growthW4 > 0 ? `+${st.weekToWeek.growthW4}%` : `${st.weekToWeek.growthW4}%`}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -1611,16 +1623,13 @@ export default function Page() {
               <div className="flex items-center justify-between">
                 <h2 className="text-base sm:text-lg font-black tracking-wide flex items-center gap-2">
                   <span>👥</span>
-                  <span>RINCIAN DETAIL SELURUH STAF SALES ({RAW_STAFF_DETAILS.length} ORANG)</span>
+                  <span>RINCIAN DETAIL SELURUH STAF SALES ({ALL_STAFF_DETAILS.length} ORANG)</span>
                 </h2>
-                <span className={`text-xs ${accentColor} font-bold`}>
-                  Menampilkan data periode: {filterWeek === "ALL" ? "Akumulasi Bulan" : filterWeek}
-                </span>
               </div>
 
-              {staffFilteredList.map((staff) => (
+              {ALL_STAFF_DETAILS.map((staff) => (
                 <div key={staff.salesId} className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl relative overflow-hidden space-y-5`}>
-                  {/* Header Staf */}
+                  {/* Header Staf dengan Lencana Inisial & UPT */}
                   <div className="flex flex-wrap justify-between items-start gap-4 pb-4 border-b border-inherit">
                     <div className="flex items-center gap-3">
                       <div className="relative">
@@ -1653,12 +1662,8 @@ export default function Page() {
 
                     <div className="flex flex-wrap items-center gap-2 text-right">
                       <div className={`px-3 py-1.5 rounded-xl border ${innerCardBg}`}>
-                        <span className="text-[9px] opacity-60 uppercase block">Actual Omset</span>
+                        <span className="text-[9px] opacity-60 uppercase block">Total Omset</span>
                         <span className="text-xs sm:text-sm font-black text-emerald-500">{formatIDR(staff.actual)}</span>
-                      </div>
-                      <div className={`px-3 py-1.5 rounded-xl border ${innerCardBg}`}>
-                        <span className="text-[9px] opacity-60 uppercase block">Target ({filterWeek})</span>
-                        <span className="text-xs sm:text-sm font-bold opacity-80">{staff.target > 0 ? formatIDR(staff.target) : "-"}</span>
                       </div>
                       <div className={`px-3 py-1.5 rounded-xl border ${innerCardBg}`}>
                         <span className="text-[9px] opacity-60 uppercase block">Achievement</span>
@@ -1667,13 +1672,13 @@ export default function Page() {
                         </span>
                       </div>
                       <div className={`px-3 py-1.5 rounded-xl border ${innerCardBg}`}>
-                        <span className="text-[9px] opacity-60 uppercase block">UPT</span>
-                        <span className="text-xs sm:text-sm font-black text-sky-500">{staff.upt}</span>
+                        <span className="text-[9px] opacity-60 uppercase block">UPT Staf</span>
+                        <span className="text-xs sm:text-sm font-black text-sky-500">{staff.upt} Unit/Struk</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Evaluasi Ringkas */}
+                  {/* Evaluasi Ringkas Bahasa Indonesia */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                     <div className={`p-3 rounded-xl border ${innerCardBg}`}>
                       <span className={`font-bold ${accentColor} block mb-1`}>📌 Evaluasi Kinerja:</span>
@@ -1685,7 +1690,7 @@ export default function Page() {
                     </div>
                   </div>
 
-                  {/* Target & Pencapaian Acc / VAS */}
+                  {/* KARTU TARGET & PENCAPAIAN ACCESSORIES & VAS */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className={`p-4 rounded-2xl border ${innerCardBg}`}>
                       <div className="flex justify-between items-center mb-2">
@@ -1712,7 +1717,7 @@ export default function Page() {
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-xs font-bold text-purple-500 flex items-center gap-1.5">
                           <span>🛡️</span>
-                          <span>Target & Pencapaian VAS</span>
+                          <span>Target & Pencapaian VAS (Qoala/Tsel/XL/Indosat)</span>
                         </span>
                         <span className="text-xs font-black text-purple-500">{staff.achvVas}% Achieved</span>
                       </div>
@@ -1946,4 +1951,4 @@ export default function Page() {
       </main>
     </div>
   );
-} 
+}
