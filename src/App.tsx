@@ -1,234 +1,123 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { 
+  ThemeMode, 
+  TabType, 
+  PeriodType, 
+  TransactionRecord, 
+  BnplRecord, 
+  StaffPerformanceMetric, 
+  ActivityStaffLog 
+} from "@/types/dashboard";
+import { 
+  calculateAchievement, 
+  calculateVariance, 
+  calculateEstimate, 
+  calculateUPT, 
+  calculateGrowthWoW, 
+  formatCurrencyIDR 
+} from "@/lib/calculations";
+import { fetchLiveDatabase, fetchLiveBNPL } from "@/lib/datasource";
 
-type MenuTab = "store-overview" | "weekly-sales" | "staff-performance" | "bnpl" | "sales-detail" | "admin-audit";
-type ThemeMode = "dark" | "light";
-
-interface RawTransaction {
-  date: string;
-  salesId: string;
-  salesName: string;
-  invoice: string;
-  sapArticle: string;
-  productName: string;
-  qty: number;
-  amount: number;
-  productType: string;
-  brand: string;
-  groupCategory: string;
-  weekLabel: string;
-}
-
-interface BnplItem {
-  date: string;
-  invoice: string;
-  amount: number;
-  tender: string;
-  product: string;
-  qty: number;
-  month: string;
-}
-
-interface ActivityLog {
-  id: string;
-  salesId: string;
-  salesName: string;
-  timestamp: string;
-  deviceType: string;
-  browser: string;
-  location: string;
-  coords: string;
-}
-
-export default function DigiplusLivePortal() {
-  // Theme & Navigasi State
+export default function RetailOperationsDashboard() {
+  // Theme & Layout States
   const [theme, setTheme] = useState<ThemeMode>("dark");
-  const [activeTab, setActiveTab] = useState<MenuTab>("store-overview");
-  const [overviewDetailCategory, setOverviewDetailCategory] = useState<"apple" | "android" | "accessories" | "vas">("apple");
+  const [activeTab, setActiveTab] = useState<TabType>("store-overview");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Authentication & Session
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
-  const [salesIdInput, setSalesIdInput] = useState<string>("");
-  const [passwordInput, setPasswordInput] = useState<string>("");
-  const [loginErr, setLoginErr] = useState<string>("");
-  const [currentSalesId, setCurrentSalesId] = useState<string>("");
-  const [currentSalesName, setCurrentSalesName] = useState<string>("");
+  // Authentication State
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [salesIdInput, setSalesIdInput] = useState("");
+  const [passwordInput, setPasswordInput] = useState("");
+  const [loginErr, setLoginErr] = useState("");
+  const [currentSalesId, setCurrentSalesId] = useState("");
+  const [currentSalesName, setCurrentSalesName] = useState("");
 
   // Live Sheets Data State
-  const [transactions, setTransactions] = useState<RawTransaction[]>([]);
-  const [bnplRecords, setBnplRecords] = useState<BnplItem[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [lastSyncTime, setLastSyncTime] = useState<string>("");
+  const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
+  const [bnplData, setBnplData] = useState<BnplRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [lastSyncTime, setLastSyncTime] = useState("");
 
-  // Activity Staff Log (Khusus Admin 22008089)
-  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  // Period & Filter States
+  const [periodType, setPeriodType] = useState<PeriodType>("monthly");
+  const [selectedMonth, setSelectedMonth] = useState("2026-10");
+  const [selectedWeek, setSelectedWeek] = useState("ALL");
+  const [selectedDate, setSelectedDate] = useState("2026-10-24");
+  const [overviewDetailCategory, setOverviewDetailCategory] = useState<"apple" | "android" | "accessories" | "vas">("apple");
 
-  // Filter Bar State
-  const [filterMonth, setFilterMonth] = useState<string>("2026-10");
-  const [filterWeek, setFilterWeek] = useState<string>("ALL");
-  const [filterDate, setFilterDate] = useState<string>("2026-10-24");
+  // Admin Activity Log State
+  const [activityLogs, setActivityLogs] = useState<ActivityStaffLog[]>([]);
 
   const SPREADSHEET_ID = "1v_QCLTDKORjVnByrzo9qRiivdU8CGO99nJri9jBETWM";
   const ADMIN_ID = "22008089";
 
-  // ==============================================================
-  // 1. LIVE FETCHING HOOK (GOOGLE VISUALIZATION API)
-  // ==============================================================
-  const fetchGoogleSheetsData = async () => {
+  // Pemanggilan Data Real-Time
+  const refreshData = async () => {
     setIsLoading(true);
     try {
-      const dbGvizUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=602901290`;
-      const bnplGvizUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=2697970`;
-
-      const [resDb, resBnpl] = await Promise.all([fetch(dbGvizUrl), fetch(bnplGvizUrl)]);
-      const textDb = await resDb.text();
-      const textBnpl = await resBnpl.text();
-
-      // Parse JSONP Tab DATABASE
-      const jsonStartDb = textDb.indexOf("{");
-      const jsonEndDb = textDb.lastIndexOf("}") + 1;
-      const dataDb = JSON.parse(textDb.substring(jsonStartDb, jsonEndDb));
-      const rowsDb = dataDb.table.rows;
-
-      const parsedTrx: RawTransaction[] = [];
-      rowsDb.forEach((r: any) => {
-        const c = r.c;
-        if (!c) return;
-
-        const date = c[0]?.f || c[0]?.v || "";
-        const salesId = String(c[1]?.v || "").trim();
-        const salesName = String(c[2]?.v || "").trim();
-        const invoice = String(c[3]?.v || "").trim();
-        const sapArticle = String(c[4]?.v || "").trim();
-        const productName = String(c[5]?.v || "").trim();
-        const qty = Number(c[7]?.v) || 1;
-        const rawAmount = c[8]?.v;
-        const amount = typeof rawAmount === "number" ? rawAmount : Number(String(rawAmount || 0).replace(/[^0-9]/g, ""));
-        const productType = String(c[9]?.v || "").trim();
-        const brand = String(c[10]?.v || "").trim().toUpperCase();
-        const groupCategory = String(c[11]?.v || "ACCESSORIES").trim().toUpperCase();
-        const weekLabel = String(c[14]?.v || "").trim();
-
-        if (invoice && amount > 0 && salesName) {
-          parsedTrx.push({
-            date,
-            salesId,
-            salesName,
-            invoice,
-            sapArticle,
-            productName,
-            qty,
-            amount,
-            productType,
-            brand,
-            groupCategory,
-            weekLabel,
-          });
-        }
-      });
-
-      // Parse JSONP Tab BNPL DATABASE
-      const jsonStartBnpl = textBnpl.indexOf("{");
-      const jsonEndBnpl = textBnpl.lastIndexOf("}") + 1;
-      const dataBnpl = JSON.parse(textBnpl.substring(jsonStartBnpl, jsonEndBnpl));
-      const rowsBnpl = dataBnpl.table.rows;
-
-      const parsedBnpl: BnplItem[] = [];
-      rowsBnpl.forEach((r: any) => {
-        const c = r.c;
-        if (!c) return;
-
-        const date = c[0]?.f || c[0]?.v || "";
-        const invoice = String(c[1]?.v || "").trim();
-        const rawAmount = c[2]?.v;
-        const amount = typeof rawAmount === "number" ? rawAmount : Number(String(rawAmount || 0).replace(/[^0-9]/g, ""));
-        const tender = String(c[3]?.v || "Other").trim();
-        const product = String(c[4]?.v || "").trim();
-        const qty = Number(c[5]?.v) || 1;
-        const month = String(c[6]?.v || "").trim();
-
-        if (invoice && amount > 0) {
-          parsedBnpl.push({
-            date,
-            invoice,
-            amount,
-            tender,
-            product,
-            qty,
-            month,
-          });
-        }
-      });
-
-      setTransactions(parsedTrx);
-      setBnplRecords(parsedBnpl);
+      const [trx, bnpl] = await Promise.all([
+        fetchLiveDatabase(SPREADSHEET_ID),
+        fetchLiveBNPL(SPREADSHEET_ID),
+      ]);
+      setTransactions(trx);
+      setBnplData(bnpl);
       setLastSyncTime(new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }));
 
-      // Update Nama Sales Login bila belum terisi
+      // Sapaan otomatis nama staf saat live data masuk
       if (currentSalesId && !currentSalesName) {
-        const staff = parsedTrx.find((t) => t.salesId === currentSalesId);
-        if (staff) setCurrentSalesName(staff.salesName);
+        if (currentSalesId === ADMIN_ID) {
+          setCurrentSalesName("Store Leader Admin");
+        } else {
+          const found = trx.find((t) => t.salesId === currentSalesId);
+          if (found) setCurrentSalesName(found.salesName);
+        }
       }
-    } catch (err) {
-      console.error("Gagal melakukan live fetch dari Google Sheets:", err);
+    } catch (e) {
+      console.error("Sinkronisasi gagal:", e);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchGoogleSheetsData();
-
-    // Pulihkan Session & Theme
+    refreshData();
     if (typeof window !== "undefined") {
-      const savedUser = localStorage.getItem("digiplus_session_user");
-      const savedName = localStorage.getItem("digiplus_session_name");
-      const savedTheme = localStorage.getItem("digiplus_theme") as ThemeMode;
+      const savedUser = localStorage.getItem("ops_user");
+      const savedName = localStorage.getItem("ops_name");
+      const savedTheme = localStorage.getItem("ops_theme") as ThemeMode;
       if (savedTheme) setTheme(savedTheme);
       if (savedUser) {
         setIsLoggedIn(true);
         setCurrentSalesId(savedUser);
         setCurrentSalesName(savedName || `Sales ${savedUser}`);
       }
-      const savedLogs = localStorage.getItem("digiplus_admin_activity");
+      const savedLogs = localStorage.getItem("ops_admin_logs");
       if (savedLogs) {
-        try {
-          setActivityLogs(JSON.parse(savedLogs));
-        } catch (e) {}
+        try { setActivityLogs(JSON.parse(savedLogs)); } catch (e) {}
       }
     }
   }, []);
 
-  // Format IDR Helper
-  const formatIDR = (n: number) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      maximumFractionDigits: 0,
-    }).format(n);
+  const toggleTheme = () => {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("ops_theme", nextTheme);
+    }
   };
 
-  // Helper Device Detection
-  const getDeviceType = (): string => {
-    if (typeof window === "undefined") return "Komputer / PC";
-    const ua = navigator.userAgent;
-    if (/(tablet|ipad|playbook|silk)|(android(?!.*mobi))/i.test(ua)) return "Tablet";
-    if (/Mobile|Android|iP(hone|od)/i.test(ua)) return "Handphone / Mobile";
-    return "Komputer / PC";
-  };
-
-  // Login Handler & Activity Audit
+  // Login Execution & Audit Logging
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordInput !== "Welcome@123") {
-      setLoginErr("Password salah! Gunakan: Welcome@123");
+      setLoginErr("Kata sandi salah! Gunakan: Welcome@123");
       return;
     }
     const cleanId = salesIdInput.trim();
     if (!cleanId) {
-      setLoginErr("Masukkan Sales ID Anda!");
+      setLoginErr("Masukkan Sales ID / NIK Anda!");
       return;
     }
 
@@ -236,19 +125,23 @@ export default function DigiplusLivePortal() {
     if (cleanId === ADMIN_ID) {
       detectedName = "Store Leader Admin";
     } else {
-      const found = transactions.find((t) => t.salesId === cleanId);
-      if (found) detectedName = found.salesName;
+      const match = transactions.find((t) => t.salesId === cleanId);
+      if (match) detectedName = match.salesName;
     }
 
-    localStorage.setItem("digiplus_session_user", cleanId);
-    localStorage.setItem("digiplus_session_name", detectedName);
+    localStorage.setItem("ops_user", cleanId);
+    localStorage.setItem("ops_name", detectedName);
     setCurrentSalesId(cleanId);
     setCurrentSalesName(detectedName);
     setIsLoggedIn(true);
     setLoginErr("");
 
-    // Catat Activity Log
-    const newLog: ActivityLog = {
+    // Catat Activity Audit
+    const isMobile = /Mobile|Android|iP(hone|od)/i.test(navigator.userAgent);
+    const isTablet = /(tablet|ipad|playbook|silk)|(android(?!.*mobi))/i.test(navigator.userAgent);
+    const device = isTablet ? "Tablet" : isMobile ? "Handphone / Mobile" : "Komputer / PC";
+
+    const log: ActivityStaffLog = {
       id: Date.now().toString(),
       salesId: cleanId,
       salesName: detectedName,
@@ -259,183 +152,168 @@ export default function DigiplusLivePortal() {
         hour: "2-digit",
         minute: "2-digit",
       }) + " WIB",
-      deviceType: getDeviceType(),
-      browser: navigator.userAgent.includes("Chrome") ? "Google Chrome" : "Browser",
-      location: "Grand Indonesia Store",
+      deviceType: device,
+      browser: navigator.userAgent.includes("Chrome") ? "Chrome" : "Safari",
+      location: "Store Grand Indonesia (Jakarta Pusat)",
       coords: "-6.1953, 106.8219",
     };
 
     setActivityLogs((prev) => {
-      const updated = [newLog, ...prev.slice(0, 49)];
-      localStorage.setItem("digiplus_admin_activity", JSON.stringify(updated));
+      const updated = [log, ...prev.slice(0, 49)];
+      localStorage.setItem("ops_admin_logs", JSON.stringify(updated));
       return updated;
     });
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("digiplus_session_user");
-    localStorage.removeItem("digiplus_session_name");
+    localStorage.removeItem("ops_user");
+    localStorage.removeItem("ops_name");
     setIsLoggedIn(false);
     setCurrentSalesId("");
     setCurrentSalesName("");
   };
 
-  // ==============================================================
-  // 2. KALKULASI OVERVIEW STORE DINAMIS DARI TRANSAKSI
-  // ==============================================================
-  const storeOverviewCalculated = useMemo(() => {
-    let list = transactions;
+  // -------------------------------------------------------------
+  // DEFINISI PERIODE WEEKLY DENGAN START & END DATE DARI KOLOM O
+  // -------------------------------------------------------------
+  const WEEK_DEFINITIONS = useMemo(() => [
+    { key: "W1", label: "Week 1 (03/10/26)", range: "01 Okt 2026 s.d. 03 Okt 2026", days: 3 },
+    { key: "W2", label: "W2 (10OKT 2026)", range: "04 Okt 2026 s.d. 10 Okt 2026", days: 7 },
+    { key: "W3", label: "W3 (17OKT 2026)", range: "11 Okt 2026 s.d. 17 Okt 2026", days: 7 },
+    { key: "W4", label: "W4 (24OKT 2026)", range: "18 Okt 2026 s.d. 24 Okt 2026", days: 7 },
+  ], []);
 
-    if (filterWeek !== "ALL") {
-      list = list.filter((t) => t.weekLabel.toLowerCase().includes(filterWeek.toLowerCase()));
-    }
+  // -------------------------------------------------------------
+  // FILTER TRANSAKSI AKTIF (DAILY / WEEKLY / MONTHLY)
+  // -------------------------------------------------------------
+  const activeTransactions = useMemo(() => {
+    return transactions.filter((t) => {
+      if (periodType === "daily") {
+        return t.date.includes(selectedDate) || t.date === selectedDate;
+      }
+      if (periodType === "weekly" && selectedWeek !== "ALL") {
+        const targetDef = WEEK_DEFINITIONS.find((w) => w.key === selectedWeek);
+        return targetDef ? t.weekLabel.toLowerCase().includes(targetDef.label.toLowerCase()) : true;
+      }
+      return true; // Monthly
+    });
+  }, [transactions, periodType, selectedDate, selectedWeek, WEEK_DEFINITIONS]);
 
-    const actualTotal = list.reduce((acc, curr) => acc + curr.amount, 0);
-    const targetTotal = 8728667173;
-    const achievementTotal = targetTotal > 0 ? Number(((actualTotal / targetTotal) * 100).toFixed(1)) : 0;
-    const varianceTotal = actualTotal - targetTotal;
-    const estimateTotal = Math.round(actualTotal * 1.29);
+  // -------------------------------------------------------------
+  // KALKULASI OVERVIEW METRICS DINAMIS
+  // -------------------------------------------------------------
+  const overviewMetrics = useMemo(() => {
+    const actualTotal = activeTransactions.reduce((acc, t) => acc + t.amount, 0);
+    const targetTotal = periodType === "daily" 
+      ? Math.round(8728667173 / 31) 
+      : periodType === "weekly" 
+      ? Math.round((8728667173 / 31) * (WEEK_DEFINITIONS.find(w => w.key === selectedWeek)?.days || 7))
+      : 8728667173;
 
-    // Filter Khusus LOB
-    const appleList = list.filter((t) => t.brand === "APPLE" || t.productName.toUpperCase().includes("IPHONE"));
-    const appleActual = appleList.reduce((acc, curr) => acc + curr.amount, 0);
-    const appleTarget = 6932151006;
+    const achv = calculateAchievement(actualTotal, targetTotal);
+    const variance = calculateVariance(actualTotal, targetTotal);
+    const estimate = calculateEstimate(actualTotal, 24, 31);
+    const qtyTotal = activeTransactions.reduce((acc, t) => acc + t.qty, 0);
+    const invoiceCount = new Set(activeTransactions.map((t) => t.invoice)).size;
+    const storeUPT = calculateUPT(qtyTotal, invoiceCount);
 
-    const androidList = list.filter((t) => 
+    // Filter LOB
+    const appleItems = activeTransactions.filter((t) => t.brand === "APPLE" || t.productName.toUpperCase().includes("IPHONE"));
+    const appleActual = appleItems.reduce((acc, t) => acc + t.amount, 0);
+    const appleTarget = Math.round(targetTotal * 0.794);
+
+    const androidItems = activeTransactions.filter((t) => 
       ["SAMSUNG", "OPPO", "MOTOROLA", "HUAWEI", "INFINIX", "XIAOMI"].includes(t.brand) || 
-      t.groupCategory === "DEVICES" && t.brand !== "APPLE"
+      (t.groupCategory === "DEVICES" && t.brand !== "APPLE")
     );
-    const androidActual = androidList.reduce((acc, curr) => acc + curr.amount, 0);
-    const androidTarget = 943691666;
+    const androidActual = androidItems.reduce((acc, t) => acc + t.amount, 0);
+    const androidTarget = Math.round(targetTotal * 0.108);
 
-    const accList = list.filter((t) => t.groupCategory === "ACCESSORIES" || t.groupCategory === "ACC");
-    const accActual = accList.reduce((acc, curr) => acc + curr.amount, 0);
-    const accTarget = 460550560;
+    const accItems = activeTransactions.filter((t) => t.groupCategory === "ACCESSORIES");
+    const accActual = accItems.reduce((acc, t) => acc + t.amount, 0);
+    const accTarget = Math.round(targetTotal * 0.053);
 
-    // VAS (Qoala, Telkomsel, XL, Indosat)
-    const vasList = list.filter((t) => 
+    const vasItems = activeTransactions.filter((t) => 
       t.groupCategory === "VAS" || 
       ["QOALA", "TELKOMSEL", "XL", "INDOSAT"].includes(t.brand) ||
       t.productName.toUpperCase().includes("QOALA") ||
-      t.productName.toUpperCase().includes("PROTEKSI") ||
-      t.productName.toUpperCase().includes("TELKOMSEL")
+      t.productName.toUpperCase().includes("PROTEKSI")
     );
-    const vasActual = vasList.reduce((acc, curr) => acc + curr.amount, 0);
-    const vasTarget = 392273940;
+    const vasActual = vasItems.reduce((acc, t) => acc + t.amount, 0);
+    const vasTarget = Math.round(targetTotal * 0.045);
 
     return {
       actualTotal,
       targetTotal,
-      achievementTotal,
-      varianceTotal,
-      estimateTotal,
+      achv,
+      variance,
+      estimate,
+      qtyTotal,
+      invoiceCount,
+      storeUPT,
       lobs: [
-        {
-          name: "Apple Devices",
-          icon: "🍎",
-          actual: appleActual,
-          target: appleTarget,
-          achv: Number(((appleActual / appleTarget) * 100).toFixed(1)),
-          variance: appleActual - appleTarget,
-          estimate: Math.round(appleActual * 1.29),
-          color: "text-sky-400",
-        },
-        {
-          name: "Android Devices",
-          icon: "🤖",
-          actual: androidActual,
-          target: androidTarget,
-          achv: Number(((androidActual / androidTarget) * 100).toFixed(1)),
-          variance: androidActual - androidTarget,
-          estimate: Math.round(androidActual * 1.29),
-          color: "text-indigo-400",
-        },
-        {
-          name: "Accessories",
-          icon: "🔌",
-          actual: accActual,
-          target: accTarget,
-          achv: Number(((accActual / accTarget) * 100).toFixed(1)),
-          variance: accActual - accTarget,
-          estimate: Math.round(accActual * 1.29),
-          color: "text-amber-400",
-        },
-        {
-          name: "VAS (Qoala, Telkomsel, XL, Indosat)",
-          icon: "🛡️",
-          actual: vasActual,
-          target: vasTarget,
-          achv: Number(((vasActual / vasTarget) * 100).toFixed(1)),
-          variance: vasActual - vasTarget,
-          estimate: Math.round(vasActual * 1.29),
-          color: "text-purple-400",
-        },
+        { name: "Apple Devices", icon: "🍎", actual: appleActual, target: appleTarget, achv: calculateAchievement(appleActual, appleTarget), variance: calculateVariance(appleActual, appleTarget), estimate: calculateEstimate(appleActual, 24, 31), color: "text-sky-400" },
+        { name: "Android Devices", icon: "🤖", actual: androidActual, target: androidTarget, achv: calculateAchievement(androidActual, androidTarget), variance: calculateVariance(androidActual, androidTarget), estimate: calculateEstimate(androidActual, 24, 31), color: "text-indigo-400" },
+        { name: "Accessories", icon: "🔌", actual: accActual, target: accTarget, achv: calculateAchievement(accActual, accTarget), variance: calculateVariance(accActual, accTarget), estimate: calculateEstimate(accActual, 24, 31), color: "text-amber-400" },
+        { name: "VAS (Qoala, Telkomsel, XL, Indosat)", icon: "🛡️", actual: vasActual, target: vasTarget, achv: calculateAchievement(vasActual, vasTarget), variance: calculateVariance(vasActual, vasTarget), estimate: calculateEstimate(vasActual, 24, 31), color: "text-purple-400" },
       ],
-      appleList,
-      androidList,
-      accList,
-      vasList,
+      appleItems,
+      androidItems,
+      accItems,
+      vasItems,
     };
-  }, [transactions, filterWeek]);
+  }, [activeTransactions, periodType, selectedWeek, WEEK_DEFINITIONS]);
 
-  // ==============================================================
-  // 3. KALKULASI WEEKLY SALES (BERDASARKAN SHEET DATABASE KOLOM O)
-  // ==============================================================
-  const weeklyCalculated = useMemo(() => {
-    const weekMap: Record<string, { total: number; apple: number; android: number; acc: number; vas: number; qty: number; invoices: Set<string> }> = {};
+  // -------------------------------------------------------------
+  // REKAP MINGGUAN (WOW) DARI DATABASE KOLOM O
+  // -------------------------------------------------------------
+  const weeklyReport = useMemo(() => {
+    return WEEK_DEFINITIONS.map((wDef, idx) => {
+      const matchTrx = transactions.filter((t) => t.weekLabel.toLowerCase().includes(wDef.label.toLowerCase()));
+      const sales = matchTrx.reduce((acc, t) => acc + t.amount, 0);
+      const qty = matchTrx.reduce((acc, t) => acc + t.qty, 0);
+      const invCount = new Set(matchTrx.map((t) => t.invoice)).size;
+      const target = Math.round((8728667173 / 31) * wDef.days);
 
-    transactions.forEach((t) => {
-      const wLabel = t.weekLabel || "Lainnya";
-      if (!weekMap[wLabel]) {
-        weekMap[wLabel] = { total: 0, apple: 0, android: 0, acc: 0, vas: 0, qty: 0, invoices: new Set() };
-      }
-      weekMap[wLabel].total += t.amount;
-      weekMap[wLabel].qty += t.qty;
-      if (t.invoice) weekMap[wLabel].invoices.add(t.invoice);
+      const prevMatch = idx > 0 ? transactions.filter((t) => t.weekLabel.toLowerCase().includes(WEEK_DEFINITIONS[idx - 1].label.toLowerCase())) : [];
+      const prevSales = prevMatch.reduce((acc, t) => acc + t.amount, 0);
+      const wowGrowth = idx > 0 ? calculateGrowthWoW(sales, prevSales) : 0;
 
-      if (t.brand === "APPLE" || t.productName.toUpperCase().includes("IPHONE")) weekMap[wLabel].apple += t.amount;
-      else if (["SAMSUNG", "OPPO", "MOTOROLA", "HUAWEI", "INFINIX", "XIAOMI"].includes(t.brand)) weekMap[wLabel].android += t.amount;
-      else if (t.groupCategory === "ACCESSORIES") weekMap[wLabel].acc += t.amount;
-      else if (t.groupCategory === "VAS" || t.brand === "QOALA") weekMap[wLabel].vas += t.amount;
+      return {
+        ...wDef,
+        sales,
+        qty,
+        invCount,
+        target,
+        achv: calculateAchievement(sales, target),
+        wowGrowth,
+      };
     });
+  }, [transactions, WEEK_DEFINITIONS]);
 
-    const entries = Object.entries(weekMap).map(([label, val]) => ({
-      weekLabel: label,
-      totalSales: val.total,
-      appleSales: val.apple,
-      androidSales: val.android,
-      accessoriesSales: val.acc,
-      vasSales: val.vas,
-      qty: val.qty,
-      invoicesCount: val.invoices.size,
-    }));
-
-    return entries;
-  }, [transactions]);
-
-  // ==============================================================
-  // 4. KALKULASI STAFF PERFORMANCE LENGKAP & DINAMIS
-  // ==============================================================
-  const staffPerformanceCalculated = useMemo(() => {
-    const staffMap: Record<string, { 
-      salesId: string; 
-      salesName: string; 
-      total: number; 
-      qty: number; 
+  // -------------------------------------------------------------
+  // REKAP KINERJA SELURUH STAF TOKO (LENGKAP SEMUA SUB-LINI)
+  // -------------------------------------------------------------
+  const staffReport: StaffPerformanceMetric[] = useMemo(() => {
+    const map: Record<string, {
+      salesId: string;
+      name: string;
+      total: number;
+      qty: number;
       invoices: Set<string>;
       appleMap: Record<string, { actual: number; qty: number; icon: string }>;
       androidMap: Record<string, { actual: number; qty: number; icon: string }>;
       accMap: Record<string, { actual: number; qty: number; icon: string }>;
       vasMap: Record<string, { actual: number; qty: number; icon: string }>;
-      weeksMap: Record<string, number>;
+      weekSales: Record<string, number>;
     }> = {};
 
     transactions.forEach((t) => {
-      const id = t.salesId || "UNKNOWN";
-      if (!staffMap[id]) {
-        staffMap[id] = {
+      const id = t.salesId || "OTHER";
+      if (!map[id]) {
+        map[id] = {
           salesId: id,
-          salesName: t.salesName || `Sales ${id}`,
+          name: t.salesName || `Sales ${id}`,
           total: 0,
           qty: 0,
           invoices: new Set(),
@@ -457,175 +335,207 @@ export default function DigiplusLivePortal() {
           accMap: {},
           vasMap: {
             "Qoala Proteksi Gadget": { actual: 0, qty: 0, icon: "🛡️" },
-            "Telkomsel Pascabayar/Data": { actual: 0, qty: 0, icon: "🔴" },
-            "XL Prioritas Bundling": { actual: 0, qty: 0, icon: "🔵" },
-            "Indosat IM3 Postpaid": { actual: 0, qty: 0, icon: "🟡" },
+            "Telkomsel Halo/Data": { actual: 0, qty: 0, icon: "🔴" },
+            "XL Prioritas": { actual: 0, qty: 0, icon: "🔵" },
+            "Indosat IM3": { actual: 0, qty: 0, icon: "🟡" },
           },
-          weeksMap: {},
+          weekSales: {},
         };
       }
 
-      staffMap[id].total += t.amount;
-      staffMap[id].qty += t.qty;
-      if (t.invoice) staffMap[id].invoices.add(t.invoice);
+      map[id].total += t.amount;
+      map[id].qty += t.qty;
+      if (t.invoice) map[id].invoices.add(t.invoice);
 
-      // Rekam per Week
+      // Track Weekly Sales per Staff
       const wLabel = t.weekLabel || "W_Other";
-      staffMap[id].weeksMap[wLabel] = (staffMap[id].weeksMap[wLabel] || 0) + t.amount;
+      map[id].weekSales[wLabel] = (map[id].weekSales[wLabel] || 0) + t.amount;
 
-      // Sub-Lini Apple
-      const pName = t.productName.toUpperCase();
-      if (t.brand === "APPLE" || pName.includes("IPHONE")) {
-        if (pName.includes("IPHONE")) { staffMap[id].appleMap["iPhone"].actual += t.amount; staffMap[id].appleMap["iPhone"].qty += t.qty; }
-        else if (pName.includes("IPAD")) { staffMap[id].appleMap["iPad"].actual += t.amount; staffMap[id].appleMap["iPad"].qty += t.qty; }
-        else if (pName.includes("MAC") || pName.includes("BOOK")) { staffMap[id].appleMap["MacBook"].actual += t.amount; staffMap[id].appleMap["MacBook"].qty += t.qty; }
-        else if (pName.includes("WATCH")) { staffMap[id].appleMap["Apple Watch"].actual += t.amount; staffMap[id].appleMap["Apple Watch"].qty += t.qty; }
-        else if (pName.includes("AIRPOD")) { staffMap[id].appleMap["AirPods"].actual += t.amount; staffMap[id].appleMap["AirPods"].qty += t.qty; }
+      const pUpper = t.productName.toUpperCase();
+
+      // Apple Sub
+      if (t.brand === "APPLE" || pUpper.includes("IPHONE")) {
+        if (pUpper.includes("IPHONE")) { map[id].appleMap["iPhone"].actual += t.amount; map[id].appleMap["iPhone"].qty += t.qty; }
+        else if (pUpper.includes("IPAD")) { map[id].appleMap["iPad"].actual += t.amount; map[id].appleMap["iPad"].qty += t.qty; }
+        else if (pUpper.includes("MAC") || pUpper.includes("BOOK")) { map[id].appleMap["MacBook"].actual += t.amount; map[id].appleMap["MacBook"].qty += t.qty; }
+        else if (pUpper.includes("WATCH")) { map[id].appleMap["Apple Watch"].actual += t.amount; map[id].appleMap["Apple Watch"].qty += t.qty; }
+        else if (pUpper.includes("AIRPOD")) { map[id].appleMap["AirPods"].actual += t.amount; map[id].appleMap["AirPods"].qty += t.qty; }
       }
 
-      // Sub-Lini Android
-      if (t.brand === "SAMSUNG" || pName.includes("GALAXY")) { staffMap[id].androidMap["Samsung Devices"].actual += t.amount; staffMap[id].androidMap["Samsung Devices"].qty += t.qty; }
-      else if (t.brand === "OPPO") { staffMap[id].androidMap["Oppo Devices"].actual += t.amount; staffMap[id].androidMap["Oppo Devices"].qty += t.qty; }
-      else if (t.brand === "MOTOROLA") { staffMap[id].androidMap["Motorola Devices"].actual += t.amount; staffMap[id].androidMap["Motorola Devices"].qty += t.qty; }
-      else if (t.brand === "HUAWEI") { staffMap[id].androidMap["Huawei Devices"].actual += t.amount; staffMap[id].androidMap["Huawei Devices"].qty += t.qty; }
-      else if (t.brand === "INFINIX") { staffMap[id].androidMap["Infinix Devices"].actual += t.amount; staffMap[id].androidMap["Infinix Devices"].qty += t.qty; }
-      else if (t.brand === "XIAOMI") { staffMap[id].androidMap["Xiaomi Devices"].actual += t.amount; staffMap[id].androidMap["Xiaomi Devices"].qty += t.qty; }
+      // Android Sub
+      if (t.brand === "SAMSUNG" || pUpper.includes("GALAXY")) { map[id].androidMap["Samsung Devices"].actual += t.amount; map[id].androidMap["Samsung Devices"].qty += t.qty; }
+      else if (t.brand === "OPPO") { map[id].androidMap["Oppo Devices"].actual += t.amount; map[id].androidMap["Oppo Devices"].qty += t.qty; }
+      else if (t.brand === "MOTOROLA") { map[id].androidMap["Motorola Devices"].actual += t.amount; map[id].androidMap["Motorola Devices"].qty += t.qty; }
+      else if (t.brand === "HUAWEI") { map[id].androidMap["Huawei Devices"].actual += t.amount; map[id].androidMap["Huawei Devices"].qty += t.qty; }
+      else if (t.brand === "INFINIX") { map[id].androidMap["Infinix Devices"].actual += t.amount; map[id].androidMap["Infinix Devices"].qty += t.qty; }
+      else if (t.brand === "XIAOMI") { map[id].androidMap["Xiaomi Devices"].actual += t.amount; map[id].androidMap["Xiaomi Devices"].qty += t.qty; }
 
-      // Sub-Lini Accessories (Grouping by Product Name)
-      if (t.groupCategory === "ACCESSORIES" || t.productType.toUpperCase().includes("CHARGER") || t.productType.toUpperCase().includes("CASE")) {
-        const itemKey = t.productName.trim() || "Aksesoris Lain";
-        if (!staffMap[id].accMap[itemKey]) {
-          staffMap[id].accMap[itemKey] = { actual: 0, qty: 0, icon: "🔌" };
-        }
-        staffMap[id].accMap[itemKey].actual += t.amount;
-        staffMap[id].accMap[itemKey].qty += t.qty;
+      // Accessories Sub
+      if (t.groupCategory === "ACCESSORIES") {
+        const item = t.productName.trim() || "Aksesoris";
+        if (!map[id].accMap[item]) map[id].accMap[item] = { actual: 0, qty: 0, icon: "🔌" };
+        map[id].accMap[item].actual += t.amount;
+        map[id].accMap[item].qty += t.qty;
       }
 
-      // Sub-Lini VAS (Qoala, Telkomsel, XL, Indosat)
-      if (t.brand === "QOALA" || pName.includes("QOALA") || pName.includes("PROTEKSI")) {
-        staffMap[id].vasMap["Qoala Proteksi Gadget"].actual += t.amount;
-        staffMap[id].vasMap["Qoala Proteksi Gadget"].qty += t.qty;
-      } else if (t.brand === "TELKOMSEL" || pName.includes("TELKOMSEL") || pName.includes("HALO")) {
-        staffMap[id].vasMap["Telkomsel Pascabayar/Data"].actual += t.amount;
-        staffMap[id].vasMap["Telkomsel Pascabayar/Data"].qty += t.qty;
+      // VAS Sub
+      if (t.brand === "QOALA" || pUpper.includes("QOALA") || pUpper.includes("PROTEKSI")) {
+        map[id].vasMap["Qoala Proteksi Gadget"].actual += t.amount;
+        map[id].vasMap["Qoala Proteksi Gadget"].qty += t.qty;
+      } else if (t.brand === "TELKOMSEL" || pUpper.includes("TELKOMSEL")) {
+        map[id].vasMap["Telkomsel Halo/Data"].actual += t.amount;
+        map[id].vasMap["Telkomsel Halo/Data"].qty += t.qty;
       } else if (t.brand === "XL") {
-        staffMap[id].vasMap["XL Prioritas Bundling"].actual += t.amount;
-        staffMap[id].vasMap["XL Prioritas Bundling"].qty += t.qty;
+        map[id].vasMap["XL Prioritas"].actual += t.amount;
+        map[id].vasMap["XL Prioritas"].qty += t.qty;
       } else if (t.brand === "INDOSAT") {
-        staffMap[id].vasMap["Indosat IM3 Postpaid"].actual += t.amount;
-        staffMap[id].vasMap["Indosat IM3 Postpaid"].qty += t.qty;
+        map[id].vasMap["Indosat IM3"].actual += t.amount;
+        map[id].vasMap["Indosat IM3"].qty += t.qty;
       }
     });
 
-    // Urutkan staf berdasarkan Total Omset
-    const sorted = Object.values(staffMap).sort((a, b) => b.total - a.total);
+    const sortedStaff = Object.values(map).sort((a, b) => b.total - a.total);
 
-    return sorted.map((s, idx) => {
+    return sortedStaff.map((s, idx) => {
       const invCount = s.invoices.size;
-      const upt = invCount > 0 ? Number((s.qty / invCount).toFixed(2)) : 0;
-      const targetQuota = 1658446763; // Standar target toko per head
-      const achv = Number(((s.total / targetQuota) * 100).toFixed(1));
-      const variance = s.total - targetQuota;
+      const upt = calculateUPT(s.qty, invCount);
+      const targetQuota = 1658446763;
+      const achv = calculateAchievement(s.total, targetQuota);
+      const variance = calculateVariance(s.total, targetQuota);
+      const estimate = calculateEstimate(s.total, 24, 31);
 
-      // Inisial Nama
-      const names = s.salesName.split(" ");
-      const initials = names.length > 1 ? (names[0][0] + names[1][0]).toUpperCase() : names[0].slice(0, 2).toUpperCase();
+      const words = s.name.split(" ");
+      const initials = words.length > 1 ? (words[0][0] + words[1][0]).toUpperCase() : words[0].slice(0, 2).toUpperCase();
 
-      // Urutkan Accessories Dari Amount Besar ke Kecil
+      // Urutkan Accessories Dari Nominal Besar ke Kecil
       const sortedAcc = Object.entries(s.accMap)
-        .map(([name, data]) => ({ name, ...data }))
+        .map(([name, d]) => ({ name, ...d, target: 0, achievement: 0, variance: 0, estimate: 0 }))
         .sort((a, b) => b.actual - a.actual);
 
-      const totalAccActual = sortedAcc.reduce((acc, curr) => acc + curr.actual, 0);
-      const totalVasActual = Object.values(s.vasMap).reduce((acc, curr) => acc + curr.actual, 0);
+      const totalAccActual = sortedAcc.reduce((acc, c) => acc + c.actual, 0);
+      const totalVasActual = Object.values(s.vasMap).reduce((acc, c) => acc + c.actual, 0);
 
-      // Evaluasi Ringkas Bahasa Indonesia
-      let ringkasan = `Pencapaian omset mencapai ${achv}% terhadap kuota.`;
-      let rekomendasi = "Tingkatkan closing rate device dan lakukan penawaran bundling aksesoris pada setiap struk.";
+      const targetAcc = 80000000;
+      const targetVas = 60000000;
+
       let status: "Tercapai" | "Perlu Perhatian Khusus" | "Dalam Pantauan" = "Dalam Pantauan";
+      let ringkasan = `Pencapaian penjualan ${achv}% terhadap target kuota.`;
+      let rekomendasi = "Tingkatkan penawaran paket bundling aksesoris dan layanan proteksi pada setiap nota penjualan.";
 
       if (achv >= 100) {
         status = "Tercapai";
-        ringkasan = `Performa sangat prima! Target bulanan terlampaui ${achv}% dengan total transaksi ${invCount} struk.`;
-        rekomendasi = "Pertahankan momentum dan dorong penjualan proteksi Qoala untuk memaksimalkan margin insentif.";
+        ringkasan = `Pencapaian sangat tinggi (${achv}%) dengan kontribusi ${invCount} struk nota.`;
+        rekomendasi = "Pertahankan konsistensi penjualan unit dan maksimalkan attachment rate aksesoris premium.";
       } else if (achv < 20) {
         status = "Perlu Perhatian Khusus";
         ringkasan = `Pencapaian sangat tertinggal (${achv}%), defisit omset mencapai ${formatIDR(variance)}.`;
-        rekomendasi = "Perlu evaluasi harian terhadap prospek walk-in dan tawarkan program cicilan/BNPL 0%.";
+        rekomendasi = "Evaluasi interaksi prospek customer harian dan manfaatkan program cicilan/BNPL 0%.";
       }
 
       return {
         rank: idx + 1,
         salesId: s.salesId,
-        name: s.salesName,
+        name: s.name,
         initials,
-        total: s.total,
-        qty: s.qty,
-        invoicesCount: invCount,
-        upt,
+        actual: s.total,
         target: targetQuota,
         achievement: achv,
         variance,
+        estimate,
+        invoicesCount: invCount,
+        qty: s.qty,
+        upt,
         totalAccActual,
+        targetAcc,
+        achvAcc: calculateAchievement(totalAccActual, targetAcc),
         totalVasActual,
-        appleSub: Object.entries(s.appleMap).map(([name, d]) => ({ name, ...d })),
-        androidSub: Object.entries(s.androidMap).map(([name, d]) => ({ name, ...d })),
-        accessoriesSub: sortedAcc,
-        vasSub: Object.entries(s.vasMap).map(([name, d]) => ({ name, ...d })),
+        targetVas,
+        achvVas: calculateAchievement(totalVasActual, targetVas),
         status,
         ringkasan,
         rekomendasi,
+        appleSub: Object.entries(s.appleMap).map(([name, d]) => ({ name, ...d, target: 0, achievement: 0, variance: 0, estimate: 0 })),
+        androidSub: Object.entries(s.androidMap).map(([name, d]) => ({ name, ...d, target: 0, achievement: 0, variance: 0, estimate: 0 })),
+        accessoriesSub: sortedAcc,
+        vasSub: Object.entries(s.vasMap).map(([name, d]) => ({ name, ...d, target: 0, achievement: 0, variance: 0, estimate: 0 })),
+        weekSales: s.weekSales,
       };
     });
   }, [transactions]);
 
-  // ==============================================================
-  // 5. KALKULASI BNPL DINAMIS (DARI GID 2697970)
-  // ==============================================================
-  const bnplCalculated = useMemo(() => {
-    const totalBnplAmount = bnplRecords.reduce((acc, curr) => acc + curr.amount, 0);
-    const totalBnplQty = bnplRecords.reduce((acc, curr) => acc + curr.qty, 0);
-    const storeTotalSales = storeOverviewCalculated.actualTotal;
+  // -------------------------------------------------------------
+  // REKAP BNPL TENDER & KONTRIBUSI TOKO
+  // -------------------------------------------------------------
+  const bnplSummary = useMemo(() => {
+    const totalAmount = bnplData.reduce((acc, b) => acc + b.amount, 0);
+    const totalQty = bnplData.reduce((acc, b) => acc + b.qty, 0);
+    const storeActual = overviewMetrics.actualTotal;
 
-    const tenderMap: Record<string, { amount: number; qty: number }> = {};
-    bnplRecords.forEach((t) => {
-      const key = t.tender || "Other";
-      if (!tenderMap[key]) tenderMap[key] = { amount: 0, qty: 0 };
-      tenderMap[key].amount += t.amount;
-      tenderMap[key].qty += t.qty;
+    const map: Record<string, { amount: number; qty: number }> = {};
+    bnplData.forEach((b) => {
+      const tKey = b.tender || "Other";
+      if (!map[tKey]) map[tKey] = { amount: 0, qty: 0 };
+      map[tKey].amount += b.amount;
+      map[tKey].qty += b.qty;
     });
 
-    const tenders = Object.entries(tenderMap).map(([tender, val]) => {
-      const shareToStore = storeTotalSales > 0 ? Number(((val.amount / storeTotalSales) * 100).toFixed(1)) : 0;
-      const estimate = Math.round((val.amount / 24) * 31);
-      return {
-        tender,
-        amount: val.amount,
-        qty: val.qty,
-        shareToStore,
-        estimate,
-      };
+    const tenders = Object.entries(map).map(([tender, d]) => {
+      const share = storeActual > 0 ? Number(((d.amount / storeActual) * 100).toFixed(1)) : 0;
+      const estimate = calculateEstimate(d.amount, 24, 31);
+      return { tender, amount: d.amount, qty: d.qty, share, estimate };
     }).sort((a, b) => b.amount - a.amount);
 
-    return {
-      totalBnplAmount,
-      totalBnplQty,
-      tenders,
-      records: bnplRecords,
-    };
-  }, [bnplRecords, storeOverviewCalculated.actualTotal]);
+    return { totalAmount, totalQty, tenders, list: bnplData };
+  }, [bnplData, overviewMetrics.actualTotal]);
 
-  // Styling Dinamis
+  // -------------------------------------------------------------
+  // SHARE DAILY WHATSAPP TEMPLATE
+  // -------------------------------------------------------------
+  const handleShareDaily = () => {
+    const appleLob = overviewMetrics.lobs.find((l) => l.name.includes("Apple"))?.actual || 0;
+    const androidLob = overviewMetrics.lobs.find((l) => l.name.includes("Android"))?.actual || 0;
+    const accLob = overviewMetrics.lobs.find((l) => l.name.includes("Accessories"))?.actual || 0;
+    const vasLob = overviewMetrics.lobs.find((l) => l.name.includes("VAS"))?.actual || 0;
+
+    const text = 
+`*DAILY RETAIL SALES REPORT - DIGIPLUS GRAND INDONESIA*
+Tanggal: ${selectedDate} (Cut-off)
+
+📊 *Pencapaian Store:*
+• Sales: ${formatIDR(overviewMetrics.actualTotal)}
+• Target: ${formatIDR(overviewMetrics.targetTotal)}
+• Achievement: ${overviewMetrics.achv}%
+• Gap / Sisa: ${formatIDR(overviewMetrics.variance)}
+
+📦 *Breakdown Kategori:*
+• Apple Devices: ${formatIDR(appleLob)}
+• Android Devices: ${formatIDR(androidLob)}
+• Accessories: ${formatIDR(accLob)}
+• VAS: ${formatIDR(vasLob)}
+
+📈 *Metrik Operasional:*
+• UPT: ${overviewMetrics.storeUPT}
+• Invoice: ${overviewMetrics.invoiceCount} Struk
+• Qty: ${overviewMetrics.qtyTotal} Unit
+
+_Generated live via Store Performance Engine._`;
+
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+  };
+
+  // Color Theme Variables
   const isDark = theme === "dark";
   const bgMain = isDark ? "bg-[#1A1831]" : "bg-[#F9F8F3]";
   const textMain = isDark ? "text-[#FFF6E9]" : "text-[#1E293B]";
   const textMuted = isDark ? "text-[#FFF6E9]/70" : "text-slate-600";
-  const cardBg = isDark ? "bg-[#221F40] border-[#3B3666]" : "bg-white border-[#E5E2D9]";
+  const cardBg = isDark ? "bg-[#221F40] border-[#3B3666]" : "bg-white border-[#E5E2D9] shadow-sm";
   const innerBg = isDark ? "bg-[#141226] border-[#3B3666]" : "bg-[#F2EFE9] border-[#E5E2D9]";
   const accentText = isDark ? "text-[#F5BA42]" : "text-[#054ff0]";
   const activeTabBtn = isDark ? "bg-[#F5BA42] text-[#1A1831] font-black" : "bg-[#054ff0] text-white font-black";
 
-  // HALAMAN LOGIN
+  // =============================================================
+  // RENDER: LOGIN PORTAL
+  // =============================================================
   if (!isLoggedIn) {
     return (
       <div className={`min-h-screen ${bgMain} flex items-center justify-center p-4 ${textMain} font-sans`}>
@@ -671,7 +581,7 @@ export default function DigiplusLivePortal() {
 
             <button
               type="submit"
-              className={`w-full py-3.5 ${isDark ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#054ff0] text-white"} font-black rounded-xl text-xs uppercase tracking-wider transition mt-2`}
+              className={`w-full py-3.5 ${isDark ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#054ff0] text-white"} font-black rounded-xl text-xs uppercase tracking-wider transition mt-2 shadow-lg`}
             >
               Masuk Dashboard
             </button>
@@ -681,9 +591,12 @@ export default function DigiplusLivePortal() {
     );
   }
 
+  // =============================================================
+  // RENDER: DASHBOARD UTAMA
+  // =============================================================
   return (
     <div className={`flex min-h-screen ${bgMain} ${textMain} font-sans relative`}>
-      {/* MOBILE HAMBURGER TOGGLE */}
+      {/* Mobile Drawer Button */}
       <div className="lg:hidden fixed bottom-5 right-5 z-50">
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -715,7 +628,7 @@ export default function DigiplusLivePortal() {
             </div>
           </div>
 
-          {/* User Tag */}
+          {/* User Tag Sapaan */}
           <div className={`mt-3 p-3 rounded-2xl ${cardBg} border flex items-center justify-between`}>
             <div>
               <span className="text-[9px] uppercase tracking-wider opacity-60 block font-bold">User Terotentikasi</span>
@@ -794,7 +707,7 @@ export default function DigiplusLivePortal() {
         {/* Footer Sidebar */}
         <div className="p-4 border-t border-inherit space-y-2">
           <button
-            onClick={() => setTheme(isDark ? "light" : "dark")}
+            onClick={toggleTheme}
             className={`w-full py-2 px-3 ${innerBg} border rounded-xl text-xs font-bold transition flex items-center justify-center gap-2`}
           >
             <span>{isDark ? "☀️ Light Mode" : "🌙 Dark Mode"}</span>
@@ -812,7 +725,7 @@ export default function DigiplusLivePortal() {
 
       {/* KONTEN UTAMA */}
       <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-w-7xl mx-auto w-full">
-        {/* HEADER: SAPAAN PERSONAL & LIVE SYNC BUTTON */}
+        {/* HEADER: SAPAAN PERSONAL, LIVE SYNC, & SHARE WA */}
         <header className="mb-6 border-b border-inherit pb-5">
           <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
             <div>
@@ -820,90 +733,118 @@ export default function DigiplusLivePortal() {
                 <span>Halo, {currentSalesName} 👋</span>
               </div>
               <p className={`text-xs ${textMuted} mt-1`}>
-                Live Feed Google Sheets: <code>DATABASE</code> (gid: 602901290) & <code>BNPL DATABASE</code> (gid: 2697970)
+                Live Sync Sheet: <code>DATABASE</code> (gid: 602901290) & <code>BNPL DATABASE</code> (gid: 2697970)
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
-                onClick={fetchGoogleSheetsData}
+                onClick={handleShareDaily}
+                className="px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-95"
+              >
+                <span>📲</span>
+                <span>Share Daily (WhatsApp)</span>
+              </button>
+
+              <button
+                onClick={refreshData}
                 disabled={isLoading}
                 className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 ${innerBg}`}
               >
                 <span>🔄</span>
-                <span>{isLoading ? "Mengambil Data..." : "Sinkronkan Sekarang"}</span>
+                <span>{isLoading ? "Mengambil Data..." : "Sync Live"}</span>
               </button>
 
               <span className={`px-3 py-1.5 rounded-lg border text-xs font-bold ${
                 isDark ? "bg-emerald-500/15 text-emerald-300 border-emerald-400/30" : "bg-emerald-50 text-emerald-600 border-emerald-200"
               }`}>
-                Actual MTD: {formatIDR(storeOverviewCalculated.actualTotal)}
+                Actual Terfilter: {formatIDR(overviewMetrics.actualTotal)}
               </span>
             </div>
           </div>
 
-          {/* FILTER BARIS DINAMIS */}
+          {/* BARIS FILTER DINAMIS: DAILY, WEEKLY, MONTHLY */}
           <div className={`p-3 ${cardBg} border rounded-2xl flex flex-wrap items-center gap-3 justify-between text-xs`}>
             <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2">
-                <span className="opacity-70 font-semibold">📅 Bulan:</span>
-                <select
-                  value={filterMonth}
-                  onChange={(e) => setFilterMonth(e.target.value)}
-                  className={`${innerBg} border rounded-xl px-2.5 py-1 font-bold focus:outline-none`}
-                >
-                  <option value="2026-10">Oktober 2026</option>
-                </select>
+              {/* Toggle Mode Periode */}
+              <div className="flex items-center gap-1 bg-black/20 p-1 rounded-xl">
+                {(["daily", "weekly", "monthly"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setPeriodType(mode)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold capitalize transition ${
+                      periodType === mode ? activeTabBtn : "opacity-70 hover:opacity-100"
+                    }`}
+                  >
+                    {mode}
+                  </button>
+                ))}
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="opacity-70 font-semibold">📊 Week:</span>
-                <select
-                  value={filterWeek}
-                  onChange={(e) => setFilterWeek(e.target.value)}
-                  className={`${innerBg} border rounded-xl px-2.5 py-1 font-bold focus:outline-none`}
-                >
-                  <option value="ALL">Semua Minggu</option>
-                  <option value="Week 1">Week 1 (03/10/26)</option>
-                  <option value="W2">W2 (10OKT 2026)</option>
-                  <option value="W3">W3 (17OKT 2026)</option>
-                  <option value="W4">W4 (24OKT 2026)</option>
-                </select>
-              </div>
+              {/* Filter Bulan */}
+              {periodType === "monthly" && (
+                <div className="flex items-center gap-2">
+                  <span className="opacity-70 font-semibold">📅 Bulan:</span>
+                  <select
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    className={`${innerBg} border rounded-xl px-2.5 py-1 font-bold focus:outline-none`}
+                  >
+                    <option value="2026-10">2026-10 (Oktober 2026)</option>
+                  </select>
+                </div>
+              )}
 
-              <div className="flex items-center gap-2">
-                <span className="opacity-70 font-semibold">🗓️ Cut-off:</span>
-                <input
-                  type="date"
-                  value={filterDate}
-                  onChange={(e) => setFilterDate(e.target.value)}
-                  className={`${innerBg} border rounded-xl px-2.5 py-1 font-bold focus:outline-none`}
-                />
-              </div>
+              {/* Filter Week */}
+              {periodType === "weekly" && (
+                <div className="flex items-center gap-2">
+                  <span className="opacity-70 font-semibold">📊 Week:</span>
+                  <select
+                    value={selectedWeek}
+                    onChange={(e) => setSelectedWeek(e.target.value)}
+                    className={`${innerBg} border rounded-xl px-2.5 py-1 font-bold focus:outline-none`}
+                  >
+                    <option value="ALL">Semua Minggu</option>
+                    {WEEK_DEFINITIONS.map((w) => (
+                      <option key={w.key} value={w.key}>{w.label} ({w.range})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Filter Daily / Tanggal */}
+              {periodType === "daily" && (
+                <div className="flex items-center gap-2">
+                  <span className="opacity-70 font-semibold">🗓️ Tanggal:</span>
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className={`${innerBg} border rounded-xl px-2.5 py-1 font-bold focus:outline-none`}
+                  />
+                </div>
+              )}
             </div>
 
             <div className={`text-[11px] ${accentText} font-semibold flex items-center gap-1.5`}>
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>Terakhir Sync: {lastSyncTime ? `${lastSyncTime} WIB` : "Menghubungkan..."} • {transactions.length} Baris Transaksi Terbaca</span>
+              <span>Sync: {lastSyncTime ? `${lastSyncTime} WIB` : "Menghubungkan..."} • {transactions.length} Baris Transaksi Terbaca</span>
             </div>
           </div>
         </header>
 
-        {/* LOADING STATE */}
-        {isLoading && (
-          <div className="py-16 text-center text-sm font-semibold opacity-60 animate-pulse">
-            ⏳ Mengambil data langsung dari Google Sheets...
+        {isLoading ? (
+          <div className="py-20 text-center text-sm font-semibold opacity-60 animate-pulse">
+            ⏳ Mengambil dan mengkalkulasi data langsung dari Google Sheets...
           </div>
-        )}
-
-        {!isLoading && (
+        ) : (
           <>
             {/* ========================================================= */}
             {/* TAB 1: OVERVIEW STORE                                     */}
             {/* ========================================================= */}
             {activeTab === "store-overview" && (
               <div className="space-y-6 sm:space-y-8">
-                {/* TIME GONE ANALYTICS CARD */}
+                {/* Time Gone Card */}
                 <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl relative overflow-hidden`}>
                   <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
                     <div className="flex items-center gap-3">
@@ -913,7 +854,7 @@ export default function DigiplusLivePortal() {
                       <div>
                         <h2 className="text-base font-black tracking-wide">TIME GONE ANALYTICS (OKTOBER 2026)</h2>
                         <p className={`text-xs ${textMuted}`}>
-                          Hari Berjalan: <strong className={textMain}>{TIME_GONE_DATA.daysPassed} hari</strong> dari {TIME_GONE_DATA.totalDays} hari ({TIME_GONE_DATA.daysLeft} hari tersisa)
+                          Hari Berjalan: <strong className={textMain}>24 hari</strong> dari 31 hari (7 hari tersisa)
                         </p>
                       </div>
                     </div>
@@ -921,12 +862,12 @@ export default function DigiplusLivePortal() {
                     <div className="flex items-center gap-3">
                       <div className="text-right">
                         <span className="text-[10px] uppercase font-bold opacity-60 block">Time Elapsed</span>
-                        <span className={`text-2xl font-black ${accentText}`}>{TIME_GONE_DATA.percentageTimeGone}%</span>
+                        <span className={`text-2xl font-black ${accentText}`}>77.4%</span>
                       </div>
                       <div className="h-8 w-px bg-inherit mx-1 opacity-20"></div>
                       <div className="text-right">
                         <span className="text-[10px] uppercase font-bold opacity-60 block">Achv Pace</span>
-                        <span className="text-2xl font-black text-emerald-500">{storeOverviewCalculated.achievementTotal}%</span>
+                        <span className="text-2xl font-black text-emerald-500">{overviewMetrics.achv}%</span>
                       </div>
                     </div>
                   </div>
@@ -935,43 +876,45 @@ export default function DigiplusLivePortal() {
                     <div>
                       <div className="flex justify-between text-[11px] mb-1">
                         <span className={textMuted}>Waktu Berjalan (Time Gone):</span>
-                        <span className={`font-bold ${accentText}`}>{TIME_GONE_DATA.percentageTimeGone}%</span>
+                        <span className={`font-bold ${accentText}`}>77.4%</span>
                       </div>
                       <div className={`w-full ${innerBg} h-2.5 rounded-full overflow-hidden`}>
-                        <div className={`${isDark ? "bg-[#F5BA42]" : "bg-[#054ff0]"} h-full rounded-full`} style={{ width: `${TIME_GONE_DATA.percentageTimeGone}%` }}></div>
+                        <div className={`${isDark ? "bg-[#F5BA42]" : "bg-[#054ff0]"} h-full rounded-full`} style={{ width: "77.4%" }}></div>
                       </div>
                     </div>
 
                     <div>
                       <div className="flex justify-between text-[11px] mb-1">
                         <span className={textMuted}>Pencapaian Omset Aktual:</span>
-                        <span className="font-bold text-emerald-500">{storeOverviewCalculated.achievementTotal}% ({formatIDR(storeOverviewCalculated.actualTotal)})</span>
+                        <span className="font-bold text-emerald-500">{overviewMetrics.achv}% ({formatIDR(overviewMetrics.actualTotal)})</span>
                       </div>
                       <div className={`w-full ${innerBg} h-2.5 rounded-full overflow-hidden`}>
-                        <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${Math.min(storeOverviewCalculated.achievementTotal, 100)}%` }}></div>
+                        <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${Math.min(overviewMetrics.achv, 100)}%` }}></div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-inherit text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-4 border-t border-inherit text-xs">
                     <div className={`p-3 ${innerBg} rounded-xl border`}>
-                      <span className="opacity-60 text-[11px]">Kesenjangan Pace Toko:</span>
-                      <div className="text-sm font-black text-red-500 mt-0.5">-{(TIME_GONE_DATA.percentageTimeGone - storeOverviewCalculated.achievementTotal).toFixed(1)}% (Tertinggal)</div>
+                      <span className="opacity-60 text-[11px]">Kesenjangan Pace:</span>
+                      <div className="text-sm font-black text-red-500 mt-0.5">-{(77.4 - overviewMetrics.achv).toFixed(1)}% (Tertinggal)</div>
                     </div>
-
                     <div className={`p-3 ${innerBg} rounded-xl border`}>
                       <span className="opacity-60 text-[11px]">Daily Run Rate Aktual:</span>
-                      <div className="text-sm font-black text-sky-500 mt-0.5">{formatIDR(TIME_GONE_DATA.dailyRunRate)} / hari</div>
+                      <div className="text-sm font-black text-sky-500 mt-0.5">{formatIDR(Math.round(overviewMetrics.actualTotal / 24))} / hari</div>
                     </div>
-
                     <div className={`p-3 ${innerBg} rounded-xl border`}>
-                      <span className="opacity-60 text-[11px]">Required Daily Run Rate:</span>
-                      <div className={`text-sm font-black ${accentText} mt-0.5`}>{formatIDR(TIME_GONE_DATA.requiredRunRate)} / hari</div>
+                      <span className="opacity-60 text-[11px]">Target Periode:</span>
+                      <div className={`text-sm font-black ${accentText} mt-0.5`}>{formatIDR(overviewMetrics.targetTotal)}</div>
+                    </div>
+                    <div className={`p-3 ${innerBg} rounded-xl border`}>
+                      <span className="opacity-60 text-[11px]">Store UPT:</span>
+                      <div className="text-sm font-black text-emerald-500 mt-0.5">{overviewMetrics.storeUPT} Unit/Struk</div>
                     </div>
                   </div>
                 </div>
 
-                {/* MATRIKS LOB TARGET, ACTUAL, %, VARIANCE, ESTIMATE */}
+                {/* Matriks 4 LOB Kategori */}
                 <div>
                   <div className="flex justify-between items-center mb-3">
                     <h2 className="text-base font-bold">Matriks Kategori Produk (Apple, Android, Accessories & VAS)</h2>
@@ -991,7 +934,7 @@ export default function DigiplusLivePortal() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-inherit font-medium">
-                        {storeOverviewCalculated.lobs.map((row, idx) => (
+                        {overviewMetrics.lobs.map((row, idx) => (
                           <tr key={idx} className="hover:opacity-90 transition">
                             <td className="py-4 px-4 font-bold text-sm">
                               <span className="mr-2">{row.icon}</span>
@@ -1015,7 +958,7 @@ export default function DigiplusLivePortal() {
                   </div>
                 </div>
 
-                {/* RANK SALES PER STAFF & UPT */}
+                {/* Rank Sales per Staff & UPT */}
                 <div className={`p-4 sm:p-6 ${cardBg} border rounded-3xl shadow-xl`}>
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-base font-bold">🏆 Rank Sales per Staff & UPT Toko</h3>
@@ -1034,7 +977,7 @@ export default function DigiplusLivePortal() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-inherit font-medium">
-                        {staffPerformanceCalculated.map((s) => (
+                        {staffReport.map((s) => (
                           <tr key={s.salesId} className="hover:opacity-90 transition">
                             <td className="py-3.5 px-4 text-center">
                               <span className={`w-6 h-6 rounded-full inline-flex items-center justify-center font-black text-xs ${
@@ -1047,7 +990,7 @@ export default function DigiplusLivePortal() {
                               <div className="font-bold">{s.name}</div>
                               <div className="text-[10px] opacity-60 font-mono">ID: {s.salesId}</div>
                             </td>
-                            <td className="py-3.5 px-4 text-right font-extrabold text-emerald-500 text-sm">{formatIDR(s.total)}</td>
+                            <td className="py-3.5 px-4 text-right font-extrabold text-emerald-500 text-sm">{formatIDR(s.actual)}</td>
                             <td className="py-3.5 px-4 text-center font-bold">{s.qty}</td>
                             <td className="py-3.5 px-4 text-center opacity-70">{s.invoicesCount}</td>
                             <td className="py-3.5 px-4 text-center font-black text-sky-500">{s.upt}</td>
@@ -1065,12 +1008,12 @@ export default function DigiplusLivePortal() {
                   </div>
                 </div>
 
-                {/* RINCIAN PRODUK DETAIL PER KATEGORI (BERBASIS TABS) */}
+                {/* Rincian Produk Per Kategori */}
                 <div className={`p-6 ${cardBg} border rounded-3xl shadow-xl`}>
                   <div className="flex flex-wrap justify-between items-center gap-4 mb-5">
                     <div>
                       <h3 className="text-base font-bold">Rincian Detail Produk Terjual per Kategori</h3>
-                      <p className={`text-xs ${textMuted} mt-0.5`}>Pilih kategori untuk melihat produk yang terjual dari live feed sheet</p>
+                      <p className={`text-xs ${textMuted} mt-0.5`}>Pilih tab di bawah untuk melihat rincian SKU, qty, dan revenue tanpa reload</p>
                     </div>
 
                     <div className={`flex flex-wrap gap-2 ${innerBg} p-1.5 rounded-2xl border`}>
@@ -1085,7 +1028,7 @@ export default function DigiplusLivePortal() {
                           {cat === "apple" && "🍎 Apple"}
                           {cat === "android" && "🤖 Android"}
                           {cat === "accessories" && "🔌 Accessories"}
-                          {cat === "vas" && "🛡️ VAS (Qoala/Tsel/XL/Indosat)"}
+                          {cat === "vas" && "🛡️ VAS (Qoala/Telco)"}
                         </button>
                       ))}
                     </div>
@@ -1104,12 +1047,12 @@ export default function DigiplusLivePortal() {
                       </thead>
                       <tbody className="divide-y divide-inherit font-medium">
                         {(overviewDetailCategory === "apple"
-                          ? storeOverviewCalculated.appleList
+                          ? overviewMetrics.appleItems
                           : overviewDetailCategory === "android"
-                          ? storeOverviewCalculated.androidList
+                          ? overviewMetrics.androidItems
                           : overviewDetailCategory === "accessories"
-                          ? storeOverviewCalculated.accList
-                          : storeOverviewCalculated.vasList
+                          ? overviewMetrics.accItems
+                          : overviewMetrics.vasItems
                         ).slice(0, 15).map((p, i) => (
                           <tr key={i} className="hover:opacity-90 transition">
                             <td className="py-3.5 px-4 font-bold">{p.productName}</td>
@@ -1133,35 +1076,40 @@ export default function DigiplusLivePortal() {
             )}
 
             {/* ========================================================= */}
-            {/* TAB 2: WEEKLY SALES (WoW DARI KOLOM O)                    */}
+            {/* TAB 2: WEEKLY SALES (DARI SHEET DATABASE KOLOM O)        */}
             {/* ========================================================= */}
             {activeTab === "weekly-sales" && (
               <div className="space-y-6 sm:space-y-8">
                 <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-4`}>
-                  <div>
-                    <h2 className="text-base sm:text-lg font-black flex items-center gap-2">
-                      <span>📈</span>
-                      <span>WEEKLY SALES & WEEK-OVER-WEEK (WOW) DARI DATABASE KOLOM O</span>
-                    </h2>
-                    <p className={`text-xs ${textMuted} mt-1`}>
-                      Data dikelompokkan secara otomatis berdasarkan entri label minggu di Kolom O sheet <code>DATABASE</code>.
-                    </p>
+                  <div className="flex flex-wrap justify-between items-center gap-4">
+                    <div>
+                      <h2 className="text-base sm:text-lg font-black flex items-center gap-2">
+                        <span>📈</span>
+                        <span>WEEKLY SALES & WEEK-OVER-WEEK (WOW) DARI DATABASE KOLOM O</span>
+                      </h2>
+                      <p className={`text-xs ${textMuted} mt-1`}>
+                        Data dikelompokkan secara otomatis berdasarkan label minggu di Kolom O dengan rentang tanggal eksplisit.
+                      </p>
+                    </div>
                   </div>
 
-                  {/* Grid Minggu */}
+                  {/* 4 Kartu Week */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {weeklyCalculated.map((w, idx) => (
+                    {weeklyReport.map((w, idx) => (
                       <div key={idx} className={`p-4 ${innerBg} border rounded-2xl`}>
                         <div className="flex justify-between items-center mb-1">
-                          <span className={`text-xs font-bold ${accentText}`}>{w.weekLabel}</span>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-700/30">
-                            {w.invoicesCount} Struk
-                          </span>
+                          <span className={`text-xs font-bold ${accentText}`}>{w.label}</span>
+                          {idx > 0 && (
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${w.wowGrowth >= 0 ? "bg-emerald-500/20 text-emerald-500" : "bg-red-500/20 text-red-500"}`}>
+                              {w.wowGrowth > 0 ? `+${w.wowGrowth}%` : `${w.wowGrowth}%`} WoW
+                            </span>
+                          )}
                         </div>
-                        <div className="text-lg font-black mt-1">{formatIDR(w.totalSales)}</div>
+                        <p className={`text-[10px] ${textMuted} mb-1.5`}>{w.range}</p>
+                        <div className="text-lg font-black mt-1">{formatIDR(w.sales)}</div>
                         <div className={`flex justify-between text-[11px] ${textMuted} mt-2`}>
                           <span>Unit: {w.qty}</span>
-                          <span>Apple: {formatIDR(w.appleSales)}</span>
+                          <span>Struk: {w.invCount}</span>
                         </div>
                       </div>
                     ))}
@@ -1173,26 +1121,34 @@ export default function DigiplusLivePortal() {
                       <thead className={`${innerBg} uppercase text-[11px] border-b border-inherit`}>
                         <tr>
                           <th className="py-4 px-4">Label Kolom O</th>
+                          <th className="py-4 px-4">Rentang Tanggal</th>
                           <th className="py-4 px-4 text-center">Unit</th>
                           <th className="py-4 px-4 text-center">Struk</th>
-                          <th className="py-4 px-4 text-right text-sky-400">🍎 Apple Devices</th>
-                          <th className="py-4 px-4 text-right text-indigo-400">🤖 Android Devices</th>
-                          <th className="py-4 px-4 text-right text-amber-400">🔌 Accessories</th>
-                          <th className="py-4 px-4 text-right text-purple-400">🛡️ VAS</th>
+                          <th className="py-4 px-4 text-right">Target</th>
                           <th className="py-4 px-4 text-right">Total Penjualan</th>
+                          <th className="py-4 px-4 text-center">Achv %</th>
+                          <th className="py-4 px-4 text-center">WoW Growth</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-inherit font-medium">
-                        {weeklyCalculated.map((w, i) => (
+                        {weeklyReport.map((w, i) => (
                           <tr key={i} className="hover:opacity-90 transition">
-                            <td className="py-4 px-4 font-bold text-white">{w.weekLabel}</td>
+                            <td className="py-4 px-4 font-bold">{w.label}</td>
+                            <td className="py-4 px-4 opacity-80">{w.range}</td>
                             <td className="py-4 px-4 text-center font-bold">{w.qty}</td>
-                            <td className="py-4 px-4 text-center opacity-70">{w.invoicesCount}</td>
-                            <td className="py-4 px-4 text-right font-mono text-sky-400">{formatIDR(w.appleSales)}</td>
-                            <td className="py-4 px-4 text-right font-mono text-indigo-400">{formatIDR(w.androidSales)}</td>
-                            <td className="py-4 px-4 text-right font-mono text-amber-400">{formatIDR(w.accessoriesSales)}</td>
-                            <td className="py-4 px-4 text-right font-mono text-purple-400">{formatIDR(w.vasSales)}</td>
-                            <td className="py-4 px-4 text-right font-extrabold text-emerald-400 text-sm">{formatIDR(w.totalSales)}</td>
+                            <td className="py-4 px-4 text-center opacity-70">{w.invCount}</td>
+                            <td className="py-4 px-4 text-right font-mono opacity-80">{formatIDR(w.target)}</td>
+                            <td className="py-4 px-4 text-right font-extrabold text-emerald-400 text-sm">{formatIDR(w.sales)}</td>
+                            <td className="py-4 px-4 text-center font-bold text-amber-400">{w.achv}%</td>
+                            <td className="py-4 px-4 text-center font-bold">
+                              {i === 0 ? (
+                                <span className="opacity-50">Baseline</span>
+                              ) : (
+                                <span className={w.wowGrowth >= 0 ? "text-emerald-400" : "text-red-400"}>
+                                  {w.wowGrowth > 0 ? `+${w.wowGrowth}%` : `${w.wowGrowth}%`}
+                                </span>
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -1202,19 +1158,19 @@ export default function DigiplusLivePortal() {
               </div>
             )}
 
-            {/* ========================================================================= */}
-            {/* TAB 3: STAFF PERFORMANCE DETAIL (SEMUA STAF DITAMPILKAN SEKALIGUS)       */}
-            {/* ========================================================================= */}
+            {/* ========================================================= */}
+            {/* TAB 3: STAFF PERFORMANCE DETAIL (SEMUA STAF DITAMPILKAN)  */}
+            {/* ========================================================= */}
             {activeTab === "staff-performance" && (
               <div className="space-y-6 sm:space-y-8">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-4">
                   <h2 className="text-base sm:text-lg font-black tracking-wide flex items-center gap-2">
                     <span>👥</span>
-                    <span>RINCIAN DETAIL SELURUH STAF SALES ({staffPerformanceCalculated.length} ORANG)</span>
+                    <span>RINCIAN DETAIL SELURUH STAF SALES ({staffReport.length} ORANG)</span>
                   </h2>
                 </div>
 
-                {staffPerformanceCalculated.map((staff) => (
+                {staffReport.map((staff) => (
                   <div key={staff.salesId} className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl relative overflow-hidden space-y-5`}>
                     {/* Header Staf */}
                     <div className="flex flex-wrap justify-between items-start gap-4 pb-4 border-b border-inherit">
@@ -1246,7 +1202,7 @@ export default function DigiplusLivePortal() {
                       <div className="flex flex-wrap items-center gap-2 text-right">
                         <div className={`px-3 py-1.5 rounded-xl border ${innerBg}`}>
                           <span className="text-[9px] opacity-60 uppercase block">Actual Omset</span>
-                          <span className="text-xs sm:text-sm font-black text-emerald-400">{formatIDR(staff.total)}</span>
+                          <span className="text-xs sm:text-sm font-black text-emerald-400">{formatIDR(staff.actual)}</span>
                         </div>
                         <div className={`px-3 py-1.5 rounded-xl border ${innerBg}`}>
                           <span className="text-[9px] opacity-60 uppercase block">Achievement</span>
@@ -1276,25 +1232,31 @@ export default function DigiplusLivePortal() {
                     {/* Target & Pencapaian Acc / VAS */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className={`p-4 rounded-2xl border ${innerBg}`}>
-                        <div className="flex justify-between items-center mb-2">
+                        <div className="flex justify-between items-center mb-1">
                           <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
                             <span>🔌</span>
-                            <span>Accessories Pencapaian</span>
+                            <span>Target & Pencapaian Accessories</span>
                           </span>
-                          <span className="text-xs font-black text-amber-400">{formatIDR(staff.totalAccActual)}</span>
+                          <span className="text-xs font-black text-amber-400">{staff.achvAcc}%</span>
                         </div>
-                        <p className="text-[11px] opacity-60">Kontribusi produk aksesoris resmi.</p>
+                        <div className="flex justify-between text-xs opacity-80 mt-1">
+                          <span>Actual: {formatIDR(staff.totalAccActual)}</span>
+                          <span>Target: {formatIDR(staff.targetAcc)}</span>
+                        </div>
                       </div>
 
                       <div className={`p-4 rounded-2xl border ${innerBg}`}>
-                        <div className="flex justify-between items-center mb-2">
+                        <div className="flex justify-between items-center mb-1">
                           <span className="text-xs font-bold text-purple-400 flex items-center gap-1.5">
                             <span>🛡️</span>
-                            <span>VAS Pencapaian (Qoala/Tsel/XL/Indosat)</span>
+                            <span>Target & Pencapaian VAS</span>
                           </span>
-                          <span className="text-xs font-black text-purple-400">{formatIDR(staff.totalVasActual)}</span>
+                          <span className="text-xs font-black text-purple-400">{staff.achvVas}%</span>
                         </div>
-                        <p className="text-[11px] opacity-60">Kontribusi proteksi garansi dan data bundling.</p>
+                        <div className="flex justify-between text-xs opacity-80 mt-1">
+                          <span>Actual: {formatIDR(staff.totalVasActual)}</span>
+                          <span>Target: {formatIDR(staff.targetVas)}</span>
+                        </div>
                       </div>
                     </div>
 
@@ -1360,7 +1322,7 @@ export default function DigiplusLivePortal() {
                       </div>
                     </div>
 
-                    {/* Sub-Lini Accessories (Urut dari Terbesar ke Terkecil) */}
+                    {/* Sub-Lini Accessories (Urut Dari Nominal Besar ke Kecil) */}
                     <div>
                       <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                         <span>🔌</span>
@@ -1397,7 +1359,7 @@ export default function DigiplusLivePortal() {
                       </div>
                     </div>
 
-                    {/* Sub-Lini VAS (Qoala, Telkomsel, XL, Indosat) */}
+                    {/* Sub-Lini VAS */}
                     <div>
                       <h4 className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                         <span>🛡️</span>
@@ -1433,7 +1395,7 @@ export default function DigiplusLivePortal() {
             )}
 
             {/* ========================================================= */}
-            {/* TAB 4: BNPL TRANSACTIONS (LIVE FEED GID 2697970)          */}
+            {/* TAB 4: BNPL TRANSACTIONS (LIVE DARI GID 2697970)          */}
             {/* ========================================================= */}
             {activeTab === "bnpl" && (
               <div className="space-y-6">
@@ -1450,22 +1412,22 @@ export default function DigiplusLivePortal() {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-400/30">
-                        Total BNPL: {formatIDR(bnplCalculated.totalBnplAmount)}
+                        Total BNPL: {formatIDR(bnplSummary.totalAmount)}
                       </span>
                       <span className="px-3 py-1 rounded-full text-xs font-bold bg-sky-500/15 text-sky-400 border border-sky-400/30">
-                        {bnplCalculated.totalBnplQty} Unit
+                        {bnplSummary.totalQty} Unit
                       </span>
                     </div>
                   </div>
 
-                  {/* Kartu Pencapaian Masing-Masing Tender */}
+                  {/* Kartu Tender BNPL */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    {bnplCalculated.tenders.map((t, idx) => (
+                    {bnplSummary.tenders.map((t, idx) => (
                       <div key={idx} className={`p-4 ${innerBg} border rounded-2xl space-y-1.5`}>
                         <div className="flex justify-between items-center">
                           <span className={`text-xs font-black uppercase ${accentText}`}>{t.tender}</span>
                           <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-700/40 text-slate-300">
-                            {t.shareToStore}% Kontribusi Toko
+                            {t.share}% Toko
                           </span>
                         </div>
                         <div className="text-base font-black">{formatIDR(t.amount)}</div>
@@ -1477,7 +1439,7 @@ export default function DigiplusLivePortal() {
                     ))}
                   </div>
 
-                  {/* Log Transaksi BNPL */}
+                  {/* Log Tabel BNPL */}
                   <div className={`overflow-x-auto rounded-2xl border ${innerBg}`}>
                     <table className="w-full text-left text-xs min-w-[700px]">
                       <thead className={`${innerBg} uppercase text-[11px] border-b border-inherit`}>
@@ -1491,7 +1453,7 @@ export default function DigiplusLivePortal() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-inherit font-medium">
-                        {bnplCalculated.records.map((b, idx) => (
+                        {bnplSummary.list.map((b, idx) => (
                           <tr key={idx} className="hover:opacity-90 transition">
                             <td className="py-3 px-4 font-mono opacity-80 whitespace-nowrap">{b.date}</td>
                             <td className={`py-3 px-4 font-mono font-bold ${accentText}`}>{b.invoice}</td>
@@ -1533,7 +1495,7 @@ export default function DigiplusLivePortal() {
 
                     <button
                       onClick={() => {
-                        localStorage.removeItem("digiplus_admin_activity");
+                        localStorage.removeItem("ops_admin_logs");
                         setActivityLogs([]);
                       }}
                       className="px-3 py-1.5 rounded-xl bg-red-500/20 text-red-400 border border-red-500/40 text-xs font-bold hover:bg-red-500/30 transition"
@@ -1588,7 +1550,7 @@ export default function DigiplusLivePortal() {
             )}
 
             {/* ========================================================= */}
-            {/* TAB 6: DETAIL LOG TRANSAKSI                               */}
+            {/* TAB 6: RINCIAN TRANSAKSI LOG                              */}
             {/* ========================================================= */}
             {activeTab === "sales-detail" && (
               <div className="space-y-4">
@@ -1607,7 +1569,7 @@ export default function DigiplusLivePortal() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-inherit">
-                      {transactions.slice(0, 30).map((t, idx) => (
+                      {transactions.slice(0, 50).map((t, idx) => (
                         <tr key={idx} className="hover:opacity-90">
                           <td className="p-3 font-mono opacity-80 whitespace-nowrap">{t.date}</td>
                           <td className={`p-3 font-mono font-bold ${accentText}`}>{t.invoice}</td>
@@ -1634,4 +1596,4 @@ export default function DigiplusLivePortal() {
       </main>
     </div>
   );
-}
+} 
