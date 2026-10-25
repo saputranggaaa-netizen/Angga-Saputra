@@ -556,7 +556,102 @@ export default function DashboardProduction() {
         {/* ========================================================= */}
         {/* TAB 5: BNPL TRANSACTIONS (BUY NOW PAY LATER)              */}
         {/* ========================================================= */}
-       {activeTab === "bnpl" && (
+      // 1. Hook Fetch Real-Time untuk Tab "BNPL DATABASE" (gid: 2697970)
+const [bnplTransactions, setBnplTransactions] = useState<BnplTransaction[]>([]);
+const [bnplLoading, setBnplLoading] = useState<boolean>(true);
+
+useEffect(() => {
+  const SPREADSHEET_ID = "1v_QCLTDKORjVnByrzo9qRiivdU8CGO99nJri9jBETWM";
+  const BNPL_GVIZ_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=BNPL%20DATABASE`;
+
+  fetch(BNPL_GVIZ_URL)
+    .then((res) => res.text())
+    .then((text) => {
+      // Membersihkan wrapper Google Visualization setResponse(...)
+      const jsonStart = text.indexOf("{");
+      const jsonEnd = text.lastIndexOf("}") + 1;
+      const data = JSON.parse(text.substring(jsonStart, jsonEnd));
+      
+      const parsed: BnplTransaction[] = [];
+      const rows = data.table.rows;
+
+      rows.forEach((r: any) => {
+        const c = r.c;
+        if (!c) return;
+
+        const date = c[0]?.f || c[0]?.v || "";
+        const invoice = String(c[1]?.v || "");
+        // Membersihkan format pemisah ribuan agar terhitung akurat
+        const rawAmount = c[2]?.v;
+        const amount = typeof rawAmount === "number" 
+          ? rawAmount 
+          : Number(String(rawAmount || 0).replace(/[^0-9]/g, ""));
+        const tender = String(c[3]?.v || "Other");
+        const product = String(c[4]?.v || "");
+        const qty = Number(c[5]?.v) || 1;
+        const month = String(c[6]?.v || "");
+
+        // Validasi baris data transaksi
+        if (invoice && amount > 0) {
+          parsed.push({
+            date,
+            invoice,
+            amount,
+            tender,
+            product,
+            qty,
+            month,
+          });
+        }
+      });
+
+      setBnplTransactions(parsed);
+      setBnplLoading(false);
+    })
+    .catch((err) => {
+      console.error("Gagal sinkronisasi BNPL:", err);
+      setBnplLoading(false);
+    });
+}, []);
+
+// 2. Kalkulasi Pencapaian & Kontribusi per Tender BNPL
+const bnplSummary = useMemo(() => {
+  const totalBnplAmount = bnplTransactions.reduce((acc, curr) => acc + curr.amount, 0);
+  const totalBnplQty = bnplTransactions.reduce((acc, curr) => acc + curr.qty, 0);
+
+  // Grouping performa per mitra leasing/pembiayaan
+  const tenderMap: Record<string, { amount: number; qty: number }> = {};
+  bnplTransactions.forEach((t) => {
+    if (!tenderMap[t.tender]) {
+      tenderMap[t.tender] = { amount: 0, qty: 0 };
+    }
+    tenderMap[t.tender].amount += t.amount;
+    tenderMap[t.tender].qty += t.qty;
+  });
+
+  const tenderBreakdown = Object.entries(tenderMap).map(([tender, val]) => {
+    const contribution = totalBnplAmount > 0 
+      ? Number(((val.amount / totalBnplAmount) * 100).toFixed(1)) 
+      : 0;
+    // Estimasi proyeksi akhir bulan berdasarkan Time Gone (24 hari berlalu)
+    const estimate = Math.round((val.amount / 24) * 31);
+
+    return {
+      tender,
+      amount: val.amount,
+      qty: val.qty,
+      contribution,
+      estimate,
+    };
+  }).sort((a, b) => b.amount - a.amount);
+
+  return {
+    totalAmount: totalBnplAmount,
+    totalQty: totalBnplQty,
+    tenders: tenderBreakdown,
+  };
+}, [bnplTransactions]);
+  {activeTab === "bnpl" && (
   <div className="space-y-6">
     {/* Kartu Ringkasan Total & Performa Mitra BNPL */}
     <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-5`}>
