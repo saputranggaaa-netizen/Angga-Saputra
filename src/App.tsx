@@ -556,45 +556,105 @@ export default function DashboardProduction() {
         {/* ========================================================= */}
         {/* TAB 5: BNPL TRANSACTIONS (BUY NOW PAY LATER)              */}
         {/* ========================================================= */}
-        {activeTab === "bnpl" && (
-          <div className="space-y-4">
-            <div className={`p-5 rounded-3xl border ${cardClasses} space-y-4`}>
-              <div>
-                <h3 className="text-sm font-bold uppercase tracking-wider">Transaksi Pembiayaan Konsumen (BNPL)</h3>
-                <p className="text-xs opacity-70">Sumber Data: Sheet <code>BNPL DATABASE</code> (gid: 2697970)</p>
-              </div>
+       {activeTab === "bnpl" && (
+  <div className="space-y-6">
+    {/* Kartu Ringkasan Total & Performa Mitra BNPL */}
+    <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-5`}>
+      <div className="flex flex-wrap justify-between items-center gap-4">
+        <div>
+          <h2 className="text-base sm:text-lg font-black flex items-center gap-2">
+            <span>💳</span>
+            <span>RINGKASAN PEMBIAYAAN KONSUMEN (BNPL & LEASING)</span>
+          </h2>
+          <p className={`text-xs ${textMuted} mt-1`}>
+            Data tersinkronisasi otomatis dari sheet <code>BNPL DATABASE</code>
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-400/30">
+            Total BNPL: {formatIDR(bnplSummary.totalAmount)}
+          </span>
+          <span className="px-3 py-1 rounded-full text-xs font-bold bg-sky-500/15 text-sky-400 border border-sky-400/30">
+            {bnplSummary.totalQty} Unit
+          </span>
+        </div>
+      </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs min-w-[600px]">
-                  <thead className={`${innerCardClasses} text-[10px] uppercase border-b border-inherit`}>
-                    <tr>
-                      <th className="py-3 px-3">Tanggal</th>
-                      <th className="py-3 px-3">No. Invoice</th>
-                      <th className="py-3 px-3">Mitra BNPL</th>
-                      <th className="py-3 px-3">Produk</th>
-                      <th className="py-3 px-3 text-right">Amount (Rp)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-inherit">
-                    {BNPL_REAL_DATA.map((b, i) => (
-                      <tr key={i} className="hover:opacity-90">
-                        <td className="py-3 px-3 font-mono opacity-80">{b.date}</td>
-                        <td className={`py-3 px-3 font-mono font-bold ${accentColor}`}>{b.invoice}</td>
-                        <td className="py-3 px-3">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${innerCardClasses}`}>
-                            {b.tender}
-                          </span>
-                        </td>
-                        <td className="py-3 px-3 font-medium max-w-xs truncate">{b.product}</td>
-                        <td className="py-3 px-3 text-right font-bold text-emerald-500">{formatCurrencyIDR(b.amount)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+      {/* Grid Kartu Pencapaian Masing-Masing Tender */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {bnplSummary.tenders.map((t, idx) => (
+          <div key={idx} className={`p-4 ${innerCardBg} border rounded-2xl space-y-2`}>
+            <div className="flex justify-between items-center">
+              <span className={`text-xs font-black uppercase ${accentColor}`}>{t.tender}</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-700/40 text-slate-300">
+                {t.contribution}% Share
+              </span>
+            </div>
+            <div className="text-base font-black">{formatIDR(t.amount)}</div>
+            <div className="flex justify-between text-[11px] opacity-70">
+              <span>Qty: <strong>{t.qty} Unit</strong></span>
+              <span>Est: <strong>{formatIDR(t.estimate)}</strong></span>
+            </div>
+            <div className={`w-full ${cardBg} h-1.5 rounded-full overflow-hidden`}>
+              <div 
+                className="bg-emerald-400 h-full rounded-full transition-all"
+                style={{ width: `${Math.min(t.contribution, 100)}%` }}
+              />
             </div>
           </div>
-        )}
+        ))}
+      </div>
+    </div>
+
+    {/* Tabel Rincian Transaksi BNPL */}
+    <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-4`}>
+      <h3 className="text-sm font-bold uppercase tracking-wider">Detail Log Transaksi BNPL</h3>
+      
+      {bnplLoading ? (
+        <div className="py-8 text-center text-xs opacity-60 animate-pulse">
+          Memuat data real-time dari Google Sheets...
+        </div>
+      ) : bnplTransactions.length === 0 ? (
+        <div className="py-8 text-center text-xs opacity-60">
+          Tidak ada data transaksi BNPL yang ditemukan pada sheet.
+        </div>
+      ) : (
+        <div className={`overflow-x-auto rounded-2xl border ${innerCardBg}`}>
+          <table className="w-full text-left text-xs min-w-[700px]">
+            <thead className={`${innerCardBg} uppercase text-[11px] border-b border-inherit`}>
+              <tr>
+                <th className="py-3.5 px-4">Tanggal</th>
+                <th className="py-3.5 px-4">No. Invoice</th>
+                <th className="py-3.5 px-4">Mitra BNPL</th>
+                <th className="py-3.5 px-4">Detail Produk yang Dibeli</th>
+                <th className="py-3.5 px-4 text-center">QTY</th>
+                <th className="py-3.5 px-4 text-right">Nilai Pembiayaan (Rp)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-inherit font-medium">
+              {bnplTransactions.map((b, idx) => (
+                <tr key={idx} className="hover:opacity-90 transition">
+                  <td className="py-3.5 px-4 font-mono opacity-80 whitespace-nowrap">{b.date}</td>
+                  <td className={`py-3.5 px-4 font-mono font-bold ${accentColor}`}>{b.invoice}</td>
+                  <td className="py-3.5 px-4">
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${innerCardBg}`}>
+                      {b.tender}
+                    </span>
+                  </td>
+                  <td className="py-3.5 px-4 font-semibold max-w-md">{b.product}</td>
+                  <td className="py-3.5 px-4 text-center font-bold">{b.qty}</td>
+                  <td className="py-3.5 px-4 text-right font-extrabold text-emerald-400 text-sm whitespace-nowrap">
+                    {formatIDR(b.amount)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  </div>
+)}
 
         {/* ========================================================= */}
         {/* TAB 6: ACTIVITY STAFF (KHUSUS ADMIN 22008089)             */}
