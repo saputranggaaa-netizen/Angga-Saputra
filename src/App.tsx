@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
 
-// ==========================================
-// 1. DATA CONTRACTS & INTERFACES
-// ==========================================
+// =========================================================================
+// 1. DATA CONTRACTS & TYPE DEFINITIONS
+// =========================================================================
 
-type MenuTab = "store-overview" | "weekly-sales" | "staff-performance" | "bnpl" | "sales-detail" | "admin-audit";
+type MenuTab = "store-overview" | "weekly-sales" | "staff-performance" | "schedule" | "bnpl" | "sales-detail" | "admin-audit";
 type ThemeMode = "dark" | "light";
 type PeriodType = "daily" | "weekly" | "monthly";
 
@@ -53,9 +53,13 @@ interface SubCategoryMetric {
   icon: string;
   qty: number;
   actual: number;
+  target?: number;
+  achievement?: number;
+  variance?: number;
+  estimate?: number;
 }
 
-interface StaffPerformanceData {
+interface StaffFullData {
   rank: number;
   salesId: string;
   name: string;
@@ -64,6 +68,7 @@ interface StaffPerformanceData {
   target: number;
   achievement: number;
   variance: number;
+  estimate: number;
   invoicesCount: number;
   qty: number;
   upt: number;
@@ -83,9 +88,23 @@ interface StaffPerformanceData {
   weekSales: Record<string, number>;
 }
 
-// ==========================================
-// 2. HELPER FUNCTIONS
-// ==========================================
+interface StaffScheduleItem {
+  id: string;
+  name: string;
+  role: string;
+  mon: string;
+  tue: string;
+  wed: string;
+  thu: string;
+  fri: string;
+  sat: string;
+  sun: string;
+}
+
+// =========================================================================
+// 2. HELPER FUNCTIONS & CALCULATIONS
+// =========================================================================
+
 const formatIDR = (n: number): string => {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
@@ -104,7 +123,22 @@ const calcUpt = (qty: number, invoices: number): number => {
   return Number((qty / invoices).toFixed(2));
 };
 
-export default function DigiplusOperationalEngine() {
+// Data Jadwal Default
+const INITIAL_SCHEDULE: StaffScheduleItem[] = [
+  { id: "1", name: "Angga", role: "Store Supervisor", mon: "OFF", tue: "D103", wed: "D047", thu: "D047", fri: "D103", sat: "D103", sun: "D047" },
+  { id: "2", name: "Liesbeth", role: "Cashier Leader", mon: "D103", tue: "D047", wed: "OFF", thu: "D103", fri: "D103", sat: "D047", sun: "D047" },
+  { id: "3", name: "Yunita", role: "Cashier", mon: "D047", tue: "OFF", wed: "D103", thu: "D047", fri: "D047", sat: "D103", sun: "D103" },
+  { id: "4", name: "Surya", role: "Sales Assistant", mon: "D047", tue: "OFF", wed: "D103", thu: "D047", fri: "D047", sat: "D103", sun: "D103" },
+  { id: "5", name: "Amel", role: "Sales Assistant", mon: "D103", tue: "D047", wed: "OFF", thu: "D103", fri: "D103", sat: "D047", sun: "D047" },
+  { id: "6", name: "Adli", role: "Sales Assistant", mon: "OFF", tue: "D103", wed: "D103", thu: "D047", fri: "D047", sat: "D103", sun: "D047" },
+  { id: "7", name: "Andrian Afi", role: "Sales Assistant", mon: "D047", tue: "D047", wed: "OFF", thu: "D103", fri: "D103", sat: "D047", sun: "D103" },
+  { id: "8", name: "Bagas", role: "MT LEAPS", mon: "D103", tue: "TR", wed: "D047", thu: "D103", fri: "D047", sat: "OFF", sun: "D103" },
+  { id: "9", name: "Bimo", role: "Daily Worker", mon: "D103", tue: "D047", wed: "OFF", thu: "D103", fri: "D103", sat: "OFF", sun: "D103" },
+  { id: "10", name: "Dimas", role: "Daily Worker", mon: "D047", tue: "OFF", wed: "D103", thu: "D047", fri: "OFF", sat: "D103", sun: "D103" },
+  { id: "11", name: "Amzahri", role: "Daily Worker", mon: "OFF", tue: "D103", wed: "D047", thu: "OFF", fri: "D103", sat: "D047", sun: "D047" },
+];
+
+export default function DigiplusFullOperations() {
   const [isMounted, setIsMounted] = useState<boolean>(false);
 
   // Theme & Navigation
@@ -121,13 +155,14 @@ export default function DigiplusOperationalEngine() {
   const [currentSalesId, setCurrentSalesId] = useState<string>("");
   const [currentSalesName, setCurrentSalesName] = useState<string>("");
 
-  // Live Spreadsheet Data
+  // Live Data
   const [transactions, setTransactions] = useState<RawTransaction[]>([]);
   const [bnplRecords, setBnplRecords] = useState<BnplRecord[]>([]);
+  const [scheduleData, setScheduleData] = useState<StaffScheduleItem[]>(INITIAL_SCHEDULE);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [lastSyncTime, setLastSyncTime] = useState<string>("");
 
-  // Period Filters
+  // Filter States
   const [periodType, setPeriodType] = useState<PeriodType>("monthly");
   const [selectedMonth, setSelectedMonth] = useState<string>("Oktober2026");
   const [selectedWeek, setSelectedWeek] = useState<string>("ALL");
@@ -135,18 +170,19 @@ export default function DigiplusOperationalEngine() {
 
   // Bottom Sheet Drawer State
   const [bottomSheetOpen, setBottomSheetOpen] = useState<boolean>(false);
-  const [selectedStaffForSheet, setSelectedStaffForSheet] = useState<StaffPerformanceData | null>(null);
+  const [sheetTitle, setSheetTitle] = useState<string>("");
+  const [sheetContent, setSheetContent] = useState<React.ReactNode>(null);
 
-  // BNPL Tab Filter
+  // BNPL Active Tab
   const [selectedBnplTender, setSelectedBnplTender] = useState<string>("ALL");
 
-  // Admin Logs State
+  // Admin Logs
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
 
   const SPREADSHEET_ID = "1v_QCLTDKORjVnByrzo9qRiivdU8CGO99nJri9jBETWM";
   const ADMIN_ID = "22008089";
 
-  // Normalisasi Tanggal & Format Bulan
+  // Parser Tanggal & Bulan
   const parseNormalizedDate = (rawDateStr: string, rawMonthStr: string) => {
     let isoDate = "";
     let monthKey = "";
@@ -185,9 +221,7 @@ export default function DigiplusOperationalEngine() {
     return { isoDate, monthKey };
   };
 
-  // ==============================================================
-  // 3. LIVE FETCHING HOOK (GOOGLE SHEETS GVIZ)
-  // ==============================================================
+  // Live Fetching Hook
   const fetchLiveGoogleSheets = async () => {
     setIsLoading(true);
     try {
@@ -198,7 +232,6 @@ export default function DigiplusOperationalEngine() {
       const textDb = await resDb.text();
       const textBnpl = await resBnpl.text();
 
-      // Parse JSONP DATABASE
       const sDb = textDb.indexOf("{");
       const eDb = textDb.lastIndexOf("}") + 1;
       const jsonDb = JSON.parse(textDb.substring(sDb, eDb));
@@ -226,7 +259,6 @@ export default function DigiplusOperationalEngine() {
         let groupCategory = String(c[11]?.v || "").trim().toUpperCase();
         const weekLabel = String(c[14]?.v || "").trim();
 
-        // Normalisasi Kategori Kosong
         const pUpper = productName.toUpperCase();
         if (!groupCategory || groupCategory === "NAN" || groupCategory === "N/A") {
           if (brand === "APPLE" || pUpper.includes("IPHONE") || pUpper.includes("IPAD") || pUpper.includes("AIRPOD")) {
@@ -260,7 +292,6 @@ export default function DigiplusOperationalEngine() {
         }
       });
 
-      // Parse JSONP BNPL DATABASE
       const sBnpl = textBnpl.indexOf("{");
       const eBnpl = textBnpl.lastIndexOf("}") + 1;
       const jsonBnpl = JSON.parse(textBnpl.substring(sBnpl, eBnpl));
@@ -289,7 +320,6 @@ export default function DigiplusOperationalEngine() {
       setBnplRecords(parsedBnpl);
       setLastSyncTime(new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }));
 
-      // Sinkronkan Nama Sapaan Staf
       if (currentSalesId && !currentSalesName) {
         if (currentSalesId === ADMIN_ID) {
           setCurrentSalesName("Store Leader Admin");
@@ -299,7 +329,7 @@ export default function DigiplusOperationalEngine() {
         }
       }
     } catch (err) {
-      console.error("Gagal sinkronisasi data Google Sheets:", err);
+      console.error("Gagal sinkronisasi data live:", err);
     } finally {
       setIsLoading(false);
     }
@@ -313,7 +343,12 @@ export default function DigiplusOperationalEngine() {
       const savedUser = localStorage.getItem("digi_ops_user");
       const savedName = localStorage.getItem("digi_ops_name");
       const savedTheme = localStorage.getItem("digi_ops_theme") as ThemeMode;
+      const savedSchedule = localStorage.getItem("digi_ops_schedule");
+
       if (savedTheme) setTheme(savedTheme);
+      if (savedSchedule) {
+        try { setScheduleData(JSON.parse(savedSchedule)); } catch (e) {}
+      }
       if (savedUser) {
         setIsLoggedIn(true);
         setCurrentSalesId(savedUser);
@@ -334,7 +369,6 @@ export default function DigiplusOperationalEngine() {
     }
   };
 
-  // Login Handler & Activity Audit
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordInput !== "Welcome@123") {
@@ -405,9 +439,7 @@ export default function DigiplusOperationalEngine() {
     { key: "W4", label: "W4 (24OKT 2026)", range: "18 Okt 2026 s.d. 24 Okt 2026", days: 7 },
   ], []);
 
-  // -------------------------------------------------------------
-  // 4. PENYARINGAN DATA AKTIF (DAILY / WEEKLY / MONTHLY)
-  // -------------------------------------------------------------
+  // Filter Data Transaksi Aktif
   const activeTransactions = useMemo(() => {
     return transactions.filter((t) => {
       if (selectedMonth !== "ALL" && t.monthKey !== selectedMonth) {
@@ -424,9 +456,7 @@ export default function DigiplusOperationalEngine() {
     });
   }, [transactions, selectedMonth, periodType, selectedDate, selectedWeek, WEEK_DEFINITIONS]);
 
-  // -------------------------------------------------------------
-  // 5. KALKULASI OVERVIEW METRICS
-  // -------------------------------------------------------------
+  // Kalkulasi Overview Metrics
   const overviewStats = useMemo(() => {
     const actual = activeTransactions.reduce((acc, t) => acc + t.amount, 0);
     const target = periodType === "daily"
@@ -493,9 +523,7 @@ export default function DigiplusOperationalEngine() {
     };
   }, [activeTransactions, periodType, selectedWeek, selectedDate, transactions, WEEK_DEFINITIONS]);
 
-  // -------------------------------------------------------------
-  // 6. KALKULASI WEEKLY SALES (WoW DARI DATABASE KOLOM O)
-  // -------------------------------------------------------------
+  // Kalkulasi Weekly Report
   const weeklyReport = useMemo(() => {
     return WEEK_DEFINITIONS.map((wDef, idx) => {
       const match = transactions.filter((t) => t.weekLabel.toLowerCase().includes(wDef.label.toLowerCase()));
@@ -520,10 +548,8 @@ export default function DigiplusOperationalEngine() {
     });
   }, [transactions, WEEK_DEFINITIONS]);
 
-  // -------------------------------------------------------------
-  // 7. KALKULASI STAFF PERFORMANCE (SEMUA STAF TANPA DROPDOWN)
-  // -------------------------------------------------------------
-  const staffList: StaffPerformanceData[] = useMemo(() => {
+  // Kalkulasi Staff Report
+  const staffList: StaffFullData[] = useMemo(() => {
     const map: Record<string, {
       salesId: string;
       name: string;
@@ -581,7 +607,6 @@ export default function DigiplusOperationalEngine() {
 
       const pUpper = t.productName.toUpperCase();
 
-      // Apple Sub
       if (t.brand === "APPLE" || pUpper.includes("IPHONE")) {
         if (pUpper.includes("IPHONE")) { map[id].appleMap["iPhone"].actual += t.amount; map[id].appleMap["iPhone"].qty += t.qty; }
         else if (pUpper.includes("IPAD")) { map[id].appleMap["iPad"].actual += t.amount; map[id].appleMap["iPad"].qty += t.qty; }
@@ -590,7 +615,6 @@ export default function DigiplusOperationalEngine() {
         else if (pUpper.includes("AIRPOD")) { map[id].appleMap["AirPods"].actual += t.amount; map[id].appleMap["AirPods"].qty += t.qty; }
       }
 
-      // Android Sub
       if (t.brand === "SAMSUNG" || pUpper.includes("GALAXY")) { map[id].androidMap["Samsung Devices"].actual += t.amount; map[id].androidMap["Samsung Devices"].qty += t.qty; }
       else if (t.brand === "OPPO") { map[id].androidMap["Oppo Devices"].actual += t.amount; map[id].androidMap["Oppo Devices"].qty += t.qty; }
       else if (t.brand === "MOTOROLA") { map[id].androidMap["Motorola Devices"].actual += t.amount; map[id].androidMap["Motorola Devices"].qty += t.qty; }
@@ -598,7 +622,6 @@ export default function DigiplusOperationalEngine() {
       else if (t.brand === "INFINIX") { map[id].androidMap["Infinix Devices"].actual += t.amount; map[id].androidMap["Infinix Devices"].qty += t.qty; }
       else if (t.brand === "XIAOMI") { map[id].androidMap["Xiaomi Devices"].actual += t.amount; map[id].androidMap["Xiaomi Devices"].qty += t.qty; }
 
-      // Accessories Sub (Urut Nominal Besar ke Kecil)
       if (t.groupCategory === "ACCESSORIES") {
         const item = t.productName.trim() || "Aksesoris";
         if (!map[id].accMap[item]) map[id].accMap[item] = { actual: 0, qty: 0, icon: "🔌" };
@@ -606,7 +629,6 @@ export default function DigiplusOperationalEngine() {
         map[id].accMap[item].qty += t.qty;
       }
 
-      // VAS Sub
       if (t.brand === "QOALA" || pUpper.includes("QOALA") || pUpper.includes("PROTEKSI")) {
         map[id].vasMap["Qoala Proteksi Gadget"].actual += t.amount;
         map[id].vasMap["Qoala Proteksi Gadget"].qty += t.qty;
@@ -634,7 +656,6 @@ export default function DigiplusOperationalEngine() {
       const words = s.name.split(" ");
       const initials = words.length > 1 ? (words[0][0] + words[1][0]).toUpperCase() : words[0].slice(0, 2).toUpperCase();
 
-      // Urutkan Accessories Dari Nominal Besar ke Kecil
       const sortedAcc = Object.entries(s.accMap)
         .map(([name, d]) => ({ name, ...d }))
         .sort((a, b) => b.actual - a.actual);
@@ -647,7 +668,7 @@ export default function DigiplusOperationalEngine() {
 
       let status: "Tercapai" | "Perlu Perhatian Khusus" | "Dalam Pantauan" = "Dalam Pantauan";
       let ringkasan = `Pencapaian ${achv}% terhadap target kuota.`;
-      let rekomendasi = "Tingkatkan penawaran paket bundling aksesoris dan layanan proteksi pada setiap nota penjualan.";
+      let rekomendasi = "Tingkatkan penawaran bundling aksesoris dan proteksi pada setiap nota penjualan.";
 
       if (achv >= 100) {
         status = "Tercapai";
@@ -668,6 +689,7 @@ export default function DigiplusOperationalEngine() {
         target: targetQuota,
         achievement: achv,
         variance,
+        estimate: Math.round(s.total * 1.29),
         invoicesCount: invCount,
         qty: s.qty,
         upt,
@@ -689,9 +711,7 @@ export default function DigiplusOperationalEngine() {
     });
   }, [activeTransactions]);
 
-  // -------------------------------------------------------------
-  // 8. KALKULASI DINAMIS BNPL (DARI GID 2697970)
-  // -------------------------------------------------------------
+  // Kalkulasi BNPL
   const bnplSummary = useMemo(() => {
     const totalAmount = bnplRecords.reduce((acc, b) => acc + b.amount, 0);
     const totalQty = bnplRecords.reduce((acc, b) => acc + b.qty, 0);
@@ -718,7 +738,34 @@ export default function DigiplusOperationalEngine() {
     return { totalAmount, totalQty, tenders, list: filteredRecords };
   }, [bnplRecords, overviewStats.actual, selectedBnplTender]);
 
-  // Template Share WhatsApp Ringkas
+  // Kalkulasi Shift Schedule 1 Minggu
+  const scheduleDaySummary = useMemo(() => {
+    const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+    return days.map((day) => {
+      let morning = 0;
+      let evening = 0;
+      let off = 0;
+      scheduleData.forEach((s) => {
+        const val = s[day];
+        if (val === "D047") morning++;
+        else if (val === "D103") evening++;
+        else if (val === "OFF") off++;
+      });
+      return { day, morning, evening, off, totalStaff: morning + evening };
+    });
+  }, [scheduleData]);
+
+  const updateScheduleShift = (id: string, day: keyof StaffScheduleItem, shift: string) => {
+    setScheduleData((prev) => {
+      const updated = prev.map((item) => (item.id === id ? { ...item, [day]: shift } : item));
+      if (typeof window !== "undefined") {
+        localStorage.setItem("digi_ops_schedule", JSON.stringify(updated));
+      }
+      return updated;
+    });
+  };
+
+  // WhatsApp Handlers
   const handleShareDaily = () => {
     const appleVal = overviewStats.lobs.find((l) => l.name.includes("Apple"))?.actual || 0;
     const androidVal = overviewStats.lobs.find((l) => l.name.includes("Android"))?.actual || 0;
@@ -751,7 +798,6 @@ _Diperbarui otomatis via Store Performance Engine._`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   };
 
-  // Share Weekly Report ke WhatsApp
   const handleShareWeekly = (wLabel: string, sales: number, target: number, achv: number) => {
     const text = 
 `*WEEKLY SALES REPORT - DIGIPLUS GRAND INDONESIA*
@@ -770,15 +816,36 @@ _Generated via Store Performance Engine._`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   };
 
-  // Buka Bottom Sheet untuk Staf Tertentu
-  const openStaffBottomSheet = (staff: StaffPerformanceData) => {
-    setSelectedStaffForSheet(staff);
+  const handleShareScheduleWA = () => {
+    const daysLabel = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
+    const text = 
+`*JADWAL SHIFT OPERASIONAL TOKO QF01 GRAND INDONESIA*
+Periode: 1 Minggu (Senin s.d. Minggu)
+
+👥 *Personil Standby per Hari:*
+${scheduleDaySummary.map((d, i) => `• ${daysLabel[i]}: ${d.totalStaff} Orang (Pagi D047: ${d.morning} | Siang D103: ${d.evening})`).join("\n")}
+
+_Diperbarui via Digiplus Store Operations Engine._`;
+
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+  };
+
+  const handlePrintSchedule = () => {
+    if (typeof window !== "undefined") {
+      window.print();
+    }
+  };
+
+  // Bottom Sheet Helper
+  const openCustomBottomSheet = (title: string, content: React.ReactNode) => {
+    setSheetTitle(title);
+    setSheetContent(content);
     setBottomSheetOpen(true);
   };
 
   if (!isMounted) return null;
 
-  // Styling Dinamis Tema
+  // Styling Dinamis
   const isDark = theme === "dark";
   const bgMain = isDark ? "bg-[#1A1831]" : "bg-[#F9F8F3]";
   const textMain = isDark ? "text-[#FFF6E9]" : "text-[#1E293B]";
@@ -789,7 +856,7 @@ _Generated via Store Performance Engine._`;
   const activeTabBtn = isDark ? "bg-[#F5BA42] text-[#1A1831] font-black shadow-md" : "bg-[#054ff0] text-white font-black shadow-md";
 
   // =============================================================
-  // RENDER: LOGIN FORM SECURE
+  // RENDER: HALAMAN LOGIN
   // =============================================================
   if (!isLoggedIn) {
     return (
@@ -846,13 +913,10 @@ _Generated via Store Performance Engine._`;
     );
   }
 
-  // =============================================================
-  // RENDER: DASHBOARD UTAMA
-  // =============================================================
   return (
     <div className={`flex min-h-screen ${bgMain} ${textMain} font-sans relative`}>
-      {/* Mobile Drawer Trigger Button */}
-      <div className="lg:hidden fixed bottom-5 right-5 z-40">
+      {/* Mobile Drawer Button */}
+      <div className="lg:hidden fixed bottom-5 right-5 z-40 print:hidden">
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           className={`w-14 h-14 rounded-full ${isDark ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#054ff0] text-white"} font-black text-2xl flex items-center justify-center shadow-2xl transition active:scale-95`}
@@ -862,12 +926,12 @@ _Generated via Store Performance Engine._`;
       </div>
 
       {mobileMenuOpen && (
-        <div onClick={() => setMobileMenuOpen(false)} className="lg:hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-40" />
+        <div onClick={() => setMobileMenuOpen(false)} className="lg:hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-40 print:hidden" />
       )}
 
       {/* SIDEBAR SEBELAH KIRI */}
       <aside
-        className={`fixed lg:sticky top-0 h-screen z-50 transition-transform duration-300 ${
+        className={`fixed lg:sticky top-0 h-screen z-50 transition-transform duration-300 print:hidden ${
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         } w-72 ${isDark ? "bg-[#141226] border-[#3B3666]" : "bg-[#F2EFE9] border-[#E5E2D9]"} border-r flex flex-col justify-between shrink-0 shadow-2xl lg:shadow-none`}
       >
@@ -883,7 +947,7 @@ _Generated via Store Performance Engine._`;
             </div>
           </div>
 
-          {/* User Status Tag */}
+          {/* User Tag */}
           <div className={`mt-3 p-3 rounded-2xl ${cardBg} border flex items-center justify-between`}>
             <div>
               <span className="text-[9px] uppercase tracking-wider opacity-60 block font-bold">User Terotentikasi</span>
@@ -923,6 +987,16 @@ _Generated via Store Performance Engine._`;
             >
               <span>🏆</span>
               <span>Staff Performance Detail</span>
+            </button>
+
+            <button
+              onClick={() => { setActiveTab("schedule"); setMobileMenuOpen(false); }}
+              className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition ${
+                activeTab === "schedule" ? activeTabBtn : "opacity-70 hover:opacity-100"
+              }`}
+            >
+              <span>📅</span>
+              <span>Schedule 1 Minggu</span>
             </button>
 
             <button
@@ -980,8 +1054,8 @@ _Generated via Store Performance Engine._`;
 
       {/* KONTEN UTAMA */}
       <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-w-7xl mx-auto w-full">
-        {/* HEADER ATAS: SAPAAN "HALO [NAMA SALES]" & FILTER TANGGAL */}
-        <header className="mb-6 border-b border-inherit pb-5">
+        {/* HEADER: PERSONALISASI & FILTER */}
+        <header className="mb-6 border-b border-inherit pb-5 print:hidden">
           <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
             <div>
               <div className={`text-xl sm:text-2xl font-black ${accentText} flex items-center gap-2`}>
@@ -1021,7 +1095,6 @@ _Generated via Store Performance Engine._`;
           {/* BARIS FILTER DINAMIS */}
           <div className={`p-3 ${cardBg} border rounded-2xl flex flex-wrap items-center gap-3 justify-between text-xs`}>
             <div className="flex flex-wrap items-center gap-3">
-              {/* Toggle Mode Periode */}
               <div className="flex items-center gap-1 bg-black/20 p-1 rounded-xl">
                 {(["daily", "weekly", "monthly"] as const).map((mode) => (
                   <button
@@ -1036,7 +1109,6 @@ _Generated via Store Performance Engine._`;
                 ))}
               </div>
 
-              {/* Filter Bulan */}
               {periodType === "monthly" && (
                 <div className="flex items-center gap-2">
                   <span className="opacity-70 font-semibold">📅 Bulan:</span>
@@ -1052,7 +1124,6 @@ _Generated via Store Performance Engine._`;
                 </div>
               )}
 
-              {/* Filter Week */}
               {periodType === "weekly" && (
                 <div className="flex items-center gap-2">
                   <span className="opacity-70 font-semibold">📊 Week:</span>
@@ -1069,7 +1140,6 @@ _Generated via Store Performance Engine._`;
                 </div>
               )}
 
-              {/* Filter Daily / Tanggal */}
               {periodType === "daily" && (
                 <div className="flex items-center gap-2">
                   <span className="opacity-70 font-semibold">🗓️ Tanggal:</span>
@@ -1188,6 +1258,7 @@ _Generated via Store Performance Engine._`;
                           <th className="py-4 px-4 text-center">Achievement (%)</th>
                           <th className="py-4 px-4 text-right">Variance</th>
                           <th className="py-4 px-4 text-right">Estimate</th>
+                          <th className="py-4 px-4 text-center">Aksi</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-inherit font-medium">
@@ -1208,6 +1279,32 @@ _Generated via Store Performance Engine._`;
                               {formatIDR(row.variance)}
                             </td>
                             <td className="py-4 px-4 text-right text-emerald-500 font-mono font-bold">{formatIDR(row.estimate)}</td>
+                            <td className="py-4 px-4 text-center">
+                              <button
+                                onClick={() => openCustomBottomSheet(`Detail Penjualan: ${row.name}`, (
+                                  <div className="space-y-3">
+                                    <div className="grid grid-cols-2 gap-3 text-center">
+                                      <div className={`p-3 rounded-xl border ${innerBg}`}>
+                                        <span className="opacity-60 text-[10px] block">Actual</span>
+                                        <strong className="text-emerald-400 font-bold">{formatIDR(row.actual)}</strong>
+                                      </div>
+                                      <div className={`p-3 rounded-xl border ${innerBg}`}>
+                                        <span className="opacity-60 text-[10px] block">Target</span>
+                                        <strong className="opacity-80">{formatIDR(row.target)}</strong>
+                                      </div>
+                                    </div>
+                                    <p className="text-xs opacity-70">Rincian produk aktual yang berhasil ditransaksikan:</p>
+                                    <div className={`p-3 rounded-xl border ${innerBg} space-y-1`}>
+                                      <span className="font-bold block">Top Performing SKU</span>
+                                      <span className="opacity-60 text-[11px] block">Tercatat secara dinamis dari live database sheet.</span>
+                                    </div>
+                                  </div>
+                                ))}
+                                className={`px-3 py-1 rounded-xl text-xs font-bold transition ${activeTabBtn}`}
+                              >
+                                Detail
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -1253,76 +1350,25 @@ _Generated via Store Performance Engine._`;
                             <td className="py-3.5 px-4 text-center font-black text-sky-500">{s.upt}</td>
                             <td className="py-3.5 px-4 text-center">
                               <button
-                                onClick={() => openStaffBottomSheet(s)}
+                                onClick={() => openCustomBottomSheet(`Rincian Salesperson: ${s.name}`, (
+                                  <div className="space-y-4 text-xs">
+                                    <div className="grid grid-cols-2 gap-2 text-center">
+                                      <div className={`p-2.5 rounded-xl border ${innerBg}`}>
+                                        <span className="opacity-60 text-[10px] block">Actual</span>
+                                        <strong className="text-emerald-400">{formatIDR(s.actual)}</strong>
+                                      </div>
+                                      <div className={`p-2.5 rounded-xl border ${innerBg}`}>
+                                        <span className="opacity-60 text-[10px] block">Target</span>
+                                        <strong className="opacity-80">{formatIDR(s.target)}</strong>
+                                      </div>
+                                    </div>
+                                    <p className="opacity-70 leading-relaxed">{s.ringkasan}</p>
+                                  </div>
+                                ))}
                                 className={`px-3 py-1 rounded-xl text-xs font-bold transition ${activeTabBtn}`}
                               >
-                                Rincian per salesperson &gt;
+                                Detail
                               </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Rincian Produk Per Kategori */}
-                <div className={`p-6 ${cardBg} border rounded-3xl shadow-xl`}>
-                  <div className="flex flex-wrap justify-between items-center gap-4 mb-5">
-                    <div>
-                      <h3 className="text-base font-bold">Rincian Detail Produk Terjual per Kategori</h3>
-                      <p className={`text-xs ${textMuted} mt-0.5`}>Menampilkan produk aktual yang tersaring dari Google Sheets</p>
-                    </div>
-
-                    <div className={`flex flex-wrap gap-2 ${innerBg} p-1.5 rounded-2xl border`}>
-                      {(["apple", "android", "accessories", "vas"] as const).map((cat) => (
-                        <button
-                          key={cat}
-                          onClick={() => setOverviewDetailCategory(cat)}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-                            overviewDetailCategory === cat ? activeTabBtn : "opacity-70 hover:opacity-100"
-                          }`}
-                        >
-                          {cat === "apple" && "🍎 Apple"}
-                          {cat === "android" && "🤖 Android"}
-                          {cat === "accessories" && "🔌 Accessories"}
-                          {cat === "vas" && "🛡️ VAS (Qoala/Telco)"}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead className={`${innerBg} uppercase text-[11px] border-b border-inherit`}>
-                        <tr>
-                          <th className="py-3 px-4">Nama Produk</th>
-                          <th className="py-3 px-4">SKU / SAP Article</th>
-                          <th className="py-3 px-4">Brand</th>
-                          <th className="py-3 px-4 text-center">Qty</th>
-                          <th className="py-3 px-4 text-right">Nilai Penjualan (Rp)</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-inherit font-medium">
-                        {(overviewDetailCategory === "apple"
-                          ? overviewStats.appleItems
-                          : overviewDetailCategory === "android"
-                          ? overviewStats.androidItems
-                          : overviewDetailCategory === "accessories"
-                          ? overviewStats.accItems
-                          : overviewStats.vasItems
-                        ).slice(0, 15).map((p, i) => (
-                          <tr key={i} className="hover:opacity-90 transition">
-                            <td className="py-3.5 px-4 font-bold">{p.productName}</td>
-                            <td className="py-3.5 px-4 font-mono opacity-60 text-[11px]">{p.sapArticle}</td>
-                            <td className="py-3.5 px-4">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${innerBg}`}>
-                                {p.brand}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4 text-center font-bold">{p.qty}</td>
-                            <td className="py-3.5 px-4 text-right font-extrabold text-emerald-500">
-                              {formatIDR(p.amount)}
                             </td>
                           </tr>
                         ))}
@@ -1517,10 +1563,32 @@ _Generated via Store Performance Engine._`;
                     {/* Tombol Interaktif Buka Bottom Sheet */}
                     <div className="pt-2 flex justify-end">
                       <button
-                        onClick={() => openStaffBottomSheet(staff)}
+                        onClick={() => openCustomBottomSheet(`Rincian Lengkap: ${staff.name}`, (
+                          <div className="space-y-4 text-xs">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                              <div className={`p-2.5 rounded-xl border ${innerBg}`}>
+                                <span className="opacity-60 text-[10px] block">Actual</span>
+                                <strong className="text-emerald-400">{formatIDR(staff.actual)}</strong>
+                              </div>
+                              <div className={`p-2.5 rounded-xl border ${innerBg}`}>
+                                <span className="opacity-60 text-[10px] block">Target</span>
+                                <strong className="opacity-80">{formatIDR(staff.target)}</strong>
+                              </div>
+                              <div className={`p-2.5 rounded-xl border ${innerBg}`}>
+                                <span className="opacity-60 text-[10px] block">Achv</span>
+                                <strong className="text-amber-400">{staff.achievement}%</strong>
+                              </div>
+                              <div className={`p-2.5 rounded-xl border ${innerBg}`}>
+                                <span className="opacity-60 text-[10px] block">UPT</span>
+                                <strong className="text-sky-400">{staff.upt}</strong>
+                              </div>
+                            </div>
+                            <p className="opacity-80 leading-relaxed">{staff.ringkasan}</p>
+                          </div>
+                        ))}
                         className={`px-4 py-2.5 rounded-xl text-xs font-black transition flex items-center gap-1.5 ${activeTabBtn}`}
                       >
-                        <span>Rincian per salesperson &gt;</span>
+                        <span>Detail &gt;</span>
                       </button>
                     </div>
                   </div>
@@ -1529,7 +1597,116 @@ _Generated via Store Performance Engine._`;
             )}
 
             {/* ========================================================= */}
-            {/* TAB 4: BNPL TRANSACTIONS (BERBASIS TENDER TABS ZERO-RELOAD)*/}
+            {/* TAB 4: MENU SCHEDULE 1 MINGGU (SENIN S.D. MINGGU)        */}
+            {/* ========================================================= */}
+            {activeTab === "schedule" && (
+              <div className="space-y-6">
+                <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-4`}>
+                  <div className="flex flex-wrap justify-between items-center gap-4">
+                    <div>
+                      <h2 className="text-base sm:text-lg font-black flex items-center gap-2">
+                        <span>📅</span>
+                        <span>JADWAL OPERASIONAL KERJA 1 MINGGU (SENIN - MINGGU)</span>
+                      </h2>
+                      <p className={`text-xs ${textMuted} mt-1`}>
+                        Shift: ⛅ D047 (Pagi: 09-17) | ☀️ D103 (Siang: 14-22) | 🏠 OFF | 📚 TR (Training)
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 print:hidden">
+                      <button
+                        onClick={handlePrintSchedule}
+                        className={`px-3.5 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 ${innerBg}`}
+                      >
+                        <span>🖨️</span>
+                        <span>Print / Export PDF</span>
+                      </button>
+
+                      <button
+                        onClick={handleShareScheduleWA}
+                        className="px-3.5 py-1.5 rounded-xl bg-emerald-500 text-white text-xs font-bold transition flex items-center gap-1.5"
+                      >
+                        <span>📲</span>
+                        <span>Share WhatsApp</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Rekap Jumlah Personil Standby per Hari */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 text-center">
+                    {scheduleDaySummary.map((d, i) => {
+                      const dayNames = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
+                      return (
+                        <div key={d.day} className={`p-3 rounded-2xl border ${innerBg}`}>
+                          <span className={`text-xs font-bold block ${accentText}`}>{dayNames[i]}</span>
+                          <span className="text-lg font-black block mt-0.5">{d.totalStaff} Orang</span>
+                          <span className="text-[10px] opacity-60 block mt-1">Pagi: {d.morning} | Siang: {d.evening}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Tabel Jadwal 1 Minggu Lengkap per Staf */}
+                  <div className={`overflow-x-auto rounded-2xl border ${innerBg}`}>
+                    <table className="w-full text-left text-xs min-w-[700px]">
+                      <thead className={`${innerBg} uppercase text-[11px] border-b border-inherit`}>
+                        <tr>
+                          <th className="py-3 px-4">Nama Staf</th>
+                          <th className="py-3 px-3">Role</th>
+                          <th className="py-3 px-3 text-center">Senin</th>
+                          <th className="py-3 px-3 text-center">Selasa</th>
+                          <th className="py-3 px-3 text-center">Rabu</th>
+                          <th className="py-3 px-3 text-center">Kamis</th>
+                          <th className="py-3 px-3 text-center">Jumat</th>
+                          <th className="py-3 px-3 text-center">Sabtu</th>
+                          <th className="py-3 px-3 text-center">Minggu</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-inherit font-medium">
+                        {scheduleData.map((s) => (
+                          <tr key={s.id} className="hover:opacity-90 transition">
+                            <td className="py-3 px-4 font-bold">{s.name}</td>
+                            <td className="py-3 px-3 opacity-70 text-[11px]">{s.role}</td>
+                            {(["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const).map((dayKey) => {
+                              const shift = s[dayKey];
+                              const isOff = shift === "OFF";
+                              const isMorning = shift === "D047";
+                              const isEvening = shift === "D103";
+                              return (
+                                <td key={dayKey} className="py-2.5 px-2 text-center">
+                                  <select
+                                    value={shift}
+                                    onChange={(e) => updateScheduleShift(s.id, dayKey, e.target.value)}
+                                    className={`px-2 py-1 rounded-lg text-[10px] font-bold border focus:outline-none cursor-pointer ${
+                                      isOff
+                                        ? "bg-slate-700/40 text-slate-300 border-slate-600"
+                                        : isMorning
+                                        ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                                        : isEvening
+                                        ? "bg-sky-500/20 text-sky-300 border-sky-500/40"
+                                        : "bg-purple-500/20 text-purple-300 border-purple-500/40"
+                                    }`}
+                                  >
+                                    <option value="D047">D047 (Pagi)</option>
+                                    <option value="D103">D103 (Siang)</option>
+                                    <option value="OFF">OFF (Libur)</option>
+                                    <option value="TR">TR (Training)</option>
+                                    <option value="CUTI">CUTI / RO</option>
+                                  </select>
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ========================================================= */}
+            {/* TAB 5: BNPL TRANSACTIONS (BERBASIS TENDER TABS ZERO-RELOAD)*/}
             {/* ========================================================= */}
             {activeTab === "bnpl" && (
               <div className="space-y-6">
@@ -1638,7 +1815,7 @@ _Generated via Store Performance Engine._`;
             )}
 
             {/* ========================================================= */}
-            {/* TAB 5: KHUSUS ADMIN (22008089) - ACTIVITY STAFF           */}
+            {/* TAB 6: KHUSUS ADMIN (22008089) - ACTIVITY STAFF           */}
             {/* ========================================================= */}
             {activeTab === "admin-audit" && currentSalesId === ADMIN_ID && (
               <div className="space-y-6">
@@ -1711,7 +1888,7 @@ _Generated via Store Performance Engine._`;
             )}
 
             {/* ========================================================= */}
-            {/* TAB 6: DETAIL LOG TRANSAKSI                               */}
+            {/* TAB 7: DETAIL LOG TRANSAKSI                               */}
             {/* ========================================================= */}
             {activeTab === "sales-detail" && (
               <div className="space-y-4">
@@ -1759,25 +1936,15 @@ _Generated via Store Performance Engine._`;
       {/* ========================================================= */}
       {/* 5. KOMPONEN BOTTOM SHEET (PANEL LACI DRILL-DOWN GESER BAWAH)*/}
       {/* ========================================================= */}
-      {bottomSheetOpen && selectedStaffForSheet && (
+      {bottomSheetOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm transition-opacity animate-in fade-in">
           <div className={`w-full sm:max-w-2xl max-h-[85vh] rounded-t-3xl sm:rounded-3xl ${cardBg} border-2 border-[#3B3666] shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300`}>
             {/* Header Bottom Sheet */}
             <div className="flex items-center justify-between p-4 sm:p-5 border-b border-inherit bg-black/20">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${selectedStaffForSheet.rank === 1 ? "bg-amber-500/20 text-amber-400 border border-amber-400" : `${innerBg} border`}`}>
-                  {selectedStaffForSheet.initials}
-                </div>
-                <div>
-                  <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
-                    <span>{selectedStaffForSheet.name}</span>
-                    <span className="text-[10px] px-2 py-0.2 rounded-full bg-[#F5BA42] text-[#1A1831] font-bold">
-                      Rank #{selectedStaffForSheet.rank}
-                    </span>
-                  </h3>
-                  <p className="text-[11px] opacity-70 font-mono">ID Staf: {selectedStaffForSheet.salesId}</p>
-                </div>
-              </div>
+              <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                <span>📋</span>
+                <span>{sheetTitle}</span>
+              </h3>
 
               <button
                 onClick={() => setBottomSheetOpen(false)}
@@ -1788,146 +1955,8 @@ _Generated via Store Performance Engine._`;
             </div>
 
             {/* Konten Scrollable Bottom Sheet */}
-            <div className="p-4 sm:p-6 overflow-y-auto space-y-5 text-xs">
-              {/* Ringkasan Angka */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-                <div className={`p-2.5 rounded-xl border ${innerBg}`}>
-                  <span className="opacity-60 text-[10px] block">Total Omset</span>
-                  <strong className="text-emerald-400 font-bold">{formatIDR(selectedStaffForSheet.actual)}</strong>
-                </div>
-                <div className={`p-2.5 rounded-xl border ${innerBg}`}>
-                  <span className="opacity-60 text-[10px] block">Target Kuota</span>
-                  <strong className="opacity-80">{formatIDR(selectedStaffForSheet.target)}</strong>
-                </div>
-                <div className={`p-2.5 rounded-xl border ${innerBg}`}>
-                  <span className="opacity-60 text-[10px] block">Achievement</span>
-                  <strong className={selectedStaffForSheet.achievement >= 100 ? "text-emerald-400" : "text-amber-400"}>
-                    {selectedStaffForSheet.achievement}%
-                  </strong>
-                </div>
-                <div className={`p-2.5 rounded-xl border ${innerBg}`}>
-                  <span className="opacity-60 text-[10px] block">UPT</span>
-                  <strong className="text-sky-400">{selectedStaffForSheet.upt}</strong>
-                </div>
-              </div>
-
-              {/* Sub-Lini Apple */}
-              <div>
-                <h4 className="text-xs font-bold text-sky-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <span>🍎</span>
-                  <span>Detail Apple Devices</span>
-                </h4>
-                <div className={`overflow-x-auto rounded-xl border ${innerBg}`}>
-                  <table className="w-full text-left text-xs">
-                    <thead className={`${innerBg} uppercase text-[10px] border-b border-inherit`}>
-                      <tr>
-                        <th className="py-2 px-3">Produk</th>
-                        <th className="py-2 px-3 text-center">Qty</th>
-                        <th className="py-2 px-3 text-right">Actual Omset</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-inherit">
-                      {selectedStaffForSheet.appleSub.map((p, idx) => (
-                        <tr key={idx}>
-                          <td className="py-2 px-3 font-semibold flex items-center gap-1.5">
-                            <span>{p.icon}</span>
-                            <span>{p.name}</span>
-                          </td>
-                          <td className="py-2 px-3 text-center">{p.qty}</td>
-                          <td className="py-2 px-3 text-right font-bold text-emerald-400">{formatIDR(p.actual)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Sub-Lini Android */}
-              <div>
-                <h4 className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <span>🤖</span>
-                  <span>Detail Android Devices</span>
-                </h4>
-                <div className={`overflow-x-auto rounded-xl border ${innerBg}`}>
-                  <table className="w-full text-left text-xs">
-                    <thead className={`${innerBg} uppercase text-[10px] border-b border-inherit`}>
-                      <tr>
-                        <th className="py-2 px-3">Brand</th>
-                        <th className="py-2 px-3 text-center">Qty</th>
-                        <th className="py-2 px-3 text-right">Actual Omset</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-inherit">
-                      {selectedStaffForSheet.androidSub.map((p, idx) => (
-                        <tr key={idx}>
-                          <td className="py-2 px-3 font-semibold flex items-center gap-1.5">
-                            <span>{p.icon}</span>
-                            <span>{p.name}</span>
-                          </td>
-                          <td className="py-2 px-3 text-center">{p.qty}</td>
-                          <td className="py-2 px-3 text-right font-bold text-emerald-400">{formatIDR(p.actual)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Sub-Lini Accessories (Besar ke Kecil) */}
-              <div>
-                <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <span>🔌</span>
-                  <span>Accessories (Besar ke Kecil)</span>
-                </h4>
-                <div className={`overflow-x-auto rounded-xl border ${innerBg}`}>
-                  <table className="w-full text-left text-xs">
-                    <thead className={`${innerBg} uppercase text-[10px] border-b border-inherit`}>
-                      <tr>
-                        <th className="py-2 px-3">Nama Aksesoris</th>
-                        <th className="py-2 px-3 text-center">Qty</th>
-                        <th className="py-2 px-3 text-right">Nominal</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-inherit">
-                      {selectedStaffForSheet.accessoriesSub.map((p, idx) => (
-                        <tr key={idx}>
-                          <td className="py-2 px-3 font-semibold">{p.name}</td>
-                          <td className="py-2 px-3 text-center">{p.qty}</td>
-                          <td className="py-2 px-3 text-right font-bold text-amber-400">{formatIDR(p.actual)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Sub-Lini VAS */}
-              <div>
-                <h4 className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <span>🛡️</span>
-                  <span>VAS (Qoala/Tsel/XL/Indosat)</span>
-                </h4>
-                <div className={`overflow-x-auto rounded-xl border ${innerBg}`}>
-                  <table className="w-full text-left text-xs">
-                    <thead className={`${innerBg} uppercase text-[10px] border-b border-inherit`}>
-                      <tr>
-                        <th className="py-2 px-3">Layanan</th>
-                        <th className="py-2 px-3 text-center">Qty</th>
-                        <th className="py-2 px-3 text-right">Nominal</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-inherit">
-                      {selectedStaffForSheet.vasSub.map((p, idx) => (
-                        <tr key={idx}>
-                          <td className="py-2 px-3 font-semibold">{p.name}</td>
-                          <td className="py-2 px-3 text-center">{p.qty}</td>
-                          <td className="py-2 px-3 text-right font-bold text-purple-400">{formatIDR(p.actual)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+            <div className="p-4 sm:p-6 overflow-y-auto space-y-4 text-xs">
+              {sheetContent}
             </div>
           </div>
         </div>
