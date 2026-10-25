@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
 
-// ==========================================
-// 1. DATA CONTRACTS & TYPE DEFINITIONS
-// ==========================================
+// =========================================================================
+// 1. DATA CONTRACTS & INTERFACES
+// =========================================================================
 
-type MenuTab = "store-overview" | "weekly-sales" | "staff-performance" | "schedule" | "bnpl" | "sales-detail" | "admin-audit";
+type MenuTab = "store-overview" | "weekly-sales" | "staff-performance" | "daily-target" | "schedule" | "feedback" | "bnpl" | "sales-detail" | "admin-audit";
 type ThemeMode = "dark" | "light";
 type PeriodType = "daily" | "weekly" | "monthly";
 
@@ -64,6 +64,7 @@ interface StaffPerformanceData {
   target: number;
   achievement: number;
   variance: number;
+  estimate: number;
   invoicesCount: number;
   qty: number;
   upt: number;
@@ -97,6 +98,28 @@ interface StaffScheduleItem {
   sun: string;
 }
 
+interface FeedbackItem {
+  id: string;
+  salesName: string;
+  salesRole: string;
+  initials: string;
+  sentiment: "Luar Biasa" | "Cukup Baik" | "Kecewa";
+  timestamp: string;
+  text: string;
+  reactions: {
+    thumbsUp: number;
+    heart: number;
+    fire: number;
+    thumbsDown: number;
+    sad: number;
+  };
+  userReactions: string[];
+}
+
+// =========================================================================
+// 2. HELPER FUNCTIONS & OPERATIONAL FORMULAS
+// =========================================================================
+
 const formatIDR = (n: number): string => {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
@@ -129,7 +152,43 @@ const INITIAL_SCHEDULE: StaffScheduleItem[] = [
   { id: "11", name: "Amzahri", role: "Daily Worker", mon: "OFF", tue: "D103", wed: "D047", thu: "OFF", fri: "D103", sat: "D047", sun: "D047" },
 ];
 
-export default function DigiplusOperationalEngine() {
+const INITIAL_FEEDBACKS: FeedbackItem[] = [
+  {
+    id: "fb-1",
+    salesName: "Liesbeth Febrina",
+    salesRole: "Cashier Leader",
+    initials: "LF",
+    sentiment: "Luar Biasa",
+    timestamp: "Hari ini, 15:30 WIB",
+    text: "Pelayanan sangat cepat dan ramah saat transaksi iPhone 17 Pro Max. Penjelasan proteksi garansi Qoala Diamond sangat jelas sehingga customer langsung setuju ambil proteksi 2 tahun.",
+    reactions: { thumbsUp: 8, heart: 5, fire: 6, thumbsDown: 0, sad: 0 },
+    userReactions: [],
+  },
+  {
+    id: "fb-2",
+    salesName: "Yunita Anggraini",
+    salesRole: "Cashier",
+    initials: "YA",
+    sentiment: "Luar Biasa",
+    timestamp: "Hari ini, 14:15 WIB",
+    text: "Customer Galaxy S26 Ultra dipandu proses trade-in handphone lama dengan lancar. Tambahan bundling casing magnetik dan charger adapter berhasil di-closing.",
+    reactions: { thumbsUp: 6, heart: 3, fire: 4, thumbsDown: 0, sad: 0 },
+    userReactions: [],
+  },
+  {
+    id: "fb-3",
+    salesName: "Surya Adi Permana",
+    salesRole: "Sales Assistant",
+    initials: "SA",
+    sentiment: "Cukup Baik",
+    timestamp: "Hari ini, 11:20 WIB",
+    text: "Perlu lebih mendalami fitur perbandingan tablet Android dan iPad saat customer bertanya detail spesifikasi. Namun attitude pelayanan tetap sopan dan sabar.",
+    reactions: { thumbsUp: 3, heart: 1, fire: 1, thumbsDown: 0, sad: 1 },
+    userReactions: [],
+  },
+];
+
+export default function CompleteOperationalEngine() {
   const [isMounted, setIsMounted] = useState<boolean>(false);
 
   // Theme & Navigation
@@ -138,7 +197,7 @@ export default function DigiplusOperationalEngine() {
   const [overviewDetailCategory, setOverviewDetailCategory] = useState<"apple" | "android" | "accessories" | "vas">("apple");
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
-  // Auth State
+  // Authentication State
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [salesIdInput, setSalesIdInput] = useState<string>("");
   const [passwordInput, setPasswordInput] = useState<string>("");
@@ -146,7 +205,7 @@ export default function DigiplusOperationalEngine() {
   const [currentSalesId, setCurrentSalesId] = useState<string>("");
   const [currentSalesName, setCurrentSalesName] = useState<string>("");
 
-  // Live Spreadsheet Data
+  // Live Spreadsheet Data State
   const [transactions, setTransactions] = useState<RawTransaction[]>([]);
   const [bnplRecords, setBnplRecords] = useState<BnplRecord[]>([]);
   const [scheduleData, setScheduleData] = useState<StaffScheduleItem[]>(INITIAL_SCHEDULE);
@@ -164,8 +223,16 @@ export default function DigiplusOperationalEngine() {
   const [sheetTitle, setSheetTitle] = useState<string>("");
   const [sheetContent, setSheetContent] = useState<React.ReactNode>(null);
 
-  // BNPL Tab Filter
+  // BNPL Active Tab
   const [selectedBnplTender, setSelectedBnplTender] = useState<string>("ALL");
+
+  // Feedback State
+  const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>(INITIAL_FEEDBACKS);
+  const [selectedFeedbackStaff, setSelectedFeedbackStaff] = useState<string>("ALL");
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState<boolean>(false);
+  const [newFeedbackStaff, setNewFeedbackStaff] = useState<string>("Liesbeth Febrina");
+  const [newFeedbackSentiment, setNewFeedbackSentiment] = useState<"Luar Biasa" | "Cukup Baik" | "Kecewa">("Luar Biasa");
+  const [newFeedbackText, setNewFeedbackText] = useState<string>("");
 
   // Admin Logs State
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
@@ -212,9 +279,7 @@ export default function DigiplusOperationalEngine() {
     return { isoDate, monthKey };
   };
 
-  // -------------------------------------------------------------
-  // LIVE FETCHING HOOK KE GOOGLE SHEETS
-  // -------------------------------------------------------------
+  // Live Fetching Hook ke Google Sheets GViz
   const fetchLiveGoogleSheets = async () => {
     setIsLoading(true);
     try {
@@ -254,9 +319,9 @@ export default function DigiplusOperationalEngine() {
 
         const pUpper = productName.toUpperCase();
 
-        // ATURAN KATEGORI KETAT:
-        // 1. Jika Kolom L bernilai DEVICES: Wajib masuk ke DEVICES (Xiaomi/Redmi HP masuk Android Devices)
-        // 2. Jika Kolom L kosong: Normalisasi sesuai jenis barang
+        // ATURAN KETAT LOB:
+        // 1. Jika Kolom L bernilai DEVICES: Wajib masuk ke DEVICES (Xiaomi/Redmi HP tetap masuk Android Devices)
+        // 2. Apple Devices: Hanya Brand Apple kategori DEVICES berbentuk hardware utama
         if (groupCategory === "DEVICES") {
           // Tetap DEVICES
         } else if (groupCategory === "VAS" || brand === "QOALA" || brand === "TELKOMSEL" || brand === "XL" || brand === "INDOSAT" || pUpper.includes("PROTEKSI") || pUpper.includes("MYPRIO")) {
@@ -344,10 +409,14 @@ export default function DigiplusOperationalEngine() {
       const savedName = localStorage.getItem("digi_ops_name");
       const savedTheme = localStorage.getItem("digi_ops_theme") as ThemeMode;
       const savedSchedule = localStorage.getItem("digi_ops_schedule");
+      const savedFeedbacks = localStorage.getItem("digi_ops_feedbacks");
 
       if (savedTheme) setTheme(savedTheme);
       if (savedSchedule) {
         try { setScheduleData(JSON.parse(savedSchedule)); } catch (e) {}
+      }
+      if (savedFeedbacks) {
+        try { setFeedbacks(JSON.parse(savedFeedbacks)); } catch (e) {}
       }
       if (savedUser) {
         setIsLoggedIn(true);
@@ -431,9 +500,7 @@ export default function DigiplusOperationalEngine() {
     setCurrentSalesName("");
   };
 
-  // ==============================================================
   // DETEKSI MINGGU OTOMATIS DARI ENTRI NYATA KOLOM O SPREADSHEET
-  // ==============================================================
   const AUTO_WEEKS = useMemo(() => {
     const map = new Map<string, { label: string; minDate: string; maxDate: string; count: number }>();
 
@@ -451,7 +518,6 @@ export default function DigiplusOperationalEngine() {
       if (t.isoDate && t.isoDate > item.maxDate) item.maxDate = t.isoDate;
     });
 
-    // Urutkan minggu berdasarkan tanggal awal transaksi
     const sorted = Array.from(map.values()).sort((a, b) => a.minDate.localeCompare(b.minDate));
 
     return sorted.map((w, idx) => {
@@ -471,7 +537,7 @@ export default function DigiplusOperationalEngine() {
     });
   }, [transactions]);
 
-  // Filter Data Transaksi Aktif
+  // Filter Data Transaksi Aktif Sesuai Periode
   const activeTransactions = useMemo(() => {
     return transactions.filter((t) => {
       if (selectedMonth !== "ALL" && t.monthKey !== selectedMonth) {
@@ -503,7 +569,7 @@ export default function DigiplusOperationalEngine() {
     const invoiceCount = new Set(activeTransactions.map((t) => t.invoice)).size;
     const storeUPT = calcUpt(qtyTotal, invoiceCount);
 
-    // Kategori Apple Devices: HANYA PRODUK HARDWARE APPLE RESMI DARI GROUP CATEGORY DEVICES
+    // Apple Devices: Hardware Murni Apple
     const appleItems = activeTransactions.filter((t) => {
       const pUpper = t.productName.toUpperCase();
       const isHardware = pUpper.includes("IPHONE") || pUpper.includes("IPAD") || pUpper.includes("AIRPOD") || pUpper.includes("MACBOOK") || pUpper.includes("WATCH");
@@ -513,7 +579,7 @@ export default function DigiplusOperationalEngine() {
     const appleActual = appleItems.reduce((acc, t) => acc + t.amount, 0);
     const appleTarget = Math.round(target * 0.794);
 
-    // Kategori Android Devices: SEMUA PERANGKAT SMARTPHONE / TABLET DARI BRAND SELAIN APPLE (TERMASUK XIAOMI / REDMI)
+    // Android Devices: Termasuk Xiaomi / Redmi selama Group Category = DEVICES
     const androidItems = activeTransactions.filter((t) => {
       const pUpper = t.productName.toUpperCase();
       const isCaseOrAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE");
@@ -526,12 +592,12 @@ export default function DigiplusOperationalEngine() {
     const androidActual = androidItems.reduce((acc, t) => acc + t.amount, 0);
     const androidTarget = Math.round(target * 0.108);
 
-    // Kategori Accessories: SEMUA CASE (TERMASUK UNIQ, KORA, ZAGG, CASE IPHONE) & AKSESORIS LAIN
+    // Accessories: Casing UNIQ, KORA, ZAGG, case iPhone, adapter, dll
     const accItems = activeTransactions.filter((t) => t.groupCategory === "ACCESSORIES");
     const accActual = accItems.reduce((acc, t) => acc + t.amount, 0);
     const accTarget = Math.round(target * 0.053);
 
-    // Kategori VAS: QOALA, TELKOMSEL, XL, INDOSAT
+    // VAS: Qoala, Telkomsel, XL, Indosat
     const vasItems = activeTransactions.filter((t) => t.groupCategory === "VAS");
     const vasActual = vasItems.reduce((acc, t) => acc + t.amount, 0);
     const vasTarget = Math.round(target * 0.045);
@@ -562,7 +628,31 @@ export default function DigiplusOperationalEngine() {
     };
   }, [activeTransactions, periodType, selectedDate, transactions]);
 
-  // Kalkulasi Rekap Mingguan Dinamis (Otomatis Mendeteksi W1 s.d. W5 / W6 dst)
+  // Trend Daily Sales (Awal Bulan s.d. Waktu Berjalan)
+  const dailyTrendStats = useMemo(() => {
+    const dailyMap = new Map<string, number>();
+    transactions.forEach((t) => {
+      if (t.isoDate && t.isoDate.startsWith("2026-10")) {
+        dailyMap.set(t.isoDate, (dailyMap.get(t.isoDate) || 0) + t.amount);
+      }
+    });
+
+    const dates = Array.from(dailyMap.keys()).sort();
+    const idealDailyTarget = Math.round(8728667173 / 31); // Target Ideal Per Hari
+
+    return dates.map((date) => {
+      const actual = dailyMap.get(date) || 0;
+      return {
+        date,
+        dayLabel: date.split("-")[2] + " Okt",
+        actual,
+        target: idealDailyTarget,
+        gap: actual - idealDailyTarget,
+      };
+    });
+  }, [transactions]);
+
+  // Kalkulasi Rekap Mingguan Dinamis
   const weeklyReport = useMemo(() => {
     return AUTO_WEEKS.map((wDef, idx) => {
       const match = transactions.filter((t) => t.weekLabel.toLowerCase().includes(wDef.label.toLowerCase()));
@@ -691,7 +781,7 @@ export default function DigiplusOperationalEngine() {
       if (t.brand === "QOALA" || pUpper.includes("QOALA") || pUpper.includes("PROTEKSI")) {
         map[id].vasMap["Qoala Proteksi Gadget"].actual += t.amount;
         map[id].vasMap["Qoala Proteksi Gadget"].qty += t.qty;
-      } else if (t.brand === "TELKOMSEL" || pUpper.includes("TELKOMSEL") || pUpper.includes("HALO")) {
+      } else if (t.brand === "TELKOMSEL" || pUpper.includes("TELKOMSEL")) {
         map[id].vasMap["Telkomsel Halo/Data"].actual += t.amount;
         map[id].vasMap["Telkomsel Halo/Data"].qty += t.qty;
       } else if (t.brand === "XL" || pUpper.includes("MYPRIO")) {
@@ -727,7 +817,7 @@ export default function DigiplusOperationalEngine() {
 
       let status: "Tercapai" | "Perlu Perhatian Khusus" | "Dalam Pantauan" = "Dalam Pantauan";
       let ringkasan = `Pencapaian ${achv}% terhadap target kuota.`;
-      let rekomendasi = "Tingkatkan penawaran bundling aksesoris dan layanan proteksi pada setiap nota penjualan.";
+      let rekomendasi = "Tingkatkan penawaran paket bundling aksesoris dan layanan proteksi pada setiap nota penjualan.";
 
       if (achv >= 100) {
         status = "Tercapai";
@@ -748,6 +838,7 @@ export default function DigiplusOperationalEngine() {
         target: targetQuota,
         achievement: achv,
         variance,
+        estimate: Math.round(s.total * 1.29),
         invoicesCount: invCount,
         qty: s.qty,
         upt,
@@ -769,6 +860,45 @@ export default function DigiplusOperationalEngine() {
       };
     });
   }, [activeTransactions]);
+
+  // Kalkulasi Target Harian vs Pencapaian Berjalan (Daily Target Engine)
+  const dailyTargetCalculated = useMemo(() => {
+    const totalMonthTarget = 8728667173;
+    const totalDays = 31;
+    const daysPassed = 24;
+    const daysLeft = totalDays - daysPassed;
+
+    const actualAchievedSoFar = transactions.reduce((acc, t) => acc + t.amount, 0);
+    const remainingTarget = Math.max(0, totalMonthTarget - actualAchievedSoFar);
+    const requiredDailyRunRate = daysLeft > 0 ? Math.round(remainingTarget / daysLeft) : 0;
+
+    // Hitung Staf yang Bertugas Hari Ini dari Jadwal
+    const todayShiftKey = "sat"; // Tanggal 24 Okt = Sabtu
+    const staffOnDuty = scheduleData.filter((s) => s[todayShiftKey] !== "OFF" && s[todayShiftKey] !== "CUTI");
+    const staffCount = staffOnDuty.length || 7;
+
+    const targetStoreToday = requiredDailyRunRate;
+    const targetPerStaffToday = Math.round(targetStoreToday / staffCount);
+
+    const actualToday = overviewStats.todayActual;
+    const achvToday = calcAchv(actualToday, targetStoreToday);
+
+    return {
+      totalMonthTarget,
+      totalDays,
+      daysPassed,
+      daysLeft,
+      actualAchievedSoFar,
+      remainingTarget,
+      requiredDailyRunRate,
+      staffOnDuty,
+      staffCount,
+      targetStoreToday,
+      targetPerStaffToday,
+      actualToday,
+      achvToday,
+    };
+  }, [transactions, scheduleData, overviewStats.todayActual]);
 
   // Kalkulasi BNPL
   const bnplSummary = useMemo(() => {
@@ -814,7 +944,12 @@ export default function DigiplusOperationalEngine() {
     });
   }, [scheduleData]);
 
+  // Hak Akses Jadwal: Khusus Admin 22008089
   const updateScheduleShift = (id: string, day: keyof StaffScheduleItem, shift: string) => {
+    if (currentSalesId !== ADMIN_ID) {
+      alert("Akses Ditolak: Hanya Admin dengan Sales ID 22008089 yang berhak mengubah jadwal shift.");
+      return;
+    }
     setScheduleData((prev) => {
       const updated = prev.map((item) => (item.id === id ? { ...item, [day]: shift } : item));
       if (typeof window !== "undefined") {
@@ -822,6 +957,62 @@ export default function DigiplusOperationalEngine() {
       }
       return updated;
     });
+  };
+
+  // Reaksi Feedback Handlers
+  const handleToggleReaction = (feedbackId: string, reactionKey: keyof FeedbackItem["reactions"]) => {
+    setFeedbacks((prev) => {
+      const updated = prev.map((fb) => {
+        if (fb.id !== feedbackId) return fb;
+        const already = fb.userReactions.includes(reactionKey);
+        const newReactions = { ...fb.reactions };
+        let newUserReactions = [...fb.userReactions];
+
+        if (already) {
+          newReactions[reactionKey] = Math.max(0, newReactions[reactionKey] - 1);
+          newUserReactions = newUserReactions.filter((r) => r !== reactionKey);
+        } else {
+          newReactions[reactionKey] = newReactions[reactionKey] + 1;
+          newUserReactions.push(reactionKey);
+        }
+
+        return { ...fb, reactions: newReactions, userReactions: newUserReactions };
+      });
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem("digi_ops_feedbacks", JSON.stringify(updated));
+      }
+      return updated;
+    });
+  };
+
+  const handleCreateFeedback = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newFeedbackText.trim()) return;
+
+    const matchedStaff = staffList.find((s) => s.name === newFeedbackStaff);
+    const initials = matchedStaff ? matchedStaff.initials : newFeedbackStaff.slice(0, 2).toUpperCase();
+
+    const newFb: FeedbackItem = {
+      id: `fb-${Date.now()}`,
+      salesName: newFeedbackStaff,
+      salesRole: "Sales Specialist",
+      initials,
+      sentiment: newFeedbackSentiment,
+      timestamp: "Hari ini, baru saja",
+      text: newFeedbackText.trim(),
+      reactions: { thumbsUp: 1, heart: 0, fire: 1, thumbsDown: 0, sad: 0 },
+      userReactions: ["thumbsUp", "fire"],
+    };
+
+    const updated = [newFb, ...feedbacks];
+    setFeedbacks(updated);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("digi_ops_feedbacks", JSON.stringify(updated));
+    }
+
+    setNewFeedbackText("");
+    setFeedbackModalOpen(false);
   };
 
   // WhatsApp Handlers
@@ -853,6 +1044,28 @@ Tanggal: ${selectedDate} (Filter: ${periodType.toUpperCase()})
 • Qty: ${overviewStats.qtyTotal} Unit
 
 _Diperbarui otomatis via Store Performance Engine._`;
+
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+  };
+
+  const handleShareTargetWA = () => {
+    const staffListMsg = dailyTargetCalculated.staffOnDuty
+      .map((s) => `• ${s.name} : ${formatIDR(dailyTargetCalculated.targetPerStaffToday)}`)
+      .join("\n");
+
+    const text = 
+`*TARGET HARIAN - DIGIPLUS GRAND INDONESIA*
+Target Tanggal: ${selectedDate}
+
+Nama Staff Bertugas:
+${staffListMsg}
+
+Total Target: ${formatIDR(dailyTargetCalculated.targetStoreToday)}
+━━━━━━━━━━━━━━━━━━
+Sisa Target Bulan: ${formatIDR(dailyTargetCalculated.remainingTarget)}
+Sisa Waktu: ${dailyTargetCalculated.daysLeft} Hari Tersisa
+
+Semangat closing team! Fokus capai target hari ini! 🔥💪`;
 
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   };
@@ -895,9 +1108,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
     }
   };
 
-  // ==========================================
-  // BOTTOM SHEET MODAL HANDLERS
-  // ==========================================
+  // Bottom Sheet Modal Trigger
   const openCustomBottomSheet = (title: string, content: React.ReactNode) => {
     setSheetTitle(title);
     setSheetContent(content);
@@ -945,10 +1156,9 @@ _Diperbarui via Digiplus Store Operations Engine._`;
     ));
   };
 
-  const openStaffDetailSheet = (staff: StaffPerformanceData) => {
+  const openStaffDetailSheet = (staff: StaffFullData) => {
     openCustomBottomSheet(`Rincian Lengkap Salesperson: ${staff.name}`, (
       <div className="space-y-5 text-xs">
-        {/* Ringkasan Angka */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
           <div className="p-2.5 rounded-xl border bg-black/20 border-slate-700/50">
             <span className="opacity-60 text-[10px] block">Actual</span>
@@ -1032,7 +1242,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
           </div>
         </div>
 
-        {/* 3. Sub-Lini Accessories (Besar ke Kecil) */}
+        {/* 3. Sub-Lini Accessories */}
         <div>
           <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
             <span>🔌</span>
@@ -1259,7 +1469,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
             </div>
           </div>
 
-          {/* User Tag Sapaan */}
+          {/* User Tag */}
           <div className={`mt-3 p-3 rounded-2xl ${cardBg} border flex items-center justify-between`}>
             <div>
               <span className="text-[9px] uppercase tracking-wider opacity-60 block font-bold">User Terotentikasi</span>
@@ -1301,6 +1511,17 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               <span>Staff Performance Detail</span>
             </button>
 
+            {/* MENU BARU: DAILY TARGET */}
+            <button
+              onClick={() => { setActiveTab("daily-target"); setMobileMenuOpen(false); }}
+              className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition ${
+                activeTab === "daily-target" ? activeTabBtn : "opacity-70 hover:opacity-100"
+              }`}
+            >
+              <span>🎯</span>
+              <span>Daily Target & Run Rate</span>
+            </button>
+
             <button
               onClick={() => { setActiveTab("schedule"); setMobileMenuOpen(false); }}
               className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition ${
@@ -1309,6 +1530,16 @@ _Diperbarui via Digiplus Store Operations Engine._`;
             >
               <span>📅</span>
               <span>Schedule 1 Minggu</span>
+            </button>
+
+            <button
+              onClick={() => { setActiveTab("feedback"); setMobileMenuOpen(false); }}
+              className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition ${
+                activeTab === "feedback" ? activeTabBtn : "opacity-70 hover:opacity-100"
+              }`}
+            >
+              <span>💬</span>
+              <span>Feedback Ritel</span>
             </button>
 
             <button
@@ -1374,7 +1605,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                 <span>Halo, {currentSalesName} 👋</span>
               </div>
               <p className={`text-xs ${textMuted} mt-1`}>
-                Live Sync: <code>DATABASE</code> (gid: 602901290) & <code>BNPL DATABASE</code> (gid: 2697970)
+                Live Feed: <code>DATABASE</code> (gid: 602901290) & <code>BNPL DATABASE</code> (gid: 2697970)
               </p>
             </div>
 
@@ -1404,10 +1635,9 @@ _Diperbarui via Digiplus Store Operations Engine._`;
             </div>
           </div>
 
-          {/* BARIS FILTER DINAMIS */}
+          {/* Baris Filter Dinamis */}
           <div className={`p-3 ${cardBg} border rounded-2xl flex flex-wrap items-center gap-3 justify-between text-xs`}>
             <div className="flex flex-wrap items-center gap-3">
-              {/* Toggle Mode Periode */}
               <div className="flex items-center gap-1 bg-black/20 p-1 rounded-xl">
                 {(["daily", "weekly", "monthly"] as const).map((mode) => (
                   <button
@@ -1422,7 +1652,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                 ))}
               </div>
 
-              {/* Filter Bulan */}
               {periodType === "monthly" && (
                 <div className="flex items-center gap-2">
                   <span className="opacity-70 font-semibold">📅 Bulan:</span>
@@ -1438,7 +1667,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                 </div>
               )}
 
-              {/* Filter Week (Otomatis Terupdate dari Kolom O) */}
               {periodType === "weekly" && (
                 <div className="flex items-center gap-2">
                   <span className="opacity-70 font-semibold">📊 Week:</span>
@@ -1455,7 +1683,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                 </div>
               )}
 
-              {/* Filter Daily / Tanggal */}
               {periodType === "daily" && (
                 <div className="flex items-center gap-2">
                   <span className="opacity-70 font-semibold">🗓️ Tanggal:</span>
@@ -1557,6 +1784,46 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                   </div>
                 </div>
 
+                {/* Trend Daily Sales (Awal Bulan s.d. Waktu Berjalan) */}
+                <div className={`p-5 rounded-3xl border ${cardBg} space-y-3`}>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="text-sm font-bold uppercase tracking-wider">Trend Daily Sales vs Target Ideal Harian</h3>
+                      <p className={`text-xs ${textMuted} mt-0.5`}>Perbandingan omset harian terhadap target flat {formatIDR(Math.round(8728667173 / 31))}/hari</p>
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs min-w-[600px]">
+                      <thead className={`${innerBg} uppercase text-[10px] border-b border-inherit`}>
+                        <tr>
+                          <th className="py-2.5 px-3">Tanggal</th>
+                          <th className="py-2.5 px-3 text-right">Actual Omset</th>
+                          <th className="py-2.5 px-3 text-right">Target Ideal</th>
+                          <th className="py-2.5 px-3 text-right">Gap Harian</th>
+                          <th className="py-2.5 px-3 text-center">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-inherit">
+                        {dailyTrendStats.map((d, i) => (
+                          <tr key={i} className="hover:opacity-90">
+                            <td className="py-2.5 px-3 font-bold">{d.dayLabel}</td>
+                            <td className="py-2.5 px-3 text-right font-extrabold text-emerald-400">{formatIDR(d.actual)}</td>
+                            <td className="py-2.5 px-3 text-right opacity-70 font-mono">{formatIDR(d.target)}</td>
+                            <td className={`py-2.5 px-3 text-right font-mono font-bold ${d.gap >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                              {formatIDR(d.gap)}
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${d.actual >= d.target ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"}`}>
+                                {d.actual >= d.target ? "Tercapai" : "Under"}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
                 {/* Matriks 4 LOB Kategori */}
                 <div>
                   <div className="flex justify-between items-center mb-3">
@@ -1651,9 +1918,9 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                               <div className="font-bold">{s.name}</div>
                               <div className="text-[10px] opacity-60 font-mono">ID: {s.salesId}</div>
                             </td>
-                            <td className="py-3.5 px-4 text-right font-extrabold text-emerald-500 text-sm">{formatIDR(s.actual)}</td>
+                            <td className="py-3.5 px-4 text-right font-extrabold text-emerald-500 text-sm">{formatIDR(s.total)}</td>
                             <td className="py-3.5 px-4 text-center font-bold">{s.qty}</td>
-                            <td className="py-3.5 px-4 text-center opacity-70">{s.invoicesCount}</td>
+                            <td className="py-3.5 px-4 text-center opacity-70">{s.invoices}</td>
                             <td className="py-3.5 px-4 text-center font-black text-sky-500">{s.upt}</td>
                             <td className="py-3.5 px-4 text-center">
                               <button
@@ -1685,7 +1952,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                         <span>WEEKLY SALES & WEEK-OVER-WEEK (WOW) DARI DATABASE KOLOM O</span>
                       </h2>
                       <p className={`text-xs ${textMuted} mt-1`}>
-                        Mendeteksi seluruh minggu otomatis dari Kolom O sheet <code>DATABASE</code> (termasuk W5 dan update minggu mendatang).
+                        Mendeteksi seluruh minggu otomatis dari Kolom O sheet <code>DATABASE</code> (termasuk W5 dan minggu pembaruan mendatang).
                       </p>
                     </div>
 
@@ -1698,13 +1965,13 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     </button>
                   </div>
 
-                  {/* Grid Mingguan Auto-Detected */}
+                  {/* Grid Mingguan */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                     {weeklyReport.map((w, idx) => (
                       <div key={idx} className={`p-3.5 ${innerBg} border rounded-2xl flex flex-col justify-between`}>
                         <div>
                           <div className="flex justify-between items-center mb-1">
-                            <span className={`text-xs font-bold ${accentText}`}>{w.label}</span>
+                            <span className={`text-xs font-bold ${accentText}`}>{w.label.split("(")[0]}</span>
                             {idx > 0 && (
                               <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${w.wowGrowth >= 0 ? "bg-emerald-500/20 text-emerald-500" : "bg-red-500/20 text-red-500"}`}>
                                 {w.wowGrowth > 0 ? `+${w.wowGrowth}%` : `${w.wowGrowth}%`}
@@ -1800,7 +2067,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
                 {staffList.map((staff) => (
                   <div key={staff.salesId} className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl relative overflow-hidden space-y-5`}>
-                    {/* Header Staf */}
                     <div className="flex flex-wrap justify-between items-start gap-4 pb-4 border-b border-inherit">
                       <div className="flex items-center gap-3">
                         <div className="relative">
@@ -1823,7 +2089,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                               </span>
                             )}
                           </h3>
-                          <p className={`text-xs ${textMuted} font-mono`}>ID Staf: {staff.salesId} • {staff.invoicesCount} Struk Terbit</p>
+                          <p className={`text-xs ${textMuted} font-mono`}>ID Staf: {staff.salesId} • {staff.invoices} Struk Terbit</p>
                         </div>
                       </div>
 
@@ -1839,7 +2105,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                       </div>
                     </div>
 
-                    {/* Evaluasi Ringkas */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                       <div className={`p-3 rounded-xl border ${innerBg}`}>
                         <span className={`font-bold ${accentText} block mb-1`}>📌 Evaluasi Kinerja:</span>
@@ -1851,7 +2116,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                       </div>
                     </div>
 
-                    {/* Accessories & VAS */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className={`p-4 rounded-2xl border ${innerBg}`}>
                         <div className="flex justify-between items-center mb-1">
@@ -1874,7 +2138,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                       </div>
                     </div>
 
-                    {/* Tombol Interaktif Buka Bottom Sheet */}
                     <div className="pt-2 flex justify-end">
                       <button
                         onClick={() => openStaffDetailSheet(staff)}
@@ -1889,7 +2152,114 @@ _Diperbarui via Digiplus Store Operations Engine._`;
             )}
 
             {/* ========================================================= */}
-            {/* TAB 4: MENU SCHEDULE 1 MINGGU (SENIN S.D. MINGGU)        */}
+            {/* TAB 4: MENU DAILY TARGET (TARGET HARIAN VS PENCAPAIAN)     */}
+            {/* ========================================================= */}
+            {activeTab === "daily-target" && (
+              <div className="space-y-6">
+                <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-5`}>
+                  <div className="flex flex-wrap justify-between items-center gap-4">
+                    <div>
+                      <h2 className="text-base sm:text-lg font-black flex items-center gap-2">
+                        <span>🎯</span>
+                        <span>TARGET HARIAN VS PENCAPAIAN BERJALAN</span>
+                      </h2>
+                      <p className={`text-xs ${textMuted} mt-0.5`}>
+                        Tanggal: {selectedDate} • Hari ke-{dailyTargetCalculated.daysPassed} ({dailyTargetCalculated.daysLeft} Hari Tersisa)
+                      </p>
+                    </div>
+
+                    {/* Tombol Share WhatsApp Format Khusus */}
+                    <button
+                      onClick={handleShareTargetWA}
+                      className="px-4 py-2 rounded-xl bg-[#25D366] hover:bg-emerald-600 text-white text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95"
+                    >
+                      <span>📲</span>
+                      <span>Share Target (WhatsApp)</span>
+                    </button>
+                  </div>
+
+                  {/* Kartu Status Hari Ini & Target Baru */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className={`p-4 rounded-2xl border ${innerBg}`}>
+                      <span className="text-[10px] font-bold opacity-60 uppercase block">Target Toko Hari Ini</span>
+                      <div className="text-lg font-black text-white mt-1">{formatIDR(dailyTargetCalculated.targetStoreToday)}</div>
+                      <span className="text-[10px] text-amber-400 mt-1 block">Wajib Dikejar per Hari</span>
+                    </div>
+
+                    <div className={`p-4 rounded-2xl border ${innerBg}`}>
+                      <span className="text-[10px] font-bold opacity-60 uppercase block">Pencapaian Hari Ini</span>
+                      <div className="text-lg font-black text-emerald-400 mt-1">{formatIDR(dailyTargetCalculated.actualToday)}</div>
+                      <span className={`text-[10px] font-bold mt-1 inline-block px-2 py-0.5 rounded ${dailyTargetCalculated.actualToday >= dailyTargetCalculated.targetStoreToday ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"}`}>
+                        {dailyTargetCalculated.actualToday >= dailyTargetCalculated.targetStoreToday ? "Tercapai" : "Belum Tercapai"} ({dailyTargetCalculated.achvToday}%)
+                      </span>
+                    </div>
+
+                    <div className={`p-4 rounded-2xl border ${innerBg}`}>
+                      <span className="text-[10px] font-bold opacity-60 uppercase block">Target per Staff Hari Ini</span>
+                      <div className="text-lg font-black text-sky-400 mt-1">{formatIDR(dailyTargetCalculated.targetPerStaffToday)}</div>
+                      <span className="text-[10px] opacity-70 mt-1 block">Dibagi {dailyTargetCalculated.staffCount} Staf Bertugas</span>
+                    </div>
+                  </div>
+
+                  {/* Daftar Staf yang Bertugas Hari Ini */}
+                  <div className="space-y-2 pt-2">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">Daftar Staf Bertugas Hari Ini & Kuota Target:</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                      {dailyTargetCalculated.staffOnDuty.map((s) => (
+                        <div key={s.id} className={`p-3 rounded-xl border flex justify-between items-center ${innerBg}`}>
+                          <div>
+                            <span className="font-bold text-xs block">{s.name}</span>
+                            <span className="text-[10px] opacity-60">{s.role}</span>
+                          </div>
+                          <span className="font-mono font-bold text-xs text-amber-400">{formatIDR(dailyTargetCalculated.targetPerStaffToday)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Riwayat Pencapaian Mengikuti Tanggal Berjalan */}
+                  <div className="pt-4 border-t border-inherit space-y-3">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">Riwayat Pencapaian Tanggal Berjalan (1 - 31 Okt):</h3>
+                    <div className="overflow-x-auto rounded-2xl border border-inherit">
+                      <table className="w-full text-left text-xs min-w-[600px]">
+                        <thead className={`${innerBg} uppercase text-[10px] border-b border-inherit`}>
+                          <tr>
+                            <th className="py-2.5 px-3">Tanggal</th>
+                            <th className="py-2.5 px-3 text-right">Target Harian</th>
+                            <th className="py-2.5 px-3 text-right">Pencapaian Aktual</th>
+                            <th className="py-2.5 px-3 text-center">Progress %</th>
+                            <th className="py-2.5 px-3 text-right">Selisih (+/-)</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-inherit font-medium">
+                          {dailyTrendStats.map((d, i) => {
+                            const pAchv = calcAchv(d.actual, d.target);
+                            return (
+                              <tr key={i} className="hover:opacity-90">
+                                <td className="py-2.5 px-3 font-bold">{d.dayLabel} (Hari {i + 1})</td>
+                                <td className="py-2.5 px-3 text-right font-mono opacity-70">{formatIDR(d.target)}</td>
+                                <td className="py-2.5 px-3 text-right font-extrabold text-emerald-400">{formatIDR(d.actual)}</td>
+                                <td className="py-2.5 px-3 text-center">
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${pAchv >= 100 ? "bg-emerald-500/20 text-emerald-400" : pAchv >= 70 ? "bg-amber-500/20 text-amber-400" : "bg-red-500/20 text-red-400"}`}>
+                                    {pAchv}%
+                                  </span>
+                                </td>
+                                <td className={`py-2.5 px-3 text-right font-mono font-bold ${d.gap >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                                  {formatIDR(d.gap)}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ========================================================= */}
+            {/* TAB 5: MENU SCHEDULE 1 MINGGU (SENIN S.D. MINGGU)        */}
             {/* ========================================================= */}
             {activeTab === "schedule" && (
               <div className="space-y-6">
@@ -1924,7 +2294,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     </div>
                   </div>
 
-                  {/* Rekap Personil Harian */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 text-center">
                     {scheduleDaySummary.map((d, i) => {
                       const dayNames = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
@@ -1938,7 +2307,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     })}
                   </div>
 
-                  {/* Tabel Jadwal */}
                   <div className={`overflow-x-auto rounded-2xl border ${innerBg}`}>
                     <table className="w-full text-left text-xs min-w-[700px]">
                       <thead className={`${innerBg} uppercase text-[11px] border-b border-inherit`}>
@@ -1964,27 +2332,45 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                               const isOff = shift === "OFF";
                               const isMorning = shift === "D047";
                               const isEvening = shift === "D103";
+                              const canEdit = currentSalesId === ADMIN_ID;
+
                               return (
                                 <td key={dayKey} className="py-2.5 px-2 text-center">
-                                  <select
-                                    value={shift}
-                                    onChange={(e) => updateScheduleShift(s.id, dayKey, e.target.value)}
-                                    className={`px-2 py-1 rounded-lg text-[10px] font-bold border focus:outline-none cursor-pointer ${
-                                      isOff
-                                        ? "bg-slate-700/40 text-slate-300 border-slate-600"
-                                        : isMorning
-                                        ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
-                                        : isEvening
-                                        ? "bg-sky-500/20 text-sky-300 border-sky-500/40"
-                                        : "bg-purple-500/20 text-purple-300 border-purple-500/40"
-                                    }`}
-                                  >
-                                    <option value="D047">D047 (Pagi)</option>
-                                    <option value="D103">D103 (Siang)</option>
-                                    <option value="OFF">OFF (Libur)</option>
-                                    <option value="TR">TR (Training)</option>
-                                    <option value="CUTI">CUTI / RO</option>
-                                  </select>
+                                  {canEdit ? (
+                                    <select
+                                      value={shift}
+                                      onChange={(e) => updateScheduleShift(s.id, dayKey, e.target.value)}
+                                      className={`px-2 py-1 rounded-lg text-[10px] font-bold border focus:outline-none cursor-pointer ${
+                                        isOff
+                                          ? "bg-slate-700/40 text-slate-300 border-slate-600"
+                                          : isMorning
+                                          ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                                          : isEvening
+                                          ? "bg-sky-500/20 text-sky-300 border-sky-500/40"
+                                          : "bg-purple-500/20 text-purple-300 border-purple-500/40"
+                                      }`}
+                                    >
+                                      <option value="D047">D047 (Pagi)</option>
+                                      <option value="D103">D103 (Siang)</option>
+                                      <option value="OFF">OFF (Libur)</option>
+                                      <option value="TR">TR (Training)</option>
+                                      <option value="CUTI">CUTI / RO</option>
+                                    </select>
+                                  ) : (
+                                    <span
+                                      className={`px-2 py-1 rounded-lg text-[10px] font-bold border inline-block ${
+                                        isOff
+                                          ? "bg-slate-700/40 text-slate-300 border-slate-600"
+                                          : isMorning
+                                          ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                                          : isEvening
+                                          ? "bg-sky-500/20 text-sky-300 border-sky-500/40"
+                                          : "bg-purple-500/20 text-purple-300 border-purple-500/40"
+                                      }`}
+                                    >
+                                      {shift}
+                                    </span>
+                                  )}
                                 </td>
                               );
                             })}
@@ -1998,7 +2384,213 @@ _Diperbarui via Digiplus Store Operations Engine._`;
             )}
 
             {/* ========================================================= */}
-            {/* TAB 5: BNPL TRANSACTIONS (BERBASIS TENDER TABS ZERO-RELOAD)*/}
+            {/* TAB 6: RIWAYAT FEEDBACK (GOOGLE REVIEW STYLE)             */}
+            {/* ========================================================= */}
+            {activeTab === "feedback" && (
+              <div className="space-y-6">
+                <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-5`}>
+                  <div className="flex flex-wrap justify-between items-center gap-4">
+                    <div>
+                      <h2 className="text-base sm:text-lg font-black flex items-center gap-2">
+                        <span>💬</span>
+                        <span>Riwayat Feedback Penjualan Hari Ini 📊</span>
+                      </h2>
+                      <p className={`text-xs ${textMuted} mt-0.5`}>
+                        Hari Ini, 26 Okt 2026 • Ulasan performa, kendala, dan apresiasi layanan tim sales
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                      <select
+                        value={selectedFeedbackStaff}
+                        onChange={(e) => setSelectedFeedbackStaff(e.target.value)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold border ${innerBg} focus:outline-none`}
+                      >
+                        <option value="ALL">Pilih Semua Staf</option>
+                        {staffList.map((s) => (
+                          <option key={s.salesId} value={s.name}>
+                            {s.name}
+                          </option>
+                        ))}
+                      </select>
+
+                      <button
+                        onClick={() => setFeedbackModalOpen(true)}
+                        className="px-4 py-2 rounded-xl bg-[#0052FF] hover:bg-blue-700 text-white text-xs font-bold transition shadow-lg shadow-blue-500/20 active:scale-95"
+                      >
+                        + Tulis Feedback Baru
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 pt-2">
+                    {feedbacks
+                      .filter((f) => selectedFeedbackStaff === "ALL" || f.salesName === selectedFeedbackStaff)
+                      .map((fb) => (
+                        <div
+                          key={fb.id}
+                          className={`p-4 sm:p-5 rounded-2xl border transition-all ${
+                            isDark ? "bg-[#141226] border-[#3B3666]" : "bg-[#FAF9F5] border-[#E5E2D9] shadow-sm"
+                          }`}
+                        >
+                          <div className="flex flex-wrap justify-between items-start gap-2 mb-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-blue-500/20 text-blue-400 font-bold flex items-center justify-center text-xs border border-blue-400/40">
+                                {fb.initials}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-bold text-sm">{fb.salesName}</h4>
+                                  <span className="text-[10px] opacity-60">({fb.salesRole})</span>
+                                </div>
+                                <span className="text-[10px] opacity-50">{fb.timestamp}</span>
+                              </div>
+                            </div>
+
+                            <span
+                              className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${
+                                fb.sentiment === "Luar Biasa"
+                                  ? "bg-emerald-500/15 text-emerald-400 border-emerald-400/30"
+                                  : fb.sentiment === "Cukup Baik"
+                                  ? "bg-amber-500/15 text-amber-400 border-amber-400/30"
+                                  : "bg-red-500/15 text-red-400 border-red-400/30"
+                              }`}
+                            >
+                              {fb.sentiment}
+                            </span>
+                          </div>
+
+                          <div
+                            className={`p-3.5 rounded-xl border text-xs leading-relaxed ${
+                              isDark ? "bg-[#1E1B38] border-[#3B3666] text-[#FFF6E9]" : "bg-white border-[#EAE7DC] text-[#1E293B]"
+                            }`}
+                          >
+                            {fb.text}
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2 mt-3 pt-2">
+                            {[
+                              { key: "thumbsUp" as const, emoji: "👍" },
+                              { key: "heart" as const, emoji: "🧡" },
+                              { key: "fire" as const, emoji: "🔥" },
+                              { key: "thumbsDown" as const, emoji: "👎🏻" },
+                              { key: "sad" as const, emoji: "🥲" },
+                            ].map((btn) => {
+                              const isClicked = fb.userReactions.includes(btn.key);
+                              return (
+                                <button
+                                  key={btn.key}
+                                  onClick={() => handleToggleReaction(fb.id, btn.key)}
+                                  className={`px-2.5 py-1 rounded-full text-xs font-bold border transition flex items-center gap-1 active:scale-90 ${
+                                    isClicked
+                                      ? "bg-blue-500/20 text-blue-400 border-blue-400 shadow-sm"
+                                      : `${innerBg} border-inherit opacity-70 hover:opacity-100`
+                                  }`}
+                                >
+                                  <span>{btn.emoji}</span>
+                                  <span>{fb.reactions[btn.key]}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+
+                {/* MODAL INPUT FEEDBACK BARU */}
+                {feedbackModalOpen && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+                    <div className={`w-full max-w-lg rounded-3xl ${cardBg} border-2 border-[#3B3666] p-6 shadow-2xl space-y-4`}>
+                      <div className="flex justify-between items-center pb-3 border-b border-inherit">
+                        <h3 className="font-bold text-sm flex items-center gap-2">
+                          <span>✍️</span>
+                          <span>Tulis Feedback Penjualan Baru</span>
+                        </h3>
+                        <button
+                          onClick={() => setFeedbackModalOpen(false)}
+                          className="w-8 h-8 rounded-full bg-slate-700/40 hover:bg-slate-700/60 flex items-center justify-center text-xs"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      <form onSubmit={handleCreateFeedback} className="space-y-4 text-xs">
+                        <div>
+                          <label className="font-bold uppercase tracking-wider block mb-1">Pilih Nama Sales</label>
+                          <select
+                            value={newFeedbackStaff}
+                            onChange={(e) => setNewFeedbackStaff(e.target.value)}
+                            className={`w-full px-3 py-2.5 rounded-xl border ${innerBg} focus:outline-none`}
+                          >
+                            {staffList.map((s) => (
+                              <option key={s.salesId} value={s.name}>
+                                {s.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="font-bold uppercase tracking-wider block mb-1">Sentimen / Evaluasi Cepat</label>
+                          <div className="grid grid-cols-3 gap-2">
+                            {(["Luar Biasa", "Cukup Baik", "Kecewa"] as const).map((sent) => (
+                              <button
+                                type="button"
+                                key={sent}
+                                onClick={() => setNewFeedbackSentiment(sent)}
+                                className={`py-2 rounded-xl font-bold border transition ${
+                                  newFeedbackSentiment === sent
+                                    ? sent === "Luar Biasa"
+                                      ? "bg-emerald-500 text-white border-emerald-400"
+                                      : sent === "Cukup Baik"
+                                      ? "bg-amber-500 text-slate-950 border-amber-400"
+                                      : "bg-red-500 text-white border-red-400"
+                                    : `${innerBg} opacity-70`
+                                }`}
+                              >
+                                {sent}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="font-bold uppercase tracking-wider block mb-1">Catatan Ulasan Penjualan</label>
+                          <textarea
+                            rows={4}
+                            required
+                            placeholder="Tuliskan apresiasi, closing sukses, atau kendala interaksi penjualan..."
+                            value={newFeedbackText}
+                            onChange={(e) => setNewFeedbackText(e.target.value)}
+                            className={`w-full p-3 rounded-xl border ${innerBg} focus:outline-none`}
+                          />
+                        </div>
+
+                        <div className="flex justify-end gap-2 pt-2">
+                          <button
+                            type="button"
+                            onClick={() => setFeedbackModalOpen(false)}
+                            className={`px-4 py-2 rounded-xl ${innerBg} border`}
+                          >
+                            Batal
+                          </button>
+                          <button
+                            type="submit"
+                            className="px-5 py-2 rounded-xl bg-[#0052FF] hover:bg-blue-700 text-white font-bold"
+                          >
+                            Kirim Feedback
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ========================================================= */}
+            {/* TAB 7: BNPL TRANSACTIONS (BERBASIS TABS PER TENDER)       */}
             {/* ========================================================= */}
             {activeTab === "bnpl" && (
               <div className="space-y-6">
@@ -2107,7 +2699,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
             )}
 
             {/* ========================================================= */}
-            {/* TAB 6: KHUSUS ADMIN (22008089) - ACTIVITY STAFF           */}
+            {/* TAB 8: KHUSUS ADMIN (22008089) - ACTIVITY STAFF           */}
             {/* ========================================================= */}
             {activeTab === "admin-audit" && currentSalesId === ADMIN_ID && (
               <div className="space-y-6">
@@ -2180,7 +2772,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
             )}
 
             {/* ========================================================= */}
-            {/* TAB 7: DETAIL LOG TRANSAKSI                               */}
+            {/* TAB 9: DETAIL LOG TRANSAKSI                               */}
             {/* ========================================================= */}
             {activeTab === "sales-detail" && (
               <div className="space-y-4">
@@ -2226,7 +2818,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
       </main>
 
       {/* ========================================================= */}
-      {/* BOTTOM SHEET MODAL DRILLDOWN                             */}
+      {/* 5. BOTTOM SHEET MODAL DRILLDOWN (LACI GESER DARI BAWAH)   */}
       {/* ========================================================= */}
       {bottomSheetOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm transition-opacity animate-in fade-in">
@@ -2255,4 +2847,4 @@ _Diperbarui via Digiplus Store Operations Engine._`;
       )}
     </div>
   );
-} 
+}
