@@ -2,17 +2,18 @@
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
 
+// ==========================================
+// 1. DATA CONTRACTS & INTERFACES
+// ==========================================
+
 type MenuTab = "store-overview" | "weekly-sales" | "staff-performance" | "bnpl" | "sales-detail" | "admin-audit";
 type ThemeMode = "dark" | "light";
 type PeriodType = "daily" | "weekly" | "monthly";
 
-// ==========================================
-// 1. DATA CONTRACT & SCHEMA INTERFACES
-// ==========================================
 interface RawTransaction {
-  date: string;       // Format asli di sheet (DD-MM-YYYY / DD/MM/YYYY)
-  isoDate: string;    // Format seragam YYYY-MM-DD
-  monthKey: string;   // Format bulan normal (Oktober2026 / YYYY-MM)
+  date: string;
+  isoDate: string;
+  monthKey: string;
   salesId: string;
   salesName: string;
   invoice: string;
@@ -47,15 +48,43 @@ interface ActivityLog {
   coords: string;
 }
 
-interface SubLOBMetric {
+interface SubCategoryMetric {
   name: string;
   icon: string;
   qty: number;
   actual: number;
 }
 
+interface StaffPerformanceData {
+  rank: number;
+  salesId: string;
+  name: string;
+  initials: string;
+  actual: number;
+  target: number;
+  achievement: number;
+  variance: number;
+  invoicesCount: number;
+  qty: number;
+  upt: number;
+  targetAcc: number;
+  actualAcc: number;
+  achvAcc: number;
+  targetVas: number;
+  actualVas: number;
+  achvVas: number;
+  status: "Tercapai" | "Perlu Perhatian Khusus" | "Dalam Pantauan";
+  ringkasan: string;
+  rekomendasi: string;
+  appleSub: SubCategoryMetric[];
+  androidSub: SubCategoryMetric[];
+  accessoriesSub: SubCategoryMetric[];
+  vasSub: SubCategoryMetric[];
+  weekSales: Record<string, number>;
+}
+
 // ==========================================
-// 2. FORMULA OPERASIONAL RETAIL
+// 2. HELPER FUNCTIONS
 // ==========================================
 const formatIDR = (n: number): string => {
   return new Intl.NumberFormat("id-ID", {
@@ -76,45 +105,48 @@ const calcUpt = (qty: number, invoices: number): number => {
 };
 
 export default function DigiplusOperationalEngine() {
-  // Theme & Navigation States
+  const [isMounted, setIsMounted] = useState<boolean>(false);
+
+  // Theme & Navigation
   const [theme, setTheme] = useState<ThemeMode>("dark");
   const [activeTab, setActiveTab] = useState<MenuTab>("store-overview");
   const [overviewDetailCategory, setOverviewDetailCategory] = useState<"apple" | "android" | "accessories" | "vas">("apple");
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
-  // Authentication State
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [salesIdInput, setSalesIdInput] = useState("");
-  const [passwordInput, setPasswordInput] = useState("");
-  const [loginErr, setLoginErr] = useState("");
-  const [currentSalesId, setCurrentSalesId] = useState("");
-  const [currentSalesName, setCurrentSalesName] = useState("");
+  // Authentication
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const [salesIdInput, setSalesIdInput] = useState<string>("");
+  const [passwordInput, setPasswordInput] = useState<string>("");
+  const [loginErr, setLoginErr] = useState<string>("");
+  const [currentSalesId, setCurrentSalesId] = useState<string>("");
+  const [currentSalesName, setCurrentSalesName] = useState<string>("");
 
-  // Live Sheets Data State
+  // Live Spreadsheet Data
   const [transactions, setTransactions] = useState<RawTransaction[]>([]);
-  const [bnplData, setBnplData] = useState<BnplRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [lastSyncTime, setLastSyncTime] = useState("");
+  const [bnplRecords, setBnplRecords] = useState<BnplRecord[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [lastSyncTime, setLastSyncTime] = useState<string>("");
 
-  // Period Filter States (Daily, Weekly, Monthly)
+  // Period Filters
   const [periodType, setPeriodType] = useState<PeriodType>("monthly");
-  const [selectedMonth, setSelectedMonth] = useState("Oktober2026");
-  const [selectedWeek, setSelectedWeek] = useState("ALL");
-  const [selectedDate, setSelectedDate] = useState("2026-10-24");
+  const [selectedMonth, setSelectedMonth] = useState<string>("Oktober2026");
+  const [selectedWeek, setSelectedWeek] = useState<string>("ALL");
+  const [selectedDate, setSelectedDate] = useState<string>("2026-10-24");
 
-  // Accordion Expand/Collapse State untuk Staff Performance Card
-  const [expandedStaffId, setExpandedStaffId] = useState<string | null>(null);
+  // Bottom Sheet Drawer State
+  const [bottomSheetOpen, setBottomSheetOpen] = useState<boolean>(false);
+  const [selectedStaffForSheet, setSelectedStaffForSheet] = useState<StaffPerformanceData | null>(null);
 
-  // Active Tab Filter untuk BNPL Tender
+  // BNPL Tab Filter
   const [selectedBnplTender, setSelectedBnplTender] = useState<string>("ALL");
 
-  // Admin Logs State (Sales ID: 22008089)
+  // Admin Logs State
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
 
   const SPREADSHEET_ID = "1v_QCLTDKORjVnByrzo9qRiivdU8CGO99nJri9jBETWM";
   const ADMIN_ID = "22008089";
 
-  // Normalisasi Tanggal & Format Bulan Sheet DATABASE
+  // Normalisasi Tanggal & Format Bulan
   const parseNormalizedDate = (rawDateStr: string, rawMonthStr: string) => {
     let isoDate = "";
     let monthKey = "";
@@ -139,7 +171,6 @@ export default function DigiplusOperationalEngine() {
       }
     }
 
-    // Normalisasi Bulan
     const mClean = String(rawMonthStr || "").trim().toLowerCase();
     if (mClean.includes("okt") || mClean.includes("2026-10") || mClean.includes("10-2026")) {
       monthKey = "Oktober2026";
@@ -154,10 +185,10 @@ export default function DigiplusOperationalEngine() {
     return { isoDate, monthKey };
   };
 
-  // -------------------------------------------------------------
-  // 1. LIVE FETCHING HOOK KE GOOGLE SHEETS (GViz API)
-  // -------------------------------------------------------------
-  const fetchGoogleSheetsLive = async () => {
+  // ==============================================================
+  // 3. LIVE FETCHING HOOK (GOOGLE SHEETS GVIZ)
+  // ==============================================================
+  const fetchLiveGoogleSheets = async () => {
     setIsLoading(true);
     try {
       const dbUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=602901290`;
@@ -167,10 +198,10 @@ export default function DigiplusOperationalEngine() {
       const textDb = await resDb.text();
       const textBnpl = await resBnpl.text();
 
-      // Parse JSONP Tab DATABASE
-      const startDb = textDb.indexOf("{");
-      const endDb = textDb.lastIndexOf("}") + 1;
-      const jsonDb = JSON.parse(textDb.substring(startDb, endDb));
+      // Parse JSONP DATABASE
+      const sDb = textDb.indexOf("{");
+      const eDb = textDb.lastIndexOf("}") + 1;
+      const jsonDb = JSON.parse(textDb.substring(sDb, eDb));
       const rowsDb = jsonDb.table.rows;
 
       const parsedTrx: RawTransaction[] = [];
@@ -195,14 +226,14 @@ export default function DigiplusOperationalEngine() {
         let groupCategory = String(c[11]?.v || "").trim().toUpperCase();
         const weekLabel = String(c[14]?.v || "").trim();
 
-        // Normalisasi Kategori Kosong (Mengatasi temuan audit 27 transaksi)
+        // Normalisasi Kategori Kosong
         const pUpper = productName.toUpperCase();
         if (!groupCategory || groupCategory === "NAN" || groupCategory === "N/A") {
           if (brand === "APPLE" || pUpper.includes("IPHONE") || pUpper.includes("IPAD") || pUpper.includes("AIRPOD")) {
             groupCategory = "DEVICES";
           } else if (["SAMSUNG", "OPPO", "MOTOROLA", "HUAWEI", "INFINIX", "XIAOMI"].includes(brand)) {
             groupCategory = "DEVICES";
-          } else if (brand === "QOALA" || brand === "TELKOMSEL" || brand === "XL" || brand === "INDOSAT" || pUpper.includes("PROTEKSI") || pUpper.includes("MYPRIO")) {
+          } else if (brand === "QOALA" || brand === "TELKOMSEL" || brand === "XL" || brand === "INDOSAT" || pUpper.includes("PROTEKSI")) {
             groupCategory = "VAS";
           } else {
             groupCategory = "ACCESSORIES";
@@ -229,10 +260,10 @@ export default function DigiplusOperationalEngine() {
         }
       });
 
-      // Parse JSONP Tab BNPL DATABASE
-      const startBnpl = textBnpl.indexOf("{");
-      const endBnpl = textBnpl.lastIndexOf("}") + 1;
-      const jsonBnpl = JSON.parse(textBnpl.substring(startBnpl, endBnpl));
+      // Parse JSONP BNPL DATABASE
+      const sBnpl = textBnpl.indexOf("{");
+      const eBnpl = textBnpl.lastIndexOf("}") + 1;
+      const jsonBnpl = JSON.parse(textBnpl.substring(sBnpl, eBnpl));
       const rowsBnpl = jsonBnpl.table.rows;
 
       const parsedBnpl: BnplRecord[] = [];
@@ -255,10 +286,10 @@ export default function DigiplusOperationalEngine() {
       });
 
       setTransactions(parsedTrx);
-      setBnplData(parsedBnpl);
+      setBnplRecords(parsedBnpl);
       setLastSyncTime(new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }));
 
-      // Personalisasi Nama Sapaan
+      // Sinkronkan Nama Sapaan Staf
       if (currentSalesId && !currentSalesName) {
         if (currentSalesId === ADMIN_ID) {
           setCurrentSalesName("Store Leader Admin");
@@ -268,14 +299,15 @@ export default function DigiplusOperationalEngine() {
         }
       }
     } catch (err) {
-      console.error("Gagal sinkronisasi data live:", err);
+      console.error("Gagal sinkronisasi data Google Sheets:", err);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchGoogleSheetsLive();
+    setIsMounted(true);
+    fetchLiveGoogleSheets();
 
     if (typeof window !== "undefined") {
       const savedUser = localStorage.getItem("digi_ops_user");
@@ -287,7 +319,7 @@ export default function DigiplusOperationalEngine() {
         setCurrentSalesId(savedUser);
         setCurrentSalesName(savedName || `Sales ${savedUser}`);
       }
-      const savedLogs = localStorage.getItem("digi_ops_admin_logs");
+      const savedLogs = localStorage.getItem("digi_ops_activity_logs");
       if (savedLogs) {
         try { setActivityLogs(JSON.parse(savedLogs)); } catch (e) {}
       }
@@ -302,7 +334,7 @@ export default function DigiplusOperationalEngine() {
     }
   };
 
-  // Login Execution & Audit Log
+  // Login Handler & Activity Audit
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordInput !== "Welcome@123") {
@@ -351,7 +383,7 @@ export default function DigiplusOperationalEngine() {
     setActivityLogs((prev) => {
       const updated = [log, ...prev.slice(0, 49)];
       if (typeof window !== "undefined") {
-        localStorage.setItem("digi_ops_admin_logs", JSON.stringify(updated));
+        localStorage.setItem("digi_ops_activity_logs", JSON.stringify(updated));
       }
       return updated;
     });
@@ -374,15 +406,13 @@ export default function DigiplusOperationalEngine() {
   ], []);
 
   // -------------------------------------------------------------
-  // PENYARINGAN DATA AKTIF (DAILY / WEEKLY / MONTHLY)
+  // 4. PENYARINGAN DATA AKTIF (DAILY / WEEKLY / MONTHLY)
   // -------------------------------------------------------------
   const activeTransactions = useMemo(() => {
     return transactions.filter((t) => {
-      // 1. Filter Bulan
       if (selectedMonth !== "ALL" && t.monthKey !== selectedMonth) {
         return false;
       }
-      // 2. Filter Periode
       if (periodType === "daily") {
         return t.isoDate === selectedDate;
       }
@@ -395,7 +425,7 @@ export default function DigiplusOperationalEngine() {
   }, [transactions, selectedMonth, periodType, selectedDate, selectedWeek, WEEK_DEFINITIONS]);
 
   // -------------------------------------------------------------
-  // KALKULASI OVERVIEW METRICS AKTIF
+  // 5. KALKULASI OVERVIEW METRICS
   // -------------------------------------------------------------
   const overviewStats = useMemo(() => {
     const actual = activeTransactions.reduce((acc, t) => acc + t.amount, 0);
@@ -412,6 +442,7 @@ export default function DigiplusOperationalEngine() {
     const invoiceCount = new Set(activeTransactions.map((t) => t.invoice)).size;
     const storeUPT = calcUpt(qtyTotal, invoiceCount);
 
+    // Kategori LOB
     const appleItems = activeTransactions.filter((t) => t.brand === "APPLE" || t.productName.toUpperCase().includes("IPHONE"));
     const appleActual = appleItems.reduce((acc, t) => acc + t.amount, 0);
     const appleTarget = Math.round(target * 0.794);
@@ -436,8 +467,7 @@ export default function DigiplusOperationalEngine() {
     const vasActual = vasItems.reduce((acc, t) => acc + t.amount, 0);
     const vasTarget = Math.round(target * 0.045);
 
-    // Penjualan Hari Berjalan
-    const todayItems = transactions.filter((t) => t.isoDate === "2026-10-24" || t.isoDate === selectedDate);
+    const todayItems = transactions.filter((t) => t.isoDate === selectedDate);
     const todayActual = todayItems.reduce((acc, t) => acc + t.amount, 0);
 
     return {
@@ -464,7 +494,7 @@ export default function DigiplusOperationalEngine() {
   }, [activeTransactions, periodType, selectedWeek, selectedDate, transactions, WEEK_DEFINITIONS]);
 
   // -------------------------------------------------------------
-  // REKAP WEEKLY SALES (WoW DARI KOLOM O)
+  // 6. KALKULASI WEEKLY SALES (WoW DARI DATABASE KOLOM O)
   // -------------------------------------------------------------
   const weeklyReport = useMemo(() => {
     return WEEK_DEFINITIONS.map((wDef, idx) => {
@@ -491,9 +521,9 @@ export default function DigiplusOperationalEngine() {
   }, [transactions, WEEK_DEFINITIONS]);
 
   // -------------------------------------------------------------
-  // REKAP STAFF PERFORMANCE (SEMUA STAF DENGAN SUB-LINI LENGKAP)
+  // 7. KALKULASI STAFF PERFORMANCE (SEMUA STAF TANPA DROPDOWN)
   // -------------------------------------------------------------
-  const staffList = useMemo(() => {
+  const staffList: StaffPerformanceData[] = useMemo(() => {
     const map: Record<string, {
       salesId: string;
       name: string;
@@ -568,7 +598,7 @@ export default function DigiplusOperationalEngine() {
       else if (t.brand === "INFINIX") { map[id].androidMap["Infinix Devices"].actual += t.amount; map[id].androidMap["Infinix Devices"].qty += t.qty; }
       else if (t.brand === "XIAOMI") { map[id].androidMap["Xiaomi Devices"].actual += t.amount; map[id].androidMap["Xiaomi Devices"].qty += t.qty; }
 
-      // Accessories Sub (Diurutkan dari Besar ke Kecil)
+      // Accessories Sub (Urut Nominal Besar ke Kecil)
       if (t.groupCategory === "ACCESSORIES") {
         const item = t.productName.trim() || "Aksesoris";
         if (!map[id].accMap[item]) map[id].accMap[item] = { actual: 0, qty: 0, icon: "🔌" };
@@ -609,14 +639,14 @@ export default function DigiplusOperationalEngine() {
         .map(([name, d]) => ({ name, ...d }))
         .sort((a, b) => b.actual - a.actual);
 
-      const totalAcc = sortedAcc.reduce((acc, c) => acc + c.actual, 0);
-      const totalVas = Object.values(s.vasMap).reduce((acc, c) => acc + c.actual, 0);
+      const totalAccActual = sortedAcc.reduce((acc, c) => acc + c.actual, 0);
+      const totalVasActual = Object.values(s.vasMap).reduce((acc, c) => acc + c.actual, 0);
 
       const targetAcc = 80000000;
       const targetVas = 60000000;
 
       let status: "Tercapai" | "Perlu Perhatian Khusus" | "Dalam Pantauan" = "Dalam Pantauan";
-      let ringkasan = `Pencapaian penjualan ${achv}% terhadap target kuota.`;
+      let ringkasan = `Pencapaian ${achv}% terhadap target kuota.`;
       let rekomendasi = "Tingkatkan penawaran paket bundling aksesoris dan layanan proteksi pada setiap nota penjualan.";
 
       if (achv >= 100) {
@@ -634,19 +664,19 @@ export default function DigiplusOperationalEngine() {
         salesId: s.salesId,
         name: s.name,
         initials,
-        total: s.total,
-        qty: s.qty,
-        invoices: invCount,
-        upt,
+        actual: s.total,
         target: targetQuota,
-        achv,
+        achievement: achv,
         variance,
-        totalAcc,
+        invoicesCount: invCount,
+        qty: s.qty,
+        upt,
+        totalAccActual,
         targetAcc,
-        achvAcc: calcAchv(totalAcc, targetAcc),
-        totalVas,
+        achvAcc: calcAchv(totalAccActual, targetAcc),
+        totalVasActual,
         targetVas,
-        achvVas: calcAchv(totalVas, targetVas),
+        achvVas: calcAchv(totalVasActual, targetVas),
         status,
         ringkasan,
         rekomendasi,
@@ -660,15 +690,15 @@ export default function DigiplusOperationalEngine() {
   }, [activeTransactions]);
 
   // -------------------------------------------------------------
-  // REKAP BNPL DAN TABS PER TENDER
+  // 8. KALKULASI DINAMIS BNPL (DARI GID 2697970)
   // -------------------------------------------------------------
   const bnplSummary = useMemo(() => {
-    const totalAmount = bnplData.reduce((acc, b) => acc + b.amount, 0);
-    const totalQty = bnplData.reduce((acc, b) => acc + b.qty, 0);
+    const totalAmount = bnplRecords.reduce((acc, b) => acc + b.amount, 0);
+    const totalQty = bnplRecords.reduce((acc, b) => acc + b.qty, 0);
     const storeActual = overviewStats.actual;
 
     const map: Record<string, { amount: number; qty: number }> = {};
-    bnplData.forEach((b) => {
+    bnplRecords.forEach((b) => {
       const tKey = b.tender || "Other";
       if (!map[tKey]) map[tKey] = { amount: 0, qty: 0 };
       map[tKey].amount += b.amount;
@@ -681,17 +711,14 @@ export default function DigiplusOperationalEngine() {
       return { tender, amount: d.amount, qty: d.qty, share, estimate };
     }).sort((a, b) => b.amount - a.amount);
 
-    // Filter daftar transaksi BNPL sesuai tab tender yang dipilih
     const filteredRecords = selectedBnplTender === "ALL"
-      ? bnplData
-      : bnplData.filter((b) => b.tender.toLowerCase() === selectedBnplTender.toLowerCase());
+      ? bnplRecords
+      : bnplRecords.filter((b) => b.tender.toLowerCase() === selectedBnplTender.toLowerCase());
 
     return { totalAmount, totalQty, tenders, list: filteredRecords };
-  }, [bnplData, overviewStats.actual, selectedBnplTender]);
+  }, [bnplRecords, overviewStats.actual, selectedBnplTender]);
 
-  // -------------------------------------------------------------
-  // GENERATOR SHARE DAILY WHATSAPP
-  // -------------------------------------------------------------
+  // Template Share WhatsApp Ringkas
   const handleShareDaily = () => {
     const appleVal = overviewStats.lobs.find((l) => l.name.includes("Apple"))?.actual || 0;
     const androidVal = overviewStats.lobs.find((l) => l.name.includes("Android"))?.actual || 0;
@@ -724,7 +751,34 @@ _Diperbarui otomatis via Store Performance Engine._`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   };
 
-  // Color Theme Variables
+  // Share Weekly Report ke WhatsApp
+  const handleShareWeekly = (wLabel: string, sales: number, target: number, achv: number) => {
+    const text = 
+`*WEEKLY SALES REPORT - DIGIPLUS GRAND INDONESIA*
+Periode: ${wLabel}
+
+📈 *Pencapaian Mingguan Store:*
+• Sales: ${formatIDR(sales)}
+• Target: ${formatIDR(target)}
+• Achievement: ${achv}%
+
+🏆 *Top 3 Staff Mingguan:*
+${staffList.slice(0, 3).map((s) => `• #${s.rank} ${s.name}: ${formatIDR(s.weekSales[wLabel] || 0)}`).join("\n")}
+
+_Generated via Store Performance Engine._`;
+
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+  };
+
+  // Buka Bottom Sheet untuk Staf Tertentu
+  const openStaffBottomSheet = (staff: StaffPerformanceData) => {
+    setSelectedStaffForSheet(staff);
+    setBottomSheetOpen(true);
+  };
+
+  if (!isMounted) return null;
+
+  // Styling Dinamis Tema
   const isDark = theme === "dark";
   const bgMain = isDark ? "bg-[#1A1831]" : "bg-[#F9F8F3]";
   const textMain = isDark ? "text-[#FFF6E9]" : "text-[#1E293B]";
@@ -735,7 +789,7 @@ _Diperbarui otomatis via Store Performance Engine._`;
   const activeTabBtn = isDark ? "bg-[#F5BA42] text-[#1A1831] font-black shadow-md" : "bg-[#054ff0] text-white font-black shadow-md";
 
   // =============================================================
-  // RENDER: HALAMAN LOGIN SECURE
+  // RENDER: LOGIN FORM SECURE
   // =============================================================
   if (!isLoggedIn) {
     return (
@@ -797,11 +851,11 @@ _Diperbarui otomatis via Store Performance Engine._`;
   // =============================================================
   return (
     <div className={`flex min-h-screen ${bgMain} ${textMain} font-sans relative`}>
-      {/* Mobile Drawer Button */}
-      <div className="lg:hidden fixed bottom-5 right-5 z-50">
+      {/* Mobile Drawer Trigger Button */}
+      <div className="lg:hidden fixed bottom-5 right-5 z-40">
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className={`w-14 h-14 rounded-full ${isDark ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#054ff0] text-white"} font-black text-2xl flex items-center justify-center shadow-2xl transition`}
+          className={`w-14 h-14 rounded-full ${isDark ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#054ff0] text-white"} font-black text-2xl flex items-center justify-center shadow-2xl transition active:scale-95`}
         >
           {mobileMenuOpen ? "✕" : "☰"}
         </button>
@@ -829,7 +883,7 @@ _Diperbarui otomatis via Store Performance Engine._`;
             </div>
           </div>
 
-          {/* User Tag */}
+          {/* User Status Tag */}
           <div className={`mt-3 p-3 rounded-2xl ${cardBg} border flex items-center justify-between`}>
             <div>
               <span className="text-[9px] uppercase tracking-wider opacity-60 block font-bold">User Terotentikasi</span>
@@ -926,7 +980,7 @@ _Diperbarui otomatis via Store Performance Engine._`;
 
       {/* KONTEN UTAMA */}
       <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-w-7xl mx-auto w-full">
-        {/* HEADER: PERSONALISASI & FILTER BAR REAKTIF */}
+        {/* HEADER ATAS: SAPAAN "HALO [NAMA SALES]" & FILTER TANGGAL */}
         <header className="mb-6 border-b border-inherit pb-5">
           <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
             <div>
@@ -948,7 +1002,7 @@ _Diperbarui otomatis via Store Performance Engine._`;
               </button>
 
               <button
-                onClick={fetchGoogleSheetsLive}
+                onClick={fetchLiveGoogleSheets}
                 disabled={isLoading}
                 className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 ${innerBg}`}
               >
@@ -964,7 +1018,7 @@ _Diperbarui otomatis via Store Performance Engine._`;
             </div>
           </div>
 
-          {/* BARIS FILTER DINAMIS (DAILY / WEEKLY / MONTHLY) */}
+          {/* BARIS FILTER DINAMIS */}
           <div className={`p-3 ${cardBg} border rounded-2xl flex flex-wrap items-center gap-3 justify-between text-xs`}>
             <div className="flex flex-wrap items-center gap-3">
               {/* Toggle Mode Periode */}
@@ -1176,7 +1230,7 @@ _Diperbarui otomatis via Store Performance Engine._`;
                           <th className="py-3.5 px-4 text-center">Unit</th>
                           <th className="py-3.5 px-4 text-center">Struk</th>
                           <th className="py-3.5 px-4 text-center">UPT</th>
-                          <th className="py-3.5 px-4 text-center">Status</th>
+                          <th className="py-3.5 px-4 text-center">Aksi Drilldown</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-inherit font-medium">
@@ -1193,16 +1247,17 @@ _Diperbarui otomatis via Store Performance Engine._`;
                               <div className="font-bold">{s.name}</div>
                               <div className="text-[10px] opacity-60 font-mono">ID: {s.salesId}</div>
                             </td>
-                            <td className="py-3.5 px-4 text-right font-extrabold text-emerald-500 text-sm">{formatIDR(s.total)}</td>
+                            <td className="py-3.5 px-4 text-right font-extrabold text-emerald-500 text-sm">{formatIDR(s.actual)}</td>
                             <td className="py-3.5 px-4 text-center font-bold">{s.qty}</td>
-                            <td className="py-3.5 px-4 text-center opacity-70">{s.invoices}</td>
+                            <td className="py-3.5 px-4 text-center opacity-70">{s.invoicesCount}</td>
                             <td className="py-3.5 px-4 text-center font-black text-sky-500">{s.upt}</td>
                             <td className="py-3.5 px-4 text-center">
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                s.status === "Tercapai" ? "bg-emerald-500/20 text-emerald-500" : "bg-red-500/20 text-red-500"
-                              }`}>
-                                {s.status}
-                              </span>
+                              <button
+                                onClick={() => openStaffBottomSheet(s)}
+                                className={`px-3 py-1 rounded-xl text-xs font-bold transition ${activeTabBtn}`}
+                              >
+                                Rincian per salesperson &gt;
+                              </button>
                             </td>
                           </tr>
                         ))}
@@ -1304,27 +1359,31 @@ _Diperbarui otomatis via Store Performance Engine._`;
                     </button>
                   </div>
 
+                  {/* 4 Kartu Week */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     {weeklyReport.map((w, idx) => (
                       <div key={idx} className={`p-4 ${innerBg} border rounded-2xl`}>
                         <div className="flex justify-between items-center mb-1">
                           <span className={`text-xs font-bold ${accentText}`}>{w.label}</span>
-                          {idx > 0 && (
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${w.wowGrowth >= 0 ? "bg-emerald-500/20 text-emerald-500" : "bg-red-500/20 text-red-500"}`}>
-                              {w.wowGrowth > 0 ? `+${w.wowGrowth}%` : `${w.wowGrowth}%`} WoW
-                            </span>
-                          )}
+                          <button
+                            onClick={() => handleShareWeekly(w.label, w.sales, w.target, w.achv)}
+                            title="Share Week ini ke WA"
+                            className="p-1 rounded bg-emerald-500 text-white text-[10px]"
+                          >
+                            📲 Share
+                          </button>
                         </div>
                         <p className={`text-[10px] ${textMuted} mb-1.5`}>{w.range}</p>
                         <div className="text-lg font-black mt-1">{formatIDR(w.sales)}</div>
                         <div className={`flex justify-between text-[11px] ${textMuted} mt-2`}>
-                          <span>Unit: {w.qty}</span>
-                          <span>Struk: {w.invCount}</span>
+                          <span>Target: {formatIDR(w.target)}</span>
+                          <span className="font-bold text-emerald-400">{w.achv}%</span>
                         </div>
                       </div>
                     ))}
                   </div>
 
+                  {/* Tabel Breakdown Mingguan Kolom O */}
                   <div className={`overflow-x-auto rounded-2xl border ${innerBg}`}>
                     <table className="w-full text-left text-xs min-w-[700px]">
                       <thead className={`${innerBg} uppercase text-[11px] border-b border-inherit`}>
@@ -1368,7 +1427,7 @@ _Diperbarui otomatis via Store Performance Engine._`;
             )}
 
             {/* ========================================================= */}
-            {/* TAB 3: STAFF PERFORMANCE DETAIL (CARD ACCORDION / COLLAPSIBLE) */}
+            {/* TAB 3: STAFF PERFORMANCE DETAIL (SEMUA STAF DITAMPILKAN)  */}
             {/* ========================================================= */}
             {activeTab === "staff-performance" && (
               <div className="space-y-6 sm:space-y-8">
@@ -1379,247 +1438,93 @@ _Diperbarui otomatis via Store Performance Engine._`;
                   </h2>
                 </div>
 
-                {staffList.map((staff) => {
-                  const isExpanded = expandedStaffId === staff.salesId;
-                  return (
-                    <div key={staff.salesId} className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl relative overflow-hidden space-y-5 transition-all`}>
-                      {/* Header Staf */}
-                      <div className="flex flex-wrap justify-between items-start gap-4 pb-4 border-b border-inherit">
-                        <div className="flex items-center gap-3">
-                          <div className="relative">
-                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl tracking-wider shadow-lg ${staff.rank === 1 ? "bg-amber-500/20 border-2 border-[#F5BA42] text-[#F5BA42]" : `${innerBg} border`}`}>
-                              {staff.initials}
-                            </div>
-                            <span className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full inline-flex items-center justify-center font-black text-xs ${
-                              staff.rank === 1 ? (isDark ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#054ff0] text-white") : `${innerBg} border`
-                            }`}>
-                              #{staff.rank}
-                            </span>
+                {staffList.map((staff) => (
+                  <div key={staff.salesId} className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl relative overflow-hidden space-y-5`}>
+                    {/* Header Staf */}
+                    <div className="flex flex-wrap justify-between items-start gap-4 pb-4 border-b border-inherit">
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl tracking-wider shadow-lg ${staff.rank === 1 ? "bg-amber-500/20 border-2 border-[#F5BA42] text-[#F5BA42]" : `${innerBg} border`}`}>
+                            {staff.initials}
                           </div>
-
-                          <div>
-                            <h3 className="text-lg sm:text-xl font-black flex items-center gap-2">
-                              <span>{staff.name}</span>
-                              {staff.rank === 1 && (
-                                <span className={`text-[10px] ${isDark ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#054ff0] text-white"} px-2 py-0.5 rounded-full font-black uppercase`}>
-                                  Top 1 👑
-                                </span>
-                              )}
-                            </h3>
-                            <p className={`text-xs ${textMuted} font-mono`}>ID Staf: {staff.salesId} • {staff.invoices} Struk Terbit</p>
-                          </div>
+                          <span className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full inline-flex items-center justify-center font-black text-xs ${
+                            staff.rank === 1 ? (isDark ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#054ff0] text-white") : `${innerBg} border`
+                          }`}>
+                            #{staff.rank}
+                          </span>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-2 text-right">
-                          <div className={`px-3 py-1.5 rounded-xl border ${innerBg}`}>
-                            <span className="text-[9px] opacity-60 uppercase block">Actual Omset</span>
-                            <span className="text-xs sm:text-sm font-black text-emerald-400">{formatIDR(staff.total)}</span>
-                          </div>
-                          <div className={`px-3 py-1.5 rounded-xl border ${innerBg}`}>
-                            <span className="text-[9px] opacity-60 uppercase block">Achievement</span>
-                            <span className={`text-xs sm:text-sm font-black ${staff.achv >= 100 ? "text-emerald-400" : accentText}`}>
-                              {staff.achv}%
-                            </span>
-                          </div>
-                          <div className={`px-3 py-1.5 rounded-xl border ${innerBg}`}>
-                            <span className="text-[9px] opacity-60 uppercase block">UPT Staf</span>
-                            <span className="text-xs sm:text-sm font-black text-sky-400">{staff.upt}</span>
-                          </div>
+                        <div>
+                          <h3 className="text-lg sm:text-xl font-black flex items-center gap-2">
+                            <span>{staff.name}</span>
+                            {staff.rank === 1 && (
+                              <span className={`text-[10px] ${isDark ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#054ff0] text-white"} px-2 py-0.5 rounded-full font-black uppercase`}>
+                                Top 1 👑
+                              </span>
+                            )}
+                          </h3>
+                          <p className={`text-xs ${textMuted} font-mono`}>ID Staf: {staff.salesId} • {staff.invoicesCount} Struk Terbit</p>
                         </div>
                       </div>
 
-                      {/* Evaluasi Ringkas */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                        <div className={`p-3 rounded-xl border ${innerBg}`}>
-                          <span className={`font-bold ${accentText} block mb-1`}>📌 Evaluasi Kinerja:</span>
-                          <p className="opacity-80 leading-relaxed">{staff.ringkasan}</p>
+                      <div className="flex flex-wrap items-center gap-2 text-right">
+                        <div className={`px-3 py-1.5 rounded-xl border ${innerBg}`}>
+                          <span className="text-[9px] opacity-60 uppercase block">Actual Omset</span>
+                          <span className="text-xs sm:text-sm font-black text-emerald-400">{formatIDR(staff.actual)}</span>
                         </div>
-                        <div className={`p-3 rounded-xl border ${innerBg}`}>
-                          <span className="font-bold text-emerald-400 block mb-1">⚡ Rekomendasi Tindakan:</span>
-                          <p className="opacity-80 leading-relaxed">{staff.rekomendasi}</p>
-                        </div>
-                      </div>
-
-                      {/* Accessories & VAS */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className={`p-4 rounded-2xl border ${innerBg}`}>
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
-                              <span>🔌</span>
-                              <span>Accessories Pencapaian</span>
-                            </span>
-                            <span className="text-xs font-black text-amber-400">{formatIDR(staff.totalAcc)}</span>
-                          </div>
-                          <div className="flex justify-between text-xs opacity-80 mt-1">
-                            <span>Target: {formatIDR(staff.targetAcc)}</span>
-                            <span>Achv: <strong>{staff.achvAcc}%</strong></span>
-                          </div>
-                        </div>
-
-                        <div className={`p-4 rounded-2xl border ${innerBg}`}>
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-xs font-bold text-purple-400 flex items-center gap-1.5">
-                              <span>🛡️</span>
-                              <span>VAS Pencapaian</span>
-                            </span>
-                            <span className="text-xs font-black text-purple-400">{formatIDR(staff.totalVas)}</span>
-                          </div>
-                          <div className="flex justify-between text-xs opacity-80 mt-1">
-                            <span>Target: {formatIDR(staff.targetVas)}</span>
-                            <span>Achv: <strong>{staff.achvVas}%</strong></span>
-                          </div>
+                        <div className={`px-3 py-1.5 rounded-xl border ${innerBg}`}>
+                          <span className="text-[9px] opacity-60 uppercase block">UPT Staf</span>
+                          <span className="text-xs sm:text-sm font-black text-sky-400">{staff.upt}</span>
                         </div>
                       </div>
-
-                      {/* TOMBOL INTERAKTIF: ACCORDION EXPAND / COLLAPSE */}
-                      <div className="pt-2 flex justify-end">
-                        <button
-                          onClick={() => setExpandedStaffId(isExpanded ? null : staff.salesId)}
-                          className={`px-4 py-2 rounded-xl text-xs font-black transition flex items-center gap-1.5 ${
-                            isExpanded ? `${innerBg} border` : activeTabBtn
-                          }`}
-                        >
-                          <span>{isExpanded ? "Sembunyikan Rincian ⌃" : "Rincian per salesperson >"}</span>
-                        </button>
-                      </div>
-
-                      {/* ACCORDION CONTENT: SUB-LINI DETAIL */}
-                      {isExpanded && (
-                        <div className="space-y-4 pt-4 border-t border-inherit animate-in fade-in duration-200">
-                          {/* Sub-Lini Apple Devices */}
-                          <div>
-                            <h4 className="text-xs font-bold text-sky-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                              <span>🍎</span>
-                              <span>Apple Devices (iPhone, iPad, MacBook, Apple Watch, AirPods)</span>
-                            </h4>
-                            <div className={`overflow-x-auto rounded-xl border ${innerBg}`}>
-                              <table className="w-full text-left text-xs min-w-[500px]">
-                                <thead className={`${innerBg} uppercase text-[10px] border-b border-inherit`}>
-                                  <tr>
-                                    <th className="py-2.5 px-3">Produk</th>
-                                    <th className="py-2.5 px-3 text-center">Qty</th>
-                                    <th className="py-2.5 px-3 text-right">Actual Omset</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-inherit font-medium">
-                                  {staff.appleSub.map((p, idx) => (
-                                    <tr key={idx} className="hover:opacity-90 transition">
-                                      <td className="py-2.5 px-3 font-bold flex items-center gap-1.5">
-                                        <span>{p.icon}</span>
-                                        <span>{p.name}</span>
-                                      </td>
-                                      <td className="py-2.5 px-3 text-center font-bold">{p.qty}</td>
-                                      <td className="py-2.5 px-3 text-right font-extrabold text-emerald-400">{formatIDR(p.actual)}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-
-                          {/* Sub-Lini Android Devices */}
-                          <div>
-                            <h4 className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                              <span>🤖</span>
-                              <span>Android Devices (Samsung, Oppo, Motorola, Huawei, Infinix, Xiaomi)</span>
-                            </h4>
-                            <div className={`overflow-x-auto rounded-xl border ${innerBg}`}>
-                              <table className="w-full text-left text-xs min-w-[500px]">
-                                <thead className={`${innerBg} uppercase text-[10px] border-b border-inherit`}>
-                                  <tr>
-                                    <th className="py-2.5 px-3">Brand</th>
-                                    <th className="py-2.5 px-3 text-center">Qty</th>
-                                    <th className="py-2.5 px-3 text-right">Actual Omset</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-inherit font-medium">
-                                  {staff.androidSub.map((p, idx) => (
-                                    <tr key={idx} className="hover:opacity-90 transition">
-                                      <td className="py-2.5 px-3 font-bold flex items-center gap-1.5">
-                                        <span>{p.icon}</span>
-                                        <span>{p.name}</span>
-                                      </td>
-                                      <td className="py-2.5 px-3 text-center font-bold">{p.qty}</td>
-                                      <td className="py-2.5 px-3 text-right font-extrabold text-emerald-400">{formatIDR(p.actual)}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-
-                          {/* Sub-Lini Accessories (Urut Dari Nominal Besar ke Kecil) */}
-                          <div>
-                            <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                              <span>🔌</span>
-                              <span>Accessories (Diurutkan dari Nominal Besar ke Kecil)</span>
-                            </h4>
-                            <div className={`overflow-x-auto rounded-xl border ${innerBg}`}>
-                              <table className="w-full text-left text-xs min-w-[500px]">
-                                <thead className={`${innerBg} uppercase text-[10px] border-b border-inherit`}>
-                                  <tr>
-                                    <th className="py-2.5 px-3">Nama Aksesoris</th>
-                                    <th className="py-2.5 px-3 text-center">Qty</th>
-                                    <th className="py-2.5 px-3 text-right">Nominal (Rp)</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-inherit font-medium">
-                                  {staff.accessoriesSub.length === 0 ? (
-                                    <tr>
-                                      <td colSpan={3} className="py-3 px-3 text-center opacity-60">Belum ada transaksi aksesoris tercatat.</td>
-                                    </tr>
-                                  ) : (
-                                    staff.accessoriesSub.map((p, idx) => (
-                                      <tr key={idx} className="hover:opacity-90 transition">
-                                        <td className="py-2.5 px-3 font-bold flex items-center gap-1.5">
-                                          <span>{p.icon}</span>
-                                          <span>{p.name}</span>
-                                        </td>
-                                        <td className="py-2.5 px-3 text-center font-bold">{p.qty}</td>
-                                        <td className="py-2.5 px-3 text-right font-extrabold text-amber-400">{formatIDR(p.actual)}</td>
-                                      </tr>
-                                    ))
-                                  )}
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-
-                          {/* Sub-Lini VAS */}
-                          <div>
-                            <h4 className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                              <span>🛡️</span>
-                              <span>VAS (Qoala, Telkomsel, XL, Indosat)</span>
-                            </h4>
-                            <div className={`overflow-x-auto rounded-xl border ${innerBg}`}>
-                              <table className="w-full text-left text-xs min-w-[500px]">
-                                <thead className={`${innerBg} uppercase text-[10px] border-b border-inherit`}>
-                                  <tr>
-                                    <th className="py-2.5 px-3">Layanan Provider</th>
-                                    <th className="py-2.5 px-3 text-center">Qty</th>
-                                    <th className="py-2.5 px-3 text-right">Nominal (Rp)</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-inherit font-medium">
-                                  {staff.vasSub.map((p, idx) => (
-                                    <tr key={idx} className="hover:opacity-90 transition">
-                                      <td className="py-2.5 px-3 font-bold flex items-center gap-1.5">
-                                        <span>{p.icon}</span>
-                                        <span>{p.name}</span>
-                                      </td>
-                                      <td className="py-2.5 px-3 text-center font-bold">{p.qty}</td>
-                                      <td className="py-2.5 px-3 text-right font-extrabold text-purple-400">{formatIDR(p.actual)}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-                        </div>
-                      )}
                     </div>
-                  );
-                })}
+
+                    {/* Evaluasi Ringkas */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                      <div className={`p-3 rounded-xl border ${innerBg}`}>
+                        <span className={`font-bold ${accentText} block mb-1`}>📌 Evaluasi Kinerja:</span>
+                        <p className="opacity-80 leading-relaxed">{staff.ringkasan}</p>
+                      </div>
+                      <div className={`p-3 rounded-xl border ${innerBg}`}>
+                        <span className="font-bold text-emerald-400 block mb-1">⚡ Rekomendasi Tindakan:</span>
+                        <p className="opacity-80 leading-relaxed">{staff.rekomendasi}</p>
+                      </div>
+                    </div>
+
+                    {/* Accessories & VAS */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className={`p-4 rounded-2xl border ${innerBg}`}>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                            <span>🔌</span>
+                            <span>Accessories Pencapaian</span>
+                          </span>
+                          <span className="text-xs font-black text-amber-400">{formatIDR(staff.totalAccActual)}</span>
+                        </div>
+                      </div>
+
+                      <div className={`p-4 rounded-2xl border ${innerBg}`}>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-xs font-bold text-purple-400 flex items-center gap-1.5">
+                            <span>🛡️</span>
+                            <span>VAS Pencapaian</span>
+                          </span>
+                          <span className="text-xs font-black text-purple-400">{formatIDR(staff.totalVasActual)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tombol Interaktif Buka Bottom Sheet */}
+                    <div className="pt-2 flex justify-end">
+                      <button
+                        onClick={() => openStaffBottomSheet(staff)}
+                        className={`px-4 py-2.5 rounded-xl text-xs font-black transition flex items-center gap-1.5 ${activeTabBtn}`}
+                      >
+                        <span>Rincian per salesperson &gt;</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
 
@@ -1668,7 +1573,7 @@ _Diperbarui otomatis via Store Performance Engine._`;
                     ))}
                   </div>
 
-                  {/* TABS FILTER MITRA TENDER (KREDIVO, INDODANA, AKULAKU, HOME CREDIT) */}
+                  {/* TABS FILTER MITRA TENDER */}
                   <div className="pt-4">
                     <div className="flex flex-wrap gap-2 pb-2">
                       <button
@@ -1677,7 +1582,7 @@ _Diperbarui otomatis via Store Performance Engine._`;
                           selectedBnplTender === "ALL" ? activeTabBtn : `${innerBg} border opacity-70 hover:opacity-100`
                         }`}
                       >
-                        Semua Tender ({bnplData.length})
+                        Semua Tender ({bnplRecords.length})
                       </button>
                       {bnplSummary.tenders.map((t) => (
                         <button
@@ -1695,7 +1600,7 @@ _Diperbarui otomatis via Store Performance Engine._`;
                     </div>
                   </div>
 
-                  {/* LOG TABEL TRANSAKSI BNPL (SESUAI TAB TENDER TERPILIH) */}
+                  {/* LOG TABEL TRANSAKSI BNPL */}
                   <div className={`overflow-x-auto rounded-2xl border ${innerBg}`}>
                     <table className="w-full text-left text-xs min-w-[700px]">
                       <thead className={`${innerBg} uppercase text-[11px] border-b border-inherit`}>
@@ -1751,7 +1656,7 @@ _Diperbarui otomatis via Store Performance Engine._`;
 
                     <button
                       onClick={() => {
-                        localStorage.removeItem("digi_ops_admin_logs");
+                        localStorage.removeItem("digi_ops_activity_logs");
                         setActivityLogs([]);
                       }}
                       className="px-3 py-1.5 rounded-xl bg-red-500/20 text-red-400 border border-red-500/40 text-xs font-bold hover:bg-red-500/30 transition"
@@ -1850,6 +1755,183 @@ _Diperbarui otomatis via Store Performance Engine._`;
           </>
         )}
       </main>
+
+      {/* ========================================================= */}
+      {/* 5. KOMPONEN BOTTOM SHEET (PANEL LACI DRILL-DOWN GESER BAWAH)*/}
+      {/* ========================================================= */}
+      {bottomSheetOpen && selectedStaffForSheet && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm transition-opacity animate-in fade-in">
+          <div className={`w-full sm:max-w-2xl max-h-[85vh] rounded-t-3xl sm:rounded-3xl ${cardBg} border-2 border-[#3B3666] shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300`}>
+            {/* Header Bottom Sheet */}
+            <div className="flex items-center justify-between p-4 sm:p-5 border-b border-inherit bg-black/20">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${selectedStaffForSheet.rank === 1 ? "bg-amber-500/20 text-amber-400 border border-amber-400" : `${innerBg} border`}`}>
+                  {selectedStaffForSheet.initials}
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                    <span>{selectedStaffForSheet.name}</span>
+                    <span className="text-[10px] px-2 py-0.2 rounded-full bg-[#F5BA42] text-[#1A1831] font-bold">
+                      Rank #{selectedStaffForSheet.rank}
+                    </span>
+                  </h3>
+                  <p className="text-[11px] opacity-70 font-mono">ID Staf: {selectedStaffForSheet.salesId}</p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setBottomSheetOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-700/40 hover:bg-slate-700/60 flex items-center justify-center text-sm font-bold text-slate-300"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Konten Scrollable Bottom Sheet */}
+            <div className="p-4 sm:p-6 overflow-y-auto space-y-5 text-xs">
+              {/* Ringkasan Angka */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                <div className={`p-2.5 rounded-xl border ${innerBg}`}>
+                  <span className="opacity-60 text-[10px] block">Total Omset</span>
+                  <strong className="text-emerald-400 font-bold">{formatIDR(selectedStaffForSheet.actual)}</strong>
+                </div>
+                <div className={`p-2.5 rounded-xl border ${innerBg}`}>
+                  <span className="opacity-60 text-[10px] block">Target Kuota</span>
+                  <strong className="opacity-80">{formatIDR(selectedStaffForSheet.target)}</strong>
+                </div>
+                <div className={`p-2.5 rounded-xl border ${innerBg}`}>
+                  <span className="opacity-60 text-[10px] block">Achievement</span>
+                  <strong className={selectedStaffForSheet.achievement >= 100 ? "text-emerald-400" : "text-amber-400"}>
+                    {selectedStaffForSheet.achievement}%
+                  </strong>
+                </div>
+                <div className={`p-2.5 rounded-xl border ${innerBg}`}>
+                  <span className="opacity-60 text-[10px] block">UPT</span>
+                  <strong className="text-sky-400">{selectedStaffForSheet.upt}</strong>
+                </div>
+              </div>
+
+              {/* Sub-Lini Apple */}
+              <div>
+                <h4 className="text-xs font-bold text-sky-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <span>🍎</span>
+                  <span>Detail Apple Devices</span>
+                </h4>
+                <div className={`overflow-x-auto rounded-xl border ${innerBg}`}>
+                  <table className="w-full text-left text-xs">
+                    <thead className={`${innerBg} uppercase text-[10px] border-b border-inherit`}>
+                      <tr>
+                        <th className="py-2 px-3">Produk</th>
+                        <th className="py-2 px-3 text-center">Qty</th>
+                        <th className="py-2 px-3 text-right">Actual Omset</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-inherit">
+                      {selectedStaffForSheet.appleSub.map((p, idx) => (
+                        <tr key={idx}>
+                          <td className="py-2 px-3 font-semibold flex items-center gap-1.5">
+                            <span>{p.icon}</span>
+                            <span>{p.name}</span>
+                          </td>
+                          <td className="py-2 px-3 text-center">{p.qty}</td>
+                          <td className="py-2 px-3 text-right font-bold text-emerald-400">{formatIDR(p.actual)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Sub-Lini Android */}
+              <div>
+                <h4 className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <span>🤖</span>
+                  <span>Detail Android Devices</span>
+                </h4>
+                <div className={`overflow-x-auto rounded-xl border ${innerBg}`}>
+                  <table className="w-full text-left text-xs">
+                    <thead className={`${innerBg} uppercase text-[10px] border-b border-inherit`}>
+                      <tr>
+                        <th className="py-2 px-3">Brand</th>
+                        <th className="py-2 px-3 text-center">Qty</th>
+                        <th className="py-2 px-3 text-right">Actual Omset</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-inherit">
+                      {selectedStaffForSheet.androidSub.map((p, idx) => (
+                        <tr key={idx}>
+                          <td className="py-2 px-3 font-semibold flex items-center gap-1.5">
+                            <span>{p.icon}</span>
+                            <span>{p.name}</span>
+                          </td>
+                          <td className="py-2 px-3 text-center">{p.qty}</td>
+                          <td className="py-2 px-3 text-right font-bold text-emerald-400">{formatIDR(p.actual)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Sub-Lini Accessories (Besar ke Kecil) */}
+              <div>
+                <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <span>🔌</span>
+                  <span>Accessories (Besar ke Kecil)</span>
+                </h4>
+                <div className={`overflow-x-auto rounded-xl border ${innerBg}`}>
+                  <table className="w-full text-left text-xs">
+                    <thead className={`${innerBg} uppercase text-[10px] border-b border-inherit`}>
+                      <tr>
+                        <th className="py-2 px-3">Nama Aksesoris</th>
+                        <th className="py-2 px-3 text-center">Qty</th>
+                        <th className="py-2 px-3 text-right">Nominal</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-inherit">
+                      {selectedStaffForSheet.accessoriesSub.map((p, idx) => (
+                        <tr key={idx}>
+                          <td className="py-2 px-3 font-semibold">{p.name}</td>
+                          <td className="py-2 px-3 text-center">{p.qty}</td>
+                          <td className="py-2 px-3 text-right font-bold text-amber-400">{formatIDR(p.actual)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Sub-Lini VAS */}
+              <div>
+                <h4 className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <span>🛡️</span>
+                  <span>VAS (Qoala/Tsel/XL/Indosat)</span>
+                </h4>
+                <div className={`overflow-x-auto rounded-xl border ${innerBg}`}>
+                  <table className="w-full text-left text-xs">
+                    <thead className={`${innerBg} uppercase text-[10px] border-b border-inherit`}>
+                      <tr>
+                        <th className="py-2 px-3">Layanan</th>
+                        <th className="py-2 px-3 text-center">Qty</th>
+                        <th className="py-2 px-3 text-right">Nominal</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-inherit">
+                      {selectedStaffForSheet.vasSub.map((p, idx) => (
+                        <tr key={idx}>
+                          <td className="py-2 px-3 font-semibold">{p.name}</td>
+                          <td className="py-2 px-3 text-center">{p.qty}</td>
+                          <td className="py-2 px-3 text-right font-bold text-purple-400">{formatIDR(p.actual)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
