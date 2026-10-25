@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 
 type MenuTab = "store-overview" | "weekly-sales" | "staff-performance" | "bnpl" | "sales-detail" | "admin-audit";
+type ThemeMode = "dark" | "light";
 
 interface SubCategoryMetric {
   name: string;
@@ -20,13 +21,12 @@ interface StaffFullData {
   salesId: string;
   name: string;
   initials: string;
-  avatarBg: string;
-  avatarText: string;
   target: number;
   actual: number;
   achievement: number;
   variance: number;
   estimate: number;
+  upt: number;
   status: "Tercapai" | "Perlu Perhatian Khusus" | "Dalam Pantauan";
   ringkasanEvaluasi: string;
   rekomendasiTindakan: string;
@@ -36,6 +36,15 @@ interface StaffFullData {
   targetVas: number;
   actualVas: number;
   achvVas: number;
+  weekToWeek: {
+    w1: number;
+    w2: number;
+    w3: number;
+    w4: number;
+    growthW2: number;
+    growthW3: number;
+    growthW4: number;
+  };
   appleSub: SubCategoryMetric[];
   androidSub: SubCategoryMetric[];
   accessoriesSub: SubCategoryMetric[];
@@ -63,7 +72,7 @@ interface StaffLoginLog {
   coords: string;
 }
 
-// 1. DATA TIME GONE BERJALAN
+// 1. DATA TIME GONE BERJALAN (OKTOBER 2026)
 const TIME_GONE_DATA = {
   daysPassed: 24,
   totalDays: 31,
@@ -85,8 +94,7 @@ const OVERVIEW_LOB_DATA = [
     variance: -4413091006,
     estimate: 3253785833,
     status: "Tertinggal -41.1%",
-    color: "text-sky-300",
-    badge: "bg-sky-500/15 border-sky-400/30 text-sky-200",
+    color: "text-sky-400",
   },
   {
     category: "Android Devices",
@@ -97,8 +105,7 @@ const OVERVIEW_LOB_DATA = [
     variance: -549550666,
     estimate: 509098792,
     status: "Tertinggal -35.6%",
-    color: "text-indigo-300",
-    badge: "bg-indigo-500/15 border-indigo-400/30 text-indigo-200",
+    color: "text-indigo-400",
   },
   {
     category: "Accessories",
@@ -109,8 +116,7 @@ const OVERVIEW_LOB_DATA = [
     variance: -399896360,
     estimate: 78345008,
     status: "Tertinggal -64.2%",
-    color: "text-amber-300",
-    badge: "bg-amber-500/15 border-amber-400/30 text-amber-200",
+    color: "text-amber-400",
   },
   {
     category: "VAS (Qoala, Telkomsel, XL, Indosat)",
@@ -121,8 +127,7 @@ const OVERVIEW_LOB_DATA = [
     variance: -347203940,
     estimate: 58215417,
     status: "Tertinggal -65.9%",
-    color: "text-purple-300",
-    badge: "bg-purple-500/15 border-purple-400/30 text-purple-200",
+    color: "text-purple-400",
   },
 ];
 
@@ -132,6 +137,7 @@ const OVERVIEW_TOTAL = {
   achievement: 36.1,
   variance: -5577839973,
   estimate: 4069818467,
+  storeUpt: 1.72,
 };
 
 // 3. DETAIL PRODUK PER KATEGORI (SUMBER SHEET DATABASE)
@@ -269,29 +275,39 @@ const BNPL_REAL_DATA: BnplTransaction[] = [
   },
 ];
 
-// 6. DATA DETAIL STAFF LENGKAP TOKO QF01
+// 6. DATA DETAIL SELURUH STAF DENGAN UPT & PERFORMA MINGGUAN LENGKAP
 const ALL_STAFF_DETAILS: StaffFullData[] = [
   {
     rank: 1,
     salesId: "24004971",
     name: "Liesbeth Febrina",
     initials: "LF",
-    avatarBg: "bg-amber-500/20 border-2 border-[#F5BA42]",
-    avatarText: "text-[#F5BA42]",
+    avatarBg: "bg-amber-500/20 border-2 border-amber-400",
+    avatarText: "text-amber-400",
     target: 872866717,
     actual: 1420983000,
     achievement: 162.8,
     variance: 548116283,
     estimate: 1835436458,
+    upt: 1.65,
     status: "Tercapai",
-    ringkasanEvaluasi: "Pencapaian sangat memuaskan (162,8%) berkat volume penjualan iPhone yang dominan.",
-    rekomendasiTindakan: "Tingkatkan closing rate Accessories dan Proteksi Qoala pada setiap unit iPhone.",
+    ringkasanEvaluasi: "Pencapaian sangat tinggi (162,8%). Lini iPhone mendominasi omset toko hingga Rp 1,35 Miliar.",
+    rekomendasiTindakan: "Tingkatkan closing rate pada Accessories dan Proteksi Qoala pada setiap unit iPhone.",
     targetAcc: 50000000,
     actualAcc: 2711000,
     achvAcc: 5.4,
     targetVas: 40000000,
     actualVas: 3490000,
     achvVas: 8.7,
+    weekToWeek: {
+      w1: 599000,
+      w2: 11996000,
+      w3: 894200000,
+      w4: 514188000,
+      growthW2: 1902.7,
+      growthW3: 7354.2,
+      growthW4: -42.5,
+    },
     appleSub: [
       { name: "iPhone", icon: "📱", qty: 45, actual: 1353207000, target: 750000000, achievement: 180.4, variance: 603207000, estimate: 1747892375 },
       { name: "iPad", icon: "📟", qty: 3, actual: 24884000, target: 60000000, achievement: 41.5, variance: -35116000, estimate: 32141833 },
@@ -331,6 +347,7 @@ const ALL_STAFF_DETAILS: StaffFullData[] = [
     achievement: 36.9,
     variance: -771005404,
     estimate: 582552000,
+    upt: 1.5,
     status: "Dalam Pantauan",
     ringkasanEvaluasi: "Pencapaian 36,9% tertinggal dari Time Gone (77,4%). Samsung Flagship sangat kuat.",
     rekomendasiTindakan: "Fokus closing iPhone 17 dan MacBook untuk memangkas gap minus Rp 771 Juta di 7 hari sisa.",
@@ -340,6 +357,15 @@ const ALL_STAFF_DETAILS: StaffFullData[] = [
     targetVas: 60000000,
     actualVas: 13120000,
     achvVas: 21.9,
+    weekToWeek: {
+      w1: 54807000,
+      w2: 56058000,
+      w3: 215143000,
+      w4: 125000000,
+      growthW2: 2.3,
+      growthW3: 283.8,
+      growthW4: -41.9,
+    },
     appleSub: [
       { name: "iPhone", icon: "📱", qty: 12, actual: 238190000, target: 850000000, achievement: 28.0, variance: -611810000, estimate: 307662083 },
       { name: "iPad", icon: "📟", qty: 4, actual: 34796000, target: 80000000, achievement: 43.5, variance: -45204000, estimate: 44944833 },
@@ -380,6 +406,7 @@ const ALL_STAFF_DETAILS: StaffFullData[] = [
     achievement: 18.2,
     variance: -1356476563,
     estimate: 390044842,
+    upt: 1.68,
     status: "Perlu Perhatian Khusus",
     ringkasanEvaluasi: "Defisit kritis minus Rp 1,35 Miliar. Penjualan brand Android selain Samsung masih nol.",
     rekomendasiTindakan: "Tawarkan simulasi cicilan 0% dan proteksi Qoala pada setiap prospek perangkat flagship.",
@@ -389,6 +416,15 @@ const ALL_STAFF_DETAILS: StaffFullData[] = [
     targetVas: 80000000,
     actualVas: 5750000,
     achvVas: 7.2,
+    weekToWeek: {
+      w1: 4425200,
+      w2: 1947000,
+      w3: 175400000,
+      w4: 120198000,
+      growthW2: -56.0,
+      growthW3: 8908.7,
+      growthW4: -31.5,
+    },
     appleSub: [
       { name: "iPhone", icon: "📱", qty: 8, actual: 212493000, target: 1100000000, achievement: 19.3, variance: -887507000, estimate: 274470125 },
       { name: "iPad", icon: "📟", qty: 2, actual: 17398000, target: 100000000, achievement: 17.4, variance: -82602000, estimate: 22472417 },
@@ -428,6 +464,7 @@ const ALL_STAFF_DETAILS: StaffFullData[] = [
     achievement: 16.2,
     variance: -1389431763,
     estimate: 347477708,
+    upt: 1.75,
     status: "Perlu Perhatian Khusus",
     ringkasanEvaluasi: "Defisit mencapai minus Rp 1,38 Miliar. Lini iPad, MacBook, dan Android non-Samsung kosong.",
     rekomendasiTindakan: "Review harian traffic walk-in dan proaktif tawarkan iPad dan Samsung A-Series.",
@@ -437,6 +474,15 @@ const ALL_STAFF_DETAILS: StaffFullData[] = [
     targetVas: 80000000,
     actualVas: 3860000,
     achvVas: 4.8,
+    weekToWeek: {
+      w1: 0,
+      w2: 53447000,
+      w3: 135571000,
+      w4: 79997000,
+      growthW2: 100.0,
+      growthW3: 153.7,
+      growthW4: -41.0,
+    },
     appleSub: [
       { name: "iPhone", icon: "📱", qty: 6, actual: 171742000, target: 1100000000, achievement: 15.6, variance: -928258000, estimate: 221833417 },
       { name: "iPad", icon: "📟", qty: 0, actual: 0, target: 100000000, achievement: 0.0, variance: -100000000, estimate: 0 },
@@ -476,6 +522,7 @@ const ALL_STAFF_DETAILS: StaffFullData[] = [
     achievement: 0.0,
     variance: 256332000,
     estimate: 331095500,
+    upt: 1.67,
     status: "Dalam Pantauan",
     ringkasanEvaluasi: "Staf non-quota resmi, membukukan omset Rp 256 Juta melalui iPhone 16 dan Samsung A-Series.",
     rekomendasiTindakan: "Berikan target kuota resmi bulan depan dan dorong penawaran proteksi Qoala.",
@@ -485,6 +532,15 @@ const ALL_STAFF_DETAILS: StaffFullData[] = [
     targetVas: 0,
     actualVas: 3000000,
     achvVas: 0.0,
+    weekToWeek: {
+      w1: 0,
+      w2: 33547000,
+      w3: 112785000,
+      w4: 110000000,
+      growthW2: 100.0,
+      growthW3: 236.2,
+      growthW4: -2.5,
+    },
     appleSub: [
       { name: "iPhone", icon: "📱", qty: 9, actual: 198992000, target: 0, achievement: 0.0, variance: 198992000, estimate: 257031333 },
       { name: "iPad", icon: "📟", qty: 0, actual: 0, target: 0, achievement: 0.0, variance: 0, estimate: 0 },
@@ -524,6 +580,7 @@ const ALL_STAFF_DETAILS: StaffFullData[] = [
     achievement: 14.5,
     variance: -1418024763,
     estimate: 310545083,
+    upt: 1.73,
     status: "Perlu Perhatian Khusus",
     ringkasanEvaluasi: "Pencapaian sangat tertinggal (14,5%), defisit omset mencapai minus Rp 1,41 Miliar.",
     rekomendasiTindakan: "Proaktif tawarkan promo cicilan kartu kredit dan trade-in untuk mendorong closing unit handphone.",
@@ -533,6 +590,15 @@ const ALL_STAFF_DETAILS: StaffFullData[] = [
     targetVas: 80000000,
     actualVas: 8255000,
     achvVas: 10.3,
+    weekToWeek: {
+      w1: 27518000,
+      w2: 299000,
+      w3: 124605000,
+      w4: 88000000,
+      growthW2: -98.9,
+      growthW3: 41574.0,
+      growthW4: -29.4,
+    },
     appleSub: [
       { name: "iPhone", icon: "📱", qty: 7, actual: 184291000, target: 1100000000, achievement: 16.8, variance: -915709000, estimate: 238042542 },
       { name: "iPad", icon: "📟", qty: 0, actual: 0, target: 100000000, achievement: 0.0, variance: -100000000, estimate: 0 },
@@ -573,6 +639,7 @@ const ALL_STAFF_DETAILS: StaffFullData[] = [
     achievement: 10.5,
     variance: -1483995763,
     estimate: 225332542,
+    upt: 2.0,
     status: "Perlu Perhatian Khusus",
     ringkasanEvaluasi: "Peringkat terendah di toko dengan pencapaian 10,5% dan defisit terbesar minus Rp 1,48 Miliar.",
     rekomendasiTindakan: "Coaching intensif teknik closing dan targetkan minimal 2 transaksi perangkat per hari.",
@@ -582,6 +649,15 @@ const ALL_STAFF_DETAILS: StaffFullData[] = [
     targetVas: 80000000,
     actualVas: 3860000,
     achvVas: 4.8,
+    weekToWeek: {
+      w1: 2299000,
+      w2: 699000,
+      w3: 62167000,
+      w4: 109286000,
+      growthW2: -69.6,
+      growthW3: 8793.7,
+      growthW4: 75.8,
+    },
     appleSub: [
       { name: "iPhone", icon: "📱", qty: 5, actual: 128496000, target: 1100000000, achievement: 11.7, variance: -971504000, estimate: 165974000 },
       { name: "iPad", icon: "📟", qty: 0, actual: 0, target: 100000000, achievement: 0.0, variance: -100000000, estimate: 0 },
@@ -620,6 +696,9 @@ export default function Page() {
   const [currentSalesId, setCurrentSalesId] = useState("");
   const [currentSalesName, setCurrentSalesName] = useState("");
 
+  // STATE THEME: DARK MODE VS LIGHT MODE
+  const [theme, setTheme] = useState<ThemeMode>("dark");
+
   const [activeTab, setActiveTab] = useState<MenuTab>("store-overview");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -642,11 +721,13 @@ export default function Page() {
 
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz2VUsReKqqJgPsG15L1pOAkmqoIWF2vApyD18jr5e_z0OVqagasa9yHXEe5fzMhoQmOw/exec";
 
-  // Cek sesi login & muat activity logs
+  // Muat sesi & log
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedUser = localStorage.getItem("digiplus_session_user");
       const savedName = localStorage.getItem("digiplus_session_name");
+      const savedTheme = localStorage.getItem("digiplus_theme_mode") as ThemeMode;
+      if (savedTheme) setTheme(savedTheme);
       if (savedUser) {
         setIsLoggedIn(true);
         setCurrentSalesId(savedUser);
@@ -660,6 +741,14 @@ export default function Page() {
       }
     }
   }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("digiplus_theme_mode", nextTheme);
+    }
+  };
 
   // Deteksi Tipe Perangkat
   const detectDevice = (): "Komputer / PC" | "Tablet" | "Handphone / Mobile" => {
@@ -745,7 +834,6 @@ export default function Page() {
     setIsLoggedIn(true);
     setLoginErr("");
 
-    // Catat log activity
     recordStaffActivity(cleanId, detectedName);
   };
 
@@ -799,53 +887,74 @@ export default function Page() {
     return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
   };
 
-  // HALAMAN LOGIN DENGAN BACKGROUND DEEP INDIGO (#1A1831) & TEKS WARM CLOUD (#FFF6E9)
+  // KELAS WARNA DINAMIS SESUAI MODE
+  // Dark: Deep Indigo (#1A1831) & Warm Cloud (#FFF6E9)
+  // Light: Linen Bone (#F9F8F3) & Kinetic Cobalt (#054ff0)
+  const isDark = theme === "dark";
+  const bgMain = isDark ? "bg-[#1A1831]" : "bg-[#F9F8F3]";
+  const textMain = isDark ? "text-[#FFF6E9]" : "text-[#1E293B]";
+  const textMuted = isDark ? "text-[#FFF6E9]/70" : "text-slate-600";
+  const cardBg = isDark ? "bg-[#221F40] border-[#3B3666]" : "bg-white border-[#E5E2D9] shadow-sm";
+  const innerCardBg = isDark ? "bg-[#141226] border-[#3B3666]" : "bg-[#F2EFE9] border-[#E5E2D9]";
+  const accentColor = isDark ? "text-[#F5BA42]" : "text-[#054ff0]";
+  const accentBtn = isDark
+    ? "bg-[#F5BA42] text-[#1A1831] hover:bg-[#ffc857]"
+    : "bg-[#054ff0] text-white hover:bg-blue-700 shadow-md shadow-blue-500/20";
+  const activeTabBtn = isDark
+    ? "bg-[#F5BA42] text-[#1A1831] font-black shadow-md shadow-[#F5BA42]/20"
+    : "bg-[#054ff0] text-white font-black shadow-md shadow-blue-500/20";
+
+  // HALAMAN LOGIN
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-[#1A1831] flex items-center justify-center p-4 text-[#FFF6E9] font-sans">
-        <div className="max-w-md w-full bg-[#221F40] border-2 border-[#3B3666] rounded-3xl p-6 md:p-8 shadow-2xl">
+      <div className={`min-h-screen ${bgMain} flex items-center justify-center p-4 ${textMain} font-sans`}>
+        <div className={`max-w-md w-full ${cardBg} border-2 rounded-3xl p-6 md:p-8 shadow-2xl`}>
           <div className="text-center mb-6">
-            <div className="w-14 h-14 bg-gradient-to-tr from-[#F5BA42] to-[#E65100] rounded-2xl mx-auto flex items-center justify-center font-black text-2xl text-[#1A1831] shadow-lg shadow-[#F5BA42]/20 mb-3">
+            <div
+              className={`w-14 h-14 ${
+                isDark ? "bg-gradient-to-tr from-[#F5BA42] to-[#E65100] text-[#1A1831]" : "bg-[#054ff0] text-white"
+              } rounded-2xl mx-auto flex items-center justify-center font-black text-2xl shadow-lg mb-3`}
+            >
               D+
             </div>
-            <h1 className="text-xl font-bold text-[#FFF6E9]">DIGIPLUS GRAND INDONESIA</h1>
-            <p className="text-xs text-[#F5BA42] mt-1 font-semibold tracking-wider">PORTAL LOGIN SALES & ADMIN (QF01)</p>
+            <h1 className="text-xl font-bold">DIGIPLUS GRAND INDONESIA</h1>
+            <p className={`text-xs ${accentColor} mt-1 font-semibold tracking-wider`}>PORTAL LOGIN SALES & ADMIN (QF01)</p>
           </div>
 
           {loginErr && (
-            <div className="mb-4 p-3 bg-red-500/20 border border-red-400/40 rounded-xl text-red-200 text-xs font-semibold text-center">
+            <div className="mb-4 p-3 bg-red-500/20 border border-red-400/40 rounded-xl text-red-500 text-xs font-semibold text-center">
               {loginErr}
             </div>
           )}
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="text-xs font-semibold text-[#FFF6E9]/80 uppercase tracking-wider">Sales ID / Admin ID</label>
+              <label className="text-xs font-semibold uppercase tracking-wider">Sales ID / Admin ID</label>
               <input
                 type="text"
                 required
                 placeholder="22008089 atau ID Staf Anda"
                 value={salesIdInput}
                 onChange={(e) => setSalesIdInput(e.target.value)}
-                className="w-full mt-1.5 px-4 py-3 rounded-xl bg-[#141226] border border-[#3B3666] text-[#FFF6E9] placeholder-[#FFF6E9]/40 text-sm focus:border-[#F5BA42] focus:outline-none"
+                className={`w-full mt-1.5 px-4 py-3 rounded-xl ${innerCardBg} border ${textMain} text-sm focus:outline-none`}
               />
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-[#FFF6E9]/80 uppercase tracking-wider">Password</label>
+              <label className="text-xs font-semibold uppercase tracking-wider">Password</label>
               <input
                 type="password"
                 required
                 placeholder="Welcome@123"
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
-                className="w-full mt-1.5 px-4 py-3 rounded-xl bg-[#141226] border border-[#3B3666] text-[#FFF6E9] placeholder-[#FFF6E9]/40 text-sm focus:border-[#F5BA42] focus:outline-none"
+                className={`w-full mt-1.5 px-4 py-3 rounded-xl ${innerCardBg} border ${textMain} text-sm focus:outline-none`}
               />
             </div>
 
             <button
               type="submit"
-              className="w-full py-3.5 bg-[#F5BA42] hover:bg-[#ffc857] text-[#1A1831] font-black rounded-xl text-xs uppercase tracking-wider transition mt-2 shadow-lg shadow-[#F5BA42]/20"
+              className={`w-full py-3.5 ${accentBtn} font-black rounded-xl text-xs uppercase tracking-wider transition mt-2`}
             >
               Masuk Dashboard
             </button>
@@ -856,12 +965,14 @@ export default function Page() {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#1A1831] text-[#FFF6E9] font-sans relative">
-      {/* MOBILE FLOATING HAMBURGER TOGGLE */}
+    <div className={`flex min-h-screen ${bgMain} ${textMain} font-sans relative`}>
+      {/* MOBILE HAMBURGER TOGGLE */}
       <div className="lg:hidden fixed bottom-5 right-5 z-50">
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="w-14 h-14 rounded-full bg-[#F5BA42] text-[#1A1831] font-black text-2xl flex items-center justify-center shadow-2xl shadow-[#F5BA42]/40 active:scale-95 transition"
+          className={`w-14 h-14 rounded-full ${
+            isDark ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#054ff0] text-white"
+          } font-black text-2xl flex items-center justify-center shadow-2xl active:scale-95 transition`}
         >
           {mobileMenuOpen ? "✕" : "☰"}
         </button>
@@ -875,43 +986,47 @@ export default function Page() {
       <aside
         className={`fixed lg:sticky top-0 h-screen z-50 transition-transform duration-300 ${
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        } w-72 bg-[#141226] border-r border-[#3B3666] flex flex-col justify-between shrink-0 shadow-2xl lg:shadow-none`}
+        } w-72 ${isDark ? "bg-[#141226] border-[#3B3666]" : "bg-[#F2EFE9] border-[#E5E2D9]"} border-r flex flex-col justify-between shrink-0 shadow-2xl lg:shadow-none`}
       >
         <div className="p-4 overflow-y-auto">
           {/* Brand Logo */}
-          <div className="flex items-center gap-3 pb-4 border-b border-[#3B3666]">
-            <div className="w-10 h-10 bg-gradient-to-tr from-[#F5BA42] to-[#E65100] rounded-xl flex items-center justify-center font-black text-[#1A1831] text-lg shadow-lg shadow-[#F5BA42]/20">
+          <div className="flex items-center gap-3 pb-4 border-b border-inherit">
+            <div
+              className={`w-10 h-10 ${
+                isDark ? "bg-gradient-to-tr from-[#F5BA42] to-[#E65100] text-[#1A1831]" : "bg-[#054ff0] text-white"
+              } rounded-xl flex items-center justify-center font-black text-lg shadow-md`}
+            >
               D+
             </div>
             <div>
-              <h2 className="text-sm font-bold text-[#FFF6E9] tracking-wider">DIGIPLUS</h2>
-              <p className="text-[10px] text-[#F5BA42] font-semibold">QF01 GRAND INDONESIA</p>
+              <h2 className="text-sm font-bold tracking-wider">DIGIPLUS</h2>
+              <p className={`text-[10px] ${accentColor} font-semibold`}>QF01 GRAND INDONESIA</p>
             </div>
           </div>
 
           {/* User Status Tag */}
-          <div className="mt-3 p-3 rounded-2xl bg-[#221F40] border border-[#3B3666] flex items-center justify-between">
+          <div className={`mt-3 p-3 rounded-2xl ${cardBg} border flex items-center justify-between`}>
             <div>
-              <span className="text-[9px] uppercase tracking-wider text-[#FFF6E9]/60 block font-bold">User Aktif</span>
-              <span className="text-xs font-bold text-white truncate block">
+              <span className="text-[9px] uppercase tracking-wider opacity-60 block font-bold">User Aktif</span>
+              <span className="text-xs font-bold truncate block">
                 {currentSalesId === "22008089" ? "👑 Admin Leader" : currentSalesName}
               </span>
-              <span className="text-[10px] font-mono text-[#F5BA42]">ID: {currentSalesId}</span>
+              <span className={`text-[10px] font-mono ${accentColor}`}>ID: {currentSalesId}</span>
             </div>
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
           </div>
 
-          {/* KOTAK SHORTCUT UPLOAD */}
-          <div className="mt-4 p-4 rounded-2xl bg-[#221F40] border-2 border-[#F5BA42]/40 shadow-xl shadow-[#F5BA42]/10">
+          {/* SHORTCUT UPLOAD */}
+          <div className={`mt-4 p-4 rounded-2xl ${cardBg} border-2 shadow-xl`}>
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xl">📤</span>
               <div>
-                <h3 className="text-xs font-black text-[#F5BA42] uppercase tracking-wide">Upload Saleswise</h3>
+                <h3 className={`text-xs font-black uppercase tracking-wide ${accentColor}`}>Upload Saleswise</h3>
                 <a
                   href="https://docs.google.com/spreadsheets/d/1v_QCLTDKORjVnByrzo9qRiivdU8CGO99nJri9jBETWM/edit#gid=483282286"
                   target="_blank"
                   rel="noreferrer"
-                  className="text-[9px] text-[#FFF6E9]/60 hover:text-[#F5BA42] underline block"
+                  className="text-[9px] opacity-70 hover:underline block"
                 >
                   Sheet RAW (Kolom M, N, O) ↗
                 </a>
@@ -922,10 +1037,10 @@ export default function Page() {
               <div
                 className={`my-2 p-2 rounded-xl text-[10px] font-bold text-center leading-tight ${
                   uploadStatus.type === "success"
-                    ? "bg-emerald-500/20 border border-emerald-400/40 text-emerald-200"
+                    ? "bg-emerald-500/20 text-emerald-500"
                     : uploadStatus.type === "error"
-                    ? "bg-red-500/20 border border-red-400/40 text-red-200"
-                    : "bg-[#141226] border border-[#3B3666] text-[#F5BA42]"
+                    ? "bg-red-500/20 text-red-500"
+                    : `${innerCardBg} ${accentColor}`
                 }`}
               >
                 {uploadStatus.text}
@@ -937,7 +1052,7 @@ export default function Page() {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="w-full py-2 px-3 bg-[#141226] hover:bg-[#2B274F] border border-[#F5BA42]/30 hover:border-[#F5BA42] text-[#FFF6E9] font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 shadow-sm"
+              className={`w-full py-2 px-3 ${innerCardBg} border font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 shadow-sm`}
             >
               <span>📁</span>
               <span className="truncate">{selectedFile ? selectedFile.name : "1. Pilih File .xls"}</span>
@@ -947,7 +1062,7 @@ export default function Page() {
               type="button"
               onClick={handleExecuteUpload}
               disabled={uploadStatus.type === "loading"}
-              className="w-full mt-2 py-2.5 px-3 bg-[#F5BA42] hover:bg-[#ffc857] text-[#1A1831] font-black text-xs rounded-xl shadow-lg uppercase tracking-wider flex items-center justify-center gap-1.5 transition"
+              className={`w-full mt-2 py-2 px-3 ${accentBtn} font-black text-xs rounded-xl uppercase tracking-wider flex items-center justify-center gap-1.5 transition`}
             >
               {uploadStatus.type === "loading" ? "Mengirim..." : "2. Kirim ke Kolom M, N, O"}
             </button>
@@ -961,11 +1076,11 @@ export default function Page() {
                 setMobileMenuOpen(false);
               }}
               className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition ${
-                activeTab === "store-overview" ? "bg-[#F5BA42] text-[#1A1831] font-black shadow-md shadow-[#F5BA42]/20" : "text-[#FFF6E9]/70 hover:text-[#FFF6E9] hover:bg-[#221F40]"
+                activeTab === "store-overview" ? activeTabBtn : "opacity-70 hover:opacity-100"
               }`}
             >
               <span className="text-base">📊</span>
-              <span>Overview Store & Kategori</span>
+              <span>Overview Store</span>
             </button>
 
             <button
@@ -974,7 +1089,7 @@ export default function Page() {
                 setMobileMenuOpen(false);
               }}
               className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition ${
-                activeTab === "weekly-sales" ? "bg-[#F5BA42] text-[#1A1831] font-black shadow-md shadow-[#F5BA42]/20" : "text-[#FFF6E9]/70 hover:text-[#FFF6E9] hover:bg-[#221F40]"
+                activeTab === "weekly-sales" ? activeTabBtn : "opacity-70 hover:opacity-100"
               }`}
             >
               <span className="text-base">📈</span>
@@ -987,28 +1102,26 @@ export default function Page() {
                 setMobileMenuOpen(false);
               }}
               className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition ${
-                activeTab === "staff-performance" ? "bg-[#F5BA42] text-[#1A1831] font-black shadow-md shadow-[#F5BA42]/20" : "text-[#FFF6E9]/70 hover:text-[#FFF6E9] hover:bg-[#221F40]"
+                activeTab === "staff-performance" ? activeTabBtn : "opacity-70 hover:opacity-100"
               }`}
             >
               <span className="text-base">🏆</span>
               <span>Staff Performance Detail</span>
             </button>
 
-            {/* MENU BARU: BNPL */}
             <button
               onClick={() => {
                 setActiveTab("bnpl");
                 setMobileMenuOpen(false);
               }}
               className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition ${
-                activeTab === "bnpl" ? "bg-[#F5BA42] text-[#1A1831] font-black shadow-md shadow-[#F5BA42]/20" : "text-[#FFF6E9]/70 hover:text-[#FFF6E9] hover:bg-[#221F40]"
+                activeTab === "bnpl" ? activeTabBtn : "opacity-70 hover:opacity-100"
               }`}
             >
               <span className="text-base">💳</span>
               <span>BNPL Transactions</span>
             </button>
 
-            {/* MENU KHUSUS ADMIN SALES ID 22008089: ACTIVITY STAFF */}
             {currentSalesId === "22008089" && (
               <button
                 onClick={() => {
@@ -1017,8 +1130,8 @@ export default function Page() {
                 }}
                 className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-bold transition border border-emerald-500/40 ${
                   activeTab === "admin-audit"
-                    ? "bg-emerald-500 text-[#1A1831] font-black shadow-lg shadow-emerald-500/20"
-                    : "bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
+                    ? "bg-emerald-500 text-white font-black shadow-lg"
+                    : "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20"
                 }`}
               >
                 <span className="text-base">🛡️</span>
@@ -1032,7 +1145,7 @@ export default function Page() {
                 setMobileMenuOpen(false);
               }}
               className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition ${
-                activeTab === "sales-detail" ? "bg-[#F5BA42] text-[#1A1831] font-black shadow-md shadow-[#F5BA42]/20" : "text-[#FFF6E9]/70 hover:text-[#FFF6E9] hover:bg-[#221F40]"
+                activeTab === "sales-detail" ? activeTabBtn : "opacity-70 hover:opacity-100"
               }`}
             >
               <span className="text-base">📋</span>
@@ -1041,10 +1154,19 @@ export default function Page() {
           </nav>
         </div>
 
-        <div className="p-4 border-t border-[#3B3666]">
+        {/* FOOTER SIDEBAR: LOGOUT & THEME TOGGLE */}
+        <div className="p-4 border-t border-inherit space-y-2">
+          {/* TOMBOL TOGGLE THEME (DARK / LIGHT MODE) */}
+          <button
+            onClick={toggleTheme}
+            className={`w-full py-2 px-3 ${innerCardBg} border rounded-xl text-xs font-bold transition flex items-center justify-center gap-2`}
+          >
+            <span>{isDark ? "☀️ Light Mode" : "🌙 Dark Mode"}</span>
+          </button>
+
           <button
             onClick={handleLogout}
-            className="w-full py-2 bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/30 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2"
+            className="w-full py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2"
           >
             <span>🚪</span>
             <span>Keluar (Logout)</span>
@@ -1054,35 +1176,36 @@ export default function Page() {
 
       {/* KONTEN UTAMA */}
       <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-w-7xl mx-auto w-full">
-        {/* HEADER ATAS: SAPAAN "HALO [NAMA SALES]" & FILTER TANGGAL */}
-        <header className="mb-6 border-b border-[#3B3666] pb-5">
+        {/* HEADER ATAS DENGAN SAPAAN "HALO [NAMA SALES]" */}
+        <header className="mb-6 border-b border-inherit pb-5">
           <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
             <div>
-              {/* SAPAAN PERSONALISASI SALES */}
-              <div className="text-lg sm:text-2xl font-black text-[#F5BA42] flex items-center gap-2">
+              <div className={`text-xl sm:text-2xl font-black ${accentColor} flex items-center gap-2`}>
                 <span>Halo, {currentSalesName} 👋</span>
               </div>
-              <p className="text-xs text-[#FFF6E9]/70 mt-1">
-                Store QF01 Grand Indonesia • Master: Sheet `DATABASE`, `BNPL DATABASE`, & `Dashboard QF01`
+              <p className={`text-xs ${textMuted} mt-1`}>
+                Store QF01 Grand Indonesia • Master: Sheet <code>DATABASE</code>, <code>BNPL DATABASE</code>, & <code>Dashboard QF01</code>
               </p>
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-400/30 text-xs font-bold">
+              <span className={`px-3 py-1.5 rounded-lg border text-xs font-bold ${
+                isDark ? "bg-emerald-500/15 text-emerald-300 border-emerald-400/30" : "bg-emerald-50 text-emerald-600 border-emerald-200"
+              }`}>
                 Actual MTD: {formatIDR(OVERVIEW_TOTAL.actual)}
               </span>
             </div>
           </div>
 
           {/* FILTER BAR */}
-          <div className="p-3 bg-[#221F40] border border-[#3B3666] rounded-2xl flex flex-wrap items-center gap-3 justify-between text-xs">
+          <div className={`p-3 ${cardBg} border rounded-2xl flex flex-wrap items-center gap-3 justify-between text-xs`}>
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2">
-                <span className="text-[#FFF6E9]/60 font-semibold">📅 Bulan:</span>
+                <span className="opacity-70 font-semibold">📅 Bulan:</span>
                 <select
                   value={filterMonth}
                   onChange={(e) => setFilterMonth(e.target.value)}
-                  className="bg-[#141226] border border-[#3B3666] rounded-xl px-2.5 py-1 text-[#FFF6E9] font-bold focus:outline-none focus:border-[#F5BA42]"
+                  className={`${innerCardBg} border rounded-xl px-2.5 py-1 font-bold focus:outline-none`}
                 >
                   <option value="2026-10">Oktober 2026</option>
                   <option value="2026-09">September 2026</option>
@@ -1090,11 +1213,11 @@ export default function Page() {
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="text-[#FFF6E9]/60 font-semibold">📊 Week:</span>
+                <span className="opacity-70 font-semibold">📊 Week:</span>
                 <select
                   value={filterWeek}
                   onChange={(e) => setFilterWeek(e.target.value)}
-                  className="bg-[#141226] border border-[#3B3666] rounded-xl px-2.5 py-1 text-[#FFF6E9] font-bold focus:outline-none focus:border-[#F5BA42]"
+                  className={`${innerCardBg} border rounded-xl px-2.5 py-1 font-bold focus:outline-none`}
                 >
                   <option value="ALL">Semua Week (W1 - W4)</option>
                   <option value="W1">Week 1 (03/10/26)</option>
@@ -1105,49 +1228,47 @@ export default function Page() {
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="text-[#FFF6E9]/60 font-semibold">🗓️ Tanggal:</span>
+                <span className="opacity-70 font-semibold">🗓️ Tanggal:</span>
                 <input
                   type="date"
                   value={filterDate}
                   onChange={(e) => setFilterDate(e.target.value)}
-                  className="bg-[#141226] border border-[#3B3666] rounded-xl px-2.5 py-1 text-[#FFF6E9] font-bold focus:outline-none focus:border-[#F5BA42]"
+                  className={`${innerCardBg} border rounded-xl px-2.5 py-1 font-bold focus:outline-none`}
                 />
               </div>
             </div>
 
-            <div className="text-[11px] text-[#F5BA42] font-semibold">● Cut-off Data: {filterDate}</div>
+            <div className={`text-[11px] ${accentColor} font-semibold`}>● Cut-off Data: {filterDate}</div>
           </div>
         </header>
 
-        {/* ========================================================= */}
-        {/* TAB 1: OVERVIEW STORE & KATEGORI                          */}
-        {/* ========================================================= */}
+        {/* TAB 1: OVERVIEW STORE */}
         {activeTab === "store-overview" && (
           <div className="space-y-6 sm:space-y-8">
             {/* TIME GONE ANALYTICS */}
-            <div className="p-4 sm:p-6 bg-[#221F40] border-2 border-[#F5BA42]/35 rounded-3xl shadow-2xl relative overflow-hidden">
+            <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl relative overflow-hidden`}>
               <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-[#F5BA42]/20 border border-[#F5BA42]/40 flex items-center justify-center text-2xl font-bold text-[#F5BA42]">
+                  <div className={`w-12 h-12 rounded-2xl ${innerCardBg} border flex items-center justify-center text-2xl font-bold ${accentColor}`}>
                     ⏳
                   </div>
                   <div>
-                    <h2 className="text-base font-black text-[#FFF6E9] tracking-wide">TIME GONE ANALYTICS (OKTOBER 2026)</h2>
-                    <p className="text-xs text-[#FFF6E9]/70">
-                      Hari Berjalan: <strong className="text-[#FFF6E9]">{TIME_GONE_DATA.daysPassed} hari</strong> dari {TIME_GONE_DATA.totalDays} hari ({TIME_GONE_DATA.daysLeft} hari tersisa)
+                    <h2 className="text-base font-black tracking-wide">TIME GONE ANALYTICS (OKTOBER 2026)</h2>
+                    <p className={`text-xs ${textMuted}`}>
+                      Hari Berjalan: <strong className={textMain}>{TIME_GONE_DATA.daysPassed} hari</strong> dari {TIME_GONE_DATA.totalDays} hari ({TIME_GONE_DATA.daysLeft} hari tersisa)
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3">
                   <div className="text-right">
-                    <span className="text-[10px] uppercase font-bold text-[#FFF6E9]/60 block">Time Elapsed</span>
-                    <span className="text-2xl font-black text-[#F5BA42]">{TIME_GONE_DATA.percentageTimeGone}%</span>
+                    <span className="text-[10px] uppercase font-bold opacity-60 block">Time Elapsed</span>
+                    <span className={`text-2xl font-black ${accentColor}`}>{TIME_GONE_DATA.percentageTimeGone}%</span>
                   </div>
-                  <div className="h-8 w-px bg-[#3B3666] mx-1"></div>
+                  <div className="h-8 w-px bg-inherit mx-1 opacity-20"></div>
                   <div className="text-right">
-                    <span className="text-[10px] uppercase font-bold text-[#FFF6E9]/60 block">Achv Pace</span>
-                    <span className="text-2xl font-black text-emerald-300">{OVERVIEW_TOTAL.achievement}%</span>
+                    <span className="text-[10px] uppercase font-bold opacity-60 block">Achv Pace</span>
+                    <span className="text-2xl font-black text-emerald-500">{OVERVIEW_TOTAL.achievement}%</span>
                   </div>
                 </div>
               </div>
@@ -1155,39 +1276,44 @@ export default function Page() {
               <div className="space-y-2 mb-4">
                 <div>
                   <div className="flex justify-between text-[11px] mb-1">
-                    <span className="text-[#FFF6E9]/70">Waktu Berjalan (Time Gone):</span>
-                    <span className="font-bold text-[#F5BA42]">{TIME_GONE_DATA.percentageTimeGone}% ({TIME_GONE_DATA.daysPassed}/{TIME_GONE_DATA.totalDays} Hari)</span>
+                    <span className={textMuted}>Waktu Berjalan (Time Gone):</span>
+                    <span className={`font-bold ${accentColor}`}>{TIME_GONE_DATA.percentageTimeGone}% ({TIME_GONE_DATA.daysPassed}/{TIME_GONE_DATA.totalDays} Hari)</span>
                   </div>
-                  <div className="w-full bg-[#141226] h-2.5 rounded-full overflow-hidden">
-                    <div className="bg-[#F5BA42] h-full rounded-full transition-all" style={{ width: `${TIME_GONE_DATA.percentageTimeGone}%` }}></div>
+                  <div className={`w-full ${innerCardBg} h-2.5 rounded-full overflow-hidden`}>
+                    <div className={`${isDark ? "bg-[#F5BA42]" : "bg-[#054ff0]"} h-full rounded-full transition-all`} style={{ width: `${TIME_GONE_DATA.percentageTimeGone}%` }}></div>
                   </div>
                 </div>
 
                 <div>
                   <div className="flex justify-between text-[11px] mb-1">
-                    <span className="text-[#FFF6E9]/70">Pencapaian Omset (Actual Revenue):</span>
-                    <span className="font-bold text-emerald-300">{OVERVIEW_TOTAL.achievement}% ({formatIDR(OVERVIEW_TOTAL.actual)})</span>
+                    <span className={textMuted}>Pencapaian Omset (Actual Revenue):</span>
+                    <span className="font-bold text-emerald-500">{OVERVIEW_TOTAL.achievement}% ({formatIDR(OVERVIEW_TOTAL.actual)})</span>
                   </div>
-                  <div className="w-full bg-[#141226] h-2.5 rounded-full overflow-hidden">
-                    <div className="bg-emerald-400 h-full rounded-full transition-all" style={{ width: `${OVERVIEW_TOTAL.achievement}%` }}></div>
+                  <div className={`w-full ${innerCardBg} h-2.5 rounded-full overflow-hidden`}>
+                    <div className="bg-emerald-500 h-full rounded-full transition-all" style={{ width: `${OVERVIEW_TOTAL.achievement}%` }}></div>
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-[#3B3666] text-xs">
-                <div className="p-3 bg-[#141226] rounded-xl border border-[#3B3666]">
-                  <span className="text-[#FFF6E9]/60 text-[11px]">Kesenjangan Pace Toko:</span>
-                  <div className="text-sm font-black text-red-300 mt-0.5">-{(TIME_GONE_DATA.percentageTimeGone - OVERVIEW_TOTAL.achievement).toFixed(1)}% (Tertinggal)</div>
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-4 border-t border-inherit text-xs">
+                <div className={`p-3 ${innerCardBg} rounded-xl border`}>
+                  <span className="opacity-60 text-[11px]">Kesenjangan Pace Toko:</span>
+                  <div className="text-sm font-black text-red-500 mt-0.5">-{(TIME_GONE_DATA.percentageTimeGone - OVERVIEW_TOTAL.achievement).toFixed(1)}% (Tertinggal)</div>
                 </div>
 
-                <div className="p-3 bg-[#141226] rounded-xl border border-[#3B3666]">
-                  <span className="text-[#FFF6E9]/60 text-[11px]">Daily Run Rate Aktual:</span>
-                  <div className="text-sm font-black text-sky-300 mt-0.5">{formatIDR(TIME_GONE_DATA.dailyRunRate)} / hari</div>
+                <div className={`p-3 ${innerCardBg} rounded-xl border`}>
+                  <span className="opacity-60 text-[11px]">Daily Run Rate Aktual:</span>
+                  <div className="text-sm font-black text-sky-500 mt-0.5">{formatIDR(TIME_GONE_DATA.dailyRunRate)} / hari</div>
                 </div>
 
-                <div className="p-3 bg-[#141226] rounded-xl border border-[#3B3666]">
-                  <span className="text-[#FFF6E9]/60 text-[11px]">Required Run Rate (7 Hari Sisa):</span>
-                  <div className="text-sm font-black text-[#F5BA42] mt-0.5">{formatIDR(TIME_GONE_DATA.requiredRunRate)} / hari</div>
+                <div className={`p-3 ${innerCardBg} rounded-xl border`}>
+                  <span className="opacity-60 text-[11px]">Required Run Rate:</span>
+                  <div className={`text-sm font-black ${accentColor} mt-0.5`}>{formatIDR(TIME_GONE_DATA.requiredRunRate)} / hari</div>
+                </div>
+
+                <div className={`p-3 ${innerCardBg} rounded-xl border`}>
+                  <span className="opacity-60 text-[11px]">Store UPT:</span>
+                  <div className="text-sm font-black text-emerald-500 mt-0.5">{OVERVIEW_TOTAL.storeUpt} Unit/Struk</div>
                 </div>
               </div>
             </div>
@@ -1195,13 +1321,13 @@ export default function Page() {
             {/* TABEL LENGKAP LOB METRICS */}
             <div>
               <div className="flex justify-between items-center mb-3">
-                <h2 className="text-base font-bold text-[#FFF6E9]">Matriks Kategori Produk (Apple, Android, Accessories & VAS)</h2>
-                <span className="text-[11px] text-[#FFF6E9]/60 hidden sm:inline">VAS: Qoala + Telkomsel + XL + Indosat</span>
+                <h2 className="text-base font-bold">Matriks Kategori Produk (Apple, Android, Accessories & VAS)</h2>
+                <span className={`text-[11px] ${textMuted} hidden sm:inline`}>VAS: Qoala + Telkomsel + XL + Indosat</span>
               </div>
 
-              <div className="bg-[#221F40] border border-[#3B3666] rounded-2xl overflow-x-auto shadow-2xl">
+              <div className={`${cardBg} border rounded-2xl overflow-x-auto shadow-xl`}>
                 <table className="w-full text-left text-xs min-w-[600px]">
-                  <thead className="bg-[#141226] text-[#FFF6E9]/70 uppercase text-[11px] border-b border-[#3B3666]">
+                  <thead className={`${innerCardBg} uppercase text-[11px] border-b border-inherit`}>
                     <tr>
                       <th className="py-4 px-4">Kategori Produk</th>
                       <th className="py-4 px-4 text-right">Actual Sales</th>
@@ -1211,20 +1337,22 @@ export default function Page() {
                       <th className="py-4 px-4 text-right">Estimate</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#3B3666] font-medium">
+                  <tbody className="divide-y divide-inherit font-medium">
                     {OVERVIEW_LOB_DATA.map((row, idx) => (
-                      <tr key={idx} className="hover:bg-[#2B274F]/50 transition">
-                        <td className="py-4 px-4 font-bold text-[#FFF6E9] text-sm">
+                      <tr key={idx} className="hover:opacity-90 transition">
+                        <td className="py-4 px-4 font-bold text-sm">
                           <span className="mr-2">{row.icon}</span>
                           <span>{row.category}</span>
                         </td>
                         <td className={`py-4 px-4 text-right font-extrabold text-sm ${row.color}`}>{formatIDR(row.actual)}</td>
-                        <td className="py-4 px-4 text-right text-[#FFF6E9]/80 font-mono">{formatIDR(row.target)}</td>
+                        <td className="py-4 px-4 text-right font-mono opacity-80">{formatIDR(row.target)}</td>
                         <td className="py-4 px-4 text-center">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-black border ${row.badge}`}>{row.achievement}%</span>
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-black border ${innerCardBg}`}>
+                            {row.achievement}%
+                          </span>
                         </td>
-                        <td className="py-4 px-4 text-right text-red-300 font-mono font-bold">{formatIDR(row.variance)}</td>
-                        <td className="py-4 px-4 text-right text-emerald-300 font-mono font-bold">{formatIDR(row.estimate)}</td>
+                        <td className="py-4 px-4 text-right text-red-500 font-mono font-bold">{formatIDR(row.variance)}</td>
+                        <td className="py-4 px-4 text-right text-emerald-500 font-mono font-bold">{formatIDR(row.estimate)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1232,42 +1360,54 @@ export default function Page() {
               </div>
             </div>
 
-            {/* TABEL RANK SALES PER STAFF */}
-            <div className="p-4 sm:p-6 bg-[#221F40] border border-[#3B3666] rounded-3xl shadow-xl">
-              <h3 className="text-base font-bold text-[#FFF6E9] mb-4">🏆 Rank Sales per Staff & Evaluasi Kuota</h3>
+            {/* TABEL RANK SALES PER STAFF DENGAN UPT */}
+            <div className={`p-4 sm:p-6 ${cardBg} border rounded-3xl shadow-xl`}>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-base font-bold">🏆 Rank Sales per Staff & UPT Toko</h3>
+              </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs min-w-[550px]">
-                  <thead className="bg-[#141226] text-[#FFF6E9]/70 uppercase text-[11px] border-b border-[#3B3666]">
+                <table className="w-full text-left text-xs min-w-[600px]">
+                  <thead className={`${innerCardBg} uppercase text-[11px] border-b border-inherit`}>
                     <tr>
                       <th className="py-3.5 px-4 text-center">Rank</th>
                       <th className="py-3.5 px-4">Nama Salesperson</th>
                       <th className="py-3.5 px-4 text-right">Target</th>
                       <th className="py-3.5 px-4 text-right">Actual Penjualan</th>
                       <th className="py-3.5 px-4 text-center">Achv %</th>
+                      <th className="py-3.5 px-4 text-center">UPT</th>
                       <th className="py-3.5 px-4 text-center">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#3B3666] font-medium">
+                  <tbody className="divide-y divide-inherit font-medium">
                     {ALL_STAFF_DETAILS.map((s) => (
-                      <tr key={s.rank} className={`hover:bg-[#2B274F]/50 transition ${s.rank === 1 ? "bg-[#F5BA42]/10 font-bold" : ""}`}>
+                      <tr key={s.rank} className="hover:opacity-90 transition">
                         <td className="py-3.5 px-4 text-center">
-                          <span className={`w-6 h-6 rounded-full inline-flex items-center justify-center font-black text-xs ${s.rank === 1 ? "bg-[#F5BA42] text-[#1A1831]" : "text-[#FFF6E9]/60"}`}>
+                          <span
+                            className={`w-6 h-6 rounded-full inline-flex items-center justify-center font-black text-xs ${
+                              s.rank === 1 ? (isDark ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#054ff0] text-white") : "opacity-60"
+                            }`}
+                          >
                             {s.rank}
                           </span>
                         </td>
                         <td className="py-3.5 px-4">
-                          <div className="text-[#FFF6E9] font-bold">{s.name}</div>
-                          <div className="text-[10px] text-[#FFF6E9]/50 font-mono">ID: {s.salesId}</div>
+                          <div className="font-bold">{s.name}</div>
+                          <div className="text-[10px] opacity-60 font-mono">ID: {s.salesId}</div>
                         </td>
-                        <td className="py-3.5 px-4 text-right text-[#FFF6E9]/70 font-mono">{s.target > 0 ? formatIDR(s.target) : "-"}</td>
-                        <td className="py-3.5 px-4 text-right font-extrabold text-emerald-300 text-sm">{formatIDR(s.actual)}</td>
-                        <td className="py-3.5 px-4 text-center">
-                          <span className={`font-black ${s.achievement >= 100 ? "text-emerald-300" : "text-[#F5BA42]"}`}>
-                            {s.achievement > 0 ? `${s.achievement.toFixed(1)}%` : "-"}
-                          </span>
+                        <td className="py-3.5 px-4 text-right opacity-70 font-mono">{s.target > 0 ? formatIDR(s.target) : "-"}</td>
+                        <td className="py-3.5 px-4 text-right font-extrabold text-emerald-500 text-sm">{formatIDR(s.actual)}</td>
+                        <td className="py-3.5 px-4 text-center font-bold">
+                          {s.achievement > 0 ? `${s.achievement.toFixed(1)}%` : "-"}
                         </td>
+                        <td className="py-3.5 px-4 text-center font-black text-sky-500">{s.upt}</td>
                         <td className="py-3.5 px-4 text-center">
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${s.status === "Tercapai" ? "bg-blue-500/15 text-blue-300 border border-blue-400/30" : "bg-red-500/15 text-red-300 border border-red-400/30"}`}>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              s.status === "Tercapai"
+                                ? "bg-emerald-500/20 text-emerald-500"
+                                : "bg-red-500/20 text-red-500"
+                            }`}
+                          >
                             {s.status === "Tercapai" ? "🔵 Tercapai" : "🔻 Belum"}
                           </span>
                         </td>
@@ -1278,53 +1418,36 @@ export default function Page() {
               </div>
             </div>
 
-            {/* DETAIL PRODUK PER KATEGORI OVERVIEW */}
-            <div className="p-6 bg-[#221F40] border border-[#3B3666] rounded-3xl shadow-xl">
+            {/* DETAIL PRODUK PER KATEGORI (BERDASARKAN TABS) */}
+            <div className={`p-6 ${cardBg} border rounded-3xl shadow-xl`}>
               <div className="flex flex-wrap justify-between items-center gap-4 mb-5">
                 <div>
-                  <h3 className="text-base font-bold text-[#FFF6E9]">Rincian Detail Produk Terjual per Kategori</h3>
-                  <p className="text-xs text-[#FFF6E9]/70 mt-0.5">Komposisi item, revenue kontribusi, dan share produk (termasuk multi-provider VAS)</p>
+                  <h3 className="text-base font-bold">Rincian Detail Produk Terjual per Kategori</h3>
+                  <p className={`text-xs ${textMuted} mt-0.5`}>Pilih tab di bawah untuk melihat rincian SKU, qty, dan revenue tanpa reload</p>
                 </div>
 
-                <div className="flex flex-wrap gap-2 bg-[#141226] p-1.5 rounded-2xl border border-[#3B3666]">
-                  <button
-                    onClick={() => setOverviewDetailCategory("apple")}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-                      overviewDetailCategory === "apple" ? "bg-sky-500 text-[#1A1831] shadow-md shadow-sky-500/20" : "text-[#FFF6E9]/70 hover:text-[#FFF6E9]"
-                    }`}
-                  >
-                    🍎 Apple Devices
-                  </button>
-                  <button
-                    onClick={() => setOverviewDetailCategory("android")}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-                      overviewDetailCategory === "android" ? "bg-indigo-500 text-[#FFF6E9] shadow-md shadow-indigo-500/20" : "text-[#FFF6E9]/70 hover:text-[#FFF6E9]"
-                    }`}
-                  >
-                    🤖 Android Devices
-                  </button>
-                  <button
-                    onClick={() => setOverviewDetailCategory("accessories")}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-                      overviewDetailCategory === "accessories" ? "bg-[#F5BA42] text-[#1A1831] shadow-md shadow-[#F5BA42]/20" : "text-[#FFF6E9]/70 hover:text-[#FFF6E9]"
-                    }`}
-                  >
-                    🔌 Accessories
-                  </button>
-                  <button
-                    onClick={() => setOverviewDetailCategory("vas")}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-                      overviewDetailCategory === "vas" ? "bg-purple-500 text-[#FFF6E9] shadow-md shadow-purple-500/20" : "text-[#FFF6E9]/70 hover:text-[#FFF6E9]"
-                    }`}
-                  >
-                    🛡️ VAS (Qoala/Tsel/XL/Indosat)
-                  </button>
+                {/* TAB NAVIGASI KATEGORI PRODUK */}
+                <div className={`flex flex-wrap gap-2 ${innerCardBg} p-1.5 rounded-2xl border`}>
+                  {(["apple", "android", "accessories", "vas"] as const).map((tabKey) => (
+                    <button
+                      key={tabKey}
+                      onClick={() => setOverviewDetailCategory(tabKey)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                        overviewDetailCategory === tabKey ? activeTabBtn : "opacity-70 hover:opacity-100"
+                      }`}
+                    >
+                      {tabKey === "apple" && "🍎 Apple Devices"}
+                      {tabKey === "android" && "🤖 Android Devices"}
+                      {tabKey === "accessories" && "🔌 Accessories"}
+                      {tabKey === "vas" && "🛡️ VAS (Qoala/Tsel/XL/Indosat)"}
+                    </button>
+                  ))}
                 </div>
               </div>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-[#141226] text-[#FFF6E9]/70 uppercase text-[11px] border-b border-[#3B3666]">
+                  <thead className={`${innerCardBg} uppercase text-[11px] border-b border-inherit`}>
                     <tr>
                       <th className="py-3 px-4">Nama Produk & Layanan</th>
                       <th className="py-3 px-4">Artikel SAP</th>
@@ -1334,27 +1457,21 @@ export default function Page() {
                       <th className="py-3 px-4 text-right">Kontribusi Share</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#3B3666] font-medium">
+                  <tbody className="divide-y divide-inherit font-medium">
                     {OVERVIEW_PRODUCT_BREAKDOWN[overviewDetailCategory].map((p, i) => (
-                      <tr key={i} className="hover:bg-[#2B274F]/50 transition">
-                        <td className="py-3.5 px-4 font-bold text-[#FFF6E9]">{p.name}</td>
-                        <td className="py-3.5 px-4 font-mono text-[#FFF6E9]/60 text-[11px]">{p.sku}</td>
+                      <tr key={i} className="hover:opacity-90 transition">
+                        <td className="py-3.5 px-4 font-bold">{p.name}</td>
+                        <td className="py-3.5 px-4 font-mono opacity-60 text-[11px]">{p.sku}</td>
                         <td className="py-3.5 px-4">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                            p.brand === "QOALA" ? "bg-purple-500/20 border-purple-400/40 text-purple-200" :
-                            p.brand === "TELKOMSEL" ? "bg-red-500/20 border-red-400/40 text-red-200" :
-                            p.brand === "XL" ? "bg-blue-500/20 border-blue-400/40 text-blue-200" :
-                            p.brand === "INDOSAT" ? "bg-amber-500/20 border-amber-400/40 text-amber-200" :
-                            "bg-[#141226] border-[#3B3666] text-[#FFF6E9]/80"
-                          }`}>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${innerCardBg}`}>
                             {p.brand}
                           </span>
                         </td>
-                        <td className="py-3.5 px-4 text-center font-bold text-[#FFF6E9]">{p.qty} Unit</td>
-                        <td className="py-3.5 px-4 text-right font-extrabold text-emerald-300">
+                        <td className="py-3.5 px-4 text-center font-bold">{p.qty} Unit</td>
+                        <td className="py-3.5 px-4 text-right font-extrabold text-emerald-500">
                           {formatIDR(p.revenue)}
                         </td>
-                        <td className="py-3.5 px-4 text-right text-[#F5BA42] font-bold">{p.share}</td>
+                        <td className={`py-3.5 px-4 text-right ${accentColor} font-bold`}>{p.share}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1364,80 +1481,78 @@ export default function Page() {
           </div>
         )}
 
-        {/* ========================================================= */}
-        {/* TAB 2: WEEKLY SALES (WoW DARI DATABASE KOLOM O)          */}
-        {/* ========================================================= */}
+        {/* TAB 2: WEEKLY SALES (WoW) BERDASARKAN DATABASE KOLOM O */}
         {activeTab === "weekly-sales" && (
           <div className="space-y-6 sm:space-y-8">
-            <div className="p-4 sm:p-6 bg-[#221F40] border-2 border-[#F5BA42]/40 rounded-3xl shadow-xl">
+            <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl`}>
               <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
                 <div>
-                  <h2 className="text-base sm:text-lg font-black text-[#FFF6E9] flex items-center gap-2">
+                  <h2 className="text-base sm:text-lg font-black flex items-center gap-2">
                     <span>📈</span>
                     <span>WEEKLY SALES & WEEK-OVER-WEEK (WOW) DARI DATABASE KOLOM O</span>
                   </h2>
-                  <p className="text-xs text-[#FFF6E9]/70 mt-1">
-                    Label periode mingguan persis sesuai entri Kolom O: <code>Week 1 (03/10/26)</code>, <code>W2 (10OKT 2026)</code>, <code>W3 (17OKT 2026)</code>, dan <code>W4 (24OKT 2026)</code>.
+                  <p className={`text-xs ${textMuted} mt-1`}>
+                    Label periode persis sesuai entri Kolom O: <code>Week 1 (03/10/26)</code>, <code>W2 (10OKT 2026)</code>, <code>W3 (17OKT 2026)</code>, dan <code>W4 (24OKT 2026)</code>.
                   </p>
                 </div>
               </div>
 
-              {/* Grid 4 Kartu Week */}
+              {/* 4 Kartu Week */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 {DATABASE_WEEKLY_DATA.map((w, idx) => (
-                  <div key={idx} className="p-4 bg-[#141226] border border-[#3B3666] rounded-2xl">
+                  <div key={idx} className={`p-4 ${innerCardBg} border rounded-2xl`}>
                     <div className="flex justify-between items-center mb-1">
-                      <span className="text-xs font-bold text-[#F5BA42]">{w.weekLabel}</span>
+                      <span className={`text-xs font-bold ${accentColor}`}>{w.weekLabel}</span>
                       {idx > 0 && (
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${w.growthWoW >= 0 ? "bg-emerald-500/20 text-emerald-300" : "bg-red-500/20 text-red-300"}`}>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${w.growthWoW >= 0 ? "bg-emerald-500/20 text-emerald-500" : "bg-red-500/20 text-red-500"}`}>
                           {w.growthWoW > 0 ? `+${w.growthWoW}%` : `${w.growthWoW}%`} WoW
                         </span>
                       )}
                     </div>
-                    <div className="text-lg font-black text-white mt-1">{formatIDR(w.totalSales)}</div>
-                    <div className="flex justify-between text-[11px] text-[#FFF6E9]/60 mt-2">
-                      <span>{w.qty} Unit Terjual</span>
+                    <div className="text-lg font-black mt-1">{formatIDR(w.totalSales)}</div>
+                    <div className={`flex justify-between text-[11px] ${textMuted} mt-2`}>
+                      <span>{w.qty} Unit</span>
                       <span>{w.invoices} Transaksi</span>
                     </div>
                   </div>
                 ))}
               </div>
 
-              {/* Tabel Detail Breakdown Mingguan Kolom O */}
-              <div className="overflow-x-auto rounded-2xl border border-[#3B3666]">
+              {/* Tabel Detail Breakdown Mingguan */}
+              <div className={`overflow-x-auto rounded-2xl border ${innerCardBg}`}>
                 <table className="w-full text-left text-xs min-w-[700px]">
-                  <thead className="bg-[#141226] text-[#FFF6E9]/70 uppercase text-[11px] border-b border-[#3B3666]">
+                  <thead className={`${innerCardBg} uppercase text-[11px] border-b border-inherit`}>
                     <tr>
                       <th className="py-4 px-4">Label Database (Kolom O)</th>
                       <th className="py-4 px-4 text-center">Unit</th>
                       <th className="py-4 px-4 text-center">Struk</th>
-                      <th className="py-4 px-4 text-right text-sky-300">🍎 Apple Devices</th>
-                      <th className="py-4 px-4 text-right text-indigo-300">🤖 Android Devices</th>
-                      <th className="py-4 px-4 text-right text-amber-300">🔌 Accessories</th>
-                      <th className="py-4 px-4 text-right text-purple-300">🛡️ VAS</th>
+                      <th className="py-4 px-4 text-right text-sky-500">🍎 Apple Devices</th>
+                      <th className="py-4 px-4 text-right text-indigo-500">🤖 Android Devices</th>
+                      <th className="py-4 px-4 text-right text-amber-500">🔌 Accessories</th>
+                      <th className="py-4 px-4 text-right text-purple-500">🛡️ VAS</th>
                       <th className="py-4 px-4 text-right">Total Penjualan</th>
                       <th className="py-4 px-4 text-center">Pertumbuhan WoW</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#3B3666] font-medium">
+                  <tbody className="divide-y divide-inherit font-medium">
                     {DATABASE_WEEKLY_DATA.map((w, i) => (
-                      <tr key={i} className="hover:bg-[#2B274F]/50 transition">
-                        <td className="py-4 px-4 font-bold text-white">
+                      <tr key={i} className="hover:opacity-90 transition">
+                        <td className="py-4 px-4 font-bold">
                           <div>{w.weekLabel}</div>
-                          <div className="text-[10px] text-slate-400 font-normal">{w.weekRange}</div>
+                          <div className={`text-[10px] ${textMuted} font-normal`}>{w.weekRange}</div>
                         </td>
-                        <td className="py-4 px-4 text-center font-bold text-white">{w.qty}</td>
-                        <td className="py-4 px-4 text-center text-slate-300">{w.invoices}</td>
-                        <td className="py-4 px-4 text-right font-mono text-sky-300">{formatIDR(w.appleSales)}</td>
-                        <td className="py-4 px-4 text-right font-mono text-indigo-300">{formatIDR(w.androidSales)}</td>
-                        <td className="py-4 px-4 text-right font-mono text-amber-300">{formatIDR(w.accessoriesSales)}</td>
-                        <td className="py-4 px-4 text-right font-mono text-purple-300">{formatIDR(w.vasSales)}</td>
-                        <td className="py-4 px-4 text-right font-extrabold text-emerald-300 text-sm">{formatIDR(w.totalSales)}</td>
+                        <td className="py-4 px-4 text-center font-bold">{w.qty}</td>
+                        <td className="py-4 px-4 text-center opacity-70">{w.invoices}</td>
+                        <td className="py-4 px-4 text-right font-mono text-sky-500">{formatIDR(w.appleSales)}</td>
+                        <td className="py-4 px-4 text-right font-mono text-indigo-500">{formatIDR(w.androidSales)}</td>
+                        <td className="py-4 px-4 text-right font-mono text-amber-500">{formatIDR(w.accessoriesSales)}</td>
+                        <td className="py-4 px-4 text-right font-mono text-purple-500">{formatIDR(w.vasSales)}</td>
+                        <td className="py-4 px-4 text-right font-extrabold text-emerald-500 text-sm">{formatIDR(w.totalSales)}</td>
                         <td className="py-4 px-4 text-center font-bold">
                           {i === 0 ? (
-                            <span className="text-slate-500">Baseline W1</span>
+                            <span className="opacity-50">Baseline W1</span>
                           ) : (
-                            <span className={w.growthWoW >= 0 ? "text-emerald-400" : "text-red-400"}>
+                            <span className={w.growthWoW >= 0 ? "text-emerald-500" : "text-red-500"}>
                               {w.growthWoW > 0 ? `+${w.growthWoW}%` : `${w.growthWoW}%`}
                             </span>
                           )}
@@ -1447,27 +1562,75 @@ export default function Page() {
                   </tbody>
                 </table>
               </div>
+
+              {/* TABEL PENCAPAIAN PER STAF WEEK-TO-WEEK DENGAN GROWTH / DEGROWTH */}
+              <div className="mt-8">
+                <h3 className="text-sm font-bold uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <span>👥</span>
+                  <span>Performa Penjualan & Growth / Degrowth Mingguan per Staf</span>
+                </h3>
+                <div className={`overflow-x-auto rounded-2xl border ${innerCardBg}`}>
+                  <table className="w-full text-left text-xs min-w-[700px]">
+                    <thead className={`${innerCardBg} uppercase text-[10px] border-b border-inherit`}>
+                      <tr>
+                        <th className="py-3 px-4">Salesperson</th>
+                        <th className="py-3 px-4 text-right">Week 1</th>
+                        <th className="py-3 px-4 text-right">W2 (10OKT)</th>
+                        <th className="py-3 px-4 text-center">WoW W2</th>
+                        <th className="py-3 px-4 text-right">W3 (17OKT)</th>
+                        <th className="py-3 px-4 text-center">WoW W3</th>
+                        <th className="py-3 px-4 text-right">W4 (24OKT)</th>
+                        <th className="py-3 px-4 text-center">WoW W4</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-inherit font-medium">
+                      {ALL_STAFF_DETAILS.map((st) => (
+                        <tr key={st.salesId} className="hover:opacity-90 transition">
+                          <td className="py-3 px-4 font-bold">{st.name}</td>
+                          <td className="py-3 px-4 text-right font-mono opacity-80">{formatIDR(st.weekToWeek.w1)}</td>
+                          <td className="py-3 px-4 text-right font-mono opacity-80">{formatIDR(st.weekToWeek.w2)}</td>
+                          <td className="py-3 px-4 text-center font-bold">
+                            <span className={st.weekToWeek.growthW2 >= 0 ? "text-emerald-500" : "text-red-500"}>
+                              {st.weekToWeek.growthW2 > 0 ? `+${st.weekToWeek.growthW2}%` : `${st.weekToWeek.growthW2}%`}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono opacity-80">{formatIDR(st.weekToWeek.w3)}</td>
+                          <td className="py-3 px-4 text-center font-bold">
+                            <span className={st.weekToWeek.growthW3 >= 0 ? "text-emerald-500" : "text-red-500"}>
+                              {st.weekToWeek.growthW3 > 0 ? `+${st.weekToWeek.growthW3}%` : `${st.weekToWeek.growthW3}%`}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono opacity-80">{formatIDR(st.weekToWeek.w4)}</td>
+                          <td className="py-3 px-4 text-center font-bold">
+                            <span className={st.weekToWeek.growthW4 >= 0 ? "text-emerald-500" : "text-red-500"}>
+                              {st.weekToWeek.growthW4 > 0 ? `+${st.weekToWeek.growthW4}%` : `${st.weekToWeek.growthW4}%`}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
         )}
 
-        {/* ========================================================================= */}
-        {/* TAB 3: STAFF PERFORMANCE DETAIL (SEMUA STAF DITAMPILKAN SEKALIGUS)       */}
-        {/* ========================================================================= */}
+        {/* TAB 3: STAFF PERFORMANCE DETAIL (SEMUA STAF DITAMPILKAN SEKALIGUS) */}
         {activeTab === "staff-performance" && (
           <div className="space-y-6 sm:space-y-8">
             <div className="space-y-6 sm:space-y-8">
               <div className="flex items-center justify-between">
-                <h2 className="text-base sm:text-lg font-black text-[#FFF6E9] tracking-wide flex items-center gap-2">
+                <h2 className="text-base sm:text-lg font-black tracking-wide flex items-center gap-2">
                   <span>👥</span>
                   <span>RINCIAN DETAIL SELURUH STAF SALES ({ALL_STAFF_DETAILS.length} ORANG)</span>
                 </h2>
               </div>
 
               {ALL_STAFF_DETAILS.map((staff) => (
-                <div key={staff.salesId} className="p-4 sm:p-6 bg-[#221F40] border-2 border-[#3B3666] rounded-3xl shadow-2xl relative overflow-hidden space-y-5">
-                  {/* Header Staf dengan Lencana Avatar Inisial */}
-                  <div className="flex flex-wrap justify-between items-start gap-4 pb-4 border-b border-[#3B3666]">
+                <div key={staff.salesId} className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl relative overflow-hidden space-y-5`}>
+                  {/* Header Staf dengan Lencana Inisial & UPT */}
+                  <div className="flex flex-wrap justify-between items-start gap-4 pb-4 border-b border-inherit">
                     <div className="flex items-center gap-3">
                       <div className="relative">
                         <div
@@ -1477,7 +1640,7 @@ export default function Page() {
                         </div>
                         <span
                           className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full inline-flex items-center justify-center font-black text-xs ${
-                            staff.rank === 1 ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#141226] text-[#FFF6E9] border border-[#3B3666]"
+                            staff.rank === 1 ? (isDark ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#054ff0] text-white") : `${innerCardBg} border`
                           }`}
                         >
                           #{staff.rank}
@@ -1485,74 +1648,88 @@ export default function Page() {
                       </div>
 
                       <div>
-                        <h3 className="text-lg sm:text-xl font-black text-[#FFF6E9] flex items-center gap-2">
+                        <h3 className="text-lg sm:text-xl font-black flex items-center gap-2">
                           <span>{staff.name}</span>
                           {staff.rank === 1 && (
-                            <span className="text-[10px] bg-[#F5BA42] text-[#1A1831] px-2 py-0.5 rounded-full font-black uppercase">
+                            <span className={`text-[10px] ${isDark ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#054ff0] text-white"} px-2 py-0.5 rounded-full font-black uppercase`}>
                               Top 1 👑
                             </span>
                           )}
                         </h3>
-                        <p className="text-xs text-[#FFF6E9]/60 font-mono">ID Staf: {staff.salesId}</p>
+                        <p className={`text-xs ${textMuted} font-mono`}>ID Staf: {staff.salesId}</p>
                       </div>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 text-right">
-                      <div className="bg-[#141226] px-3 py-1.5 rounded-xl border border-[#3B3666]">
-                        <span className="text-[9px] text-[#FFF6E9]/60 uppercase block">Total Omset</span>
-                        <span className="text-xs sm:text-sm font-black text-emerald-300">{formatIDR(staff.actual)}</span>
+                      <div className={`px-3 py-1.5 rounded-xl border ${innerCardBg}`}>
+                        <span className="text-[9px] opacity-60 uppercase block">Total Omset</span>
+                        <span className="text-xs sm:text-sm font-black text-emerald-500">{formatIDR(staff.actual)}</span>
                       </div>
-                      <div className="bg-[#141226] px-3 py-1.5 rounded-xl border border-[#3B3666]">
-                        <span className="text-[9px] text-[#FFF6E9]/60 uppercase block">Achievement</span>
-                        <span className={`text-xs sm:text-sm font-black ${staff.achievement >= 100 ? "text-emerald-300" : "text-[#F5BA42]"}`}>
+                      <div className={`px-3 py-1.5 rounded-xl border ${innerCardBg}`}>
+                        <span className="text-[9px] opacity-60 uppercase block">Achievement</span>
+                        <span className={`text-xs sm:text-sm font-black ${staff.achievement >= 100 ? "text-emerald-500" : accentColor}`}>
                           {staff.achievement > 0 ? `${staff.achievement.toFixed(1)}%` : "-"}
                         </span>
                       </div>
+                      <div className={`px-3 py-1.5 rounded-xl border ${innerCardBg}`}>
+                        <span className="text-[9px] opacity-60 uppercase block">UPT Staf</span>
+                        <span className="text-xs sm:text-sm font-black text-sky-500">{staff.upt} Unit/Struk</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Evaluasi Ringkas Bahasa Indonesia */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                    <div className={`p-3 rounded-xl border ${innerCardBg}`}>
+                      <span className={`font-bold ${accentColor} block mb-1`}>📌 Evaluasi Kinerja:</span>
+                      <p className="opacity-80 leading-relaxed">{staff.ringkasanEvaluasi}</p>
+                    </div>
+                    <div className={`p-3 rounded-xl border ${innerCardBg}`}>
+                      <span className="font-bold text-emerald-500 block mb-1">⚡ Rekomendasi Tindakan:</span>
+                      <p className="opacity-80 leading-relaxed">{staff.rekomendasiTindakan}</p>
                     </div>
                   </div>
 
                   {/* KARTU TARGET & PENCAPAIAN ACCESSORIES & VAS */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Kartu Accessories */}
-                    <div className="p-4 bg-[#141226] rounded-2xl border border-amber-500/30">
+                    <div className={`p-4 rounded-2xl border ${innerCardBg}`}>
                       <div className="flex justify-between items-center mb-2">
-                        <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-amber-500 flex items-center gap-1.5">
                           <span>🔌</span>
                           <span>Target & Pencapaian Accessories</span>
                         </span>
-                        <span className="text-xs font-black text-amber-400">{staff.achvAcc}% Achieved</span>
+                        <span className="text-xs font-black text-amber-500">{staff.achvAcc}% Achieved</span>
                       </div>
                       <div className="flex justify-between text-xs mb-1">
-                        <span className="text-slate-400">Actual Acc:</span>
-                        <span className="font-extrabold text-white">{formatIDR(staff.actualAcc)}</span>
+                        <span className="opacity-60">Actual Acc:</span>
+                        <span className="font-extrabold">{formatIDR(staff.actualAcc)}</span>
                       </div>
                       <div className="flex justify-between text-xs mb-2">
-                        <span className="text-slate-400">Target Acc:</span>
-                        <span className="font-mono text-slate-300">{staff.targetAcc > 0 ? formatIDR(staff.targetAcc) : "-"}</span>
+                        <span className="opacity-60">Target Acc:</span>
+                        <span className="font-mono opacity-80">{staff.targetAcc > 0 ? formatIDR(staff.targetAcc) : "-"}</span>
                       </div>
-                      <div className="w-full bg-[#221F40] h-2 rounded-full overflow-hidden">
+                      <div className={`w-full ${cardBg} h-2 rounded-full overflow-hidden`}>
                         <div className="bg-amber-400 h-full rounded-full" style={{ width: `${Math.min(staff.achvAcc, 100)}%` }}></div>
                       </div>
                     </div>
 
-                    {/* Kartu VAS (Qoala, Telkomsel, XL, Indosat) */}
-                    <div className="p-4 bg-[#141226] rounded-2xl border border-purple-500/30">
+                    <div className={`p-4 rounded-2xl border ${innerCardBg}`}>
                       <div className="flex justify-between items-center mb-2">
-                        <span className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-purple-500 flex items-center gap-1.5">
                           <span>🛡️</span>
                           <span>Target & Pencapaian VAS (Qoala/Tsel/XL/Indosat)</span>
                         </span>
-                        <span className="text-xs font-black text-purple-400">{staff.achvVas}% Achieved</span>
+                        <span className="text-xs font-black text-purple-500">{staff.achvVas}% Achieved</span>
                       </div>
                       <div className="flex justify-between text-xs mb-1">
-                        <span className="text-slate-400">Actual VAS:</span>
-                        <span className="font-extrabold text-white">{formatIDR(staff.actualVas)}</span>
+                        <span className="opacity-60">Actual VAS:</span>
+                        <span className="font-extrabold">{formatIDR(staff.actualVas)}</span>
                       </div>
                       <div className="flex justify-between text-xs mb-2">
-                        <span className="text-slate-400">Target VAS:</span>
-                        <span className="font-mono text-slate-300">{staff.targetVas > 0 ? formatIDR(staff.targetVas) : "-"}</span>
+                        <span className="opacity-60">Target VAS:</span>
+                        <span className="font-mono opacity-80">{staff.targetVas > 0 ? formatIDR(staff.targetVas) : "-"}</span>
                       </div>
-                      <div className="w-full bg-[#221F40] h-2 rounded-full overflow-hidden">
+                      <div className={`w-full ${cardBg} h-2 rounded-full overflow-hidden`}>
                         <div className="bg-purple-400 h-full rounded-full" style={{ width: `${Math.min(staff.achvVas, 100)}%` }}></div>
                       </div>
                     </div>
@@ -1560,13 +1737,13 @@ export default function Page() {
 
                   {/* Sub-Lini Apple Devices */}
                   <div>
-                    <h4 className="text-xs font-bold text-sky-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <h4 className="text-xs font-bold text-sky-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                       <span>🍎</span>
                       <span>Apple Devices (iPhone, iPad, MacBook, Apple Watch, AirPods)</span>
                     </h4>
-                    <div className="overflow-x-auto rounded-xl border border-[#3B3666]">
+                    <div className={`overflow-x-auto rounded-xl border ${innerCardBg}`}>
                       <table className="w-full text-left text-xs min-w-[500px]">
-                        <thead className="bg-[#141226] text-[#FFF6E9]/70 uppercase text-[10px] border-b border-[#3B3666]">
+                        <thead className={`${innerCardBg} uppercase text-[10px] border-b border-inherit`}>
                           <tr>
                             <th className="py-2.5 px-3">Produk</th>
                             <th className="py-2.5 px-3 text-center">Qty</th>
@@ -1575,17 +1752,17 @@ export default function Page() {
                             <th className="py-2.5 px-3 text-center">Achv %</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-[#3B3666] font-medium">
+                        <tbody className="divide-y divide-inherit font-medium">
                           {staff.appleSub.map((p, idx) => (
-                            <tr key={idx} className="hover:bg-[#2B274F]/40 transition">
-                              <td className="py-2.5 px-3 font-bold text-white flex items-center gap-1.5">
+                            <tr key={idx} className="hover:opacity-90 transition">
+                              <td className="py-2.5 px-3 font-bold flex items-center gap-1.5">
                                 <span>{p.icon}</span>
                                 <span>{p.name}</span>
                               </td>
                               <td className="py-2.5 px-3 text-center">{p.qty}</td>
-                              <td className="py-2.5 px-3 text-right font-extrabold text-emerald-300">{formatIDR(p.actual)}</td>
-                              <td className="py-2.5 px-3 text-right text-[#FFF6E9]/60">{p.target > 0 ? formatIDR(p.target) : "-"}</td>
-                              <td className="py-2.5 px-3 text-center font-bold text-[#F5BA42]">
+                              <td className="py-2.5 px-3 text-right font-extrabold text-emerald-500">{formatIDR(p.actual)}</td>
+                              <td className="py-2.5 px-3 text-right opacity-60">{p.target > 0 ? formatIDR(p.target) : "-"}</td>
+                              <td className={`py-2.5 px-3 text-center font-bold ${accentColor}`}>
                                 {p.target > 0 ? `${p.achievement.toFixed(1)}%` : p.actual > 0 ? "100%" : "0%"}
                               </td>
                             </tr>
@@ -1597,13 +1774,13 @@ export default function Page() {
 
                   {/* Sub-Lini Android Devices */}
                   <div>
-                    <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <h4 className="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                       <span>🤖</span>
                       <span>Android Devices (Samsung, Oppo, Motorola, Huawei, Infinix, Xiaomi)</span>
                     </h4>
-                    <div className="overflow-x-auto rounded-xl border border-[#3B3666]">
+                    <div className={`overflow-x-auto rounded-xl border ${innerCardBg}`}>
                       <table className="w-full text-left text-xs min-w-[500px]">
-                        <thead className="bg-[#141226] text-[#FFF6E9]/70 uppercase text-[10px] border-b border-[#3B3666]">
+                        <thead className={`${innerCardBg} uppercase text-[10px] border-b border-inherit`}>
                           <tr>
                             <th className="py-2.5 px-3">Brand Android</th>
                             <th className="py-2.5 px-3 text-center">Qty</th>
@@ -1612,17 +1789,17 @@ export default function Page() {
                             <th className="py-2.5 px-3 text-center">Achv %</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-[#3B3666] font-medium">
+                        <tbody className="divide-y divide-inherit font-medium">
                           {staff.androidSub.map((p, idx) => (
-                            <tr key={idx} className="hover:bg-[#2B274F]/40 transition">
-                              <td className="py-2.5 px-3 font-bold text-white flex items-center gap-1.5">
+                            <tr key={idx} className="hover:opacity-90 transition">
+                              <td className="py-2.5 px-3 font-bold flex items-center gap-1.5">
                                 <span>{p.icon}</span>
                                 <span>{p.name}</span>
                               </td>
                               <td className="py-2.5 px-3 text-center">{p.qty}</td>
-                              <td className="py-2.5 px-3 text-right font-extrabold text-emerald-300">{formatIDR(p.actual)}</td>
-                              <td className="py-2.5 px-3 text-right text-[#FFF6E9]/60">{p.target > 0 ? formatIDR(p.target) : "-"}</td>
-                              <td className="py-2.5 px-3 text-center font-bold text-[#F5BA42]">
+                              <td className="py-2.5 px-3 text-right font-extrabold text-emerald-500">{formatIDR(p.actual)}</td>
+                              <td className="py-2.5 px-3 text-right opacity-60">{p.target > 0 ? formatIDR(p.target) : "-"}</td>
+                              <td className={`py-2.5 px-3 text-center font-bold ${accentColor}`}>
                                 {p.target > 0 ? `${p.achievement.toFixed(1)}%` : p.actual > 0 ? "100%" : "0%"}
                               </td>
                             </tr>
@@ -1637,28 +1814,25 @@ export default function Page() {
           </div>
         )}
 
-        {/* ========================================================================= */}
-        {/* TAB 4: MENU BNPL (BUY NOW PAY LATER - DARI GID 2697970)                   */}
-        {/* ========================================================================= */}
+        {/* TAB 4: BNPL TRANSACTIONS */}
         {activeTab === "bnpl" && (
           <div className="space-y-6">
-            <div className="p-4 sm:p-6 bg-[#221F40] border-2 border-[#F5BA42]/40 rounded-3xl shadow-xl">
+            <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl`}>
               <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
                 <div>
-                  <h2 className="text-base sm:text-lg font-black text-[#FFF6E9] flex items-center gap-2">
+                  <h2 className="text-base sm:text-lg font-black flex items-center gap-2">
                     <span>💳</span>
                     <span>TRANSAKSI PEMBIAYAAN KONSUMEN (BNPL DATABASE)</span>
                   </h2>
-                  <p className="text-xs text-[#FFF6E9]/70 mt-1">
-                    Sumber Data Riil: Sheet <code>BNPL DATABASE</code> (gid: 2697970). Detail transaksi leasing & cicilan.
+                  <p className={`text-xs ${textMuted} mt-1`}>
+                    Sumber Data Riil: Sheet <code>BNPL DATABASE</code> (gid: 2697970). Detail leasing, tenor, dan produk.
                   </p>
                 </div>
               </div>
 
-              {/* Tabel Transaksi BNPL */}
-              <div className="overflow-x-auto rounded-2xl border border-[#3B3666]">
+              <div className={`overflow-x-auto rounded-2xl border ${innerCardBg}`}>
                 <table className="w-full text-left text-xs min-w-[700px]">
-                  <thead className="bg-[#141226] text-[#FFF6E9]/70 uppercase text-[11px] border-b border-[#3B3666]">
+                  <thead className={`${innerCardBg} uppercase text-[11px] border-b border-inherit`}>
                     <tr>
                       <th className="py-4 px-4">Tanggal</th>
                       <th className="py-4 px-4">No. Invoice</th>
@@ -1668,27 +1842,19 @@ export default function Page() {
                       <th className="py-4 px-4 text-right">Nilai Pembiayaan (Rp)</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#3B3666] font-medium">
+                  <tbody className="divide-y divide-inherit font-medium">
                     {BNPL_REAL_DATA.map((b, idx) => (
-                      <tr key={idx} className="hover:bg-[#2B274F]/50 transition">
-                        <td className="py-3.5 px-4 font-mono text-slate-300">{b.date}</td>
-                        <td className="py-3.5 px-4 font-mono font-bold text-[#F5BA42]">{b.invoice}</td>
+                      <tr key={idx} className="hover:opacity-90 transition">
+                        <td className="py-3.5 px-4 font-mono opacity-80">{b.date}</td>
+                        <td className={`py-3.5 px-4 font-mono font-bold ${accentColor}`}>{b.invoice}</td>
                         <td className="py-3.5 px-4">
-                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${
-                            b.tender === "Indodana"
-                              ? "bg-amber-500/20 text-amber-300 border-amber-400/40"
-                              : b.tender === "Akulaku"
-                              ? "bg-red-500/20 text-red-300 border-red-400/40"
-                              : b.tender === "Kredivo"
-                              ? "bg-sky-500/20 text-sky-300 border-sky-400/40"
-                              : "bg-emerald-500/20 text-emerald-300 border-emerald-400/40"
-                          }`}>
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${innerCardBg}`}>
                             {b.tender}
                           </span>
                         </td>
-                        <td className="py-3.5 px-4 font-semibold text-white max-w-md">{b.product}</td>
-                        <td className="py-3.5 px-4 text-center font-bold text-white">{b.qty}</td>
-                        <td className="py-3.5 px-4 text-right font-extrabold text-emerald-300 text-sm">
+                        <td className="py-3.5 px-4 font-semibold max-w-md">{b.product}</td>
+                        <td className="py-3.5 px-4 text-center font-bold">{b.qty}</td>
+                        <td className="py-3.5 px-4 text-right font-extrabold text-emerald-500 text-sm">
                           {formatIDR(b.amount)}
                         </td>
                       </tr>
@@ -1700,20 +1866,18 @@ export default function Page() {
           </div>
         )}
 
-        {/* ========================================================================= */}
-        {/* TAB 5: KHUSUS ADMIN (22008089) - ACTIVITY STAFF MONITORING                */}
-        {/* ========================================================================= */}
+        {/* TAB 5: KHUSUS ADMIN (22008089) - ACTIVITY STAFF MONITORING */}
         {activeTab === "admin-audit" && currentSalesId === "22008089" && (
           <div className="space-y-6">
-            <div className="p-4 sm:p-6 bg-[#221F40] border-2 border-emerald-500/40 rounded-3xl shadow-2xl">
+            <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-2xl`}>
               <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
                 <div>
-                  <h2 className="text-base sm:text-lg font-black text-emerald-300 flex items-center gap-2">
+                  <h2 className="text-base sm:text-lg font-black text-emerald-500 flex items-center gap-2">
                     <span>🛡️</span>
                     <span>MONITORING ACTIVITY STAFF (PORTAL KHUSUS ADMIN)</span>
                   </h2>
-                  <p className="text-xs text-[#FFF6E9]/70 mt-1">
-                    Rekam jejak setiap kali staf membuka website: mencatat Sales ID, waktu login, jenis perangkat, dan lokasi/GPS.
+                  <p className={`text-xs ${textMuted} mt-1`}>
+                    Merekam waktu login, tipe perangkat, dan lokasi/GPS setiap kali staf mengakses website dashboard.
                   </p>
                 </div>
 
@@ -1722,15 +1886,15 @@ export default function Page() {
                     localStorage.removeItem("digiplus_staff_activity_logs");
                     setStaffActivityLogs([]);
                   }}
-                  className="px-3 py-1.5 rounded-xl bg-red-500/20 text-red-300 border border-red-500/40 text-xs font-bold hover:bg-red-500/30 transition"
+                  className="px-3 py-1.5 rounded-xl bg-red-500/20 text-red-500 border border-red-500/40 text-xs font-bold hover:bg-red-500/30 transition"
                 >
                   Bersihkan Log
                 </button>
               </div>
 
-              <div className="overflow-x-auto rounded-2xl border border-[#3B3666]">
+              <div className={`overflow-x-auto rounded-2xl border ${innerCardBg}`}>
                 <table className="w-full text-left text-xs min-w-[700px]">
-                  <thead className="bg-[#141226] text-[#FFF6E9]/70 uppercase text-[11px] border-b border-[#3B3666]">
+                  <thead className={`${innerCardBg} uppercase text-[11px] border-b border-inherit`}>
                     <tr>
                       <th className="py-3.5 px-4">Waktu Akses (WIB)</th>
                       <th className="py-3.5 px-4">Sales ID & Nama Staf</th>
@@ -1740,35 +1904,29 @@ export default function Page() {
                       <th className="py-3.5 px-4">Koordinat GPS</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#3B3666] font-medium">
+                  <tbody className="divide-y divide-inherit font-medium">
                     {staffActivityLogs.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="py-6 text-center text-slate-400">
+                        <td colSpan={6} className="py-6 text-center opacity-60">
                           Belum ada aktivitas staf baru yang terekam.
                         </td>
                       </tr>
                     ) : (
                       staffActivityLogs.map((log) => (
-                        <tr key={log.id} className="hover:bg-[#2B274F]/50 transition">
-                          <td className="py-3.5 px-4 font-mono text-amber-300">{log.timestamp}</td>
+                        <tr key={log.id} className="hover:opacity-90 transition">
+                          <td className={`py-3.5 px-4 font-mono ${accentColor}`}>{log.timestamp}</td>
                           <td className="py-3.5 px-4">
-                            <div className="font-bold text-white">{log.salesName}</div>
-                            <div className="text-[10px] text-slate-400 font-mono">ID: {log.salesId}</div>
+                            <div className="font-bold">{log.salesName}</div>
+                            <div className="text-[10px] opacity-60 font-mono">ID: {log.salesId}</div>
                           </td>
                           <td className="py-3.5 px-4">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                              log.deviceType === "Handphone / Mobile"
-                                ? "bg-amber-500/15 border-amber-400/30 text-amber-200"
-                                : log.deviceType === "Tablet"
-                                ? "bg-sky-500/15 border-sky-400/30 text-sky-200"
-                                : "bg-purple-500/15 border-purple-400/30 text-purple-200"
-                            }`}>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${innerCardBg}`}>
                               {log.deviceType}
                             </span>
                           </td>
-                          <td className="py-3.5 px-4 text-[#FFF6E9]/80">{log.browserInfo}</td>
-                          <td className="py-3.5 px-4 text-emerald-300 font-bold">{log.locationName}</td>
-                          <td className="py-3.5 px-4 font-mono text-slate-400 text-[10px]">{log.coords}</td>
+                          <td className="py-3.5 px-4 opacity-80">{log.browserInfo}</td>
+                          <td className="py-3.5 px-4 text-emerald-500 font-bold">{log.locationName}</td>
+                          <td className="py-3.5 px-4 font-mono opacity-60 text-[10px]">{log.coords}</td>
                         </tr>
                       ))
                     )}
@@ -1782,9 +1940,9 @@ export default function Page() {
         {/* TAB 6: RINCIAN PENJUALAN LOB */}
         {activeTab === "sales-detail" && (
           <div className="space-y-4">
-            <h2 className="text-base font-bold text-[#FFF6E9]">Breakdown LOB Sales</h2>
-            <div className="p-6 bg-[#221F40] border border-[#3B3666] rounded-2xl">
-              <p className="text-xs text-[#FFF6E9]/80 leading-relaxed">
+            <h2 className="text-base font-bold">Breakdown LOB Sales</h2>
+            <div className={`p-6 ${cardBg} border rounded-2xl`}>
+              <p className={`text-xs ${textMuted} leading-relaxed`}>
                 Total penjualan store terdiri dari <strong>Apple Devices</strong> senilai Rp 2,51 Miliar (80,0%), <strong>Android Devices</strong> Rp 394 Juta (12,5%), <strong>Accessories</strong> Rp 60,6 Juta (1,9%), dan <strong>VAS</strong> (Qoala, Telkomsel, XL, Indosat) sebesar Rp 45,0 Juta (1,4%).
               </p>
             </div>
