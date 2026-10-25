@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 
 // ==========================================
 // 1. DATA CONTRACTS & TYPE DEFINITIONS
@@ -97,7 +97,6 @@ interface StaffScheduleItem {
   sun: string;
 }
 
-// Helper Format Uang IDR
 const formatIDR = (n: number): string => {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
@@ -116,7 +115,6 @@ const calcUpt = (qty: number, invoices: number): number => {
   return Number((qty / invoices).toFixed(2));
 };
 
-// Data Jadwal Shift Standar Toko
 const INITIAL_SCHEDULE: StaffScheduleItem[] = [
   { id: "1", name: "Angga", role: "Store Supervisor", mon: "OFF", tue: "D103", wed: "D047", thu: "D047", fri: "D103", sat: "D103", sun: "D047" },
   { id: "2", name: "Liesbeth", role: "Cashier Leader", mon: "D103", tue: "D047", wed: "OFF", thu: "D103", fri: "D103", sat: "D047", sun: "D047" },
@@ -137,9 +135,10 @@ export default function DigiplusOperationalEngine() {
   // Theme & Navigation
   const [theme, setTheme] = useState<ThemeMode>("dark");
   const [activeTab, setActiveTab] = useState<MenuTab>("store-overview");
+  const [overviewDetailCategory, setOverviewDetailCategory] = useState<"apple" | "android" | "accessories" | "vas">("apple");
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
-  // Authentication
+  // Auth State
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [salesIdInput, setSalesIdInput] = useState<string>("");
   const [passwordInput, setPasswordInput] = useState<string>("");
@@ -213,7 +212,9 @@ export default function DigiplusOperationalEngine() {
     return { isoDate, monthKey };
   };
 
-  // Live Fetching Hook
+  // -------------------------------------------------------------
+  // LIVE FETCHING HOOK KE GOOGLE SHEETS
+  // -------------------------------------------------------------
   const fetchLiveGoogleSheets = async () => {
     setIsLoading(true);
     try {
@@ -252,16 +253,22 @@ export default function DigiplusOperationalEngine() {
         const weekLabel = String(c[14]?.v || "").trim();
 
         const pUpper = productName.toUpperCase();
-        if (!groupCategory || groupCategory === "NAN" || groupCategory === "N/A") {
-          if (brand === "APPLE" || pUpper.includes("IPHONE") || pUpper.includes("IPAD") || pUpper.includes("AIRPOD") || pUpper.includes("WATCH") || pUpper.includes("MAC")) {
-            groupCategory = "DEVICES";
-          } else if (["SAMSUNG", "OPPO", "MOTOROLA", "HUAWEI", "INFINIX", "XIAOMI"].includes(brand)) {
-            groupCategory = "DEVICES";
-          } else if (brand === "QOALA" || brand === "TELKOMSEL" || brand === "XL" || brand === "INDOSAT" || pUpper.includes("PROTEKSI")) {
-            groupCategory = "VAS";
-          } else {
-            groupCategory = "ACCESSORIES";
-          }
+
+        // ATURAN KATEGORI KETAT:
+        // 1. Jika Kolom L bernilai DEVICES: Wajib masuk ke DEVICES (Xiaomi/Redmi HP masuk Android Devices)
+        // 2. Jika Kolom L kosong: Normalisasi sesuai jenis barang
+        if (groupCategory === "DEVICES") {
+          // Tetap DEVICES
+        } else if (groupCategory === "VAS" || brand === "QOALA" || brand === "TELKOMSEL" || brand === "XL" || brand === "INDOSAT" || pUpper.includes("PROTEKSI") || pUpper.includes("MYPRIO")) {
+          groupCategory = "VAS";
+        } else if (groupCategory === "ACCESSORIES" || pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE") || pUpper.includes("BAND") || pUpper.includes("STRAP")) {
+          groupCategory = "ACCESSORIES";
+        } else if (brand === "APPLE" && (pUpper.includes("IPHONE") || pUpper.includes("IPAD") || pUpper.includes("MAC") || pUpper.includes("WATCH") || pUpper.includes("AIRPOD"))) {
+          groupCategory = "DEVICES";
+        } else if (["SAMSUNG", "XIAOMI", "OPPO", "MOTOROLA", "HUAWEI", "INFINIX"].includes(brand) && (pUpper.includes("PHONE") || pUpper.includes("GALAXY") || pUpper.includes("REDMI"))) {
+          groupCategory = "DEVICES";
+        } else {
+          groupCategory = "ACCESSORIES";
         }
 
         if (invoice && amount > 0 && salesName) {
@@ -284,6 +291,7 @@ export default function DigiplusOperationalEngine() {
         }
       });
 
+      // Parse BNPL Database
       const sBnpl = textBnpl.indexOf("{");
       const eBnpl = textBnpl.lastIndexOf("}") + 1;
       const jsonBnpl = JSON.parse(textBnpl.substring(sBnpl, eBnpl));
@@ -321,7 +329,7 @@ export default function DigiplusOperationalEngine() {
         }
       }
     } catch (err) {
-      console.error("Gagal sinkronisasi data live:", err);
+      console.error("Gagal live fetch:", err);
     } finally {
       setIsLoading(false);
     }
@@ -364,7 +372,7 @@ export default function DigiplusOperationalEngine() {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordInput !== "Welcome@123") {
-      setLoginErr("Kata sandi salah! Gunakan: Welcome@123");
+      setLoginErr("Password salah! Gunakan: Welcome@123");
       return;
     }
     const cleanId = salesIdInput.trim();
@@ -423,12 +431,45 @@ export default function DigiplusOperationalEngine() {
     setCurrentSalesName("");
   };
 
-  const WEEK_DEFINITIONS = useMemo(() => [
-    { key: "W1", label: "Week 1 (03/10/26)", range: "01 Okt 2026 s.d. 03 Okt 2026", days: 3 },
-    { key: "W2", label: "W2 (10OKT 2026)", range: "04 Okt 2026 s.d. 10 Okt 2026", days: 7 },
-    { key: "W3", label: "W3 (17OKT 2026)", range: "11 Okt 2026 s.d. 17 Okt 2026", days: 7 },
-    { key: "W4", label: "W4 (24OKT 2026)", range: "18 Okt 2026 s.d. 24 Okt 2026", days: 7 },
-  ], []);
+  // ==============================================================
+  // DETEKSI MINGGU OTOMATIS DARI ENTRI NYATA KOLOM O SPREADSHEET
+  // ==============================================================
+  const AUTO_WEEKS = useMemo(() => {
+    const map = new Map<string, { label: string; minDate: string; maxDate: string; count: number }>();
+
+    transactions.forEach((t) => {
+      const wLabel = t.weekLabel ? t.weekLabel.trim() : "";
+      if (!wLabel) return;
+
+      if (!map.has(wLabel)) {
+        map.set(wLabel, { label: wLabel, minDate: t.isoDate, maxDate: t.isoDate, count: 0 });
+      }
+
+      const item = map.get(wLabel)!;
+      item.count++;
+      if (t.isoDate && t.isoDate < item.minDate) item.minDate = t.isoDate;
+      if (t.isoDate && t.isoDate > item.maxDate) item.maxDate = t.isoDate;
+    });
+
+    // Urutkan minggu berdasarkan tanggal awal transaksi
+    const sorted = Array.from(map.values()).sort((a, b) => a.minDate.localeCompare(b.minDate));
+
+    return sorted.map((w, idx) => {
+      const key = `W${idx + 1}`;
+      const formatNice = (iso: string) => {
+        if (!iso) return "";
+        const p = iso.split("-");
+        return p.length === 3 ? `${p[2]}/${p[1]}` : iso;
+      };
+      const range = w.minDate ? `${formatNice(w.minDate)} s.d. ${formatNice(w.maxDate)}` : "Periode Berjalan";
+      return {
+        key,
+        label: w.label,
+        range,
+        days: 7,
+      };
+    });
+  }, [transactions]);
 
   // Filter Data Transaksi Aktif
   const activeTransactions = useMemo(() => {
@@ -440,12 +481,11 @@ export default function DigiplusOperationalEngine() {
         return t.isoDate === selectedDate;
       }
       if (periodType === "weekly" && selectedWeek !== "ALL") {
-        const wDef = WEEK_DEFINITIONS.find((w) => w.key === selectedWeek);
-        return wDef ? t.weekLabel.toLowerCase().includes(wDef.label.toLowerCase()) : true;
+        return t.weekLabel.toLowerCase().includes(selectedWeek.toLowerCase());
       }
       return true;
     });
-  }, [transactions, selectedMonth, periodType, selectedDate, selectedWeek, WEEK_DEFINITIONS]);
+  }, [transactions, selectedMonth, periodType, selectedDate, selectedWeek]);
 
   // Kalkulasi Overview Metrics
   const overviewStats = useMemo(() => {
@@ -453,7 +493,7 @@ export default function DigiplusOperationalEngine() {
     const target = periodType === "daily"
       ? Math.round(8728667173 / 31)
       : periodType === "weekly"
-      ? Math.round((8728667173 / 31) * (WEEK_DEFINITIONS.find((w) => w.key === selectedWeek)?.days || 7))
+      ? Math.round((8728667173 / 31) * 7)
       : 8728667173;
 
     const achv = calcAchv(actual, target);
@@ -463,36 +503,36 @@ export default function DigiplusOperationalEngine() {
     const invoiceCount = new Set(activeTransactions.map((t) => t.invoice)).size;
     const storeUPT = calcUpt(qtyTotal, invoiceCount);
 
-    // Kategori LOB
+    // Kategori Apple Devices: HANYA PRODUK HARDWARE APPLE RESMI DARI GROUP CATEGORY DEVICES
     const appleItems = activeTransactions.filter((t) => {
       const pUpper = t.productName.toUpperCase();
-      return (t.brand === "APPLE" || pUpper.includes("IPHONE") || pUpper.includes("IPAD") || pUpper.includes("AIRPOD") || pUpper.includes("MAC") || pUpper.includes("WATCH")) &&
-        (t.groupCategory === "DEVICES" || pUpper.includes("IPHONE") || pUpper.includes("IPAD") || pUpper.includes("AIRPOD") || pUpper.includes("MAC") || pUpper.includes("WATCH"));
+      const isHardware = pUpper.includes("IPHONE") || pUpper.includes("IPAD") || pUpper.includes("AIRPOD") || pUpper.includes("MACBOOK") || pUpper.includes("WATCH");
+      const isCaseOrAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE") || pUpper.includes("POWER");
+      return t.brand === "APPLE" && (t.groupCategory === "DEVICES" || isHardware) && !isCaseOrAcc;
     });
     const appleActual = appleItems.reduce((acc, t) => acc + t.amount, 0);
     const appleTarget = Math.round(target * 0.794);
 
+    // Kategori Android Devices: SEMUA PERANGKAT SMARTPHONE / TABLET DARI BRAND SELAIN APPLE (TERMASUK XIAOMI / REDMI)
     const androidItems = activeTransactions.filter((t) => {
       const pUpper = t.productName.toUpperCase();
-      return ["SAMSUNG", "OPPO", "MOTOROLA", "HUAWEI", "INFINIX", "XIAOMI"].includes(t.brand) ||
-        (t.groupCategory === "DEVICES" && t.brand !== "APPLE" && !pUpper.includes("IPHONE"));
+      const isCaseOrAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE");
+      return (
+        t.groupCategory === "DEVICES" &&
+        t.brand !== "APPLE" &&
+        !isCaseOrAcc
+      );
     });
     const androidActual = androidItems.reduce((acc, t) => acc + t.amount, 0);
     const androidTarget = Math.round(target * 0.108);
 
+    // Kategori Accessories: SEMUA CASE (TERMASUK UNIQ, KORA, ZAGG, CASE IPHONE) & AKSESORIS LAIN
     const accItems = activeTransactions.filter((t) => t.groupCategory === "ACCESSORIES");
     const accActual = accItems.reduce((acc, t) => acc + t.amount, 0);
     const accTarget = Math.round(target * 0.053);
 
-    const vasItems = activeTransactions.filter((t) => {
-      const pUpper = t.productName.toUpperCase();
-      return t.groupCategory === "VAS" ||
-        ["QOALA", "TELKOMSEL", "XL", "INDOSAT"].includes(t.brand) ||
-        pUpper.includes("QOALA") ||
-        pUpper.includes("PROTEKSI") ||
-        pUpper.includes("TELKOMSEL") ||
-        pUpper.includes("MYPRIO");
-    });
+    // Kategori VAS: QOALA, TELKOMSEL, XL, INDOSAT
+    const vasItems = activeTransactions.filter((t) => t.groupCategory === "VAS");
     const vasActual = vasItems.reduce((acc, t) => acc + t.amount, 0);
     const vasTarget = Math.round(target * 0.045);
 
@@ -510,9 +550,9 @@ export default function DigiplusOperationalEngine() {
       storeUPT,
       todayActual,
       lobs: [
-        { name: "Apple Devices", icon: "🍎", actual: appleActual, target: appleTarget, achv: calcAchv(appleActual, appleTarget), variance: appleActual - appleTarget, estimate: Math.round(appleActual * 1.29), color: "text-sky-400" },
-        { name: "Android Devices", icon: "🤖", actual: androidActual, target: androidTarget, achv: calcAchv(androidActual, androidTarget), variance: androidActual - androidTarget, estimate: Math.round(androidActual * 1.29), color: "text-indigo-400" },
-        { name: "Accessories", icon: "🔌", actual: accActual, target: accTarget, achv: calcAchv(accActual, accTarget), variance: accActual - accTarget, estimate: Math.round(accActual * 1.29), color: "text-amber-400" },
+        { name: "Apple Devices (Hardware)", icon: "🍎", actual: appleActual, target: appleTarget, achv: calcAchv(appleActual, appleTarget), variance: appleActual - appleTarget, estimate: Math.round(appleActual * 1.29), color: "text-sky-400" },
+        { name: "Android Devices (Samsung, Xiaomi, dll)", icon: "🤖", actual: androidActual, target: androidTarget, achv: calcAchv(androidActual, androidTarget), variance: androidActual - androidTarget, estimate: Math.round(androidActual * 1.29), color: "text-indigo-400" },
+        { name: "Accessories (Cases & Acc)", icon: "🔌", actual: accActual, target: accTarget, achv: calcAchv(accActual, accTarget), variance: accActual - accTarget, estimate: Math.round(accActual * 1.29), color: "text-amber-400" },
         { name: "VAS (Qoala, Telkomsel, XL, Indosat)", icon: "🛡️", actual: vasActual, target: vasTarget, achv: calcAchv(vasActual, vasTarget), variance: vasActual - vasTarget, estimate: Math.round(vasActual * 1.29), color: "text-purple-400" },
       ],
       appleItems,
@@ -520,20 +560,25 @@ export default function DigiplusOperationalEngine() {
       accItems,
       vasItems,
     };
-  }, [activeTransactions, periodType, selectedWeek, selectedDate, transactions, WEEK_DEFINITIONS]);
+  }, [activeTransactions, periodType, selectedDate, transactions]);
 
-  // Kalkulasi Weekly Report
+  // Kalkulasi Rekap Mingguan Dinamis (Otomatis Mendeteksi W1 s.d. W5 / W6 dst)
   const weeklyReport = useMemo(() => {
-    return WEEK_DEFINITIONS.map((wDef, idx) => {
+    return AUTO_WEEKS.map((wDef, idx) => {
       const match = transactions.filter((t) => t.weekLabel.toLowerCase().includes(wDef.label.toLowerCase()));
       const sales = match.reduce((acc, t) => acc + t.amount, 0);
       const qty = match.reduce((acc, t) => acc + t.qty, 0);
       const invCount = new Set(match.map((t) => t.invoice)).size;
       const target = Math.round((8728667173 / 31) * wDef.days);
 
-      const prevMatch = idx > 0 ? transactions.filter((t) => t.weekLabel.toLowerCase().includes(WEEK_DEFINITIONS[idx - 1].label.toLowerCase())) : [];
+      const prevMatch = idx > 0 ? transactions.filter((t) => t.weekLabel.toLowerCase().includes(AUTO_WEEKS[idx - 1].label.toLowerCase())) : [];
       const prevSales = prevMatch.reduce((acc, t) => acc + t.amount, 0);
       const wowGrowth = idx > 0 && prevSales > 0 ? Number((((sales - prevSales) / prevSales) * 100).toFixed(1)) : 0;
+
+      const apple = match.filter((t) => t.brand === "APPLE" && t.groupCategory === "DEVICES").reduce((acc, c) => acc + c.amount, 0);
+      const android = match.filter((t) => t.groupCategory === "DEVICES" && t.brand !== "APPLE").reduce((acc, c) => acc + c.amount, 0);
+      const acc = match.filter((t) => t.groupCategory === "ACCESSORIES").reduce((acc, c) => acc + c.amount, 0);
+      const vas = match.filter((t) => t.groupCategory === "VAS").reduce((acc, c) => acc + c.amount, 0);
 
       return {
         ...wDef,
@@ -543,12 +588,17 @@ export default function DigiplusOperationalEngine() {
         target,
         achv: calcAchv(sales, target),
         wowGrowth,
+        apple,
+        android,
+        acc,
+        vas,
+        matchTrx: match,
       };
     });
-  }, [transactions, WEEK_DEFINITIONS]);
+  }, [transactions, AUTO_WEEKS]);
 
-  // Kalkulasi Staff Report
-  const staffList: StaffPerformanceData[] = useMemo(() => {
+  // Kalkulasi Kinerja Staf & Sub-LOB
+  const staffList = useMemo(() => {
     const map: Record<string, {
       salesId: string;
       name: string;
@@ -581,11 +631,11 @@ export default function DigiplusOperationalEngine() {
           },
           androidMap: {
             "Samsung Devices": { actual: 0, qty: 0, icon: "📱" },
+            "Xiaomi / Redmi Devices": { actual: 0, qty: 0, icon: "🟠" },
             "Oppo Devices": { actual: 0, qty: 0, icon: "🟢" },
             "Motorola Devices": { actual: 0, qty: 0, icon: "Ⓜ️" },
             "Huawei Devices": { actual: 0, qty: 0, icon: "🔴" },
             "Infinix Devices": { actual: 0, qty: 0, icon: "⚡" },
-            "Xiaomi Devices": { actual: 0, qty: 0, icon: "🟠" },
           },
           accMap: {},
           vasMap: {
@@ -608,9 +658,10 @@ export default function DigiplusOperationalEngine() {
       map[id].weekSales[wLabel] = (map[id].weekSales[wLabel] || 0) + t.amount;
 
       const pUpper = t.productName.toUpperCase();
+      const isCaseAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE") || pUpper.includes("BAND");
 
-      // Apple Sub
-      if (t.brand === "APPLE" || pUpper.includes("IPHONE") || pUpper.includes("IPAD") || pUpper.includes("AIRPOD") || pUpper.includes("WATCH") || pUpper.includes("MAC")) {
+      // Apple Devices Hardware Murni
+      if (t.brand === "APPLE" && !isCaseAcc && (t.groupCategory === "DEVICES" || pUpper.includes("IPHONE") || pUpper.includes("IPAD") || pUpper.includes("MAC") || pUpper.includes("WATCH") || pUpper.includes("AIRPOD"))) {
         if (pUpper.includes("IPHONE")) { map[id].appleMap["iPhone"].actual += t.amount; map[id].appleMap["iPhone"].qty += t.qty; }
         else if (pUpper.includes("IPAD")) { map[id].appleMap["iPad"].actual += t.amount; map[id].appleMap["iPad"].qty += t.qty; }
         else if (pUpper.includes("MAC") || pUpper.includes("BOOK")) { map[id].appleMap["MacBook"].actual += t.amount; map[id].appleMap["MacBook"].qty += t.qty; }
@@ -618,30 +669,32 @@ export default function DigiplusOperationalEngine() {
         else if (pUpper.includes("AIRPOD")) { map[id].appleMap["AirPods"].actual += t.amount; map[id].appleMap["AirPods"].qty += t.qty; }
       }
 
-      // Android Sub
-      if (t.brand === "SAMSUNG" || pUpper.includes("GALAXY")) { map[id].androidMap["Samsung Devices"].actual += t.amount; map[id].androidMap["Samsung Devices"].qty += t.qty; }
-      else if (t.brand === "OPPO") { map[id].androidMap["Oppo Devices"].actual += t.amount; map[id].androidMap["Oppo Devices"].qty += t.qty; }
-      else if (t.brand === "MOTOROLA") { map[id].androidMap["Motorola Devices"].actual += t.amount; map[id].androidMap["Motorola Devices"].qty += t.qty; }
-      else if (t.brand === "HUAWEI") { map[id].androidMap["Huawei Devices"].actual += t.amount; map[id].androidMap["Huawei Devices"].qty += t.qty; }
-      else if (t.brand === "INFINIX") { map[id].androidMap["Infinix Devices"].actual += t.amount; map[id].androidMap["Infinix Devices"].qty += t.qty; }
-      else if (t.brand === "XIAOMI") { map[id].androidMap["Xiaomi Devices"].actual += t.amount; map[id].androidMap["Xiaomi Devices"].qty += t.qty; }
+      // Android Devices (Termasuk Xiaomi / Redmi selama Group Category = DEVICES)
+      if (t.groupCategory === "DEVICES" && t.brand !== "APPLE" && !isCaseAcc) {
+        if (t.brand === "SAMSUNG" || pUpper.includes("GALAXY")) { map[id].androidMap["Samsung Devices"].actual += t.amount; map[id].androidMap["Samsung Devices"].qty += t.qty; }
+        else if (t.brand === "XIAOMI" || pUpper.includes("REDMI")) { map[id].androidMap["Xiaomi / Redmi Devices"].actual += t.amount; map[id].androidMap["Xiaomi / Redmi Devices"].qty += t.qty; }
+        else if (t.brand === "OPPO") { map[id].androidMap["Oppo Devices"].actual += t.amount; map[id].androidMap["Oppo Devices"].qty += t.qty; }
+        else if (t.brand === "MOTOROLA") { map[id].androidMap["Motorola Devices"].actual += t.amount; map[id].androidMap["Motorola Devices"].qty += t.qty; }
+        else if (t.brand === "HUAWEI") { map[id].androidMap["Huawei Devices"].actual += t.amount; map[id].androidMap["Huawei Devices"].qty += t.qty; }
+        else if (t.brand === "INFINIX") { map[id].androidMap["Infinix Devices"].actual += t.amount; map[id].androidMap["Infinix Devices"].qty += t.qty; }
+      }
 
-      // Accessories Sub (Urut Besar ke Kecil)
-      if (t.groupCategory === "ACCESSORIES") {
+      // Accessories (Termasuk Case iPhone & Casing Pihak Ketiga)
+      if (t.groupCategory === "ACCESSORIES" || isCaseAcc) {
         const item = t.productName.trim() || "Aksesoris";
         if (!map[id].accMap[item]) map[id].accMap[item] = { actual: 0, qty: 0, icon: "🔌" };
         map[id].accMap[item].actual += t.amount;
         map[id].accMap[item].qty += t.qty;
       }
 
-      // VAS Sub
+      // VAS
       if (t.brand === "QOALA" || pUpper.includes("QOALA") || pUpper.includes("PROTEKSI")) {
         map[id].vasMap["Qoala Proteksi Gadget"].actual += t.amount;
         map[id].vasMap["Qoala Proteksi Gadget"].qty += t.qty;
-      } else if (t.brand === "TELKOMSEL" || pUpper.includes("TELKOMSEL")) {
+      } else if (t.brand === "TELKOMSEL" || pUpper.includes("TELKOMSEL") || pUpper.includes("HALO")) {
         map[id].vasMap["Telkomsel Halo/Data"].actual += t.amount;
         map[id].vasMap["Telkomsel Halo/Data"].qty += t.qty;
-      } else if (t.brand === "XL") {
+      } else if (t.brand === "XL" || pUpper.includes("MYPRIO")) {
         map[id].vasMap["XL Prioritas"].actual += t.amount;
         map[id].vasMap["XL Prioritas"].qty += t.qty;
       } else if (t.brand === "INDOSAT") {
@@ -717,6 +770,7 @@ export default function DigiplusOperationalEngine() {
     });
   }, [activeTransactions]);
 
+  // Kalkulasi BNPL
   const bnplSummary = useMemo(() => {
     const totalAmount = bnplRecords.reduce((acc, b) => acc + b.amount, 0);
     const totalQty = bnplRecords.reduce((acc, b) => acc + b.qty, 0);
@@ -770,9 +824,7 @@ export default function DigiplusOperationalEngine() {
     });
   };
 
-  // ==========================================
-  // WHATSAPP SHARE GENERATOR
-  // ==========================================
+  // WhatsApp Handlers
   const handleShareDaily = () => {
     const appleVal = overviewStats.lobs.find((l) => l.name.includes("Apple"))?.actual || 0;
     const androidVal = overviewStats.lobs.find((l) => l.name.includes("Android"))?.actual || 0;
@@ -844,7 +896,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
   };
 
   // ==========================================
-  // DRILLDOWN MODAL / BOTTOM SHEET HANDLER
+  // BOTTOM SHEET MODAL HANDLERS
   // ==========================================
   const openCustomBottomSheet = (title: string, content: React.ReactNode) => {
     setSheetTitle(title);
@@ -852,7 +904,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
     setBottomSheetOpen(true);
   };
 
-  // Drilldown Detail Produk LOB
   const openLobDetailSheet = (lobName: string, items: RawTransaction[]) => {
     openCustomBottomSheet(`Rincian Produk: ${lobName} (${items.length} Item)`, (
       <div className="space-y-4 text-xs">
@@ -868,6 +919,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               <tr>
                 <th className="py-2.5 px-3">Nama Produk</th>
                 <th className="py-2.5 px-3">SAP Article</th>
+                <th className="py-2.5 px-3">Brand</th>
                 <th className="py-2.5 px-3 text-center">Qty</th>
                 <th className="py-2.5 px-3 text-right">Nilai (Rp)</th>
               </tr>
@@ -877,6 +929,11 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                 <tr key={idx} className="hover:opacity-90">
                   <td className="py-2.5 px-3 font-semibold">{it.productName}</td>
                   <td className="py-2.5 px-3 font-mono opacity-60 text-[10px]">{it.sapArticle || "-"}</td>
+                  <td className="py-2.5 px-3">
+                    <span className="px-2 py-0.5 rounded text-[10px] bg-slate-700/40 text-slate-300 font-bold">
+                      {it.brand}
+                    </span>
+                  </td>
                   <td className="py-2.5 px-3 text-center font-bold">{it.qty}</td>
                   <td className="py-2.5 px-3 text-right font-extrabold text-emerald-400">{formatIDR(it.amount)}</td>
                 </tr>
@@ -888,7 +945,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
     ));
   };
 
-  // Drilldown Detail Penjualan Per Staf
   const openStaffDetailSheet = (staff: StaffPerformanceData) => {
     openCustomBottomSheet(`Rincian Lengkap Salesperson: ${staff.name}`, (
       <div className="space-y-5 text-xs">
@@ -914,11 +970,11 @@ _Diperbarui via Digiplus Store Operations Engine._`;
           </div>
         </div>
 
-        {/* 1. Sub-Lini Apple Devices */}
+        {/* 1. Sub-Lini Apple Devices Hardware Murni */}
         <div>
           <h4 className="text-xs font-bold text-sky-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
             <span>🍎</span>
-            <span>Rincian Apple Devices</span>
+            <span>Rincian Apple Devices (Hardware Utama)</span>
           </h4>
           <div className="overflow-x-auto rounded-xl border border-inherit">
             <table className="w-full text-left text-xs">
@@ -949,7 +1005,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
         <div>
           <h4 className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
             <span>🤖</span>
-            <span>Rincian Android Devices</span>
+            <span>Rincian Android Devices (Samsung, Xiaomi, dll)</span>
           </h4>
           <div className="overflow-x-auto rounded-xl border border-inherit">
             <table className="w-full text-left text-xs">
@@ -1041,6 +1097,61 @@ _Diperbarui via Digiplus Store Operations Engine._`;
     ));
   };
 
+  const openWeeklyStaffSheet = (wLabel: string, weekTransactions: RawTransaction[]) => {
+    const staffMap: Record<string, { name: string; apple: number; android: number; acc: number; vas: number; total: number; qty: number }> = {};
+    weekTransactions.forEach((t) => {
+      const sName = t.salesName || "Unknown";
+      if (!staffMap[sName]) staffMap[sName] = { name: sName, apple: 0, android: 0, acc: 0, vas: 0, total: 0, qty: 0 };
+      staffMap[sName].total += t.amount;
+      staffMap[sName].qty += t.qty;
+      if (t.brand === "APPLE" && t.groupCategory === "DEVICES") staffMap[sName].apple += t.amount;
+      else if (t.groupCategory === "DEVICES") staffMap[sName].android += t.amount;
+      else if (t.groupCategory === "ACCESSORIES") staffMap[sName].acc += t.amount;
+      else if (t.groupCategory === "VAS") staffMap[sName].vas += t.amount;
+    });
+
+    const staffRows = Object.values(staffMap).sort((a, b) => b.total - a.total);
+
+    openCustomBottomSheet(`Pencapaian Staf: ${wLabel}`, (
+      <div className="space-y-4 text-xs">
+        <div className="flex justify-between items-center p-3 rounded-xl bg-black/20 border border-slate-700/50">
+          <span>Total Penjualan Minggu Ini:</span>
+          <strong className="text-emerald-400 font-bold text-sm">
+            {formatIDR(weekTransactions.reduce((acc, c) => acc + c.amount, 0))}
+          </strong>
+        </div>
+        <div className="overflow-x-auto rounded-xl border border-inherit">
+          <table className="w-full text-left text-xs min-w-[600px]">
+            <thead className="bg-black/40 uppercase text-[10px] border-b border-inherit">
+              <tr>
+                <th className="py-2.5 px-3">Salesperson</th>
+                <th className="py-2.5 px-3 text-center">Unit</th>
+                <th className="py-2.5 px-3 text-right text-sky-400">Apple</th>
+                <th className="py-2.5 px-3 text-right text-indigo-400">Android</th>
+                <th className="py-2.5 px-3 text-right text-amber-400">Acc</th>
+                <th className="py-2.5 px-3 text-right text-purple-400">VAS</th>
+                <th className="py-2.5 px-3 text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-inherit">
+              {staffRows.map((s, idx) => (
+                <tr key={idx} className="hover:opacity-90">
+                  <td className="py-2.5 px-3 font-bold">{s.name}</td>
+                  <td className="py-2.5 px-3 text-center font-bold">{s.qty}</td>
+                  <td className="py-2.5 px-3 text-right font-mono text-sky-400">{formatIDR(s.apple)}</td>
+                  <td className="py-2.5 px-3 text-right font-mono text-indigo-400">{formatIDR(s.android)}</td>
+                  <td className="py-2.5 px-3 text-right font-mono text-amber-400">{formatIDR(s.acc)}</td>
+                  <td className="py-2.5 px-3 text-right font-mono text-purple-400">{formatIDR(s.vas)}</td>
+                  <td className="py-2.5 px-3 text-right font-extrabold text-emerald-400">{formatIDR(s.total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    ));
+  };
+
   if (!isMounted) return null;
 
   // Styling Dinamis
@@ -1116,7 +1227,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
   // =============================================================
   return (
     <div className={`flex min-h-screen ${bgMain} ${textMain} font-sans relative`}>
-      {/* Mobile Drawer Button */}
+      {/* Mobile Drawer Trigger Button */}
       <div className="lg:hidden fixed bottom-5 right-5 z-40 print:hidden">
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -1293,7 +1404,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
             </div>
           </div>
 
-          {/* BARIS FILTER DINAMIS: DAILY, WEEKLY, MONTHLY */}
+          {/* BARIS FILTER DINAMIS */}
           <div className={`p-3 ${cardBg} border rounded-2xl flex flex-wrap items-center gap-3 justify-between text-xs`}>
             <div className="flex flex-wrap items-center gap-3">
               {/* Toggle Mode Periode */}
@@ -1327,7 +1438,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                 </div>
               )}
 
-              {/* Filter Week */}
+              {/* Filter Week (Otomatis Terupdate dari Kolom O) */}
               {periodType === "weekly" && (
                 <div className="flex items-center gap-2">
                   <span className="opacity-70 font-semibold">📊 Week:</span>
@@ -1337,8 +1448,8 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     className={`${innerBg} border rounded-xl px-2.5 py-1 font-bold focus:outline-none`}
                   >
                     <option value="ALL">Semua Minggu</option>
-                    {WEEK_DEFINITIONS.map((w) => (
-                      <option key={w.key} value={w.key}>{w.label} ({w.range})</option>
+                    {AUTO_WEEKS.map((w) => (
+                      <option key={w.key} value={w.label}>{w.label} ({w.range})</option>
                     ))}
                   </select>
                 </div>
@@ -1450,7 +1561,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                 <div>
                   <div className="flex justify-between items-center mb-3">
                     <h2 className="text-base font-bold">Matriks Kategori Produk ({periodType.toUpperCase()})</h2>
-                    <span className={`text-[11px] ${textMuted} hidden sm:inline`}>VAS: Qoala + Telkomsel + XL + Indosat</span>
+                    <span className={`text-[11px] ${textMuted} hidden sm:inline`}>Apple Murni Hardware • Android Devices Termasuk Xiaomi</span>
                   </div>
 
                   <div className={`${cardBg} border rounded-2xl overflow-x-auto shadow-xl`}>
@@ -1562,7 +1673,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
             )}
 
             {/* ========================================================= */}
-            {/* TAB 2: WEEKLY SALES (DARI SHEET DATABASE KOLOM O)        */}
+            {/* TAB 2: WEEKLY SALES (WoW DARI DATABASE KOLOM O)          */}
             {/* ========================================================= */}
             {activeTab === "weekly-sales" && (
               <div className="space-y-6 sm:space-y-8">
@@ -1574,7 +1685,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                         <span>WEEKLY SALES & WEEK-OVER-WEEK (WOW) DARI DATABASE KOLOM O</span>
                       </h2>
                       <p className={`text-xs ${textMuted} mt-1`}>
-                        Data dikelompokkan secara otomatis berdasarkan label minggu di Kolom O dengan rentang tanggal eksplisit.
+                        Mendeteksi seluruh minggu otomatis dari Kolom O sheet <code>DATABASE</code> (termasuk W5 dan update minggu mendatang).
                       </p>
                     </div>
 
@@ -1587,25 +1698,37 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     </button>
                   </div>
 
-                  {/* 4 Kartu Week */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Grid Mingguan Auto-Detected */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                     {weeklyReport.map((w, idx) => (
-                      <div key={idx} className={`p-4 ${innerBg} border rounded-2xl`}>
-                        <div className="flex justify-between items-center mb-1">
-                          <span className={`text-xs font-bold ${accentText}`}>{w.label}</span>
+                      <div key={idx} className={`p-3.5 ${innerBg} border rounded-2xl flex flex-col justify-between`}>
+                        <div>
+                          <div className="flex justify-between items-center mb-1">
+                            <span className={`text-xs font-bold ${accentText}`}>{w.label}</span>
+                            {idx > 0 && (
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${w.wowGrowth >= 0 ? "bg-emerald-500/20 text-emerald-500" : "bg-red-500/20 text-red-500"}`}>
+                                {w.wowGrowth > 0 ? `+${w.wowGrowth}%` : `${w.wowGrowth}%`}
+                              </span>
+                            )}
+                          </div>
+                          <p className={`text-[9px] ${textMuted} mb-1.5`}>{w.range}</p>
+                          <div className="text-base font-black mt-1">{formatIDR(w.sales)}</div>
+                        </div>
+
+                        <div className="mt-3 pt-2 border-t border-inherit flex items-center justify-between">
+                          <button
+                            onClick={() => openWeeklyStaffSheet(w.label, w.matchTrx)}
+                            className="text-[10px] font-bold text-sky-400 hover:underline"
+                          >
+                            Lihat Per Staff &gt;
+                          </button>
                           <button
                             onClick={() => handleShareWeekly(w.label, w.sales, w.target, w.achv)}
                             title="Share Week ini ke WA"
                             className="p-1 rounded bg-emerald-500 text-white text-[10px]"
                           >
-                            📲 Share
+                            📲
                           </button>
-                        </div>
-                        <p className={`text-[10px] ${textMuted} mb-1.5`}>{w.range}</p>
-                        <div className="text-lg font-black mt-1">{formatIDR(w.sales)}</div>
-                        <div className={`flex justify-between text-[11px] ${textMuted} mt-2`}>
-                          <span>Target: {formatIDR(w.target)}</span>
-                          <span className="font-bold text-emerald-400">{w.achv}%</span>
                         </div>
                       </div>
                     ))}
@@ -1624,6 +1747,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                           <th className="py-4 px-4 text-right">Total Penjualan</th>
                           <th className="py-4 px-4 text-center">Achv %</th>
                           <th className="py-4 px-4 text-center">WoW Growth</th>
+                          <th className="py-4 px-4 text-center">Aksi</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-inherit font-medium">
@@ -1644,6 +1768,14 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                                   {w.wowGrowth > 0 ? `+${w.wowGrowth}%` : `${w.wowGrowth}%`}
                                 </span>
                               )}
+                            </td>
+                            <td className="py-4 px-4 text-center">
+                              <button
+                                onClick={() => openWeeklyStaffSheet(w.label, w.matchTrx)}
+                                className={`px-2.5 py-1 rounded-xl text-xs font-bold transition ${activeTabBtn}`}
+                              >
+                                Detail Staff
+                              </button>
                             </td>
                           </tr>
                         ))}
@@ -1792,7 +1924,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     </div>
                   </div>
 
-                  {/* Rekap Jumlah Personil Standby per Hari */}
+                  {/* Rekap Personil Harian */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 text-center">
                     {scheduleDaySummary.map((d, i) => {
                       const dayNames = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
@@ -1806,7 +1938,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     })}
                   </div>
 
-                  {/* Tabel Jadwal 1 Minggu Lengkap per Staf */}
+                  {/* Tabel Jadwal */}
                   <div className={`overflow-x-auto rounded-2xl border ${innerBg}`}>
                     <table className="w-full text-left text-xs min-w-[700px]">
                       <thead className={`${innerBg} uppercase text-[11px] border-b border-inherit`}>
@@ -2094,7 +2226,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
       </main>
 
       {/* ========================================================= */}
-      {/* 5. KOMPONEN BOTTOM SHEET DRAWER (INTERAKTIF MOBILE & DESKTOP) */}
+      {/* BOTTOM SHEET MODAL DRILLDOWN                             */}
       {/* ========================================================= */}
       {bottomSheetOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm transition-opacity animate-in fade-in">
@@ -2114,7 +2246,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               </button>
             </div>
 
-            {/* Konten Scrollable Bottom Sheet */}
+            {/* Konten Scrollable */}
             <div className="p-4 sm:p-6 overflow-y-auto space-y-4 text-xs">
               {sheetContent}
             </div>
