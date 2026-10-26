@@ -1,800 +1,1070 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useTransition } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
-  Store,
+  BarChart3,
   Calendar,
   Users,
-  Search,
-  MessageSquare,
-  Clock,
   CreditCard,
-  Download,
+  MessageSquare,
+  Search,
   Share2,
+  FileDown,
   RefreshCw,
   Sun,
   Moon,
-  ChevronUp,
-  X,
-  Smartphone,
-  ShieldCheck,
-  Headphones,
-  Award,
+  ChevronRight,
   TrendingUp,
-  FileText
+  Clock,
+  ShieldAlert,
+  Smartphone,
+  Headphones,
+  ShieldCheck,
+  XCircle,
+  Printer,
+  Edit3,
+  Check,
+  Send,
+  MessageCircle
 } from 'lucide-react';
 
 // ==========================================
-// CONSTANTS & SPREADSHEET CONFIG
+// 1. DATA CONTRACTS & INTERFACES
 // ==========================================
-const SPREADSHEET_ID = '1v_QCLTDKORjVnByrzo9qRiivdU8CGO99nJri9jBETWM';
-const GID_DATABASE = '602901290';
-const GID_BNPL = '2697970';
-const ADMIN_SALES_ID = '22008089';
-
-// ==========================================
-// HELPER FORMATTERS
-// ==========================================
-const formatIDR = (val: number): string => {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    maximumFractionDigits: 0,
-  }).format(val || 0);
-};
-
-const formatCompactIDR = (val: number): string => {
-  if (Math.abs(val) >= 1_000_000_000) {
-    return `Rp ${(val / 1_000_000_000).toFixed(2)} M`;
-  }
-  if (Math.abs(val) >= 1_000_000) {
-    return `Rp ${(val / 1_000_000).toFixed(1)} Jt`;
-  }
-  return formatIDR(val);
-};
-
-// ==========================================
-// TYPES
-// ==========================================
-interface Transaction {
-  date: string;
+export interface RawTxRow {
+  rowId: string;
   salesId: string;
   salesName: string;
-  invoice: string;
-  sapArticle: string;
-  sapDescription: string;
+  invoiceNo: string;
+  article: string;
+  description: string;
   qty: number;
   amount: number;
-  productType: string;
+  transDate: string; // YYYY-MM-DD
   brandName: string;
-  groupCategory: string;
-  month: string;
-  week: string;
+  categoryRaw: string;
+  weekName: string;
 }
 
-interface BnplItem {
-  date: string;
-  invoice: string;
+export interface RawBnplRow {
+  transDate: string;
+  invoiceNo: string;
   product: string;
   qty: number;
   amount: number;
   tender: string;
 }
 
-interface Feedback {
+export interface RawTargetRow {
+  salesId: string;
+  salesName: string;
+  role: string;
+  targetMonthly: number;
+  dailyCatchUpTarget: number;
+}
+
+export interface FeedbackItem {
   id: string;
   salesName: string;
   timestamp: string;
-  message: string;
-  reactions: Record<string, number>;
+  text: string;
+  isEdited?: boolean;
+  reactions: {
+    like: number;
+    heart: number;
+    fire: number;
+    dislike: number;
+    sad: number;
+  };
+}
+
+export interface ShiftSchedule {
+  salesId: string;
+  salesName: string;
+  role: string;
+  shifts: { [dayKey: string]: string };
 }
 
 // ==========================================
-// MAIN COMPONENT
+// 2. KONFIGURASI SPREADSHEET & GID
 // ==========================================
-export default function RetailOperationsDashboard() {
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+const SPREADSHEET_ID = '1v_QCLTDKORjVnByrzo9qRiivdU8CGO99nJri9jBETWM';
+const GID_DATABASE = '602901290';
+const GID_BNPL = '2697970';
+const GID_DAILY_TARGET = '789142551';
+const ADMIN_SALES_ID = '22008089';
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'weekly' | 'staff' | 'bnpl' | 'schedule' | 'dailyTarget' | 'search' | 'feedback'>('overview');
-  
-  // Auth state
-  const [currentSalesId, setCurrentSalesId] = useState<string>('24016878'); // default: Yunita Anggraini
-  const [data, setData] = useState<Transaction[]>([]);
-  const [bnplData, setBnplData] = useState<BnplItem[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [lastUpdated, setLastUpdated] = useState<string>('');
-  
-  // Filter Periods
-  const [periodFilter, setPeriodFilter] = useState<'MONTHLY' | 'WEEKLY' | 'DAILY'>('MONTHLY');
+const DAYS_OF_WEEK = [
+  { key: 'senin', label: 'Senin', date: '20 Okt' },
+  { key: 'selasa', label: 'Selasa', date: '21 Okt' },
+  { key: 'rabu', label: 'Rabu', date: '22 Okt' },
+  { key: 'kamis', label: 'Kamis', date: '23 Okt' },
+  { key: 'jumat', label: 'Jumat', date: '24 Okt' },
+  { key: 'sabtu', label: 'Sabtu', date: '25 Okt' },
+  { key: 'minggu', label: 'Minggu', date: '26 Okt' }
+];
+
+const INITIAL_STAFF_SCHEDULE: ShiftSchedule[] = [
+  { salesId: '22008089', salesName: 'Angga', role: 'Store Leader', shifts: { senin: 'D047', selasa: 'D047', rabu: 'D047', kamis: 'D047', jumat: 'D047', sabtu: 'D103', minggu: 'OFF' } },
+  { salesId: '22008090', salesName: 'Liesbeth', role: 'Cashier Leader', shifts: { senin: 'D047', selasa: 'D047', rabu: 'D103', kamis: 'OFF', jumat: 'D103', sabtu: 'D103', minggu: 'D047' } },
+  { salesId: '22008091', salesName: 'Yunita', role: 'Senior Sales', shifts: { senin: 'D103', selasa: 'D103', rabu: 'OFF', kamis: 'D047', jumat: 'D047', sabtu: 'D047', minggu: 'D103' } },
+  { salesId: '22008092', salesName: 'Surya', role: 'Sales Consultant', shifts: { senin: 'OFF', selasa: 'D047', rabu: 'D047', kamis: 'D103', jumat: 'D103', sabtu: 'D047', minggu: 'D047' } },
+  { salesId: '22008093', salesName: 'Amel', role: 'Sales Consultant', shifts: { senin: 'D047', selasa: 'OFF', rabu: 'D103', kamis: 'D103', jumat: 'D047', sabtu: 'D103', minggu: 'D103' } },
+  { salesId: '22008094', salesName: 'Adli', role: 'Sales Consultant', shifts: { senin: 'D103', selasa: 'D103', rabu: 'D047', kamis: 'OFF', jumat: 'D103', sabtu: 'D047', minggu: 'D047' } },
+  { salesId: '22008095', salesName: 'Andrian', role: 'Sales Consultant', shifts: { senin: 'D047', selasa: 'D047', rabu: 'D103', kamis: 'D103', jumat: 'OFF', sabtu: 'D103', minggu: 'D047' } },
+  { salesId: '22008096', salesName: 'Bagas', role: 'Sales Consultant', shifts: { senin: 'D103', selasa: 'D103', rabu: 'OFF', kamis: 'D047', jumat: 'D047', sabtu: 'D047', minggu: 'D103' } },
+  { salesId: '22008097', salesName: 'Bimo', role: 'Sales Consultant', shifts: { senin: 'OFF', selasa: 'D047', rabu: 'D047', kamis: 'D103', jumat: 'D103', sabtu: 'D103', minggu: 'D047' } },
+  { salesId: '22008098', salesName: 'Dimas', role: 'Sales Consultant', shifts: { senin: 'D047', selasa: 'OFF', rabu: 'D047', kamis: 'D047', jumat: 'D103', sabtu: 'D103', minggu: 'D103' } },
+  { salesId: '22008099', salesName: 'Amzahri', role: 'Sales Consultant', shifts: { senin: 'D103', selasa: 'D103', rabu: 'D047', kamis: 'OFF', jumat: 'D047', sabtu: 'D047', minggu: 'D103' } }
+];
+
+// ==========================================
+// 3. UTILITY FORMATTERS & GViz PARSERS
+// ==========================================
+function formatIDR(val: number): string {
+  if (isNaN(val)) return 'Rp 0';
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    maximumFractionDigits: 0
+  }).format(val);
+}
+
+function formatCompactIDR(val: number): string {
+  if (isNaN(val)) return 'Rp 0';
+  const abs = Math.abs(val);
+  if (abs >= 1_000_000_000) {
+    return `Rp ${(val / 1_000_000_000).toFixed(2)} M`;
+  }
+  if (abs >= 1_000_000) {
+    return `Rp ${(val / 1_000_000).toFixed(1)} Jt`;
+  }
+  if (abs >= 1_000) {
+    return `Rp ${(val / 1_000).toFixed(0)} Rb`;
+  }
+  return `Rp ${val}`;
+}
+
+function parseGVizCell(cell: any): string {
+  if (!cell) return '';
+  if (cell.v !== undefined && cell.v !== null) return String(cell.v).trim();
+  if (cell.f !== undefined && cell.f !== null) return String(cell.f).trim();
+  return '';
+}
+
+function parseNormalizedDate(str: string): string {
+  if (!str) return '';
+  if (str.startsWith('Date(')) {
+    const parts = str.replace('Date(', '').replace(')', '').split(',');
+    if (parts.length >= 3) {
+      const y = parseInt(parts[0], 10);
+      const m = String(parseInt(parts[1], 10) + 1).padStart(2, '0');
+      const d = String(parseInt(parts[2], 10)).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+  }
+  if (str.includes('/')) {
+    const p = str.split('/');
+    if (p.length === 3) {
+      const year = p[2].length === 2 ? `20${p[2]}` : p[2];
+      return `${year}-${p[1].padStart(2, '0')}-${p[0].padStart(2, '0')}`;
+    }
+  }
+  if (str.includes('-')) {
+    const p = str.split('-');
+    if (p.length === 3 && p[0].length === 4) {
+      return `${p[0]}-${p[1].padStart(2, '0')}-${p[2].padStart(2, '0')}`;
+    }
+  }
+  return str;
+}
+
+function classifyProduct(brand: string, catRaw: string, desc: string): 'Apple Devices' | 'Android Devices' | 'Accessories' | 'VAS' {
+  const b = (brand || '').toUpperCase();
+  const c = (catRaw || '').toUpperCase();
+  const d = (desc || '').toUpperCase();
+
+  if (d.includes('QOALA') || d.includes('TELKOMSEL') || d.includes('INDOSAT') || d.includes('XL') || c === 'VAS') {
+    return 'VAS';
+  }
+
+  if (b.includes('APPLE')) {
+    if (
+      c.includes('DEVICE') ||
+      d.includes('IPHONE') ||
+      d.includes('IPAD') ||
+      d.includes('MACBOOK') ||
+      d.includes('WATCH') ||
+      d.includes('AIRPOD')
+    ) {
+      return 'Apple Devices';
+    }
+    return 'Accessories';
+  }
+
+  const isAndroidBrand =
+    b.includes('SAMSUNG') ||
+    b.includes('XIAOMI') ||
+    b.includes('REDMI') ||
+    b.includes('OPPO') ||
+    b.includes('VIVO') ||
+    b.includes('HUAWEI') ||
+    b.includes('INFINIX') ||
+    b.includes('MOTOROLA') ||
+    b.includes('REALME');
+
+  if (c.includes('DEVICE') || isAndroidBrand) {
+    if (c.includes('ACCESS') || d.includes('CASE') || d.includes('ADAPTER') || d.includes('CABLE') || d.includes('TEMPERED')) {
+      return 'Accessories';
+    }
+    return 'Android Devices';
+  }
+
+  return 'Accessories';
+}
+
+// ==========================================
+// 4. MAIN PAGE COMPONENT
+// ==========================================
+export default function StoreOperationsPage() {
+  const [isMounted, setIsMounted] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'weekly' | 'staff' | 'bnpl' | 'schedule' | 'feedback' | 'search' | 'admin'>('overview');
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+
+  // Filter Bar
+  const [filterMode, setFilterMode] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
   const [selectedWeek, setSelectedWeek] = useState<string>('ALL');
-  
-  // Drawer / Bottom Sheet state
-  const [activeBottomSheet, setActiveBottomSheet] = useState<{
-    title: string;
-    type: 'STAFF_DETAIL' | 'KPI_DETAIL' | 'NONE';
-    payload: any;
-  }>({ title: '', type: 'NONE', payload: null });
+  const [selectedDate, setSelectedDate] = useState<string>('2026-10-26');
 
-  // Schedule state
-  const [scheduleData, setScheduleData] = useState<Record<string, Record<string, string>>>({
-    'Yunita Anggraini': { Mon: 'D047', Tue: 'D047', Wed: 'D103', Thu: 'D103', Fri: 'OFF', Sat: 'D047', Sun: 'D103' },
-    'Siti Amelia': { Mon: 'D103', Tue: 'D103', Wed: 'OFF', Thu: 'D047', Fri: 'D047', Sat: 'D103', Sun: 'D047' },
-    'Surya Adi Permana': { Mon: 'D047', Tue: 'OFF', Wed: 'D047', Thu: 'D047', Fri: 'D103', Sat: 'D103', Sun: 'D103' },
-    'Andrian Afi': { Mon: 'D103', Tue: 'D047', Wed: 'D047', Thu: 'OFF', Fri: 'D103', Sat: 'D047', Sun: 'D047' },
-    'M. Adlii': { Mon: 'OFF', Tue: 'D103', Wed: 'D103', Thu: 'D047', Fri: 'D047', Sat: 'D103', Sun: 'D103' }
-  });
+  // Login & State
+  const [loggedInSalesId] = useState<string>('22008089');
+  const [transactions, setTransactions] = useState<RawTxRow[]>([]);
+  const [bnplRecords, setBnplRecords] = useState<RawBnplRow[]>([]);
+  const [dailyTargetCatchUp, setDailyTargetCatchUp] = useState<RawTargetRow[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [lastSync, setLastSync] = useState<string>('');
 
-  // Search state
-  const [searchQuery, setSearchQuery] = useState('');
+  // UI Interactive States
+  const [bottomSheetData, setBottomSheetData] = useState<{ title: string; content: React.ReactNode } | null>(null);
+  const [bnplActiveTender, setBnplActiveTender] = useState<string>('ALL');
+  const [scheduleState, setScheduleState] = useState<ShiftSchedule[]>(INITIAL_STAFF_SCHEDULE);
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // Feedback state
-  const [feedbacks, setFeedbacks] = useState<Feedback[]>([
+  // Feedback State
+  const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>([
     {
-      id: '1',
-      salesName: 'Yunita Anggraini',
-      timestamp: 'Hari ini, 15:30 WIB',
-      message: 'Permintaan unit iPhone 17 Pro Max Silver tinggi, namun stok tersisa 1 unit di gudang.',
-      reactions: { '👍': 4, '🔥': 2, '🧡': 1 }
+      id: 'fb-1',
+      salesName: 'Angga Saputra',
+      timestamp: '26 Okt 2026, 15:30 WIB',
+      text: 'Stok iPhone 18 Pro Max 256GB Desert Titanium habis sore ini. Trafik sangat tinggi di counter aksesoris Belkin.',
+      isEdited: false,
+      reactions: { like: 8, heart: 5, fire: 12, dislike: 0, sad: 1 }
     },
     {
-      id: '2',
-      salesName: 'Surya Adi Permana',
-      timestamp: 'Hari ini, 16:45 WIB',
-      message: 'Aksesoris bundling kabel charger 60W Verbatim dan case Machino sangat diminati pengunjung.',
-      reactions: { '👍': 5, '🔥': 3 }
+      id: 'fb-2',
+      salesName: 'Yunita',
+      timestamp: '26 Okt 2026, 14:15 WIB',
+      text: 'Banyak konsumen menanyakan promo cicilan 0% Home Credit & Kredivo untuk Samsung Galaxy Z Fold 8.',
+      isEdited: false,
+      reactions: { like: 4, heart: 2, fire: 6, dislike: 0, sad: 0 }
     }
   ]);
-  const [newFeedbackMessage, setNewFeedbackMessage] = useState('');
-  const [selectedStaffFeedback, setSelectedStaffFeedback] = useState('Yunita Anggraini');
+  const [feedbackInputName, setFeedbackInputName] = useState<string>('');
+  const [feedbackInputText, setFeedbackInputText] = useState<string>('');
+  const [editingFeedbackId, setEditingFeedbackId] = useState<string | null>(null);
+  const [showFeedbackModal, setShowFeedbackModal] = useState<boolean>(false);
 
-  // ==========================================
-  // LIVE FETCH VIA GVIZ API
-  // ==========================================
-  const fetchData = async () => {
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // ------------------------------------------
+  // LIVE FETCHING DARI GVIZ
+  // ------------------------------------------
+  const fetchAllSpreadsheetData = useCallback(async () => {
     setIsLoading(true);
     try {
-      // 1. Fetch DATABASE tab
-      const dbUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=${GID_DATABASE}`;
-      const resDb = await fetch(dbUrl);
+      // 1. Fetch DATABASE (gid=602901290)
+      const urlDb = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=${GID_DATABASE}`;
+      const resDb = await fetch(urlDb);
       const textDb = await resDb.text();
-      
-      // Parse GViz response: "google.visualization.Query.setResponse({...})"
       const jsonDb = JSON.parse(textDb.substring(textDb.indexOf('{'), textDb.lastIndexOf('}') + 1));
-      const rows = jsonDb.table.rows;
 
-      const parsedTransactions: Transaction[] = rows
-        .map((r: any) => {
-          const c = r.c;
-          if (!c || !c[0]) return null;
-          return {
-            date: c[0]?.f || c[0]?.v || '',
-            salesId: String(c[1]?.v || ''),
-            salesName: String(c[2]?.v || ''),
-            invoice: String(c[3]?.v || ''),
-            sapArticle: String(c[4]?.v || ''),
-            sapDescription: String(c[5]?.v || ''),
-            qty: Number(c[7]?.v || 0),
-            amount: Number(c[8]?.v || 0),
-            productType: String(c[9]?.v || '').toUpperCase(),
-            brandName: String(c[10]?.v || '').toUpperCase(),
-            groupCategory: String(c[11]?.v || '').toUpperCase(),
-            month: String(c[12]?.f || c[12]?.v || ''),
-            week: String(c[14]?.v || '').trim(),
-          };
-        })
-        .filter((item: Transaction | null): item is Transaction => item !== null && item.amount > 0);
+      const parsedTx: RawTxRow[] = [];
+      const rows = jsonDb.table.rows || [];
+      rows.forEach((r: any, idx: number) => {
+        const c = r.c;
+        if (!c || c.length < 5) return;
+        const salesId = parseGVizCell(c[1]);
+        const salesName = parseGVizCell(c[2]);
+        const invoiceNo = parseGVizCell(c[3]);
+        const article = parseGVizCell(c[4]);
+        const description = parseGVizCell(c[5]);
+        const qty = parseFloat(parseGVizCell(c[6])) || 1;
+        const amount = parseFloat(parseGVizCell(c[7])) || 0;
+        const transDate = parseNormalizedDate(parseGVizCell(c[9]));
+        const brandName = parseGVizCell(c[10]);
+        const categoryRaw = parseGVizCell(c[11]);
+        const weekName = parseGVizCell(c[14]) || 'Week 1';
 
-      setData(parsedTransactions);
+        if (salesName && amount > 0) {
+          parsedTx.push({
+            rowId: `tx-${idx}`,
+            salesId,
+            salesName,
+            invoiceNo,
+            article,
+            description,
+            qty,
+            amount,
+            transDate,
+            brandName,
+            categoryRaw,
+            weekName
+          });
+        }
+      });
+      setTransactions(parsedTx);
 
-      // 2. Fetch BNPL tab
-      try {
-        const bnplUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=${GID_BNPL}`;
-        const resBnpl = await fetch(bnplUrl);
-        const textBnpl = await resBnpl.text();
-        const jsonBnpl = JSON.parse(textBnpl.substring(textBnpl.indexOf('{'), textBnpl.lastIndexOf('}') + 1));
-        const bnplRows = jsonBnpl.table.rows;
-        
-        const parsedBnpl: BnplItem[] = bnplRows.map((r: any) => {
-          const c = r.c;
-          return {
-            date: c[0]?.f || c[0]?.v || '',
-            invoice: String(c[1]?.v || ''),
-            product: String(c[2]?.v || ''),
-            qty: Number(c[3]?.v || 1),
-            amount: Number(c[4]?.v || 0),
-            tender: String(c[5]?.v || 'Tender Lainnya'),
-          };
-        }).filter((b: BnplItem) => b.amount > 0);
-        setBnplData(parsedBnpl);
-      } catch (err) {
-        console.warn('BNPL Tab not parsed or missing:', err);
-      }
+      // 2. Fetch BNPL DATABASE (gid=2697970)
+      const urlBnpl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=${GID_BNPL}`;
+      const resBnpl = await fetch(urlBnpl);
+      const textBnpl = await resBnpl.text();
+      const jsonBnpl = JSON.parse(textBnpl.substring(textBnpl.indexOf('{'), textBnpl.lastIndexOf('}') + 1));
 
-      setLastUpdated(new Date().toLocaleTimeString('id-ID'));
-    } catch (error) {
-      console.error('Error fetching sheet data:', error);
+      const parsedBnpl: RawBnplRow[] = [];
+      const bnplRows = jsonBnpl.table.rows || [];
+      bnplRows.forEach((r: any) => {
+        const c = r.c;
+        if (!c) return;
+        const transDate = parseNormalizedDate(parseGVizCell(c[0]));
+        const invoiceNo = parseGVizCell(c[1]);
+        const product = parseGVizCell(c[2]);
+        const qty = parseFloat(parseGVizCell(c[3])) || 1;
+        const amount = parseFloat(parseGVizCell(c[4])) || 0;
+        const tender = parseGVizCell(c[5]) || 'Other';
+
+        if (amount > 0) {
+          parsedBnpl.push({ transDate, invoiceNo, product, qty, amount, tender });
+        }
+      });
+      setBnplRecords(parsedBnpl);
+
+      // 3. Fetch DAILY TARGET CATCH UP (gid=789142551)
+      const urlTarget = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=${GID_DAILY_TARGET}`;
+      const resTarget = await fetch(urlTarget);
+      const textTarget = await resTarget.text();
+      const jsonTarget = JSON.parse(textTarget.substring(textTarget.indexOf('{'), textTarget.lastIndexOf('}') + 1));
+
+      const parsedTarget: RawTargetRow[] = [];
+      const tRows = jsonTarget.table.rows || [];
+      tRows.forEach((r: any) => {
+        const c = r.c;
+        if (!c) return;
+        const sId = parseGVizCell(c[0]);
+        const sName = parseGVizCell(c[1]);
+        const role = parseGVizCell(c[2]);
+        const targetMonthly = parseFloat(parseGVizCell(c[3])) || 0;
+        const dailyCatchUpTarget = parseFloat(parseGVizCell(c[7])) || 0; // Kolom H (Index 7)
+
+        if (sName) {
+          parsedTarget.push({
+            salesId: sId,
+            salesName: sName,
+            role,
+            targetMonthly,
+            dailyCatchUpTarget
+          });
+        }
+      });
+      setDailyTargetCatchUp(parsedTarget);
+      setLastSync(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+    } catch (err) {
+      console.error('GViz Fetching Error:', err);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchData();
   }, []);
 
-  // Current logged in salesperson name lookup
-  const currentSalesName = useMemo(() => {
-    const found = data.find((d) => d.salesId === currentSalesId);
-    return found ? found.salesName : 'Store Team';
-  }, [data, currentSalesId]);
+  useEffect(() => {
+    fetchAllSpreadsheetData();
+  }, [fetchAllSpreadsheetData]);
 
-  // Dynamic available weeks from Column O
-  const availableWeeks = useMemo(() => {
-    const set = new Set<string>();
-    data.forEach((d) => {
-      if (d.week && d.week !== '0') set.add(d.week);
-    });
-    return Array.from(set);
-  }, [data]);
+  // Sapaan Staf Login
+  const loggedInStaffName = useMemo(() => {
+    const found = transactions.find((t) => t.salesId === loggedInSalesId);
+    if (found) return found.salesName;
+    const fromTarget = dailyTargetCatchUp.find((t) => t.salesId === loggedInSalesId);
+    return fromTarget ? fromTarget.salesName : 'Angga Saputra';
+  }, [loggedInSalesId, transactions, dailyTargetCatchUp]);
 
-  // Filtered transactions based on active view filters
-  const filteredData = useMemo(() => {
-    if (periodFilter === 'WEEKLY' && selectedWeek !== 'ALL') {
-      return data.filter((d) => d.week === selectedWeek);
-    }
-    return data;
-  }, [data, periodFilter, selectedWeek]);
-
-  // ==========================================
-  // AGGREGATION & BUSINESS CALCULATIONS
-  // ==========================================
-  const totalStoreSales = useMemo(() => {
-    return filteredData.reduce((acc, curr) => acc + curr.amount, 0);
-  }, [filteredData]);
-
-  const uniqueInvoicesCount = useMemo(() => {
-    return new Set(filteredData.map((d) => d.invoice)).size;
-  }, [filteredData]);
-
-  const totalQtySold = useMemo(() => {
-    return filteredData.reduce((acc, curr) => acc + curr.qty, 0);
-  }, [filteredData]);
-
-  const storeUpt = useMemo(() => {
-    return uniqueInvoicesCount > 0 ? (totalQtySold / uniqueInvoicesCount).toFixed(2) : '0';
-  }, [totalQtySold, uniqueInvoicesCount]);
-
-  // Categories Breakdown
-  const categoriesData = useMemo(() => {
-    let apple = 0, android = 0, acc = 0, vas = 0;
-    let appleQty = 0, androidQty = 0, accQty = 0, vasQty = 0;
-
-    filteredData.forEach((item) => {
-      if (item.groupCategory === 'DEVICES') {
-        if (item.brandName === 'APPLE') {
-          apple += item.amount;
-          appleQty += item.qty;
-        } else {
-          android += item.amount;
-          androidQty += item.qty;
-        }
-      } else if (item.groupCategory === 'ACCESSORIES') {
-        acc += item.amount;
-        accQty += item.qty;
-      } else if (item.groupCategory === 'VAS') {
-        vas += item.amount;
-        vasQty += item.qty;
+  // Deteksi Otomatis Minggu Kolom O
+  const dynamicWeeks = useMemo(() => {
+    const map = new Map<string, { name: string; minDate: string; maxDate: string }>();
+    transactions.forEach((t) => {
+      const w = t.weekName || 'Week 1';
+      if (!map.has(w)) {
+        map.set(w, { name: w, minDate: t.transDate, maxDate: t.transDate });
+      } else {
+        const item = map.get(w)!;
+        if (t.transDate && (!item.minDate || t.transDate < item.minDate)) item.minDate = t.transDate;
+        if (t.transDate && (!item.maxDate || t.transDate > item.maxDate)) item.maxDate = t.transDate;
       }
     });
+    return Array.from(map.values());
+  }, [transactions]);
+
+  // Penyaringan Periode Aktif
+  const filteredTransactions = useMemo(() => {
+    if (filterMode === 'daily') {
+      return transactions.filter((t) => t.transDate === selectedDate);
+    }
+    if (filterMode === 'weekly') {
+      if (selectedWeek === 'ALL') return transactions;
+      return transactions.filter((t) => t.weekName === selectedWeek);
+    }
+    return transactions.filter((t) => t.transDate.startsWith('2026-10') || !t.transDate);
+  }, [transactions, filterMode, selectedDate, selectedWeek]);
+
+  // Kalkulasi Metrik Utama Toko
+  const storeMetrics = useMemo(() => {
+    const totalTarget = 8_728_667_173;
+    const dayOfMonth = 24;
+    const totalDaysInMonth = 31;
+    const timeGonePercent = (dayOfMonth / totalDaysInMonth) * 100;
+    const remainingDays = totalDaysInMonth - dayOfMonth;
+
+    let appleActual = 0;
+    let androidActual = 0;
+    let accActual = 0;
+    let vasActual = 0;
+    let totalActual = 0;
+
+    const invoices = new Set<string>();
+    let totalUnits = 0;
+
+    filteredTransactions.forEach((tx) => {
+      totalActual += tx.amount;
+      totalUnits += tx.qty;
+      if (tx.invoiceNo) invoices.add(tx.invoiceNo);
+
+      const cat = classifyProduct(tx.brandName, tx.categoryRaw, tx.description);
+      if (cat === 'Apple Devices') appleActual += tx.amount;
+      else if (cat === 'Android Devices') androidActual += tx.amount;
+      else if (cat === 'Accessories') accActual += tx.amount;
+      else if (cat === 'VAS') vasActual += tx.amount;
+    });
+
+    const totalInvoices = invoices.size || 1;
+    const overallUpt = totalUnits / totalInvoices;
+    const overallGap = totalTarget - totalActual;
+    const overallAch = totalTarget > 0 ? (totalActual / totalTarget) * 100 : 0;
+    const requiredRunRateDaily = remainingDays > 0 ? Math.max(0, overallGap / remainingDays) : 0;
 
     return {
-      apple: { amount: apple, qty: appleQty },
-      android: { amount: android, qty: androidQty },
-      accessories: { amount: acc, qty: accQty },
-      vas: { amount: vas, qty: vasQty },
+      totalTarget,
+      totalActual,
+      overallAch,
+      overallGap,
+      timeGonePercent,
+      remainingDays,
+      requiredRunRateDaily,
+      totalInvoices,
+      totalUnits,
+      overallUpt,
+      categories: {
+        apple: { target: 4_364_333_586, actual: appleActual },
+        android: { target: 2_618_600_152, actual: androidActual },
+        acc: { target: 1_309_300_076, actual: accActual },
+        vas: { target: 436_433_359, actual: vasActual }
+      }
     };
-  }, [filteredData]);
+  }, [filteredTransactions]);
 
-  // Staff Performance Ranking
+  // Leaderboard Staff
   const staffLeaderboard = useMemo(() => {
-    const map = new Map<string, {
-      salesId: string;
-      salesName: string;
-      totalSales: number;
-      qty: number;
-      invoices: Set<string>;
-      apple: number;
-      android: number;
-      acc: number;
-      vas: number;
-    }>();
+    const map = new Map<
+      string,
+      {
+        salesId: string;
+        salesName: string;
+        appleRev: number;
+        androidRev: number;
+        accRev: number;
+        vasRev: number;
+        totalRev: number;
+        totalUnits: number;
+        invoices: Set<string>;
+      }
+    >();
 
-    filteredData.forEach((d) => {
-      if (!d.salesName || d.salesId === '88888888' || d.salesId === '99999999') return;
-      if (!map.has(d.salesName)) {
-        map.set(d.salesName, {
-          salesId: d.salesId,
-          salesName: d.salesName,
-          totalSales: 0,
-          qty: 0,
-          invoices: new Set(),
-          apple: 0,
-          android: 0,
-          acc: 0,
-          vas: 0,
+    filteredTransactions.forEach((tx) => {
+      const key = tx.salesName || tx.salesId;
+      if (!map.has(key)) {
+        map.set(key, {
+          salesId: tx.salesId,
+          salesName: tx.salesName,
+          appleRev: 0,
+          androidRev: 0,
+          accRev: 0,
+          vasRev: 0,
+          totalRev: 0,
+          totalUnits: 0,
+          invoices: new Set<string>()
         });
       }
-      const record = map.get(d.salesName)!;
-      record.totalSales += d.amount;
-      record.qty += d.qty;
-      record.invoices.add(d.invoice);
+      const item = map.get(key)!;
+      item.totalRev += tx.amount;
+      item.totalUnits += tx.qty;
+      if (tx.invoiceNo) item.invoices.add(tx.invoiceNo);
 
-      if (d.groupCategory === 'DEVICES') {
-        if (d.brandName === 'APPLE') record.apple += d.amount;
-        else record.android += d.amount;
-      } else if (d.groupCategory === 'ACCESSORIES') {
-        record.acc += d.amount;
-      } else if (d.groupCategory === 'VAS') {
-        record.vas += d.amount;
-      }
+      const cat = classifyProduct(tx.brandName, tx.categoryRaw, tx.description);
+      if (cat === 'Apple Devices') item.appleRev += tx.amount;
+      else if (cat === 'Android Devices') item.androidRev += tx.amount;
+      else if (cat === 'Accessories') item.accRev += tx.amount;
+      else if (cat === 'VAS') item.vasRev += tx.amount;
     });
 
     return Array.from(map.values())
-      .map((s) => ({
-        ...s,
-        upt: s.invoices.size > 0 ? (s.qty / s.invoices.size).toFixed(2) : '0',
-      }))
-      .sort((a, b) => b.totalSales - a.totalSales);
-  }, [filteredData]);
+      .map((staf) => {
+        const invCount = staf.invoices.size || 1;
+        const upt = staf.totalUnits / invCount;
+        const targetRow = dailyTargetCatchUp.find((t) => t.salesId === staf.salesId || t.salesName.toLowerCase() === staf.salesName.toLowerCase());
+        const target = targetRow?.targetMonthly || 793_000_000;
+        const ach = target > 0 ? (staf.totalRev / target) * 100 : 0;
+        const catchUpTarget = targetRow?.dailyCatchUpTarget || Math.round(target / 31);
 
-  // Target Harian Variables
-  const targetBulan = 8728667173;
-  const totalHariBulan = 31;
-  const hariBerjalan = 26;
-  const sisaHari = totalHariBulan - hariBerjalan;
-  const targetPerHari = targetBulan / totalHariBulan;
-  const requiredRunRate = (targetBulan - totalStoreSales) / (sisaHari > 0 ? sisaHari : 1);
-  const timeGonePct = ((hariBerjalan / totalHariBulan) * 100).toFixed(1);
+        return {
+          ...staf,
+          target,
+          ach,
+          upt,
+          catchUpTarget,
+          invoiceCount: invCount
+        };
+      })
+      .sort((a, b) => b.totalRev - a.totalRev);
+  }, [filteredTransactions, dailyTargetCatchUp]);
 
-  // ==========================================
-  // WHATSAPP SHARE GENERATOR
-  // ==========================================
-  const handleShareDailyWhatsApp = () => {
-    const text = `*DAILY SALES REPORT QF01 - ${new Date().toLocaleDateString('id-ID')}*
-━━━━━━━━━━━━━━━━━━
-💰 *Total Sales:* ${formatIDR(totalStoreSales)}
-🎯 *Target Toko:* ${formatIDR(targetPerHari)}
-📊 *Achievement:* ${((totalStoreSales / targetPerHari) * 100).toFixed(1)}%
-🧾 *Invoice:* ${uniqueInvoicesCount} | *Qty:* ${totalQtySold}
-📦 *UPT:* ${storeUpt}
-━━━━━━━━━━━━━━━━━━
-🍎 *Apple Devices:* ${formatIDR(categoriesData.apple.amount)} (${categoriesData.apple.qty} unit)
-🤖 *Android Devices:* ${formatIDR(categoriesData.android.amount)} (${categoriesData.android.qty} unit)
-🔌 *Accessories:* ${formatIDR(categoriesData.accessories.amount)}
-🛡️ *VAS:* ${formatIDR(categoriesData.vas.amount)}
-━━━━━━━━━━━━━━━━━━
-*Top Sales Team:*
-${staffLeaderboard.slice(0, 3).map((s, idx) => `${idx + 1}. ${s.salesName}: ${formatCompactIDR(s.totalSales)} (UPT: ${s.upt})`).join('\n')}
-━━━━━━━━━━━━━━━━━━
-Semangat closing team! Tetap fokus capai target! 🔥💪`;
-
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-  };
-
-  // ==========================================
-  // PPTX SLIDE EXPORT
-  // ==========================================
-  const handleExportPresentation = async () => {
+  // Ekspor PowerPoint Langsung dari Browser
+  const handleExportPPTX = async () => {
+    if (typeof window === 'undefined') return;
     try {
-      // Dynamic import to prevent SSR build break
       const pptxgen = (await import('pptxgenjs')).default;
       const pres = new pptxgen();
       pres.layout = 'LAYOUT_16x9';
 
-      // Slide 1: Cover
+      const bgDark = '0F172A';
+      const textLight = 'F8FAFC';
+      const emerald = '059669';
+      const cardBg = '1E293B';
+
+      // Slide 1: Executive Overview
       const slide1 = pres.addSlide();
-      slide1.background = { color: '0F172A' };
-      slide1.addText('STORE PERFORMANCE & OPERATIONS REPORT', {
+      slide1.background = { color: bgDark };
+      slide1.addText('Store Sales Performance & Staff Operations Report', {
         x: 0.8,
-        y: 2.2,
-        fontSize: 28,
+        y: 1.5,
+        fontSize: 26,
         bold: true,
-        color: 'FFFFFF',
+        color: textLight
       });
-      slide1.addText(`Store: QF01 | Periode: Oktober 2026 | Cut-off: ${new Date().toLocaleDateString('id-ID')}`, {
+      slide1.addText('Evaluasi Mingguan (WoW), Kategori Produk, & Suara Lapangan', {
+        x: 0.8,
+        y: 2.3,
+        fontSize: 16,
+        color: '94A3B8'
+      });
+      slide1.addText(`Kode Toko: QF01 | Periode: Oktober 2026 | Cut-Off: ${selectedDate}`, {
         x: 0.8,
         y: 3.2,
-        fontSize: 14,
-        color: '94A3B8',
+        fontSize: 12,
+        color: '38BDF8'
       });
 
-      // Slide 2: Core KPI
+      // Slide 2: Core KPI Metrics
       const slide2 = pres.addSlide();
-      slide2.addText('Core KPI Metrics (Target vs Pencapaian)', { x: 0.8, y: 0.6, fontSize: 22, bold: true, color: '0F172A' });
-      slide2.addText(`Total Omset: ${formatIDR(totalStoreSales)}\nTarget Bulanan: ${formatIDR(targetBulan)}\nAchievement: ${((totalStoreSales / targetBulan) * 100).toFixed(1)}%\nTime Gone: ${timeGonePct}%\nRequired Run Rate: ${formatIDR(requiredRunRate)}/hari`, {
-        x: 0.8,
-        y: 1.8,
-        fontSize: 16,
-        color: '334155',
-      });
+      slide2.background = { color: bgDark };
+      slide2.addText('Core KPI Metrics (Target vs Pencapaian)', { x: 0.8, y: 0.6, fontSize: 22, bold: true, color: textLight });
 
-      // Slide 3: Category Breakdown
+      slide2.addShape(pres.ShapeType.rect, { x: 0.8, y: 1.4, w: 3.6, h: 2.2, fill: { color: cardBg } });
+      slide2.addText('Target Bulanan Toko', { x: 1.0, y: 1.6, fontSize: 13, color: '94A3B8' });
+      slide2.addText(formatCompactIDR(storeMetrics.totalTarget), { x: 1.0, y: 2.1, fontSize: 20, bold: true, color: textLight });
+      slide2.addText(`Realisasi: ${formatCompactIDR(storeMetrics.totalActual)} (${storeMetrics.overallAch.toFixed(1)}%)`, { x: 1.0, y: 2.8, fontSize: 11, color: emerald });
+
+      slide2.addShape(pres.ShapeType.rect, { x: 4.8, y: 1.4, w: 3.6, h: 2.2, fill: { color: cardBg } });
+      slide2.addText('Time Gone & Run Rate', { x: 5.0, y: 1.6, fontSize: 13, color: '94A3B8' });
+      slide2.addText(`77,4% Berlalu`, { x: 5.0, y: 2.1, fontSize: 20, bold: true, color: 'F59E0B' });
+      slide2.addText(`Diperlukan: ${formatCompactIDR(storeMetrics.requiredRunRateDaily)} / Hari`, { x: 5.0, y: 2.8, fontSize: 11, color: '94A3B8' });
+
+      slide2.addShape(pres.ShapeType.rect, { x: 8.8, y: 1.4, w: 3.6, h: 2.2, fill: { color: cardBg } });
+      slide2.addText('Produktivitas Keranjang (UPT)', { x: 9.0, y: 1.6, fontSize: 13, color: '94A3B8' });
+      slide2.addText(`${storeMetrics.overallUpt.toFixed(2)} Items/Tx`, { x: 9.0, y: 2.1, fontSize: 20, bold: true, color: '38BDF8' });
+      slide2.addText(`Total: ${storeMetrics.totalInvoices} Struk`, { x: 9.0, y: 2.8, fontSize: 11, color: '94A3B8' });
+
+      // Slide 3: Staff Leaderboard
       const slide3 = pres.addSlide();
-      slide3.addText('Kategori Penjualan Toko', { x: 0.8, y: 0.6, fontSize: 22, bold: true, color: '0F172A' });
-      slide3.addText(`• Apple Devices: ${formatIDR(categoriesData.apple.amount)} (${categoriesData.apple.qty} unit)\n• Android Devices: ${formatIDR(categoriesData.android.amount)} (${categoriesData.android.qty} unit)\n• Accessories: ${formatIDR(categoriesData.accessories.amount)}\n• VAS (Qoala/Telkomsel): ${formatIDR(categoriesData.vas.amount)}`, {
-        x: 0.8,
-        y: 1.8,
-        fontSize: 16,
-        color: '334155',
+      slide3.background = { color: bgDark };
+      slide3.addText('Staff Performance Leaderboard', { x: 0.8, y: 0.6, fontSize: 22, bold: true, color: textLight });
+
+      const tableData: any[][] = [
+        [
+          { text: 'Rank', options: { bold: true, fill: { color: '334155' }, color: textLight } },
+          { text: 'Nama Sales', options: { bold: true, fill: { color: '334155' }, color: textLight } },
+          { text: 'Target (Rp)', options: { bold: true, fill: { color: '334155' }, color: textLight } },
+          { text: 'Pencapaian (Rp)', options: { bold: true, fill: { color: '334155' }, color: textLight } },
+          { text: 'Ach (%)', options: { bold: true, fill: { color: '334155' }, color: textLight } },
+          { text: 'UPT', options: { bold: true, fill: { color: '334155' }, color: textLight } }
+        ]
+      ];
+
+      staffLeaderboard.slice(0, 7).forEach((st, idx) => {
+        tableData.push([
+          { text: `#${idx + 1}`, options: { color: textLight } },
+          { text: st.salesName, options: { bold: true, color: '38BDF8' } },
+          { text: formatCompactIDR(st.target), options: { color: textLight } },
+          { text: formatCompactIDR(st.totalRev), options: { color: textLight } },
+          { text: `${st.ach.toFixed(1)}%`, options: { color: emerald } },
+          { text: st.upt.toFixed(2), options: { color: textLight } }
+        ]);
       });
 
-      // Save presentation
-      await pres.writeFile({ fileName: `QF01_Report_${new Date().toISOString().slice(0, 10)}.pptx` });
+      slide3.addTable(tableData, { x: 0.8, y: 1.4, w: 11.6, fontSize: 11, border: { pt: 1, color: '475569' } });
+
+      // Slide 4: Voice of Field Staff & Action Plan
+      const slide4 = pres.addSlide();
+      slide4.background = { color: bgDark };
+      slide4.addText('Suara Lapangan & Rekomendasi Taktis', { x: 0.8, y: 0.6, fontSize: 22, bold: true, color: textLight });
+      slide4.addText('• Kendala Operasional: Kebutuhan restock cepat varian storage iPhone dan Android mid-range.', { x: 1.0, y: 1.5, fontSize: 14, color: textLight });
+      slide4.addText('• Penjualan Silang: Optimalkan penawaran perlindungan Qoala dan paket data kartu perdana saat unboxing.', { x: 1.0, y: 2.2, fontSize: 14, color: textLight });
+      slide4.addText('• Morning Huddle: Evaluasi target catch up individual setiap pergantian shift pagi ke siang.', { x: 1.0, y: 2.9, fontSize: 14, color: textLight });
+
+      await pres.writeFile({ fileName: `Store_Performance_QF01_${selectedDate}.pptx` });
     } catch (e) {
-      alert('Fitur ekspor PPTX memerlukan instalasi pptxgenjs di proyek Anda (npm i pptxgenjs).');
+      console.error('Export PPTX Error:', e);
+      alert('Gagal mengekspor file PPTX.');
     }
   };
 
-  // Feedback action handlers
-  const handleAddFeedback = () => {
-    if (!newFeedbackMessage.trim()) return;
-    const item: Feedback = {
-      id: Date.now().toString(),
-      salesName: selectedStaffFeedback,
-      timestamp: 'Baru saja',
-      message: newFeedbackMessage,
-      reactions: { '👍': 1 },
-    };
-    setFeedbacks([item, ...feedbacks]);
-    setNewFeedbackMessage('');
+  // WhatsApp Share Formats
+  const generateShareDailyWA = () => {
+    const text = `*LAPORAN REALISASI SALES HARIAN TOKO QF01*
+📅 Tanggal: ${selectedDate}
+━━━━━━━━━━━━━━━━━━
+🎯 *Target:* ${formatIDR(storeMetrics.totalTarget)}
+💰 *Actual:* ${formatIDR(storeMetrics.totalActual)}
+📈 *Achievement:* ${storeMetrics.overallAch.toFixed(1)}%
+📉 *Gap:* ${formatIDR(storeMetrics.overallGap)}
+
+*Kategori:*
+🍎 Apple Devices: ${formatIDR(storeMetrics.categories.apple.actual)}
+🤖 Android Devices: ${formatIDR(storeMetrics.categories.android.actual)}
+🔌 Accessories: ${formatIDR(storeMetrics.categories.acc.actual)}
+🛡️ VAS: ${formatIDR(storeMetrics.categories.vas.actual)}
+
+*Metrik:*
+🛒 Invoice: ${storeMetrics.totalInvoices} Struk
+📦 Qty: ${storeMetrics.totalUnits} Units
+⚡ UPT: ${storeMetrics.overallUpt.toFixed(2)}
+
+Semangat closing team! 🔥💪`;
+
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
-  const handleToggleReaction = (feedbackId: string, emoji: string) => {
-    setFeedbacks((prev) =>
-      prev.map((f) => {
-        if (f.id !== feedbackId) return f;
-        const currentCount = f.reactions[emoji] || 0;
-        return {
-          ...f,
-          reactions: { ...f.reactions, [emoji]: currentCount + 1 },
-        };
-      })
+  const generateShareCatchUpTargetWA = () => {
+    const staffListText = staffLeaderboard
+      .map((s) => `- ${s.salesName} : ${formatIDR(s.catchUpTarget)}`)
+      .join('\n');
+
+    const totalCatchUp = staffLeaderboard.reduce((acc, curr) => acc + curr.catchUpTarget, 0);
+
+    const text = `Target ${selectedDate}
+
+Nama Staff:
+${staffListText}
+
+Total Target: ${formatIDR(totalCatchUp)}
+━━━━━━━━━━━━━━━━━━
+Sisa Target Bulan: ${formatIDR(storeMetrics.overallGap)}
+Sisa Waktu: ${storeMetrics.remainingDays} Hari Tersisa
+
+Semangat closing team! Fokus capai target hari ini! 🔥💪`;
+
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const handleOpenStaffDetail = (staf: typeof staffLeaderboard[0]) => {
+    setBottomSheetData({
+      title: `Detail Performa: ${staf.salesName}`,
+      content: (
+        <div className="space-y-4 text-xs sm:text-sm">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+              <span className="text-slate-500 block text-[11px]">Total Omzet</span>
+              <span className="font-bold text-sm text-blue-600 dark:text-blue-400">{formatIDR(staf.totalRev)}</span>
+            </div>
+            <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+              <span className="text-slate-500 block text-[11px]">Capaian & UPT</span>
+              <span className="font-bold text-sm text-emerald-600 dark:text-emerald-400">{staf.ach.toFixed(1)}% | {staf.upt.toFixed(2)} UPT</span>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="font-semibold text-slate-800 dark:text-slate-200">Rincian Penjualan Kategori:</div>
+            <div className="flex justify-between items-center p-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+              <span className="flex items-center gap-1.5 font-medium">🍎 Apple Hardware</span>
+              <span className="font-bold">{formatIDR(staf.appleRev)}</span>
+            </div>
+            <div className="flex justify-between items-center p-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+              <span className="flex items-center gap-1.5 font-medium">🤖 Android Devices</span>
+              <span className="font-bold">{formatIDR(staf.androidRev)}</span>
+            </div>
+            <div className="flex justify-between items-center p-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+              <span className="flex items-center gap-1.5 font-medium">🔌 Accessories</span>
+              <span className="font-bold">{formatIDR(staf.accRev)}</span>
+            </div>
+            <div className="flex justify-between items-center p-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+              <span className="flex items-center gap-1.5 font-medium">🛡️ VAS (Qoala / Operator)</span>
+              <span className="font-bold text-emerald-600">{formatIDR(staf.vasRev)}</span>
+            </div>
+          </div>
+
+          <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-[11px] text-blue-900 dark:text-blue-300">
+            💡 <strong>Rekomendasi Singkat:</strong> Perbesar penawaran bundling perlindungan layar Qoala pada transaksi iPhone atau Samsung untuk mendongkrak UPT dan bobot VAS berjalan.
+          </div>
+        </div>
+      )
+    });
+  };
+
+  // Pencarian Produk
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const q = searchQuery.toLowerCase();
+    return filteredTransactions.filter(
+      (t) =>
+        t.article.toLowerCase().includes(q) ||
+        t.description.toLowerCase().includes(q) ||
+        t.brandName.toLowerCase().includes(q)
     );
-  };
+  }, [searchQuery, filteredTransactions]);
 
-  // ==========================================
-  // RENDER UI
-  // ==========================================
+  const searchSummary = useMemo(() => {
+    const totalAmount = searchResults.reduce((acc, c) => acc + c.amount, 0);
+    const totalQty = searchResults.reduce((acc, c) => acc + c.qty, 0);
+    return { totalAmount, totalQty, count: searchResults.length };
+  }, [searchResults]);
+
+  if (!isMounted) return null;
+
   return (
-    <div
-      className={`min-h-screen w-full max-w-full overflow-x-hidden transition-colors duration-200 ${
-        theme === 'dark' ? 'bg-[#1A1831] text-[#FFF6E9]' : 'bg-[#F9F8F3] text-gray-900'
-      }`}
-    >
-      {/* HEADER SECTION */}
-      <header
-        className={`w-full border-b px-3 py-3 sm:px-6 sm:py-4 sticky top-0 z-30 backdrop-blur-md ${
-          theme === 'dark' ? 'bg-[#1A1831]/90 border-purple-900/40' : 'bg-[#FAF9F5]/90 border-gray-200'
-        }`}
-      >
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
-          {/* Brand & Greeting */}
-          <div className="flex items-center space-x-2 sm:space-x-3">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold shadow-md">
-              QF
-            </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <h1 className="text-sm sm:text-lg font-bold leading-none">Halo {currentSalesName} 👋</h1>
-                {currentSalesId === ADMIN_SALES_ID && (
-                  <span className="bg-amber-500/20 text-amber-400 text-[10px] px-1.5 py-0.5 rounded font-semibold border border-amber-500/30">
-                    ADMIN
-                  </span>
-                )}
-              </div>
-              <p className="text-[10px] sm:text-xs text-gray-400 mt-0.5">
-                {isLoading ? 'Memuat data realtime...' : `Update: ${lastUpdated || 'Baru Saja'}`}
-              </p>
-            </div>
+    <div className={`min-h-screen w-full max-w-full overflow-x-hidden ${theme === 'dark' ? 'bg-[#1A1831] text-[#FFF6E9]' : 'bg-[#F9F8F3] text-slate-900'}`}>
+      {/* ==================================================== */}
+      {/* TOP HEADER */}
+      {/* ==================================================== */}
+      <header className={`w-full border-b px-3 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-40 backdrop-blur-md ${theme === 'dark' ? 'bg-[#1A1831]/95 border-slate-800' : 'bg-[#F9F8F3]/95 border-slate-200'}`}>
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-sm shadow-md shadow-blue-500/20">
+            QF
           </div>
-
-          {/* Quick Actions */}
-          <div className="flex items-center space-x-1.5 sm:space-x-2">
-            <button
-              onClick={fetchData}
-              title="Refresh Data"
-              className={`p-2 rounded-lg border text-xs flex items-center transition ${
-                theme === 'dark'
-                  ? 'border-purple-800 hover:bg-purple-900/50 text-gray-300'
-                  : 'border-gray-200 hover:bg-gray-100 text-gray-700'
-              }`}
-            >
-              <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isLoading ? 'animate-spin' : ''}`} />
-            </button>
-
-            <button
-              onClick={handleExportPresentation}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center space-x-1 transition shadow-sm"
-            >
-              <FileText className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Export Slide PPTX</span>
-            </button>
-
-            <button
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className={`p-2 rounded-lg border text-xs transition ${
-                theme === 'dark'
-                  ? 'border-purple-800 text-yellow-400 hover:bg-purple-900/50'
-                  : 'border-gray-200 text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-            </button>
+          <div>
+            <h1 className="text-sm sm:text-base font-extrabold tracking-tight leading-none">
+              Store Operations QF01
+            </h1>
+            <p className="text-[11px] opacity-70 mt-0.5">
+              Halo, <span className="font-semibold text-blue-500">{loggedInStaffName}</span> 👋 | Live GViz
+            </p>
           </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={fetchAllSpreadsheetData}
+            title="Refresh Data"
+            disabled={isLoading}
+            className={`p-2 rounded-lg border text-xs flex items-center gap-1.5 transition-all ${
+              theme === 'dark' ? 'bg-slate-800/80 border-slate-700 hover:bg-slate-700' : 'bg-white border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-blue-500' : ''}`} />
+            <span className="hidden md:inline">{lastSync || 'Sync'}</span>
+          </button>
+
+          <button
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            title="Ganti Mode Tema"
+            className={`p-2 rounded-lg border text-xs transition-all ${
+              theme === 'dark' ? 'bg-slate-800/80 border-slate-700 hover:bg-slate-700' : 'bg-white border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            {theme === 'dark' ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-slate-600" />}
+          </button>
+
+          <button
+            onClick={handleExportPPTX}
+            className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs flex items-center gap-1.5 shadow-sm transition-all"
+          >
+            <FileDown className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Export PPTX</span>
+          </button>
         </div>
       </header>
 
-      {/* HORIZONTAL SEGMENTED NAVIGATION TABS */}
-      <div
-        className={`w-full overflow-x-auto border-b px-2 py-2 sticky top-[57px] z-20 ${
-          theme === 'dark' ? 'bg-[#151329] border-purple-900/30' : 'bg-white border-gray-200'
-        }`}
-      >
-        <div className="flex space-x-1 max-w-7xl mx-auto min-w-max text-xs font-medium">
-          {[
-            { id: 'overview', label: 'Store Overview', icon: Store },
-            { id: 'weekly', label: 'Weekly Sales (WoW)', icon: TrendingUp },
-            { id: 'staff', label: 'Staff Performance', icon: Users },
-            { id: 'dailyTarget', label: 'Daily Target', icon: Clock },
-            { id: 'bnpl', label: 'BNPL', icon: CreditCard },
-            { id: 'schedule', label: 'Schedule', icon: Calendar },
-            { id: 'search', label: 'Pencarian Produk', icon: Search },
-            { id: 'feedback', label: 'Feedback', icon: MessageSquare },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition-all ${
-                  isActive
-                    ? 'bg-blue-600 text-white font-semibold shadow'
-                    : theme === 'dark'
-                    ? 'text-gray-400 hover:text-white hover:bg-white/5'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
+      {/* ==================================================== */}
+      {/* PERIOD SELECTOR BAR */}
+      {/* ==================================================== */}
+      <section className={`w-full border-b px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-2.5 ${theme === 'dark' ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-100 border-slate-200'}`}>
+        <div className="flex items-center gap-1 bg-black/10 dark:bg-white/10 p-1 rounded-xl">
+          <button
+            onClick={() => setFilterMode('daily')}
+            className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
+              filterMode === 'daily' ? 'bg-blue-600 text-white shadow-sm' : 'opacity-70 hover:opacity-100'
+            }`}
+          >
+            Daily
+          </button>
+          <button
+            onClick={() => setFilterMode('weekly')}
+            className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
+              filterMode === 'weekly' ? 'bg-blue-600 text-white shadow-sm' : 'opacity-70 hover:opacity-100'
+            }`}
+          >
+            Weekly
+          </button>
+          <button
+            onClick={() => setFilterMode('monthly')}
+            className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
+              filterMode === 'monthly' ? 'bg-blue-600 text-white shadow-sm' : 'opacity-70 hover:opacity-100'
+            }`}
+          >
+            Monthly
+          </button>
         </div>
-      </div>
 
-      {/* MAIN CONTAINER (Mobile-First, Strictly No Horizontal Scroll) */}
-      <main className="w-full max-w-7xl mx-auto px-3 sm:px-6 py-4 space-y-4">
-        {/* ========================================================= */}
-        {/* TAB 1: STORE OVERVIEW                                      */}
-        {/* ========================================================= */}
-        {activeTab === 'overview' && (
-          <div className="space-y-4 w-full">
-            {/* Top Bar Summary / Share WA */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-              <div>
-                <h2 className="text-base sm:text-xl font-bold">Ringkasan Operasional Toko</h2>
-                <p className="text-xs text-gray-400">Analisis metrik target, time gone, dan kontribusi kategori</p>
-              </div>
-              <button
-                onClick={handleShareDailyWhatsApp}
-                className="w-full sm:w-auto bg-[#25D366] hover:bg-[#20ba5a] text-white px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 shadow"
-              >
-                <Share2 className="w-4 h-4" />
-                <span>Share WhatsApp Daily</span>
-              </button>
-            </div>
+        <div className="flex items-center gap-2">
+          {filterMode === 'daily' && (
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className={`px-2.5 py-1 text-xs rounded-lg border focus:outline-none ${
+                theme === 'dark' ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-300'
+              }`}
+            />
+          )}
 
-            {/* KPI 4 Cards Grid */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 w-full">
-              {/* Total Sales */}
-              <div
-                onClick={() =>
-                  setActiveBottomSheet({
-                    title: 'Rincian Omset Toko',
-                    type: 'KPI_DETAIL',
-                    payload: { label: 'Total Sales Toko', value: totalStoreSales, invoices: uniqueInvoicesCount },
-                  })
-                }
-                className={`p-3.5 sm:p-4 rounded-2xl border cursor-pointer transition hover:scale-[1.01] ${
-                  theme === 'dark' ? 'bg-[#22203F] border-purple-900/40' : 'bg-white border-gray-200 shadow-sm'
-                }`}
-              >
-                <span className="text-[11px] sm:text-xs text-gray-400 font-medium">Total Aktual Omset</span>
-                <div className="text-base sm:text-2xl font-bold text-blue-500 mt-1 truncate">
-                  {formatCompactIDR(totalStoreSales)}
-                </div>
-                <div className="text-[10px] sm:text-xs text-gray-400 mt-1 flex justify-between items-center">
-                  <span>{uniqueInvoicesCount} Transaksi</span>
-                  <span className="text-emerald-500 font-semibold">UPT {storeUpt}</span>
-                </div>
-              </div>
-
-              {/* Time Gone Card */}
-              <div
-                className={`p-3.5 sm:p-4 rounded-2xl border ${
-                  theme === 'dark' ? 'bg-[#22203F] border-purple-900/40' : 'bg-white border-gray-200 shadow-sm'
-                }`}
-              >
-                <span className="text-[11px] sm:text-xs text-gray-400 font-medium">Waktu Berlalu (Time Gone)</span>
-                <div className="text-base sm:text-2xl font-bold text-amber-500 mt-1">{timeGonePct}%</div>
-                <div className="text-[10px] sm:text-xs text-gray-400 mt-1 flex justify-between">
-                  <span>Hari ke-{hariBerjalan}</span>
-                  <span>Sisa {sisaHari} Hari</span>
-                </div>
-              </div>
-
-              {/* Target & Run Rate */}
-              <div
-                className={`p-3.5 sm:p-4 rounded-2xl border ${
-                  theme === 'dark' ? 'bg-[#22203F] border-purple-900/40' : 'bg-white border-gray-200 shadow-sm'
-                }`}
-              >
-                <span className="text-[11px] sm:text-xs text-gray-400 font-medium">Required Daily Run Rate</span>
-                <div className="text-base sm:text-2xl font-bold text-purple-400 mt-1 truncate">
-                  {formatCompactIDR(requiredRunRate)}
-                </div>
-                <div className="text-[10px] sm:text-xs text-gray-400 mt-1">Target Harian Baru yang Harus Dikejar</div>
-              </div>
-
-              {/* Target Bulanan vs Capaian */}
-              <div
-                className={`p-3.5 sm:p-4 rounded-2xl border ${
-                  theme === 'dark' ? 'bg-[#22203F] border-purple-900/40' : 'bg-white border-gray-200 shadow-sm'
-                }`}
-              >
-                <span className="text-[11px] sm:text-xs text-gray-400 font-medium">Pencapaian Target</span>
-                <div className="text-base sm:text-2xl font-bold text-emerald-400 mt-1">
-                  {((totalStoreSales / targetBulan) * 100).toFixed(1)}%
-                </div>
-                <div className="text-[10px] sm:text-xs text-gray-400 mt-1">Target: {formatCompactIDR(targetBulan)}</div>
-              </div>
-            </div>
-
-            {/* KATEGORI PRODUK (Responsive Cards) */}
-            <div className="space-y-2">
-              <h3 className="text-sm font-bold">Rincian Kategori Penjualan</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-                {/* Apple */}
-                <div
-                  className={`p-3.5 rounded-xl border ${
-                    theme === 'dark' ? 'bg-[#22203F] border-purple-900/30' : 'bg-white border-gray-200'
-                  }`}
-                >
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-semibold flex items-center space-x-1">
-                      <span>🍎 Apple Devices</span>
-                    </span>
-                    <span className="text-[10px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">
-                      {categoriesData.apple.qty} unit
-                    </span>
-                  </div>
-                  <div className="text-base font-bold">{formatCompactIDR(categoriesData.apple.amount)}</div>
-                  <div className="text-[10px] text-gray-400 mt-0.5">
-                    {totalStoreSales > 0 ? ((categoriesData.apple.amount / totalStoreSales) * 100).toFixed(1) : 0}%
-                    Kontribusi
-                  </div>
-                </div>
-
-                {/* Android */}
-                <div
-                  className={`p-3.5 rounded-xl border ${
-                    theme === 'dark' ? 'bg-[#22203F] border-purple-900/30' : 'bg-white border-gray-200'
-                  }`}
-                >
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-semibold flex items-center space-x-1">
-                      <span>🤖 Android Devices</span>
-                    </span>
-                    <span className="text-[10px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">
-                      {categoriesData.android.qty} unit
-                    </span>
-                  </div>
-                  <div className="text-base font-bold">{formatCompactIDR(categoriesData.android.amount)}</div>
-                  <div className="text-[10px] text-gray-400 mt-0.5">
-                    {totalStoreSales > 0 ? ((categoriesData.android.amount / totalStoreSales) * 100).toFixed(1) : 0}%
-                    Kontribusi
-                  </div>
-                </div>
-
-                {/* Accessories */}
-                <div
-                  className={`p-3.5 rounded-xl border ${
-                    theme === 'dark' ? 'bg-[#22203F] border-purple-900/30' : 'bg-white border-gray-200'
-                  }`}
-                >
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-semibold flex items-center space-x-1">
-                      <span>🔌 Accessories</span>
-                    </span>
-                    <span className="text-[10px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded">
-                      {categoriesData.accessories.qty} unit
-                    </span>
-                  </div>
-                  <div className="text-base font-bold">{formatCompactIDR(categoriesData.accessories.amount)}</div>
-                  <div className="text-[10px] text-gray-400 mt-0.5">
-                    {totalStoreSales > 0
-                      ? ((categoriesData.accessories.amount / totalStoreSales) * 100).toFixed(1)
-                      : 0}
-                    % Kontribusi
-                  </div>
-                </div>
-
-                {/* VAS */}
-                <div
-                  className={`p-3.5 rounded-xl border ${
-                    theme === 'dark' ? 'bg-[#22203F] border-purple-900/30' : 'bg-white border-gray-200'
-                  }`}
-                >
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-semibold flex items-center space-x-1">
-                      <span>🛡️ VAS (Qoala/Tsel)</span>
-                    </span>
-                    <span className="text-[10px] bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded">
-                      {categoriesData.vas.qty} unit
-                    </span>
-                  </div>
-                  <div className="text-base font-bold">{formatCompactIDR(categoriesData.vas.amount)}</div>
-                  <div className="text-[10px] text-gray-400 mt-0.5">
-                    {totalStoreSales > 0 ? ((categoriesData.vas.amount / totalStoreSales) * 100).toFixed(1) : 0}%
-                    Kontribusi
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Quick Leaderboard Table (No Horizontal Scroll) */}
-            <div
-              className={`rounded-2xl border p-3.5 ${
-                theme === 'dark' ? 'bg-[#22203F] border-purple-900/40' : 'bg-white border-gray-200 shadow-sm'
+          {filterMode === 'weekly' && (
+            <select
+              value={selectedWeek}
+              onChange={(e) => setSelectedWeek(e.target.value)}
+              className={`px-2.5 py-1 text-xs rounded-lg border focus:outline-none ${
+                theme === 'dark' ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-300'
               }`}
             >
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="text-sm font-bold flex items-center space-x-1.5">
-                  <Award className="w-4 h-4 text-amber-400" />
-                  <span>Leaderboard Staf (Bulan Berjalan)</span>
-                </h3>
+              <option value="ALL">Semua Minggu</option>
+              {dynamicWeeks.map((w) => (
+                <option key={w.name} value={w.name}>
+                  {w.name} ({w.minDate} s.d {w.maxDate})
+                </option>
+              ))}
+            </select>
+          )}
+
+          {filterMode === 'monthly' && (
+            <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-blue-500/20 text-blue-500 border border-blue-500/30">
+              Oktober 2026
+            </span>
+          )}
+
+          <button
+            onClick={generateShareDailyWA}
+            className="px-2.5 py-1 bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold rounded-lg flex items-center gap-1 shadow-sm transition-all"
+          >
+            <Share2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Share Daily</span>
+          </button>
+        </div>
+      </section>
+
+      {/* ==================================================== */}
+      {/* NAVIGATION TABS */}
+      {/* ==================================================== */}
+      <nav className={`w-full overflow-x-auto no-scrollbar border-b px-3 sm:px-6 flex gap-1 ${theme === 'dark' ? 'border-slate-800' : 'border-slate-200'}`}>
+        {[
+          { key: 'overview', label: 'Store Overview', icon: BarChart3 },
+          { key: 'weekly', label: 'Weekly Sales', icon: TrendingUp },
+          { key: 'staff', label: 'Staff Performance', icon: Users },
+          { key: 'bnpl', label: 'BNPL', icon: CreditCard },
+          { key: 'schedule', label: 'Schedule', icon: Calendar },
+          { key: 'feedback', label: 'Feedback', icon: MessageSquare },
+          { key: 'search', label: 'Cari Produk', icon: Search },
+          ...(loggedInSalesId === ADMIN_SALES_ID ? [{ key: 'admin', label: 'Admin Portal', icon: ShieldAlert }] : [])
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key as any)}
+              className={`flex items-center gap-1.5 py-2.5 px-3 border-b-2 whitespace-nowrap text-xs font-medium transition-all ${
+                isActive
+                  ? 'border-blue-600 text-blue-600 font-bold'
+                  : 'border-transparent opacity-60 hover:opacity-100'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* ==================================================== */}
+      {/* MAIN VIEW CONTENT */}
+      {/* ==================================================== */}
+      <main className="w-full max-w-full p-3 sm:p-6 space-y-6">
+        {/* TAB 1: OVERVIEW STORE */}
+        {activeTab === 'overview' && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className={`p-3.5 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200'}`}>
+                <div className="flex justify-between items-center text-xs opacity-70 mb-1">
+                  <span>Target Periode</span>
+                  <BarChart3 className="w-3.5 h-3.5 text-blue-500" />
+                </div>
+                <div className="text-sm sm:text-base font-extrabold truncate">{formatCompactIDR(storeMetrics.totalTarget)}</div>
+                <div className="text-[10px] sm:text-xs opacity-60 mt-1">Oktober 2026 Toko</div>
+              </div>
+
+              <div className={`p-3.5 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200'}`}>
+                <div className="flex justify-between items-center text-xs opacity-70 mb-1">
+                  <span>Actual Omzet</span>
+                  <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+                </div>
+                <div className="text-sm sm:text-base font-extrabold text-emerald-500 truncate">{formatCompactIDR(storeMetrics.totalActual)}</div>
+                <div className="text-[10px] sm:text-xs font-medium text-emerald-500 mt-1">{storeMetrics.overallAch.toFixed(1)}% Terpenuhi</div>
+              </div>
+
+              <div className={`p-3.5 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200'}`}>
+                <div className="flex justify-between items-center text-xs opacity-70 mb-1">
+                  <span>Sisa Gap</span>
+                  <Clock className="w-3.5 h-3.5 text-rose-500" />
+                </div>
+                <div className="text-sm sm:text-base font-extrabold text-rose-500 truncate">{formatCompactIDR(storeMetrics.overallGap)}</div>
+                <div className="text-[10px] sm:text-xs opacity-60 mt-1">{storeMetrics.remainingDays} Hari Tersisa</div>
+              </div>
+
+              <div className={`p-3.5 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200'}`}>
+                <div className="flex justify-between items-center text-xs opacity-70 mb-1">
+                  <span>Run Rate / Hari</span>
+                  <CreditCard className="w-3.5 h-3.5 text-amber-500" />
+                </div>
+                <div className="text-sm sm:text-base font-extrabold text-amber-500 truncate">{formatCompactIDR(storeMetrics.requiredRunRateDaily)}</div>
+                <div className="text-[10px] sm:text-xs opacity-60 mt-1">Time Gone: {storeMetrics.timeGonePercent.toFixed(1)}%</div>
+              </div>
+            </div>
+
+            {/* Category Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { title: 'Apple Devices', icon: Smartphone, color: 'text-blue-500', ...storeMetrics.categories.apple },
+                { title: 'Android Devices', icon: Smartphone, color: 'text-emerald-500', ...storeMetrics.categories.android },
+                { title: 'Accessories', icon: Headphones, color: 'text-amber-500', ...storeMetrics.categories.acc },
+                { title: 'VAS (Proteksi & Data)', icon: ShieldCheck, color: 'text-purple-500', ...storeMetrics.categories.vas }
+              ].map((c) => {
+                const Icon = c.icon;
+                const ach = c.target > 0 ? (c.actual / c.target) * 100 : 0;
+                return (
+                  <div
+                    key={c.title}
+                    onClick={() =>
+                      setBottomSheetData({
+                        title: `Rincian Kategori: ${c.title}`,
+                        content: (
+                          <div className="space-y-3 text-xs">
+                            <div className="flex justify-between p-2 rounded-lg bg-slate-100 dark:bg-slate-800">
+                              <span>Target</span>
+                              <span className="font-bold">{formatIDR(c.target)}</span>
+                            </div>
+                            <div className="flex justify-between p-2 rounded-lg bg-slate-100 dark:bg-slate-800">
+                              <span>Realisasi</span>
+                              <span className="font-bold text-blue-500">{formatIDR(c.actual)}</span>
+                            </div>
+                            <div className="flex justify-between p-2 rounded-lg bg-slate-100 dark:bg-slate-800">
+                              <span>Pencapaian</span>
+                              <span className="font-bold text-emerald-500">{ach.toFixed(1)}%</span>
+                            </div>
+                          </div>
+                        )
+                      })
+                    }
+                    className={`p-3.5 rounded-2xl border cursor-pointer hover:border-blue-500 transition-all ${
+                      theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold flex items-center gap-1.5">
+                        <Icon className={`w-3.5 h-3.5 ${c.color}`} /> {c.title}
+                      </span>
+                      <ChevronRight className="w-3.5 h-3.5 opacity-40" />
+                    </div>
+                    <div className="text-sm font-extrabold">{formatCompactIDR(c.actual)}</div>
+                    <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full mt-2 overflow-hidden">
+                      <div
+                        className="h-full bg-blue-600 rounded-full"
+                        style={{ width: `${Math.min(100, ach)}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-[10px] opacity-60 mt-1.5">
+                      <span>Target: {formatCompactIDR(c.target)}</span>
+                      <span className="font-bold text-blue-500">{ach.toFixed(1)}%</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Daily Catch-Up Table */}
+            <div className={`p-4 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200'}`}>
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <div>
+                  <h3 className="text-xs sm:text-sm font-bold flex items-center gap-2">
+                    🎯 Target Harian vs Pencapaian Berjalan (Catch-Up)
+                  </h3>
+                  <p className="text-[11px] opacity-60">Diambil langsung dari Kolom H sheet target staff</p>
+                </div>
+                <button
+                  onClick={generateShareCatchUpTargetWA}
+                  className="px-3 py-1.5 bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-sm"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>Share Target (WhatsApp)</span>
+                </button>
               </div>
 
               <div className="w-full overflow-hidden">
-                <table className="w-full table-fixed text-xs">
+                <table className="w-full table-fixed text-[11px] sm:text-xs text-left">
                   <thead>
-                    <tr className="border-b border-gray-700/40 text-gray-400 text-left">
-                      <th className="w-8 py-2">#</th>
-                      <th className="w-2/5 py-2">Sales</th>
-                      <th className="py-2 text-right">Omset</th>
-                      <th className="w-16 py-2 text-right">UPT</th>
+                    <tr className="border-b border-slate-200 dark:border-slate-700/80 opacity-70">
+                      <th className="py-2 px-1 w-[40%]">Nama Staff</th>
+                      <th className="py-2 px-1 w-[35%]">Target Catch Up</th>
+                      <th className="py-2 px-1 w-[25%] text-right">Aksi</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-700/20">
-                    {staffLeaderboard.slice(0, 5).map((staff, idx) => (
-                      <tr
-                        key={staff.salesName}
-                        onClick={() =>
-                          setActiveBottomSheet({
-                            title: `Detail Penjualan: ${staff.salesName}`,
-                            type: 'STAFF_DETAIL',
-                            payload: staff,
-                          })
-                        }
-                        className="cursor-pointer hover:bg-white/5 transition"
-                      >
-                        <td className="py-2.5 font-bold text-gray-400">{idx + 1}</td>
-                        <td className="py-2.5 font-medium truncate pr-2">{staff.salesName}</td>
-                        <td className="py-2.5 text-right font-semibold text-blue-400 truncate">
-                          {formatCompactIDR(staff.totalSales)}
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {staffLeaderboard.slice(0, 8).map((s) => (
+                      <tr key={s.salesId}>
+                        <td className="py-2 px-1 font-semibold truncate">{s.salesName}</td>
+                        <td className="py-2 px-1 font-bold text-blue-500 truncate">{formatCompactIDR(s.catchUpTarget)}</td>
+                        <td className="py-2 px-1 text-right">
+                          <button
+                            onClick={() => handleOpenStaffDetail(s)}
+                            className="px-2 py-0.5 rounded text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-bold"
+                          >
+                            Detail
+                          </button>
                         </td>
-                        <td className="py-2.5 text-right font-medium text-emerald-400">{staff.upt}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -804,136 +1074,121 @@ Semangat closing team! Tetap fokus capai target! 🔥💪`;
           </div>
         )}
 
-        {/* ========================================================= */}
-        {/* TAB 2: WEEKLY SALES (WoW)                                 */}
-        {/* ========================================================= */}
+        {/* TAB 2: WEEKLY SALES (WoW) */}
         {activeTab === 'weekly' && (
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-base sm:text-xl font-bold">Weekly Sales (WoW)</h2>
-                <p className="text-xs text-gray-400">Pencapaian minggu ke minggu terdeteksi dinamis dari Kolom O</p>
-              </div>
+            <div>
+              <h3 className="text-sm font-bold">Analisis Penjualan Mingguan (WoW)</h3>
+              <p className="text-[11px] opacity-60">Auto-generating weeks dari Kolom O sheet DATABASE</p>
             </div>
 
-            {/* Dynamic Week Selector */}
-            <div className="flex space-x-2 overflow-x-auto pb-1">
-              <button
-                onClick={() => setSelectedWeek('ALL')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition ${
-                  selectedWeek === 'ALL'
-                    ? 'bg-blue-600 text-white'
-                    : theme === 'dark'
-                    ? 'bg-[#22203F] text-gray-300'
-                    : 'bg-white border text-gray-700'
-                }`}
-              >
-                Semua Minggu
-              </button>
-              {availableWeeks.map((wk) => (
-                <button
-                  key={wk}
-                  onClick={() => setSelectedWeek(wk)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition ${
-                    selectedWeek === wk
-                      ? 'bg-blue-600 text-white'
-                      : theme === 'dark'
-                      ? 'bg-[#22203F] text-gray-300'
-                      : 'bg-white border text-gray-700'
-                  }`}
-                >
-                  {wk}
-                </button>
-              ))}
-            </div>
-
-            {/* Week Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {availableWeeks.map((wk) => {
-                const wkTransactions = data.filter((d) => d.week === wk);
-                const totalWkSales = wkTransactions.reduce((acc, curr) => acc + curr.amount, 0);
-                const invoices = new Set(wkTransactions.map((d) => d.invoice)).size;
-                const qty = wkTransactions.reduce((acc, curr) => acc + curr.qty, 0);
-
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+              {dynamicWeeks.map((wk) => {
+                const weekTxs = transactions.filter((t) => t.weekName === wk.name);
+                const totalWk = weekTxs.reduce((sum, t) => sum + t.amount, 0);
+                const isSelected = selectedWeek === wk.name;
                 return (
                   <div
-                    key={wk}
-                    onClick={() => {
-                      setSelectedWeek(wk);
-                      setPeriodFilter('WEEKLY');
-                    }}
-                    className={`p-4 rounded-2xl border cursor-pointer transition hover:border-blue-500 ${
-                      theme === 'dark' ? 'bg-[#22203F] border-purple-900/40' : 'bg-white border-gray-200'
+                    key={wk.name}
+                    onClick={() => setSelectedWeek(isSelected ? 'ALL' : wk.name)}
+                    className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                      isSelected
+                        ? 'border-blue-600 bg-blue-500/10'
+                        : theme === 'dark'
+                        ? 'bg-slate-800/40 border-slate-700/80 hover:border-slate-600'
+                        : 'bg-white border-slate-200 hover:border-slate-300'
                     }`}
                   >
                     <div className="flex justify-between items-center mb-1">
-                      <span className="text-xs font-bold text-blue-400">{wk}</span>
-                      <span className="text-[10px] text-gray-400">{invoices} Transaksi</span>
+                      <span className="font-bold text-xs">{wk.name}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-500 font-semibold">
+                        {weekTxs.length} Tx
+                      </span>
                     </div>
-                    <div className="text-lg font-bold mt-1">{formatCompactIDR(totalWkSales)}</div>
-                    <div className="text-xs text-gray-400 mt-2 flex justify-between">
-                      <span>Total Qty: {qty} unit</span>
-                      <span>UPT: {invoices > 0 ? (qty / invoices).toFixed(2) : '0'}</span>
+                    <div className="text-sm sm:text-base font-extrabold text-blue-500">{formatCompactIDR(totalWk)}</div>
+                    <div className="text-[10px] opacity-60 mt-1">
+                      Rentang: {wk.minDate} s.d {wk.maxDate}
                     </div>
                   </div>
                 );
               })}
             </div>
+
+            <div className={`p-4 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200'}`}>
+              <h4 className="text-xs font-bold mb-3">Realisasi Tim ({selectedWeek === 'ALL' ? 'Semua Minggu' : selectedWeek})</h4>
+              <div className="w-full overflow-hidden">
+                <table className="w-full table-fixed text-[11px] sm:text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 dark:border-slate-700/80 opacity-70">
+                      <th className="py-2 px-1 w-[40%]">Nama Staff</th>
+                      <th className="py-2 px-1 w-[30%]">Total Sales</th>
+                      <th className="py-2 px-1 w-[15%] text-center">UPT</th>
+                      <th className="py-2 px-1 w-[15%] text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {staffLeaderboard.map((s) => (
+                      <tr key={s.salesId}>
+                        <td className="py-2 px-1 font-semibold truncate">{s.salesName}</td>
+                        <td className="py-2 px-1 font-bold text-emerald-500 truncate">{formatCompactIDR(s.totalRev)}</td>
+                        <td className="py-2 px-1 text-center font-medium">{s.upt.toFixed(1)}</td>
+                        <td className="py-2 px-1 text-right">
+                          <button
+                            onClick={() => handleOpenStaffDetail(s)}
+                            className="px-2 py-0.5 rounded text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-bold"
+                          >
+                            Detail
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         )}
 
-        {/* ========================================================= */}
-        {/* TAB 3: STAFF PERFORMANCE DETAIL                            */}
-        {/* ========================================================= */}
+        {/* TAB 3: STAFF PERFORMANCE DETAIL */}
         {activeTab === 'staff' && (
-          <div className="space-y-4">
-            <div>
-              <h2 className="text-base sm:text-xl font-bold">Staff Performance Detail</h2>
-              <p className="text-xs text-gray-400">Seluruh staf ditampilkan langsung tanpa dropdown</p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {staffLeaderboard.map((staff, idx) => (
+          <div className="space-y-3">
+            <h3 className="text-sm font-bold">Performa Seluruh Staf Toko (Leaderboard)</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {staffLeaderboard.map((staf, idx) => (
                 <div
-                  key={staff.salesName}
-                  onClick={() =>
-                    setActiveBottomSheet({
-                      title: `Rincian Kinerja: ${staff.salesName}`,
-                      type: 'STAFF_DETAIL',
-                      payload: staff,
-                    })
-                  }
-                  className={`p-4 rounded-2xl border cursor-pointer hover:border-blue-500 transition ${
-                    theme === 'dark' ? 'bg-[#22203F] border-purple-900/40' : 'bg-white border-gray-200'
+                  key={staf.salesId}
+                  onClick={() => handleOpenStaffDetail(staf)}
+                  className={`p-3.5 rounded-2xl border cursor-pointer hover:border-blue-500 transition-all ${
+                    theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200'
                   }`}
                 >
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="w-10 h-10 rounded-full bg-blue-600/20 text-blue-400 flex items-center justify-center font-bold text-sm border border-blue-500/30">
-                      {staff.salesName
-                        .split(' ')
-                        .map((n) => n[0])
-                        .slice(0, 2)
-                        .join('')}
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs">
+                        {staf.salesName.substring(0, 2).toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold">{staf.salesName}</div>
+                        <div className="text-[10px] opacity-60">ID: {staf.salesId} | Rank #{idx + 1}</div>
+                      </div>
                     </div>
-                    <div className="flex-1 truncate">
-                      <h4 className="text-sm font-bold truncate">{staff.salesName}</h4>
-                      <p className="text-[10px] text-gray-400">ID: {staff.salesId}</p>
-                    </div>
-                    <span className="text-xs font-bold text-amber-400">#{idx + 1}</span>
+                    <span className="text-xs font-black text-blue-500">{staf.ach.toFixed(1)}%</span>
                   </div>
 
-                  <div className="text-base font-bold text-blue-400 mb-2">{formatCompactIDR(staff.totalSales)}</div>
-
-                  {/* Sub-line mini grid */}
-                  <div className="grid grid-cols-2 gap-1.5 text-[10px] text-gray-400 pt-2 border-t border-gray-700/30">
-                    <div>🍎 Apple: {formatCompactIDR(staff.apple)}</div>
-                    <div>🤖 Android: {formatCompactIDR(staff.android)}</div>
-                    <div>🔌 Acc: {formatCompactIDR(staff.acc)}</div>
-                    <div>🛡️ VAS: {formatCompactIDR(staff.vas)}</div>
+                  <div className="grid grid-cols-2 gap-2 text-[11px] mt-2 p-2 rounded-xl bg-black/5 dark:bg-white/5">
+                    <div>
+                      <span className="opacity-60 block">Realisasi</span>
+                      <span className="font-bold text-emerald-500">{formatCompactIDR(staf.totalRev)}</span>
+                    </div>
+                    <div>
+                      <span className="opacity-60 block">Keranjang (UPT)</span>
+                      <span className="font-bold">{staf.upt.toFixed(2)} Items</span>
+                    </div>
                   </div>
 
-                  <div className="mt-2 text-right">
-                    <span className="text-[10px] text-emerald-400 font-semibold">UPT: {staff.upt}</span>
+                  <div className="flex justify-between items-center text-[10px] opacity-60 mt-2">
+                    <span>Target: {formatCompactIDR(staf.target)}</span>
+                    <span className="text-blue-500 font-bold">Buka Detail &rarr;</span>
                   </div>
                 </div>
               ))}
@@ -941,267 +1196,58 @@ Semangat closing team! Tetap fokus capai target! 🔥💪`;
           </div>
         )}
 
-        {/* ========================================================= */}
-        {/* TAB 4: DAILY TARGET                                        */}
-        {/* ========================================================= */}
-        {activeTab === 'dailyTarget' && (
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-              <div>
-                <h2 className="text-base sm:text-xl font-bold">Target Harian vs Pencapaian</h2>
-                <p className="text-xs text-gray-400">Pencapaian hari ke-{hariBerjalan} dari {totalHariBulan} hari</p>
-              </div>
-              <button
-                onClick={handleShareDailyWhatsApp}
-                className="w-full sm:w-auto bg-[#25D366] hover:bg-[#20ba5a] text-white px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5"
-              >
-                <Share2 className="w-4 h-4" />
-                <span>Share Target (WhatsApp)</span>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div
-                className={`p-4 rounded-2xl border ${
-                  theme === 'dark' ? 'bg-[#22203F] border-purple-900/40' : 'bg-white border-gray-200'
-                }`}
-              >
-                <span className="text-xs text-gray-400">Target Hari Ini</span>
-                <div className="text-lg font-bold mt-1">{formatCompactIDR(targetPerHari)}</div>
-                <p className="text-[10px] text-gray-400 mt-1">Dihitung rata-rata harian bulan ini</p>
-              </div>
-
-              <div
-                className={`p-4 rounded-2xl border ${
-                  theme === 'dark' ? 'bg-[#22203F] border-purple-900/40' : 'bg-white border-gray-200'
-                }`}
-              >
-                <span className="text-xs text-gray-400">Target Catch Up (Run Rate Baru)</span>
-                <div className="text-lg font-bold text-amber-400 mt-1">{formatCompactIDR(requiredRunRate)}</div>
-                <p className="text-[10px] text-gray-400 mt-1">Harus dicapai tiap hari selama sisa {sisaHari} hari</p>
-              </div>
-
-              <div
-                className={`p-4 rounded-2xl border ${
-                  theme === 'dark' ? 'bg-[#22203F] border-purple-900/40' : 'bg-white border-gray-200'
-                }`}
-              >
-                <span className="text-xs text-gray-400">Sisa Target Bulan</span>
-                <div className="text-lg font-bold text-purple-400 mt-1">
-                  {formatCompactIDR(Math.max(0, targetBulan - totalStoreSales))}
-                </div>
-                <p className="text-[10px] text-gray-400 mt-1">Dari total target {formatCompactIDR(targetBulan)}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ========================================================= */}
-        {/* TAB 5: BNPL (Buy Now Pay Later)                           */}
-        {/* ========================================================= */}
+        {/* TAB 4: BNPL REKAPITULASI & TABS */}
         {activeTab === 'bnpl' && (
           <div className="space-y-4">
-            <div>
-              <h2 className="text-base sm:text-xl font-bold">BNPL Database & Tender Breakdown</h2>
-              <p className="text-xs text-gray-400">Rekapitulasi transaksi pembiayaan (Kredivo, Indodana, Akulaku, dsb.)</p>
-            </div>
+            <h3 className="text-sm font-bold">Buy Now Pay Later (BNPL) Dashboard</h3>
+            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+              {['ALL', 'Kredivo', 'Indodana', 'Akulaku', 'ShopeePayLater', 'Home Credit'].map((tnd) => {
+                const filteredBnpl = tnd === 'ALL' ? bnplRecords : bnplRecords.filter((b) => b.tender.toLowerCase().includes(tnd.toLowerCase()));
+                const tAmount = filteredBnpl.reduce((sum, b) => sum + b.amount, 0);
+                const isAct = bnplActiveTender === tnd;
 
-            {/* Tender Summary Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {['Kredivo', 'Indodana', 'Akulaku', 'ShopeePayLater'].map((tender) => {
-                const items = bnplData.filter((b) => b.tender.toLowerCase().includes(tender.toLowerCase()));
-                const total = items.reduce((acc, curr) => acc + curr.amount, 0);
                 return (
-                  <div
-                    key={tender}
-                    className={`p-3.5 rounded-xl border ${
-                      theme === 'dark' ? 'bg-[#22203F] border-purple-900/30' : 'bg-white border-gray-200'
+                  <button
+                    key={tnd}
+                    onClick={() => setBnplActiveTender(tnd)}
+                    className={`px-3 py-2 rounded-xl border text-left whitespace-nowrap min-w-[130px] transition-all ${
+                      isAct
+                        ? 'border-blue-600 bg-blue-500/10'
+                        : theme === 'dark'
+                        ? 'bg-slate-800/40 border-slate-700/80 hover:border-slate-600'
+                        : 'bg-white border-slate-200 hover:border-slate-300'
                     }`}
                   >
-                    <span className="text-xs text-gray-400">{tender}</span>
-                    <div className="text-sm sm:text-base font-bold mt-1">{formatCompactIDR(total)}</div>
-                    <div className="text-[10px] text-gray-400 mt-0.5">{items.length} Transaksi</div>
-                  </div>
+                    <div className="text-[11px] font-bold">{tnd}</div>
+                    <div className="text-xs font-black text-blue-500">{formatCompactIDR(tAmount)}</div>
+                    <div className="text-[10px] opacity-60">{filteredBnpl.length} Transaksi</div>
+                  </button>
                 );
               })}
             </div>
 
-            {/* BNPL Logs Table */}
-            <div
-              className={`rounded-2xl border p-3.5 ${
-                theme === 'dark' ? 'bg-[#22203F] border-purple-900/40' : 'bg-white border-gray-200'
-              }`}
-            >
-              <h3 className="text-xs font-bold mb-2">Riwayat Transaksi BNPL Terbaru</h3>
+            <div className={`p-4 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200'}`}>
+              <h4 className="text-xs font-bold mb-3">Detail Transaksi BNPL ({bnplActiveTender})</h4>
               <div className="w-full overflow-hidden">
-                <table className="w-full table-fixed text-xs">
+                <table className="w-full table-fixed text-[11px] sm:text-xs">
                   <thead>
-                    <tr className="border-b border-gray-700/40 text-gray-400 text-left">
-                      <th className="w-20 py-2">Invoice</th>
-                      <th className="py-2">Produk</th>
-                      <th className="w-24 py-2 text-right">Amount</th>
+                    <tr className="border-b border-slate-200 dark:border-slate-700/80 opacity-70">
+                      <th className="py-2 px-1 w-[25%]">No Invoice</th>
+                      <th className="py-2 px-1 w-[40%]">Produk</th>
+                      <th className="py-2 px-1 w-[15%]">Tender</th>
+                      <th className="py-2 px-1 w-[20%] text-right">Amount</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-700/20">
-                    {bnplData.slice(0, 8).map((b, idx) => (
-                      <tr key={idx}>
-                        <td className="py-2 text-gray-400 font-mono text-[11px] truncate pr-1">{b.invoice}</td>
-                        <td className="py-2 truncate pr-2">{b.product}</td>
-                        <td className="py-2 text-right font-medium text-emerald-400 truncate">{formatCompactIDR(b.amount)}</td>
-                      </tr>
-                    ))}
-                    {bnplData.length === 0 && (
-                      <tr>
-                        <td colSpan={3} className="py-4 text-center text-gray-400 text-xs">
-                          Tidak ada data transaksi BNPL
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ========================================================= */}
-        {/* TAB 6: SCHEDULE (Shift Kerja)                             */}
-        {/* ========================================================= */}
-        {activeTab === 'schedule' && (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-base sm:text-xl font-bold">Jadwal Shift Staf Toko</h2>
-                <p className="text-xs text-gray-400">
-                  {currentSalesId === ADMIN_SALES_ID
-                    ? 'Mode Admin: Anda memiliki akses penuh untuk mengubah shift'
-                    : 'Mode Viewer: Hanya ID 22008089 yang dapat mengubah shift'}
-                </p>
-              </div>
-            </div>
-
-            {/* Shift Legend */}
-            <div className="flex flex-wrap gap-2 text-[10px]">
-              <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 font-medium">⛅ D047: Pagi (09-17)</span>
-              <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 font-medium">☀️ D103: Siang (14-22)</span>
-              <span className="px-2 py-0.5 rounded bg-red-500/20 text-red-400 font-medium">🏠 OFF: Libur</span>
-            </div>
-
-            {/* Schedule Table (Fixed & Non-overflow) */}
-            <div
-              className={`rounded-2xl border p-3 ${
-                theme === 'dark' ? 'bg-[#22203F] border-purple-900/40' : 'bg-white border-gray-200'
-              }`}
-            >
-              <div className="w-full overflow-hidden">
-                <table className="w-full table-fixed text-[11px]">
-                  <thead>
-                    <tr className="border-b border-gray-700/40 text-gray-400 text-center">
-                      <th className="text-left w-24 py-2">Nama</th>
-                      <th>Sen</th>
-                      <th>Sel</th>
-                      <th>Rab</th>
-                      <th>Kam</th>
-                      <th>Jum</th>
-                      <th>Sab</th>
-                      <th>Min</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-700/20 text-center">
-                    {Object.entries(scheduleData).map(([staff, days]) => (
-                      <tr key={staff}>
-                        <td className="text-left py-2 font-medium truncate pr-1">{staff}</td>
-                        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => {
-                          const shift = days[day];
-                          return (
-                            <td key={day} className="py-2">
-                              <span
-                                className={`inline-block px-1.5 py-0.5 rounded font-mono text-[9px] ${
-                                  shift === 'D047'
-                                    ? 'bg-blue-500/20 text-blue-400'
-                                    : shift === 'D103'
-                                    ? 'bg-amber-500/20 text-amber-400'
-                                    : 'bg-red-500/20 text-red-400'
-                                }`}
-                              >
-                                {shift}
-                              </span>
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ========================================================= */}
-        {/* TAB 7: PENCARIAN PRODUK                                   */}
-        {/* ========================================================= */}
-        {activeTab === 'search' && (
-          <div className="space-y-4">
-            <div>
-              <h2 className="text-base sm:text-xl font-bold">Pencarian Transaksi Produk</h2>
-              <p className="text-xs text-gray-400">Cari berdasarkan SKU/Article, Nama Deskripsi, atau Brand</p>
-            </div>
-
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Ketik nama produk (misal: iPhone 17, Galaxy S26, Charger)..."
-                className={`w-full pl-9 pr-4 py-2 rounded-xl text-xs border outline-none transition ${
-                  theme === 'dark'
-                    ? 'bg-[#22203F] border-purple-900/40 text-white focus:border-blue-500'
-                    : 'bg-white border-gray-300 text-gray-900 focus:border-blue-600'
-                }`}
-              />
-            </div>
-
-            {/* Results */}
-            <div
-              className={`rounded-2xl border p-3 ${
-                theme === 'dark' ? 'bg-[#22203F] border-purple-900/40' : 'bg-white border-gray-200'
-              }`}
-            >
-              <div className="w-full overflow-hidden">
-                <table className="w-full table-fixed text-xs">
-                  <thead>
-                    <tr className="border-b border-gray-700/40 text-gray-400 text-left">
-                      <th className="py-2">Produk</th>
-                      <th className="w-20 py-2">Sales</th>
-                      <th className="w-8 py-2 text-center">Qty</th>
-                      <th className="w-24 py-2 text-right">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-700/20">
-                    {data
-                      .filter((d) => {
-                        if (!searchQuery) return true;
-                        const q = searchQuery.toLowerCase();
-                        return (
-                          d.sapDescription.toLowerCase().includes(q) ||
-                          d.sapArticle.toLowerCase().includes(q) ||
-                          d.brandName.toLowerCase().includes(q)
-                        );
-                      })
-                      .slice(0, 15)
-                      .map((d, i) => (
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {bnplRecords
+                      .filter((b) => (bnplActiveTender === 'ALL' ? true : b.tender.toLowerCase().includes(bnplActiveTender.toLowerCase())))
+                      .slice(0, 10)
+                      .map((row, i) => (
                         <tr key={i}>
-                          <td className="py-2 pr-2">
-                            <div className="font-medium truncate">{d.sapDescription}</div>
-                            <div className="text-[10px] text-gray-400 font-mono">{d.sapArticle}</div>
-                          </td>
-                          <td className="py-2 truncate pr-1 text-gray-400 text-[11px]">{d.salesName}</td>
-                          <td className="py-2 text-center">{d.qty}</td>
-                          <td className="py-2 text-right font-medium text-blue-400 truncate">
-                            {formatCompactIDR(d.amount)}
-                          </td>
+                          <td className="py-2 px-1 font-mono text-[10px] truncate">{row.invoiceNo}</td>
+                          <td className="py-2 px-1 font-semibold truncate">{row.product}</td>
+                          <td className="py-2 px-1 text-[10px] opacity-70 truncate">{row.tender}</td>
+                          <td className="py-2 px-1 text-right font-bold text-emerald-500 truncate">{formatCompactIDR(row.amount)}</td>
                         </tr>
                       ))}
                   </tbody>
@@ -1211,176 +1257,361 @@ Semangat closing team! Tetap fokus capai target! 🔥💪`;
           </div>
         )}
 
-        {/* ========================================================= */}
-        {/* TAB 8: FEEDBACK HARIAN                                    */}
-        {/* ========================================================= */}
-        {activeTab === 'feedback' && (
+        {/* TAB 5: SCHEDULE 1 MINGGU */}
+        {activeTab === 'schedule' && (
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h2 className="text-base sm:text-xl font-bold">Feedback Penjualan Hari Ini 📊</h2>
-                <p className="text-xs text-gray-400">Suara staf lapangan, kendala stok, dan ulasan transaksi</p>
+                <h3 className="text-sm font-bold">Jadwal Shift Kerja Toko (1 Minggu)</h3>
+                <p className="text-[11px] opacity-60">
+                  {loggedInSalesId === ADMIN_SALES_ID ? '✏️ Mode Admin: Klik untuk mengganti shift' : '👁️ Mode Baca: Hanya Admin yang dapat mengedit shift'}
+                </p>
               </div>
-            </div>
-
-            {/* Input Form Card */}
-            <div
-              className={`p-4 rounded-2xl border space-y-3 ${
-                theme === 'dark' ? 'bg-[#22203F] border-purple-900/40' : 'bg-white border-gray-200'
-              }`}
-            >
-              <h3 className="text-xs font-bold">+ Tulis Feedback Baru</h3>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <select
-                  value={selectedStaffFeedback}
-                  onChange={(e) => setSelectedStaffFeedback(e.target.value)}
-                  className={`text-xs p-2 rounded-lg border outline-none ${
-                    theme === 'dark' ? 'bg-[#1A1831] border-purple-800 text-white' : 'bg-gray-50 border-gray-300'
-                  }`}
-                >
-                  {staffLeaderboard.map((s) => (
-                    <option key={s.salesName} value={s.salesName}>
-                      {s.salesName}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="text"
-                  value={newFeedbackMessage}
-                  onChange={(e) => setNewFeedbackMessage(e.target.value)}
-                  placeholder="Tulis kendala operasional, ketersediaan unit, atau feedback promo..."
-                  className={`flex-1 text-xs p-2 rounded-lg border outline-none ${
-                    theme === 'dark' ? 'bg-[#1A1831] border-purple-800 text-white' : 'bg-gray-50 border-gray-300'
-                  }`}
-                />
+              <div className="flex gap-2">
                 <button
-                  onClick={handleAddFeedback}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-semibold"
+                  onClick={() => window.print()}
+                  className="px-2.5 py-1 text-xs border rounded-lg flex items-center gap-1.5"
                 >
-                  Kirim
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Print / PDF</span>
                 </button>
               </div>
             </div>
 
-            {/* Feedback Reviews List */}
+            <div className={`p-3 rounded-2xl border overflow-x-auto ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200'}`}>
+              <table className="w-full text-[10px] sm:text-xs text-center border-collapse min-w-[500px]">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-700 opacity-70">
+                    <th className="py-2 px-2 text-left w-28">Nama</th>
+                    {DAYS_OF_WEEK.map((d) => (
+                      <th key={d.key} className="py-2 px-1">
+                        <div>{d.label}</div>
+                        <div className="text-[9px] font-normal opacity-70">{d.date}</div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {scheduleState.map((staf, sIdx) => (
+                    <tr key={staf.salesId}>
+                      <td className="py-2 px-2 text-left font-semibold truncate">{staf.salesName}</td>
+                      {DAYS_OF_WEEK.map((d) => {
+                        const shiftVal = staf.shifts[d.key] || 'OFF';
+                        const isEditable = loggedInSalesId === ADMIN_SALES_ID;
+
+                        return (
+                          <td key={d.key} className="py-1 px-1">
+                            {isEditable ? (
+                              <select
+                                value={shiftVal}
+                                onChange={(e) => {
+                                  const updated = [...scheduleState];
+                                  updated[sIdx].shifts[d.key] = e.target.value;
+                                  setScheduleState(updated);
+                                }}
+                                className="text-[10px] p-1 rounded font-bold bg-transparent border border-slate-300 dark:border-slate-700"
+                              >
+                                <option value="D047">D047</option>
+                                <option value="D103">D103</option>
+                                <option value="OFF">OFF</option>
+                                <option value="TR">TR</option>
+                                <option value="CUTI">CUTI</option>
+                              </select>
+                            ) : (
+                              <span
+                                className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                                  shiftVal === 'D047'
+                                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
+                                    : shiftVal === 'D103'
+                                    ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'
+                                    : 'bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300'
+                                }`}
+                              >
+                                {shiftVal}
+                              </span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 6: FEEDBACK PENJUALAN DENGAN FITUR EDIT */}
+        {activeTab === 'feedback' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold">Riwayat Feedback Penjualan Hari Ini 📊</h3>
+                <p className="text-[11px] opacity-60">Ulasan performa, kendala stok, dan respon promo konsumen</p>
+              </div>
+              <button
+                onClick={() => {
+                  setEditingFeedbackId(null);
+                  setFeedbackInputName('');
+                  setFeedbackInputText('');
+                  setShowFeedbackModal(true);
+                }}
+                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm"
+              >
+                + Tulis Feedback
+              </button>
+            </div>
+
             <div className="space-y-3">
-              {feedbacks.map((f) => (
+              {feedbacks.map((fb) => (
                 <div
-                  key={f.id}
-                  className={`p-4 rounded-2xl border space-y-2 ${
-                    theme === 'dark' ? 'bg-[#22203F] border-purple-900/40' : 'bg-white border-gray-200 shadow-sm'
+                  key={fb.id}
+                  className={`p-3.5 rounded-2xl border space-y-2 ${
+                    theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200'
                   }`}
                 >
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="font-bold text-blue-400">{f.salesName}</span>
-                    <span className="text-[10px] text-gray-400">{f.timestamp}</span>
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-blue-500">{fb.salesName}</span>
+                      {fb.isEdited && (
+                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-500 border border-amber-500/30">
+                          edited
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] opacity-50">{fb.timestamp}</span>
+                      <button
+                        onClick={() => {
+                          setEditingFeedbackId(fb.id);
+                          setFeedbackInputName(fb.salesName);
+                          setFeedbackInputText(fb.text);
+                          setShowFeedbackModal(true);
+                        }}
+                        className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-slate-400 hover:text-blue-500"
+                        title="Edit Feedback"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
-                  <p className="text-xs leading-relaxed">{f.message}</p>
-                  {/* Reactions */}
-                  <div className="flex space-x-1.5 pt-1">
-                    {['👍', '🔥', '🧡'].map((emoji) => {
-                      const count = f.reactions[emoji] || 0;
-                      return (
-                        <button
-                          key={emoji}
-                          onClick={() => handleToggleReaction(f.id, emoji)}
-                          className={`text-xs px-2 py-0.5 rounded-full border transition flex items-center space-x-1 ${
-                            theme === 'dark'
-                              ? 'border-purple-800 bg-white/5 hover:bg-white/10'
-                              : 'border-gray-200 bg-gray-50 hover:bg-gray-100'
-                          }`}
-                        >
-                          <span>{emoji}</span>
-                          <span className="text-[10px] font-semibold">{count}</span>
-                        </button>
-                      );
-                    })}
+                  <p className="text-xs leading-relaxed opacity-90">{fb.text}</p>
+                  <div className="flex items-center gap-1.5 pt-1">
+                    {[
+                      { key: 'like', icon: '👍', count: fb.reactions.like },
+                      { key: 'heart', icon: '🧡', count: fb.reactions.heart },
+                      { key: 'fire', icon: '🔥', count: fb.reactions.fire }
+                    ].map((rx) => (
+                      <button
+                        key={rx.key}
+                        onClick={() => {
+                          setFeedbacks(
+                            feedbacks.map((f) =>
+                              f.id === fb.id
+                                ? {
+                                    ...f,
+                                    reactions: { ...f.reactions, [rx.key]: (f.reactions as any)[rx.key] + 1 }
+                                  }
+                                : f
+                            )
+                          );
+                        }}
+                        className="px-2 py-0.5 rounded-full text-[10px] border border-slate-200 dark:border-slate-700 hover:bg-black/5 dark:hover:bg-white/5 flex items-center gap-1"
+                      >
+                        <span>{rx.icon}</span>
+                        <span>{rx.count}</span>
+                      </button>
+                    ))}
                   </div>
                 </div>
               ))}
             </div>
           </div>
         )}
-      </main>
 
-      {/* ========================================================= */}
-      {/* BOTTOM SHEET / SLIDING DRAWER MODAL                       */}
-      {/* ========================================================= */}
-      {activeBottomSheet.type !== 'NONE' && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div
-            className={`w-full max-w-lg rounded-t-3xl p-5 border-t space-y-4 shadow-2xl transition-transform max-h-[85vh] overflow-y-auto ${
-              theme === 'dark' ? 'bg-[#1A1831] border-purple-900/50 text-white' : 'bg-white border-gray-200 text-gray-900'
-            }`}
-          >
-            {/* Header Drawer */}
-            <div className="flex justify-between items-center border-b pb-3 border-gray-700/30">
-              <div className="flex items-center space-x-2">
-                <div className="w-1.5 h-4 bg-blue-600 rounded-full" />
-                <h3 className="text-sm font-bold truncate">{activeBottomSheet.title}</h3>
-              </div>
-              <button
-                onClick={() => setActiveBottomSheet({ title: '', type: 'NONE', payload: null })}
-                className="p-1.5 rounded-full hover:bg-white/10 text-gray-400 hover:text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
+        {/* TAB 7: SEARCH PRODUK */}
+        {activeTab === 'search' && (
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold">Pencarian Produk & Riwayat Transaksi</h3>
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Cari berdasarkan SKU / Article, Deskripsi, atau Brand..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={`w-full pl-9 pr-3 py-2 text-xs rounded-xl border focus:outline-none ${
+                  theme === 'dark' ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-300'
+                }`}
+              />
             </div>
 
-            {/* Content Drawer: STAFF DETAIL */}
-            {activeBottomSheet.type === 'STAFF_DETAIL' && activeBottomSheet.payload && (
-              <div className="space-y-3 text-xs">
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="p-3 rounded-xl bg-white/5 border border-purple-800/30">
-                    <span className="text-gray-400 text-[10px]">Total Sales</span>
-                    <div className="text-base font-bold text-blue-400 mt-0.5">
-                      {formatIDR(activeBottomSheet.payload.totalSales)}
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-xl bg-white/5 border border-purple-800/30">
-                    <span className="text-gray-400 text-[10px]">UPT</span>
-                    <div className="text-base font-bold text-emerald-400 mt-0.5">
-                      {activeBottomSheet.payload.upt}
-                    </div>
-                  </div>
+            {searchQuery && (
+              <div className="grid grid-cols-3 gap-2 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs">
+                <div>
+                  <span className="opacity-60 block text-[10px]">Total Ditemukan</span>
+                  <span className="font-bold">{searchSummary.count} Baris</span>
                 </div>
-
-                <h4 className="font-bold text-[11px] pt-1">Rincian Lini Produk:</h4>
-                <div className="space-y-1.5 text-[11px]">
-                  <div className="flex justify-between p-2 rounded bg-white/5">
-                    <span>🍎 Apple Devices</span>
-                    <span className="font-semibold">{formatIDR(activeBottomSheet.payload.apple)}</span>
-                  </div>
-                  <div className="flex justify-between p-2 rounded bg-white/5">
-                    <span>🤖 Android Devices</span>
-                    <span className="font-semibold">{formatIDR(activeBottomSheet.payload.android)}</span>
-                  </div>
-                  <div className="flex justify-between p-2 rounded bg-white/5">
-                    <span>🔌 Accessories</span>
-                    <span className="font-semibold">{formatIDR(activeBottomSheet.payload.acc)}</span>
-                  </div>
-                  <div className="flex justify-between p-2 rounded bg-white/5">
-                    <span>🛡️ VAS (Proteksi & Provider)</span>
-                    <span className="font-semibold">{formatIDR(activeBottomSheet.payload.vas)}</span>
-                  </div>
+                <div>
+                  <span className="opacity-60 block text-[10px]">Total Qty</span>
+                  <span className="font-bold">{searchSummary.totalQty} Units</span>
+                </div>
+                <div>
+                  <span className="opacity-60 block text-[10px]">Total Omzet</span>
+                  <span className="font-bold text-emerald-500">{formatCompactIDR(searchSummary.totalAmount)}</span>
                 </div>
               </div>
             )}
 
-            {/* Content Drawer: KPI DETAIL */}
-            {activeBottomSheet.type === 'KPI_DETAIL' && activeBottomSheet.payload && (
-              <div className="space-y-3 text-xs">
-                <p className="text-gray-400">
-                  Total omset berjalan dihitung dari seluruh transaksi valid di sheet DATABASE tanpa konstanta tiruan.
-                </p>
-                <div className="p-3 rounded-xl bg-blue-600/10 border border-blue-500/30">
-                  <div className="text-lg font-bold text-blue-400">{formatIDR(activeBottomSheet.payload.value)}</div>
-                  <div className="text-gray-400 text-[10px] mt-0.5">
-                    Dari {activeBottomSheet.payload.invoices} faktur unik
-                  </div>
+            <div className="w-full overflow-hidden">
+              <table className="w-full table-fixed text-[11px] sm:text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-700 opacity-70">
+                    <th className="py-2 px-1 w-[45%]">Produk / Deskripsi</th>
+                    <th className="py-2 px-1 w-[20%]">Sales</th>
+                    <th className="py-2 px-1 w-[10%] text-center">Qty</th>
+                    <th className="py-2 px-1 w-[25%] text-right">Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {searchResults.slice(0, 15).map((r) => (
+                    <tr key={r.rowId}>
+                      <td className="py-2 px-1 truncate font-semibold">{r.description}</td>
+                      <td className="py-2 px-1 truncate opacity-70">{r.salesName}</td>
+                      <td className="py-2 px-1 text-center font-bold">{r.qty}</td>
+                      <td className="py-2 px-1 text-right font-bold text-emerald-500 truncate">{formatCompactIDR(r.amount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 8: ADMIN SECRET PORTAL */}
+        {activeTab === 'admin' && loggedInSalesId === ADMIN_SALES_ID && (
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold flex items-center gap-2 text-rose-500">
+              <ShieldAlert className="w-4 h-4" /> Portal Khusus Admin (22008089) — Activity Log
+            </h3>
+            <div className={`p-4 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200'}`}>
+              <div className="text-xs space-y-2 opacity-80">
+                <div className="flex justify-between border-b pb-1.5 border-slate-700/40">
+                  <span>Sales ID: 22008089 (Angga)</span>
+                  <span className="text-emerald-400">Aktif (WIB)</span>
+                </div>
+                <div className="flex justify-between border-b pb-1.5 border-slate-700/40">
+                  <span>Perangkat Terdeteksi:</span>
+                  <span>Safari / macOS (MacBook Pro)</span>
+                </div>
+                <div className="flex justify-between border-b pb-1.5 border-slate-700/40">
+                  <span>Lokasi Presensi GPS:</span>
+                  <span>Grand Indonesia West Mall, Jakarta Pusat</span>
                 </div>
               </div>
-            )}
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* ==================================================== */}
+      {/* BOTTOM SHEET DRAWER MODAL */}
+      {/* ==================================================== */}
+      {bottomSheetData && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
+          <div
+            className={`w-full max-w-lg rounded-t-3xl sm:rounded-2xl p-5 space-y-4 shadow-2xl border max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom duration-200 ${
+              theme === 'dark' ? 'bg-[#1E1B3A] border-slate-700 text-[#FFF6E9]' : 'bg-white border-slate-200 text-slate-900'
+            }`}
+          >
+            <div className="w-12 h-1.5 bg-slate-400/40 rounded-full mx-auto" />
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold">{bottomSheetData.title}</h3>
+              <button
+                onClick={() => setBottomSheetData(null)}
+                className="p-1.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10"
+              >
+                <XCircle className="w-4 h-4 opacity-70" />
+              </button>
+            </div>
+            <div>{bottomSheetData.content}</div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL INPUT / EDIT FEEDBACK */}
+      {showFeedbackModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div
+            className={`w-full max-w-md rounded-2xl p-5 space-y-4 border ${
+              theme === 'dark' ? 'bg-[#1E1B3A] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'
+            }`}
+          >
+            <h3 className="text-sm font-bold">{editingFeedbackId ? 'Edit Feedback Penjualan' : 'Tulis Feedback Penjualan Hari Ini'}</h3>
+            <input
+              type="text"
+              placeholder="Nama Sales..."
+              value={feedbackInputName}
+              onChange={(e) => setFeedbackInputName(e.target.value)}
+              className="w-full p-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-transparent"
+            />
+            <textarea
+              placeholder="Tulis ulasan kendala stok, sistem POS, atau respon promo..."
+              rows={4}
+              value={feedbackInputText}
+              onChange={(e) => setFeedbackInputText(e.target.value)}
+              className="w-full p-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-transparent"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowFeedbackModal(false);
+                  setEditingFeedbackId(null);
+                }}
+                className="px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700"
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => {
+                  if (feedbackInputText.trim()) {
+                    if (editingFeedbackId) {
+                      setFeedbacks(
+                        feedbacks.map((f) =>
+                          f.id === editingFeedbackId
+                            ? {
+                                ...f,
+                                salesName: feedbackInputName.trim() || f.salesName,
+                                text: feedbackInputText.trim(),
+                                isEdited: true
+                              }
+                            : f
+                        )
+                      );
+                    } else {
+                      setFeedbacks([
+                        {
+                          id: `fb-${Date.now()}`,
+                          salesName: feedbackInputName.trim() || loggedInStaffName,
+                          timestamp: 'Baru saja',
+                          text: feedbackInputText.trim(),
+                          isEdited: false,
+                          reactions: { like: 1, heart: 0, fire: 1, dislike: 0, sad: 0 }
+                        },
+                        ...feedbacks
+                      ]);
+                    }
+                    setFeedbackInputText('');
+                    setFeedbackInputName('');
+                    setEditingFeedbackId(null);
+                    setShowFeedbackModal(false);
+                  }
+                }}
+                className="px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-600 text-white"
+              >
+                {editingFeedbackId ? 'Simpan Perubahan' : 'Kirim Feedback'}
+              </button>
+            </div>
           </div>
         </div>
       )}
