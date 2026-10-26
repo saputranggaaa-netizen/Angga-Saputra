@@ -547,8 +547,44 @@ export default function StoreOperationsPage() {
   }, [filteredTransactions, dailyTargetCatchUp]);
 
   // Ekspor PowerPoint Langsung dari Browser
-  const handleExportPPTX = async () => {     try {       // Load script pptxgenjs via CDN secara dinamis agar Vite tidak gagal resolve saat build       if (!(window as any).PptxGenJS) {         await new Promise<void>((resolve, reject) => {           const script = document.createElement('script');           script.src = 'https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js';           script.onload = () => resolve();           script.onerror = () => reject(new Error('Gagal memuat library PPTX'));           document.body.appendChild(script);         });       }        const PptxGen = (window as any).PptxGenJS;       const pres = new PptxGen();       pres.layout = 'LAYOUT_16x9';        const bgDark = '0F172A';       const textLight = 'F8FAFC';       const emerald = '059669';       const cardBg = '1E293B';        // Slide 1: Overview       const slide1 = pres.addSlide();       slide1.background = { color: bgDark };       slide1.addText('Store Performance & Operations Report', {         x: 0.8,         y: 1.5,         fontSize: 26,         bold: true,         color: textLight       });       slide1.addText('Evaluasi Mingguan (WoW), Kategori Produk, & Suara Lapangan', {         x: 0.8,         y: 2.3,         fontSize: 16,         color: '94A3B8'       });       slide1.addText(`Kode Toko: QF01 | Tanggal: ${selectedDate}`, {         x: 0.8,         y: 3.2,         fontSize: 12,         color: '38BDF8'       });        // Slide 2: Core KPI       const slide2 = pres.addSlide();       slide2.background = { color: bgDark };       slide2.addText('Core KPI Metrics (Target vs Pencapaian)', { x: 0.8, y: 0.6, fontSize: 22, bold: true, color: textLight });        slide2.addShape(pres.ShapeType.rect, { x: 0.8, y: 1.4, w: 3.6, h: 2.2, fill: { color: cardBg } });       slide2.addText('Target Bulanan Toko', { x: 1.0, y: 1.6, fontSize: 13, color: '94A3B8' });       slide2.addText(formatCompactIDR(storeMetrics.totalTarget), { x: 1.0, y: 2.1, fontSize: 20, bold: true, color: textLight });       slide2.addText(`Realisasi: ${formatCompactIDR(storeMetrics.totalActual)} (${storeMetrics.overallAch.toFixed(1)}%)`, { x: 1.0, y: 2.8, fontSize: 11, color: emerald });        await pres.writeFile({ fileName: `Store_Performance_QF01_${selectedDate}.pptx` });     } catch (e) {       console.error('Export PPTX Error:', e);       alert('Gagal mengekspor file PPTX.');     }   };
-    if (typeof window === 'undefined') return;
+  const handleExportPPTX = async () => {
+    try {
+      if (!(window as any).PptxGenJS) {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js';
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error('Gagal memuat library'));
+          document.body.appendChild(script);
+        });
+      }
+
+      const PptxGen = (window as any).PptxGenJS;
+      const pres = new PptxGen();
+      pres.layout = 'LAYOUT_16x9';
+
+      const slide = pres.addSlide();
+      slide.background = { color: '0F172A' };
+      slide.addText('Store Operations Report QF01', {
+        x: 0.8,
+        y: 1.5,
+        fontSize: 24,
+        bold: true,
+        color: 'F8FAFC'
+      });
+      slide.addText(`Periode: Oktober 2026 | Tanggal: ${selectedDate}`, {
+        x: 0.8,
+        y: 2.3,
+        fontSize: 14,
+        color: '38BDF8'
+      });
+
+      await pres.writeFile({ fileName: `Store_Report_${selectedDate}.pptx` });
+    } catch (e) {
+      console.error(e);
+      alert('Gagal mengekspor file PowerPoint.');
+    }
+  };
     try {
       const pptxgen = (await import('pptxgenjs')).default;
       const pres = new pptxgen();
