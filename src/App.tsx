@@ -1522,12 +1522,19 @@ _Diperbarui via Digiplus Store Operations Engine._`;
     return (
       <div className={`min-h-screen ${bgMain} flex items-center justify-center p-4 ${textMain} font-sans`}>
         <div className={`max-w-md w-full ${cardBg} border-2 rounded-3xl p-6 md:p-8 shadow-2xl`}>
-          <div className="text-center mb-6">
-            <div className={`w-10 h-10 ${isDark ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#054ff0] text-white"} rounded-2xl mx-auto flex items-center justify-center font-black text-2xl shadow-lg mb-3`}>
-              QF10
-            </div>
+          <div className="text-center mb-6 flex flex-col items-center justify-center">
+            {/* 1. Logo Digiplus */}
+            <img 
+              src="/apple-touch-icon.png" 
+              alt="Logo Digiplus" 
+              className="w-16 h-16 object-contain rounded-2xl bg-white p-1 shadow-md mb-2"
+            />
+            {/* 2. Tulisan QF01 hitam tanpa background kuning */}
+            <h2 className="font-black text-2xl text-black tracking-wider mb-2">
+              QF01
+            </h2>
             <h1 className="text-xl font-bold">DIGIPLUS GRAND INDONESIA</h1>
-            <p className={`text-xs ${accentText} mt-1 font-semibold`}>PORTAL LOGIN RESMI OPERASIONAL</p>
+            <p className={`text-xs ${accentText} mt-1 font-semibold`}>PORTAL DASHBOARD SALES</p>
           </div>
 
           {loginErr && (
