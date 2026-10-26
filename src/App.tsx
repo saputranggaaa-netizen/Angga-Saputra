@@ -63,7 +63,7 @@ export interface RawTargetRow {
   dailyCatchUpTarget: number;
 }
 
-export interface FeedbackItem {
+export interface FeedbackItem {   id: string;   salesName: string;   role?: string;   sentiment?: 'Luar Biasa' | 'Cukup Baik' | 'Perlu Ditingkatkan';   timestamp: string;   text: string;   isEdited?: boolean;   reactions: {     like: number;     heart: number;     fire: number;     dislike: number;     sad: number;   }; } {
   id: string;
   salesName: string;
   timestamp: string;
@@ -251,7 +251,7 @@ export default function StoreOperationsPage() {
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Feedback State
-  const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>([
+  // State feedbacks dengan sinkronisasi otomatis ke localStorage agar tidak hilang const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>(() => {   if (typeof window !== 'undefined') {     const saved = localStorage.getItem('store_feedbacks_qf01');     if (saved) {       try {         return JSON.parse(saved);       } catch (e) {         console.error('Gagal membaca storage', e);       }     }   }   return [     {       id: 'fb-1',       salesName: 'Liesbeth Febrina',       role: 'Sales Specialist',       sentiment: 'Luar Biasa',       timestamp: 'Hari ini, 16:15 WIB',       text: 'Hari ini hanya menjual iPad.',       isEdited: false,       reactions: { like: 0, heart: 0, fire: 0, dislike: 0, sad: 0 }     },     {       id: 'fb-2',       salesName: 'Liesbeth Febrina',       role: 'Cashier Leader',       sentiment: 'Luar Biasa',       timestamp: 'Hari ini, 15:20 WIB',       text: 'Pelayanan sangat cepat dan ramah saat transaksi iPhone 17 Pro Max. Penjelasan proteksi garansi Qoala Diamond sangat jelas sehingga customer langsung setuju ambil proteksi 2 tahun.',       isEdited: false,       reactions: { like: 8, heart: 5, fire: 6, dislike: 0, sad: 0 }     },     {       id: 'fb-3',       salesName: 'Yunita Anggraini',       role: 'Cashier',       sentiment: 'Luar Biasa',       timestamp: 'Hari ini, 14:10 WIB',       text: 'Customer Galaxy S26 Ultra dipandu proses trade-in handphone lama dengan lancar. Tambahan bundling casing magnetik dan charger adapter berhasil di-closing.',       isEdited: false,       reactions: { like: 7, heart: 3, fire: 4, dislike: 0, sad: 0 }     },     {       id: 'fb-4',       salesName: 'Surya Adi Permana',       role: 'Sales Assistant',       sentiment: 'Cukup Baik',       timestamp: 'Hari ini, 13:05 WIB',       text: 'Perlu lebih mendalami fitur perbandingan tablet Android dan iPad saat customer bertanya detail spesifikasi. Namun attitude pelayanan tetap sopan dan sabar.',       isEdited: false,       reactions: { like: 3, heart: 1, fire: 1, dislike: 0, sad: 1 }     }   ]; });  // Simpan permanen ke localStorage setiap ada perubahan (tambah, edit, reaksi) useEffect(() => {   if (typeof window !== 'undefined') {     localStorage.setItem('store_feedbacks_qf01', JSON.stringify(feedbacks));   } }, [feedbacks]);  const [selectedStaffFilter, setSelectedStaffFilter] = useState<string>('ALL'); const [feedbackInputName, setFeedbackInputName] = useState<string>(''); const [feedbackInputRole, setFeedbackInputRole] = useState<string>('Sales Consultant'); const [feedbackInputSentiment, setFeedbackInputSentiment] = useState<'Luar Biasa' | 'Cukup Baik' | 'Perlu Ditingkatkan'>('Luar Biasa'); const [feedbackInputText, setFeedbackInputText] = useState<string>(''); const [editingFeedbackId, setEditingFeedbackId] = useState<string | null>(null); const [showFeedbackModal, setShowFeedbackModal] = useState<boolean>(false);  const filteredFeedbacks = useMemo(() => {   if (selectedStaffFilter === 'ALL') return feedbacks;   return feedbacks.filter((fb) => fb.salesName === selectedStaffFilter); }, [feedbacks, selectedStaffFilter]);<FeedbackItem[]>([
     {
       id: 'fb-1',
       salesName: 'Angga Saputra',
@@ -1342,7 +1342,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
         )}
 
         {/* TAB 6: FEEDBACK PENJUALAN DENGAN FITUR EDIT */}
-        {activeTab === 'feedback' && (
+        {activeTab === 'feedback' && (yang memiliki dropdown filter staf, tombol edit ulasan, badge sentimen hijau/kuning, dan tombol reaksi)
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
@@ -1540,35 +1540,93 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
       )}
 
       {/* MODAL INPUT / EDIT FEEDBACK */}
+      {/* MODAL INPUT / EDIT FEEDBACK */}
       {showFeedbackModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div
-            className={`w-full max-w-md rounded-2xl p-5 space-y-4 border ${
+            className={`w-full max-w-md rounded-2xl p-5 space-y-4 border shadow-xl ${
               theme === 'dark' ? 'bg-[#1E1B3A] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'
             }`}
           >
-            <h3 className="text-sm font-bold">{editingFeedbackId ? 'Edit Feedback Penjualan' : 'Tulis Feedback Penjualan Hari Ini'}</h3>
-            <input
-              type="text"
-              placeholder="Nama Sales..."
-              value={feedbackInputName}
-              onChange={(e) => setFeedbackInputName(e.target.value)}
-              className="w-full p-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-transparent"
-            />
-            <textarea
-              placeholder="Tulis ulasan kendala stok, sistem POS, atau respon promo..."
-              rows={4}
-              value={feedbackInputText}
-              onChange={(e) => setFeedbackInputText(e.target.value)}
-              className="w-full p-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-transparent"
-            />
-            <div className="flex justify-end gap-2">
+            <div className="flex items-center justify-between border-b pb-2.5 border-slate-200 dark:border-slate-700">
+              <h3 className="text-sm font-bold">
+                {editingFeedbackId ? 'Edit Catatan Feedback' : 'Tulis Feedback Penjualan Hari Ini'}
+              </h3>
               <button
                 onClick={() => {
                   setShowFeedbackModal(false);
                   setEditingFeedbackId(null);
                 }}
-                className="px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700"
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <XCircle className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {/* Nama Sales */}
+              <div>
+                <label className="text-[11px] font-semibold opacity-70 block mb-1">Nama Sales</label>
+                <input
+                  type="text"
+                  placeholder="Ketik nama sales..."
+                  value={feedbackInputName}
+                  onChange={(e) => setFeedbackInputName(e.target.value)}
+                  className="w-full p-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-transparent focus:outline-none focus:border-[#054FF0]"
+                />
+              </div>
+
+              {/* Jabatan & Sentimen */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] font-semibold opacity-70 block mb-1">Peran / Jabatan</label>
+                  <select
+                    value={feedbackInputRole}
+                    onChange={(e) => setFeedbackInputRole(e.target.value)}
+                    className="w-full p-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-transparent focus:outline-none"
+                  >
+                    <option value="Sales Consultant">Sales Consultant</option>
+                    <option value="Cashier Leader">Cashier Leader</option>
+                    <option value="Cashier">Cashier</option>
+                    <option value="Store Leader">Store Leader</option>
+                    <option value="Senior Sales">Senior Sales</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-semibold opacity-70 block mb-1">Sentimen</label>
+                  <select
+                    value={feedbackInputSentiment}
+                    onChange={(e) => setFeedbackInputSentiment(e.target.value as any)}
+                    className="w-full p-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-transparent focus:outline-none"
+                  >
+                    <option value="Luar Biasa">Luar Biasa</option>
+                    <option value="Cukup Baik">Cukup Baik</option>
+                    <option value="Perlu Ditingkatkan">Perlu Ditingkatkan</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Catatan Feedback */}
+              <div>
+                <label className="text-[11px] font-semibold opacity-70 block mb-1">Ulasan Performa / Kendala Stok</label>
+                <textarea
+                  placeholder="Tulis ulasan transaksi, kendala pelanggan, atau respon produk..."
+                  rows={4}
+                  value={feedbackInputText}
+                  onChange={(e) => setFeedbackInputText(e.target.value)}
+                  className="w-full p-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-transparent focus:outline-none focus:border-[#054FF0]"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+              <button
+                onClick={() => {
+                  setShowFeedbackModal(false);
+                  setEditingFeedbackId(null);
+                }}
+                className="px-3.5 py-1.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-black/5"
               >
                 Batal
               </button>
@@ -1582,6 +1640,8 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
                             ? {
                                 ...f,
                                 salesName: feedbackInputName.trim() || f.salesName,
+                                role: feedbackInputRole,
+                                sentiment: feedbackInputSentiment,
                                 text: feedbackInputText.trim(),
                                 isEdited: true
                               }
@@ -1589,17 +1649,17 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
                         )
                       );
                     } else {
-                      setFeedbacks([
-                        {
-                          id: `fb-${Date.now()}`,
-                          salesName: feedbackInputName.trim() || loggedInStaffName,
-                          timestamp: 'Baru saja',
-                          text: feedbackInputText.trim(),
-                          isEdited: false,
-                          reactions: { like: 1, heart: 0, fire: 1, dislike: 0, sad: 0 }
-                        },
-                        ...feedbacks
-                      ]);
+                      const newFeedback: FeedbackItem = {
+                        id: `fb-${Date.now()}`,
+                        salesName: feedbackInputName.trim() || loggedInStaffName,
+                        role: feedbackInputRole,
+                        sentiment: feedbackInputSentiment,
+                        timestamp: `Hari ini, ${new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB`,
+                        text: feedbackInputText.trim(),
+                        isEdited: false,
+                        reactions: { like: 0, heart: 0, fire: 0, dislike: 0, sad: 0 }
+                      };
+                      setFeedbacks([newFeedback, ...feedbacks]);
                     }
                     setFeedbackInputText('');
                     setFeedbackInputName('');
@@ -1607,7 +1667,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
                     setShowFeedbackModal(false);
                   }
                 }}
-                className="px-3 py-1.5 text-xs font-bold rounded-lg bg-[#054ff0] text-white"
+                className="px-4 py-1.5 text-xs font-bold rounded-xl bg-[#054FF0] hover:bg-[#043ec2] text-white shadow-sm"
               >
                 {editingFeedbackId ? 'Simpan Perubahan' : 'Kirim Feedback'}
               </button>
@@ -1615,6 +1675,3 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
           </div>
         </div>
       )}
-    </div>
-  );
-}
