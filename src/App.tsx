@@ -68,7 +68,7 @@ export interface FeedbackItem {   id: string;   salesName: string;   role?: stri
   salesName: string;
   timestamp: string;
   text: string;
-  isEdited?: boolean;
+  isEdited: false,
   reactions: {
     like: number;
     heart: number;
