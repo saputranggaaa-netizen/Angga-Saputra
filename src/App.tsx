@@ -1005,7 +1005,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
                     <span>Target Periode</span>
                     <BarChart3 className="w-3.5 h-3.5 text-[#054FF0]" />
                   </div>
-                  <div className="text-sm sm:text-base font-extrabold truncate">{formatCompactIDR(storeMetrics.totalTarget)}</div>
+                  <div className="text-sm sm:text-base font-extrabold text-white truncate">{formatCompactIDR(storeMetrics.totalTarget)}</div>
                   <div className="text-[10px] opacity-60 mt-1">Oktober 2026 Toko</div>
                 </div>
 
@@ -1020,7 +1020,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
 
                 <div className={`p-3.5 rounded-2xl border ${theme === 'dark' ? 'bg-[#1E1B3A] border-slate-700' : 'bg-white border-slate-200/80 shadow-sm'}`}>
                   <div className="flex justify-between items-center text-xs opacity-60 mb-1">
-                    <span>Sisa Gap</span>
+                    <div className="text-sm sm:text-base font-extrabold text-rose-400 truncate">{formatCompactIDR(storeMetrics.overallGap)}</div>
                     <Clock className="w-3.5 h-3.5 text-rose-500" />
                   </div>
                   <div className="text-sm sm:text-base font-extrabold text-rose-500 truncate">{formatCompactIDR(storeMetrics.overallGap)}</div>
@@ -1029,7 +1029,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
 
                 <div className={`p-3.5 rounded-2xl border ${theme === 'dark' ? 'bg-[#1E1B3A] border-slate-700' : 'bg-white border-slate-200/80 shadow-sm'}`}>
                   <div className="flex justify-between items-center text-xs opacity-60 mb-1">
-                    <span>Run Rate / Hari</span>
+                    <div className="text-sm sm:text-base font-extrabold text-amber-400 truncate">{formatCompactIDR(storeMetrics.requiredRunRateDaily)}</div>
                     <CreditCard className="w-3.5 h-3.5 text-amber-500" />
                   </div>
                   <div className="text-sm sm:text-base font-extrabold text-amber-500 truncate">{formatCompactIDR(storeMetrics.requiredRunRateDaily)}</div>
@@ -1118,7 +1118,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
                 <div className="w-full overflow-hidden">
                   <table className="w-full table-fixed text-[11px] sm:text-xs text-left">
                     <thead>
-                      <tr className="border-b border-slate-200 dark:border-slate-700 opacity-60">
+                      <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-300">
                         <th className="py-2 px-1 w-[40%]">Nama Staff</th>
                         <th className="py-2 px-1 w-[35%]">Target Catch Up</th>
                         <th className="py-2 px-1 w-[25%] text-right">Aksi</th>
@@ -1127,8 +1127,8 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                       {staffLeaderboard.slice(0, 8).map((s) => (
                         <tr key={s.salesId}>
-                          <td className="py-2 px-1 font-semibold truncate">{s.salesName}</td>
-                          <td className="py-2 px-1 font-bold text-[#054FF0] truncate">{formatCompactIDR(s.catchUpTarget)}</td>
+                          <td className="py-2 px-1 font-semibold truncate text-white">{s.salesName}</td>
+                          <td className="py-2 px-1 font-bold text-sky-400 truncate">{formatCompactIDR(s.catchUpTarget)}</td>
                           <td className="py-2 px-1 text-right">
                             <button
                               onClick={() => handleOpenStaffDetail(s)}
