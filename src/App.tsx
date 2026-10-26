@@ -6,18 +6,17 @@ const LOG_API_URL = "https://script.google.com/macros/s/AKfycbx8o8q169jgiq5YdQ9O
 // 1. DATA CONTRACTS & INTERFACES
 // =========================================================================
 
-type MenuTab = 
-  | "store-overview" 
-  | "weekly-sales" 
-  | "staff-performance" 
-  | "daily-target" 
-  | "schedule" 
-  | "feedback" 
-  | "bnpl" 
-  | "sales-detail" 
-  | "admin-audit";
+type MenuTab =
+  | "store-overview"
+  | "weekly-sales"
+  | "staff-performance"
+  | "daily-target"
+  | "schedule"
+  | "feedback"
+  | "bnpl"
+  | "sales-detail"
+  | "admin-audit"
   | "product-search";
-
 type ThemeMode = "dark" | "light";
 type PeriodType = "daily" | "weekly" | "monthly";
 
