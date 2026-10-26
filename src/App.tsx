@@ -1523,7 +1523,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
         <div className={`max-w-md w-full ${cardBg} border-2 rounded-3xl p-6 md:p-8 shadow-2xl`}>
           <div className="text-center mb-6">
             <div className={`w-14 h-14 ${isDark ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#054ff0] text-white"} rounded-2xl mx-auto flex items-center justify-center font-black text-2xl shadow-lg mb-3`}>
-              D+
+              QF10
             </div>
             <h1 className="text-xl font-bold">DIGIPLUS GRAND INDONESIA</h1>
             <p className={`text-xs ${accentText} mt-1 font-semibold`}>PORTAL LOGIN RESMI OPERASIONAL</p>
@@ -1601,11 +1601,11 @@ _Diperbarui via Digiplus Store Operations Engine._`;
           {/* Logo Brand */}
           <div className="flex items-center gap-3 pb-4 border-b border-inherit">
             <div className={`w-10 h-10 ${isDark ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#054ff0] text-white"} rounded-xl flex items-center justify-center font-black text-lg`}>
-              D+
+              QF10
             </div>
             <div>
               <h2 className="text-sm font-bold tracking-wider">DIGIPLUS</h2>
-              <p className={`text-[10px] ${accentText} font-semibold`}>QF01 DIGIPLUS GRAND INDONESIA</p>
+              <p className={`text-[10px] ${accentText} font-semibold`}>GRAND INDONESIA</p>
             </div>
           </div>
 
