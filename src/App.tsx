@@ -436,6 +436,8 @@ export default function DigiplusOperationalEngine() {
         setCurrentSalesId(savedUser);
         setCurrentSalesName(savedName || `Sales ${savedUser}`);
       }
+    }
+
     fetch(LOG_API_URL)
       .then((res) => res.json())
       .then((data) => {
@@ -450,7 +452,6 @@ export default function DigiplusOperationalEngine() {
         }
       });
   }, []);
-  
   const toggleTheme = () => {
     const next = theme === "dark" ? "light" : "dark";
     setTheme(next);
