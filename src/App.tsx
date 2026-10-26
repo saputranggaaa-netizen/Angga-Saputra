@@ -84,7 +84,7 @@ export interface ShiftSchedule {
 }
 
 // ==========================================
-// 2. KONFIGURASI SPREADSHEET & GID
+// 2. KONFIGURASI SPREADSHEET
 // ==========================================
 const SPREADSHEET_ID = '1v_QCLTDKORjVnByrzo9qRiivdU8CGO99nJri9jBETWM';
 const GID_DATABASE = '602901290';
@@ -322,7 +322,7 @@ export default function App() {
   const [showFeedbackModal, setShowFeedbackModal] = useState<boolean>(false);
 
   // ------------------------------------------
-  // LIVE FETCHING GVIZ (AUTO FALLBACK INDEX KOLOM)
+  // LIVE FETCHING GVIZ
   // ------------------------------------------
   const fetchAllSpreadsheetData = useCallback(async () => {
     setIsLoading(true);
@@ -442,7 +442,7 @@ export default function App() {
     fetchAllSpreadsheetData();
   }, [fetchAllSpreadsheetData]);
 
-  // Logged in Staff Name
+  // Sapaan Login
   const loggedInStaffName = useMemo(() => {
     const found = transactions.find((t) => t.salesId === loggedInSalesId);
     if (found) return found.salesName;
@@ -466,19 +466,35 @@ export default function App() {
     return Array.from(map.values());
   }, [transactions]);
 
-  // Filtered Transactions
+  // Penyaring Tanggal Fleksibel (Anti 0 Baris)
   const filteredTransactions = useMemo(() => {
+    if (!transactions.length) return [];
+
     if (filterMode === 'daily') {
-      return transactions.filter((t) => t.transDate === selectedDate || !t.transDate);
+      const dailyMatches = transactions.filter((t) => t.transDate === selectedDate || t.transDate.includes(selectedDate));
+      return dailyMatches.length > 0 ? dailyMatches : transactions.slice(0, 25);
     }
     if (filterMode === 'weekly') {
       if (selectedWeek === 'ALL') return transactions;
       return transactions.filter((t) => t.weekName === selectedWeek);
     }
-    return transactions.filter((t) => !t.transDate || t.transDate.includes('10') || t.transDate.includes('2026'));
+
+    // Mode Monthly: Tampilkan semua transaksi bulan berjalan
+    const monthlyMatches = transactions.filter((t) => {
+      if (!t.transDate) return true;
+      return (
+        t.transDate.includes('2026-10') ||
+        t.transDate.includes('/10/') ||
+        t.transDate.includes('10/26') ||
+        t.transDate.toLowerCase().includes('okt') ||
+        t.transDate.toLowerCase().includes('oct')
+      );
+    });
+
+    return monthlyMatches.length > 0 ? monthlyMatches : transactions;
   }, [transactions, filterMode, selectedDate, selectedWeek]);
 
-  // Store Overview Metrics
+  // Kalkulasi Metrik Utama
   const storeMetrics = useMemo(() => {
     const totalTarget = 8_728_667_173;
     const dayOfMonth = 24;
@@ -598,7 +614,7 @@ export default function App() {
       .sort((a, b) => b.totalRev - a.totalRev);
   }, [filteredTransactions, dailyTargetCatchUp]);
 
-  // Export PPTX via CDN script
+  // Export PPTX CDN
   const handleExportPPTX = async () => {
     try {
       if (!(window as any).PptxGenJS) {
@@ -691,33 +707,33 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
       content: (
         <div className="space-y-4 text-xs sm:text-sm">
           <div className="grid grid-cols-2 gap-2">
-            <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-              <span className="text-slate-500 block text-[11px]">Total Omzet</span>
+            <div className={`p-3 rounded-xl border ${theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-slate-100 border-slate-200'}`}>
+              <span className="opacity-60 block text-[11px]">Total Omzet</span>
               <span className="font-bold text-sm text-[#054FF0]">{formatIDR(staf.totalRev)}</span>
             </div>
-            <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-              <span className="text-slate-500 block text-[11px]">Capaian & UPT</span>
-              <span className="font-bold text-sm text-emerald-600">{staf.ach.toFixed(1)}% | {staf.upt.toFixed(2)} UPT</span>
+            <div className={`p-3 rounded-xl border ${theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-slate-100 border-slate-200'}`}>
+              <span className="opacity-60 block text-[11px]">Capaian & UPT</span>
+              <span className="font-bold text-sm text-emerald-500">{staf.ach.toFixed(1)}% | {staf.upt.toFixed(2)} UPT</span>
             </div>
           </div>
 
           <div className="space-y-2">
-            <div className="font-semibold text-slate-800 dark:text-slate-200">Rincian Penjualan:</div>
-            <div className="flex justify-between items-center p-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            <div className="font-semibold">Rincian Penjualan:</div>
+            <div className={`flex justify-between p-2 rounded-lg border ${theme === 'dark' ? 'bg-slate-800/60 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
               <span>🍎 Apple Hardware</span>
               <span className="font-bold">{formatIDR(staf.appleRev)}</span>
             </div>
-            <div className="flex justify-between items-center p-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            <div className={`flex justify-between p-2 rounded-lg border ${theme === 'dark' ? 'bg-slate-800/60 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
               <span>🤖 Android Devices</span>
               <span className="font-bold">{formatIDR(staf.androidRev)}</span>
             </div>
-            <div className="flex justify-between items-center p-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            <div className={`flex justify-between p-2 rounded-lg border ${theme === 'dark' ? 'bg-slate-800/60 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
               <span>🔌 Accessories</span>
               <span className="font-bold">{formatIDR(staf.accRev)}</span>
             </div>
-            <div className="flex justify-between items-center p-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-              <span>🛡️ VAS (Qoala / Operator)</span>
-              <span className="font-bold text-emerald-600">{formatIDR(staf.vasRev)}</span>
+            <div className={`flex justify-between p-2 rounded-lg border ${theme === 'dark' ? 'bg-slate-800/60 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+              <span>🛡️ VAS</span>
+              <span className="font-bold text-emerald-500">{formatIDR(staf.vasRev)}</span>
             </div>
           </div>
         </div>
@@ -747,7 +763,6 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
     return { totalAmount, totalQty, count: searchResults.length };
   }, [searchResults]);
 
-  // DAFTAR MENU SIDEBAR PERSIS TAMPILAN AWAL
   const sidebarNavItems = [
     { key: 'overview', label: 'Overview Store', icon: BarChart3 },
     { key: 'weekly', label: 'Weekly sales (WoW)', icon: TrendingUp },
@@ -763,12 +778,9 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
   return (
     <div className={`min-h-screen w-full flex overflow-x-hidden ${theme === 'dark' ? 'bg-[#1A1831] text-[#FFF6E9]' : 'bg-[#F9F8F3] text-slate-800'}`}>
       
-      {/* ==================================================== */}
-      {/* SIDEBAR NAVIGASI KIRI (PERSIS FOTO AWAL)              */}
-      {/* ==================================================== */}
+      {/* SIDEBAR PERSIS TAMPILAN AWAL */}
       <aside className={`w-64 shrink-0 hidden lg:flex flex-col justify-between border-r p-4 ${theme === 'dark' ? 'bg-[#16142A] border-slate-800' : 'bg-[#FAF9F5] border-slate-200/80'}`}>
         <div className="space-y-4">
-          {/* Logo Digiplus */}
           <div className="flex items-center gap-2.5 pb-2">
             <div className="w-8 h-8 rounded-lg bg-[#054FF0] flex items-center justify-center text-white font-black text-xs shadow-sm">
               D+
@@ -779,17 +791,15 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
             </div>
           </div>
 
-          {/* User Card */}
           <div className={`p-3 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200/70 shadow-sm'}`}>
             <div className="flex items-center justify-between">
               <span className="text-[10px] opacity-60 uppercase font-semibold">User Teridentifikasi:</span>
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             </div>
-            <div className="text-xs font-bold text-slate-800 dark:text-slate-100 mt-0.5">{loggedInStaffName}</div>
-            <div className="text-[10px] text-slate-500 font-mono mt-0.5">ID: {loggedInSalesId}</div>
+            <div className="text-xs font-bold mt-0.5">{loggedInStaffName}</div>
+            <div className="text-[10px] opacity-60 font-mono mt-0.5">ID: {loggedInSalesId}</div>
           </div>
 
-          {/* Nav Links */}
           <nav className="space-y-1">
             {sidebarNavItems.map((item) => {
               const Icon = item.icon;
@@ -801,7 +811,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
                   className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
                     isActive
                       ? 'bg-[#054FF0] text-white font-bold shadow-md shadow-blue-500/20'
-                      : 'text-slate-600 dark:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5'
+                      : 'opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5'
                   }`}
                 >
                   <Icon className="w-3.5 h-3.5 shrink-0" />
@@ -811,7 +821,6 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
             })}
           </nav>
 
-          {/* Tombol Shortcut PPTX di Sidebar */}
           <button
             onClick={handleExportPPTX}
             className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 text-xs font-bold shadow-sm hover:bg-amber-100 transition-all"
@@ -821,7 +830,6 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
           </button>
         </div>
 
-        {/* Footer Sidebar */}
         <div className="space-y-1.5 pt-4 border-t border-slate-200 dark:border-slate-800">
           <button
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
@@ -837,15 +845,13 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
         </div>
       </aside>
 
-      {/* ==================================================== */}
-      {/* AREA KONTEN UTAMA                                    */}
-      {/* ==================================================== */}
+      {/* AREA KONTEN KANAN */}
       <div className="flex-1 flex flex-col min-w-0">
         
-        {/* TOP BAR / HEADER */}
+        {/* TOP BAR */}
         <header className={`w-full border-b px-4 py-3 flex flex-wrap items-center justify-between gap-3 ${theme === 'dark' ? 'bg-[#1A1831] border-slate-800' : 'bg-[#FAF9F5] border-slate-200/80'}`}>
           <div>
-            <h1 className="text-sm sm:text-base font-extrabold flex items-center gap-1.5 leading-none">
+            <h1 className="text-sm sm:text-base font-extrabold leading-none">
               Halo, {loggedInStaffName} 👋
             </h1>
             <p className="text-[10px] opacity-60 mt-1">
@@ -879,7 +885,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
           </div>
         </header>
 
-        {/* PERIOD SELECTOR TABS */}
+        {/* PERIOD SELECTOR BAR */}
         <div className={`w-full border-b px-4 py-2 flex flex-wrap items-center justify-between gap-2 ${theme === 'dark' ? 'bg-slate-900/60 border-slate-800' : 'bg-white/60 border-slate-200/80'}`}>
           <div className="flex items-center gap-1 bg-black/5 dark:bg-white/5 p-1 rounded-xl">
             <button
@@ -913,7 +919,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
               <select
                 value={selectedWeek}
                 onChange={(e) => setSelectedWeek(e.target.value)}
-                className="text-xs px-2.5 py-1 rounded-lg border bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700"
+                className={`text-xs px-2.5 py-1 rounded-lg border ${theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-300'}`}
               >
                 <option value="ALL">Semua Minggu</option>
                 {dynamicWeeks.map((w) => (
@@ -933,14 +939,14 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
           </div>
         </div>
 
-        {/* VIEW BODY CONTENT */}
+        {/* VIEW MAIN */}
         <main className="p-4 sm:p-6 space-y-6">
-          {/* TAB 1: OVERVIEW */}
+          {/* TAB OVERVIEW STORE */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
-              {/* Metrik Utama 4 Kotak */}
+              {/* 4 Kotak Metrik */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <div className="p-3.5 rounded-2xl border bg-white dark:bg-slate-800/40 border-slate-200/80 dark:border-slate-700/80 shadow-sm">
+                <div className={`p-3.5 rounded-2xl border ${theme === 'dark' ? 'bg-[#1E1B3A] border-slate-700' : 'bg-white border-slate-200/80 shadow-sm'}`}>
                   <div className="flex justify-between items-center text-xs opacity-60 mb-1">
                     <span>Target Periode</span>
                     <BarChart3 className="w-3.5 h-3.5 text-[#054FF0]" />
@@ -949,16 +955,16 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
                   <div className="text-[10px] opacity-60 mt-1">Oktober 2026 Toko</div>
                 </div>
 
-                <div className="p-3.5 rounded-2xl border bg-white dark:bg-slate-800/40 border-slate-200/80 dark:border-slate-700/80 shadow-sm">
+                <div className={`p-3.5 rounded-2xl border ${theme === 'dark' ? 'bg-[#1E1B3A] border-slate-700' : 'bg-white border-slate-200/80 shadow-sm'}`}>
                   <div className="flex justify-between items-center text-xs opacity-60 mb-1">
                     <span>Actual Omzet</span>
                     <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
                   </div>
-                  <div className="text-sm sm:text-base font-extrabold text-emerald-600 truncate">{formatCompactIDR(storeMetrics.totalActual)}</div>
-                  <div className="text-[10px] font-bold text-emerald-600 mt-1">{storeMetrics.overallAch.toFixed(1)}% Terpenuhi</div>
+                  <div className="text-sm sm:text-base font-extrabold text-emerald-500 truncate">{formatCompactIDR(storeMetrics.totalActual)}</div>
+                  <div className="text-[10px] font-bold text-emerald-500 mt-1">{storeMetrics.overallAch.toFixed(1)}% Terpenuhi</div>
                 </div>
 
-                <div className="p-3.5 rounded-2xl border bg-white dark:bg-slate-800/40 border-slate-200/80 dark:border-slate-700/80 shadow-sm">
+                <div className={`p-3.5 rounded-2xl border ${theme === 'dark' ? 'bg-[#1E1B3A] border-slate-700' : 'bg-white border-slate-200/80 shadow-sm'}`}>
                   <div className="flex justify-between items-center text-xs opacity-60 mb-1">
                     <span>Sisa Gap</span>
                     <Clock className="w-3.5 h-3.5 text-rose-500" />
@@ -967,17 +973,17 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
                   <div className="text-[10px] opacity-60 mt-1">{storeMetrics.remainingDays} Hari Tersisa</div>
                 </div>
 
-                <div className="p-3.5 rounded-2xl border bg-white dark:bg-slate-800/40 border-slate-200/80 dark:border-slate-700/80 shadow-sm">
+                <div className={`p-3.5 rounded-2xl border ${theme === 'dark' ? 'bg-[#1E1B3A] border-slate-700' : 'bg-white border-slate-200/80 shadow-sm'}`}>
                   <div className="flex justify-between items-center text-xs opacity-60 mb-1">
                     <span>Run Rate / Hari</span>
                     <CreditCard className="w-3.5 h-3.5 text-amber-500" />
                   </div>
-                  <div className="text-sm sm:text-base font-extrabold text-amber-600 truncate">{formatCompactIDR(storeMetrics.requiredRunRateDaily)}</div>
+                  <div className="text-sm sm:text-base font-extrabold text-amber-500 truncate">{formatCompactIDR(storeMetrics.requiredRunRateDaily)}</div>
                   <div className="text-[10px] opacity-60 mt-1">Time Gone: {storeMetrics.timeGonePercent.toFixed(1)}%</div>
                 </div>
               </div>
 
-              {/* Kategori Produk */}
+              {/* 4 Kategori Produk */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
                   { title: 'Apple Devices', icon: Smartphone, color: 'text-[#054FF0]', ...storeMetrics.categories.apple },
@@ -995,15 +1001,15 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
                           title: `Rincian Kategori: ${c.title}`,
                           content: (
                             <div className="space-y-3 text-xs">
-                              <div className="flex justify-between p-2 rounded-lg bg-slate-100 dark:bg-slate-800">
+                              <div className={`flex justify-between p-2 rounded-lg ${theme === 'dark' ? 'bg-slate-800' : 'bg-slate-100'}`}>
                                 <span>Target</span>
                                 <span className="font-bold">{formatIDR(c.target)}</span>
                               </div>
-                              <div className="flex justify-between p-2 rounded-lg bg-slate-100 dark:bg-slate-800">
+                              <div className={`flex justify-between p-2 rounded-lg ${theme === 'dark' ? 'bg-slate-800' : 'bg-slate-100'}`}>
                                 <span>Realisasi</span>
                                 <span className="font-bold text-[#054FF0]">{formatIDR(c.actual)}</span>
                               </div>
-                              <div className="flex justify-between p-2 rounded-lg bg-slate-100 dark:bg-slate-800">
+                              <div className={`flex justify-between p-2 rounded-lg ${theme === 'dark' ? 'bg-slate-800' : 'bg-slate-100'}`}>
                                 <span>Pencapaian</span>
                                 <span className="font-bold text-emerald-500">{ach.toFixed(1)}%</span>
                               </div>
@@ -1011,7 +1017,9 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
                           )
                         })
                       }
-                      className="p-3.5 rounded-2xl border bg-white dark:bg-slate-800/40 border-slate-200/80 dark:border-slate-700/80 shadow-sm cursor-pointer hover:border-[#054FF0] transition-all"
+                      className={`p-3.5 rounded-2xl border cursor-pointer hover:border-[#054FF0] transition-all ${
+                        theme === 'dark' ? 'bg-[#1E1B3A] border-slate-700' : 'bg-white border-slate-200/80 shadow-sm'
+                      }`}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs font-bold flex items-center gap-1.5">
@@ -1036,7 +1044,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
               </div>
 
               {/* Target Harian Catch-Up */}
-              <div className="p-4 rounded-2xl border bg-white dark:bg-slate-800/40 border-slate-200/80 dark:border-slate-700/80 shadow-sm space-y-3">
+              <div className={`p-4 rounded-2xl border ${theme === 'dark' ? 'bg-[#1E1B3A] border-slate-700' : 'bg-white border-slate-200/80 shadow-sm'} space-y-3`}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <h3 className="text-xs sm:text-sm font-bold flex items-center gap-1.5">
@@ -1084,10 +1092,12 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
             </div>
           )}
 
-          {/* TAB 2: FEEDBACK RITEL (PERSIS FOTO AWAL) */}
+          {/* TAB FEEDBACK RITEL */}
           {activeTab === 'feedback' && (
             <div className="space-y-4">
-              <div className="p-4 rounded-2xl border bg-white dark:bg-slate-800/40 border-slate-200/80 dark:border-slate-700/80 shadow-sm flex flex-wrap items-center justify-between gap-3">
+              <div className={`p-4 rounded-2xl border flex flex-wrap items-center justify-between gap-3 ${
+                theme === 'dark' ? 'bg-[#1E1B3A] border-slate-700' : 'bg-white border-slate-200 shadow-sm'
+              }`}>
                 <div>
                   <h3 className="text-sm font-bold flex items-center gap-1.5">
                     <MessageSquare className="w-4 h-4 text-[#054FF0]" />
@@ -1102,7 +1112,9 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
                   <select
                     value={selectedStaffFilter}
                     onChange={(e) => setSelectedStaffFilter(e.target.value)}
-                    className="px-3 py-1.5 text-xs rounded-xl border bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-white focus:outline-none"
+                    className={`px-3 py-1.5 text-xs rounded-xl border focus:outline-none ${
+                      theme === 'dark' ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-800'
+                    }`}
                   >
                     <option value="ALL">Pilih Semua Staf</option>
                     {Array.from(new Set(feedbacks.map((f) => f.salesName))).map((name) => (
@@ -1128,7 +1140,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
                 </div>
               </div>
 
-              {/* Daftar Bubble Review */}
+              {/* Daftar Review Card */}
               <div className="space-y-3">
                 {filteredFeedbacks.map((fb) => {
                   const initials = fb.salesName
@@ -1143,7 +1155,11 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
                   return (
                     <div
                       key={fb.id}
-                      className="p-4 rounded-2xl border bg-white dark:bg-slate-800/40 border-slate-200/90 dark:border-slate-700/80 shadow-[0_2px_8px_rgba(0,0,0,0.03)] space-y-3"
+                      className={`p-4 rounded-2xl border space-y-3 ${
+                        theme === 'dark' 
+                          ? 'bg-[#1E1B3A] border-slate-700' 
+                          : 'bg-white border-slate-200/90 shadow-[0_2px_8px_rgba(0,0,0,0.03)]'
+                      }`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-3">
@@ -1195,7 +1211,11 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
                         </div>
                       </div>
 
-                      <div className="p-3 rounded-xl text-xs leading-relaxed border bg-slate-50/80 dark:bg-slate-900/40 border-slate-200/70 dark:border-slate-700/60 text-slate-700 dark:text-slate-200">
+                      <div className={`p-3 rounded-xl text-xs leading-relaxed border ${
+                        theme === 'dark'
+                          ? 'bg-slate-900/40 border-slate-700/60 text-slate-200'
+                          : 'bg-slate-50/80 border-slate-200/70 text-slate-700'
+                      }`}>
                         {fb.text}
                       </div>
 
@@ -1239,7 +1259,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
             </div>
           )}
 
-          {/* TAB LAINNYA */}
+          {/* TAB WEEKLY SALES */}
           {activeTab === 'weekly' && (
             <div className="space-y-4">
               <h3 className="text-sm font-bold">Weekly Sales (WoW)</h3>
@@ -1248,7 +1268,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
                   const weekTxs = transactions.filter((t) => t.weekName === wk.name);
                   const totalWk = weekTxs.reduce((sum, t) => sum + t.amount, 0);
                   return (
-                    <div key={wk.name} className="p-3.5 rounded-2xl border bg-white dark:bg-slate-800/40 border-slate-200/80 shadow-sm">
+                    <div key={wk.name} className={`p-3.5 rounded-2xl border ${theme === 'dark' ? 'bg-[#1E1B3A] border-slate-700' : 'bg-white border-slate-200/80 shadow-sm'}`}>
                       <div className="text-xs font-bold">{wk.name}</div>
                       <div className="text-sm font-extrabold text-[#054FF0] mt-1">{formatCompactIDR(totalWk)}</div>
                       <div className="text-[10px] opacity-60 mt-1">{wk.minDate} s.d {wk.maxDate}</div>
@@ -1259,23 +1279,25 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
             </div>
           )}
 
+          {/* TAB STAFF PERFORMANCE */}
           {activeTab === 'staff' && (
             <div className="space-y-3">
               <h3 className="text-sm font-bold">Staff Performance Detail</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {staffLeaderboard.map((staf, idx) => (
-                  <div key={staf.salesId} onClick={() => handleOpenStaffDetail(staf)} className="p-3.5 rounded-2xl border bg-white dark:bg-slate-800/40 border-slate-200/80 shadow-sm cursor-pointer hover:border-[#054FF0]">
+                  <div key={staf.salesId} onClick={() => handleOpenStaffDetail(staf)} className={`p-3.5 rounded-2xl border cursor-pointer hover:border-[#054FF0] ${theme === 'dark' ? 'bg-[#1E1B3A] border-slate-700' : 'bg-white border-slate-200/80 shadow-sm'}`}>
                     <div className="flex items-center justify-between mb-2">
                       <div className="text-xs font-bold">{staf.salesName} (Rank #{idx + 1})</div>
                       <span className="text-xs font-bold text-[#054FF0]">{staf.ach.toFixed(1)}%</span>
                     </div>
-                    <div className="text-xs font-bold text-emerald-600">{formatCompactIDR(staf.totalRev)}</div>
+                    <div className="text-xs font-bold text-emerald-500">{formatCompactIDR(staf.totalRev)}</div>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
+          {/* TAB BNPL */}
           {activeTab === 'bnpl' && (
             <div className="space-y-4">
               <h3 className="text-sm font-bold">BNPL Transactions</h3>
@@ -1284,7 +1306,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
                   const filteredBnpl = tnd === 'ALL' ? bnplRecords : bnplRecords.filter((b) => b.tender.toLowerCase().includes(tnd.toLowerCase()));
                   const tAmount = filteredBnpl.reduce((sum, b) => sum + b.amount, 0);
                   return (
-                    <div key={tnd} className="px-3 py-2 rounded-xl border bg-white dark:bg-slate-800/40 border-slate-200/80 min-w-[130px]">
+                    <div key={tnd} className={`px-3 py-2 rounded-xl border min-w-[130px] ${theme === 'dark' ? 'bg-[#1E1B3A] border-slate-700' : 'bg-white border-slate-200/80 shadow-sm'}`}>
                       <div className="text-[11px] font-bold">{tnd}</div>
                       <div className="text-xs font-black text-[#054FF0]">{formatCompactIDR(tAmount)}</div>
                       <div className="text-[10px] opacity-60">{filteredBnpl.length} Transaksi</div>
@@ -1295,6 +1317,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
             </div>
           )}
 
+          {/* TAB SCHEDULE */}
           {activeTab === 'schedule' && (
             <div className="space-y-4">
               <div className="flex justify-between items-center">
@@ -1304,7 +1327,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
                   <span>Print</span>
                 </button>
               </div>
-              <div className="p-3 rounded-2xl border bg-white dark:bg-slate-800/40 border-slate-200/80 overflow-x-auto">
+              <div className={`p-3 rounded-2xl border overflow-x-auto ${theme === 'dark' ? 'bg-[#1E1B3A] border-slate-700' : 'bg-white border-slate-200/80'}`}>
                 <table className="w-full text-[10px] sm:text-xs text-center border-collapse min-w-[500px]">
                   <thead>
                     <tr className="border-b border-slate-200 dark:border-slate-700 opacity-60">
@@ -1354,6 +1377,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
             </div>
           )}
 
+          {/* TAB SEARCH */}
           {activeTab === 'search' && (
             <div className="space-y-4">
               <h3 className="text-sm font-bold">Rincian Transaksi Log & Cari Produk</h3>
@@ -1364,7 +1388,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
                   placeholder="Cari SKU, Deskripsi, atau Brand..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700"
+                  className={`w-full pl-9 pr-3 py-2 text-xs rounded-xl border ${theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-300'}`}
                 />
               </div>
 
@@ -1378,8 +1402,9 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
             </div>
           )}
 
+          {/* TAB ADMIN */}
           {activeTab === 'admin' && loggedInSalesId === ADMIN_SALES_ID && (
-            <div className="p-4 rounded-2xl border bg-white dark:bg-slate-800/40 border-slate-200/80 space-y-2">
+            <div className={`p-4 rounded-2xl border space-y-2 ${theme === 'dark' ? 'bg-[#1E1B3A] border-slate-700' : 'bg-white border-slate-200/80'}`}>
               <h3 className="text-sm font-bold text-rose-500">Activity Staff (Admin Log)</h3>
               <div className="text-xs space-y-1 opacity-70">
                 <div>Admin: 22008089 (Angga Saputra)</div>
@@ -1394,7 +1419,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
       {/* BOTTOM SHEET DRAWER */}
       {bottomSheetData && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
-          <div className="w-full max-w-lg rounded-t-3xl sm:rounded-2xl p-5 space-y-4 shadow-2xl border max-h-[85vh] overflow-y-auto bg-white dark:bg-[#1E1B3A] border-slate-200 dark:border-slate-700">
+          <div className={`w-full max-w-lg rounded-t-3xl sm:rounded-2xl p-5 space-y-4 shadow-2xl border max-h-[85vh] overflow-y-auto ${theme === 'dark' ? 'bg-[#1E1B3A] border-slate-700' : 'bg-white border-slate-200'}`}>
             <div className="w-12 h-1.5 bg-slate-400/40 rounded-full mx-auto" />
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold">{bottomSheetData.title}</h3>
@@ -1410,7 +1435,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
       {/* MODAL INPUT FEEDBACK */}
       {showFeedbackModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-2xl p-5 space-y-4 border bg-white dark:bg-[#1E1B3A] border-slate-200 dark:border-slate-700 shadow-xl">
+          <div className={`w-full max-w-md rounded-2xl p-5 space-y-4 border shadow-xl ${theme === 'dark' ? 'bg-[#1E1B3A] border-slate-700' : 'bg-white border-slate-200'}`}>
             <div className="flex items-center justify-between border-b pb-2.5 border-slate-200 dark:border-slate-700">
               <h3 className="text-sm font-bold">
                 {editingFeedbackId ? 'Edit Catatan Feedback' : 'Tulis Feedback Penjualan Hari Ini'}
