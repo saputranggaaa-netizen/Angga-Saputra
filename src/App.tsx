@@ -20,7 +20,8 @@ import {
   ShieldCheck,
   XCircle,
   Printer,
-  Edit3
+  Edit3,
+  LogOut
 } from 'lucide-react';
 
 // ==========================================
@@ -141,6 +142,14 @@ function parseGVizCell(cell: any): string {
   if (cell.v !== undefined && cell.v !== null) return String(cell.v).trim();
   if (cell.f !== undefined && cell.f !== null) return String(cell.f).trim();
   return '';
+}
+
+function parseNumeric(val: any): number {
+  if (typeof val === 'number') return val;
+  if (!val) return 0;
+  const cleaned = String(val).replace(/[^0-9,-]/g, '').replace(',', '.');
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? 0 : num;
 }
 
 function parseNormalizedDate(str: string): string {
@@ -313,7 +322,7 @@ export default function App() {
   const [showFeedbackModal, setShowFeedbackModal] = useState<boolean>(false);
 
   // ------------------------------------------
-  // LIVE FETCHING GVIZ
+  // LIVE FETCHING GVIZ (AUTO FALLBACK INDEX KOLOM)
   // ------------------------------------------
   const fetchAllSpreadsheetData = useCallback(async () => {
     setIsLoading(true);
@@ -329,23 +338,32 @@ export default function App() {
       rows.forEach((r: any, idx: number) => {
         const c = r.c;
         if (!c || c.length < 5) return;
+
         const salesId = parseGVizCell(c[1]);
         const salesName = parseGVizCell(c[2]);
         const invoiceNo = parseGVizCell(c[3]);
         const article = parseGVizCell(c[4]);
         const description = parseGVizCell(c[5]);
-        const qty = parseFloat(parseGVizCell(c[6])) || 1;
-        const amount = parseFloat(parseGVizCell(c[7])) || 0;
-        const transDate = parseNormalizedDate(parseGVizCell(c[9]));
-        const brandName = parseGVizCell(c[10]);
-        const categoryRaw = parseGVizCell(c[11]);
-        const weekName = parseGVizCell(c[14]) || 'Week 1';
 
-        if (salesName && amount > 0) {
+        const amt1 = parseNumeric(c[7]?.v ?? c[7]?.f);
+        const amt2 = parseNumeric(c[6]?.v ?? c[6]?.f);
+        const amount = amt1 > 0 ? amt1 : amt2;
+
+        const qtyVal = parseNumeric(c[6]?.v ?? c[6]?.f);
+        const qty = qtyVal > 0 && qtyVal < 1000 ? qtyVal : 1;
+
+        const rawDate = parseGVizCell(c[9]) || parseGVizCell(c[8]) || parseGVizCell(c[7]);
+        const transDate = parseNormalizedDate(rawDate);
+
+        const brandName = parseGVizCell(c[10]) || parseGVizCell(c[11]);
+        const categoryRaw = parseGVizCell(c[11]) || parseGVizCell(c[12]);
+        const weekName = parseGVizCell(c[14]) || parseGVizCell(c[13]) || 'Week 1';
+
+        if (amount > 0) {
           parsedTx.push({
             rowId: `tx-${idx}`,
             salesId,
-            salesName,
+            salesName: salesName || 'Sales Staff',
             invoiceNo,
             article,
             description,
@@ -374,8 +392,8 @@ export default function App() {
         const transDate = parseNormalizedDate(parseGVizCell(c[0]));
         const invoiceNo = parseGVizCell(c[1]);
         const product = parseGVizCell(c[2]);
-        const qty = parseFloat(parseGVizCell(c[3])) || 1;
-        const amount = parseFloat(parseGVizCell(c[4])) || 0;
+        const qty = parseNumeric(c[3]?.v ?? c[3]?.f) || 1;
+        const amount = parseNumeric(c[4]?.v ?? c[4]?.f);
         const tender = parseGVizCell(c[5]) || 'Other';
 
         if (amount > 0) {
@@ -398,8 +416,8 @@ export default function App() {
         const sId = parseGVizCell(c[0]);
         const sName = parseGVizCell(c[1]);
         const role = parseGVizCell(c[2]);
-        const targetMonthly = parseFloat(parseGVizCell(c[3])) || 0;
-        const dailyCatchUpTarget = parseFloat(parseGVizCell(c[7])) || 0;
+        const targetMonthly = parseNumeric(c[3]?.v ?? c[3]?.f);
+        const dailyCatchUpTarget = parseNumeric(c[7]?.v ?? c[7]?.f);
 
         if (sName) {
           parsedTarget.push({
@@ -451,13 +469,13 @@ export default function App() {
   // Filtered Transactions
   const filteredTransactions = useMemo(() => {
     if (filterMode === 'daily') {
-      return transactions.filter((t) => t.transDate === selectedDate);
+      return transactions.filter((t) => t.transDate === selectedDate || !t.transDate);
     }
     if (filterMode === 'weekly') {
       if (selectedWeek === 'ALL') return transactions;
       return transactions.filter((t) => t.weekName === selectedWeek);
     }
-    return transactions.filter((t) => t.transDate.startsWith('2026-10') || !t.transDate);
+    return transactions.filter((t) => !t.transDate || t.transDate.includes('10') || t.transDate.includes('2026'));
   }, [transactions, filterMode, selectedDate, selectedWeek]);
 
   // Store Overview Metrics
@@ -729,730 +747,658 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
     return { totalAmount, totalQty, count: searchResults.length };
   }, [searchResults]);
 
+  // DAFTAR MENU SIDEBAR PERSIS TAMPILAN AWAL
+  const sidebarNavItems = [
+    { key: 'overview', label: 'Overview Store', icon: BarChart3 },
+    { key: 'weekly', label: 'Weekly sales (WoW)', icon: TrendingUp },
+    { key: 'staff', label: 'Staff Performance Detail', icon: Users },
+    { key: 'dailyTarget', label: 'Daily Target & Run Rate', icon: Clock },
+    { key: 'schedule', label: 'Schedule 1 Minggu', icon: Calendar },
+    { key: 'feedback', label: 'Feedback Ritel', icon: MessageSquare },
+    { key: 'bnpl', label: 'BNPL Transactions', icon: CreditCard },
+    ...(loggedInSalesId === ADMIN_SALES_ID ? [{ key: 'admin', label: 'Activity Staff (Admin)', icon: ShieldAlert }] : []),
+    { key: 'search', label: 'Rincian Transaksi Log', icon: Search }
+  ];
+
   return (
-    <div className={`min-h-screen w-full max-w-full overflow-x-hidden ${theme === 'dark' ? 'bg-[#1A1831] text-[#FFF6E9]' : 'bg-[#F9F8F3] text-slate-800'}`}>
-      {/* HEADER */}
-      <header className={`w-full border-b px-3 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-40 backdrop-blur-md ${theme === 'dark' ? 'bg-[#1A1831]/95 border-slate-800' : 'bg-[#FDFCFA]/90 border-slate-200 shadow-sm'}`}>
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#054FF0] flex items-center justify-center text-white font-black text-sm shadow-md shadow-blue-500/20">
-            QF
+    <div className={`min-h-screen w-full flex overflow-x-hidden ${theme === 'dark' ? 'bg-[#1A1831] text-[#FFF6E9]' : 'bg-[#F9F8F3] text-slate-800'}`}>
+      
+      {/* ==================================================== */}
+      {/* SIDEBAR NAVIGASI KIRI (PERSIS FOTO AWAL)              */}
+      {/* ==================================================== */}
+      <aside className={`w-64 shrink-0 hidden lg:flex flex-col justify-between border-r p-4 ${theme === 'dark' ? 'bg-[#16142A] border-slate-800' : 'bg-[#FAF9F5] border-slate-200/80'}`}>
+        <div className="space-y-4">
+          {/* Logo Digiplus */}
+          <div className="flex items-center gap-2.5 pb-2">
+            <div className="w-8 h-8 rounded-lg bg-[#054FF0] flex items-center justify-center text-white font-black text-xs shadow-sm">
+              D+
+            </div>
+            <div>
+              <h2 className="text-xs font-black tracking-tight uppercase">Digiplus</h2>
+              <p className="text-[10px] opacity-60">Store Operations QF01</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-sm sm:text-base font-extrabold tracking-tight leading-none">
-              Store Operations QF01
-            </h1>
-            <p className="text-[11px] opacity-70 mt-0.5">
-              Halo, <span className="font-semibold text-[#054FF0]">{loggedInStaffName}</span> 👋 | Live GViz
-            </p>
+
+          {/* User Card */}
+          <div className={`p-3 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200/70 shadow-sm'}`}>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] opacity-60 uppercase font-semibold">User Teridentifikasi:</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            </div>
+            <div className="text-xs font-bold text-slate-800 dark:text-slate-100 mt-0.5">{loggedInStaffName}</div>
+            <div className="text-[10px] text-slate-500 font-mono mt-0.5">ID: {loggedInSalesId}</div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={fetchAllSpreadsheetData}
-            title="Refresh Data"
-            disabled={isLoading}
-            className={`p-2 rounded-lg border text-xs flex items-center gap-1.5 transition-all ${
-              theme === 'dark' ? 'bg-slate-800/80 border-slate-700 hover:bg-slate-700' : 'bg-white border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-[#054FF0]' : ''}`} />
-            <span className="hidden md:inline">{lastSync || 'Sync'}</span>
-          </button>
+          {/* Nav Links */}
+          <nav className="space-y-1">
+            {sidebarNavItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.key || (item.key === 'dailyTarget' && activeTab === 'overview');
+              return (
+                <button
+                  key={item.key}
+                  onClick={() => setActiveTab(item.key === 'dailyTarget' ? 'overview' : (item.key as any))}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                    isActive
+                      ? 'bg-[#054FF0] text-white font-bold shadow-md shadow-blue-500/20'
+                      : 'text-slate-600 dark:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
 
-          <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            title="Ganti Tema"
-            className={`p-2 rounded-lg border text-xs transition-all ${
-              theme === 'dark' ? 'bg-slate-800/80 border-slate-700 hover:bg-slate-700' : 'bg-white border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            {theme === 'dark' ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-slate-600" />}
-          </button>
-
+          {/* Tombol Shortcut PPTX di Sidebar */}
           <button
             onClick={handleExportPPTX}
-            className="px-3 py-1.5 rounded-lg bg-[#054FF0] hover:bg-[#043ec2] text-white font-medium text-xs flex items-center gap-1.5 shadow-sm transition-all"
+            className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 text-xs font-bold shadow-sm hover:bg-amber-100 transition-all"
           >
-            <FileDown className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Export PPTX</span>
-          </button>
-        </div>
-      </header>
-
-      {/* FILTER BAR */}
-      <section className={`w-full border-b px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-2.5 ${theme === 'dark' ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-100 border-slate-200'}`}>
-        <div className="flex items-center gap-1 bg-black/10 dark:bg-white/10 p-1 rounded-xl">
-          <button
-            onClick={() => setFilterMode('daily')}
-            className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
-              filterMode === 'daily' ? 'bg-[#054FF0] text-white shadow-sm' : 'opacity-70 hover:opacity-100'
-            }`}
-          >
-            Daily
-          </button>
-          <button
-            onClick={() => setFilterMode('weekly')}
-            className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
-              filterMode === 'weekly' ? 'bg-[#054FF0] text-white shadow-sm' : 'opacity-70 hover:opacity-100'
-            }`}
-          >
-            Weekly
-          </button>
-          <button
-            onClick={() => setFilterMode('monthly')}
-            className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
-              filterMode === 'monthly' ? 'bg-[#054FF0] text-white shadow-sm' : 'opacity-70 hover:opacity-100'
-            }`}
-          >
-            Monthly
+            <span>📽️</span>
+            <span>Export ke Slide PPTX</span>
           </button>
         </div>
 
-        <div className="flex items-center gap-2">
-          {filterMode === 'daily' && (
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className={`px-2.5 py-1 text-xs rounded-lg border focus:outline-none ${
-                theme === 'dark' ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-300'
-              }`}
-            />
-          )}
-
-          {filterMode === 'weekly' && (
-            <select
-              value={selectedWeek}
-              onChange={(e) => setSelectedWeek(e.target.value)}
-              className={`px-2.5 py-1 text-xs rounded-lg border focus:outline-none ${
-                theme === 'dark' ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-300'
-              }`}
-            >
-              <option value="ALL">Semua Minggu</option>
-              {dynamicWeeks.map((w) => (
-                <option key={w.name} value={w.name}>
-                  {w.name} ({w.minDate} s.d {w.maxDate})
-                </option>
-              ))}
-            </select>
-          )}
-
-          {filterMode === 'monthly' && (
-            <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-blue-500/20 text-[#054FF0] border border-blue-500/30">
-              Oktober 2026
-            </span>
-          )}
-
+        {/* Footer Sidebar */}
+        <div className="space-y-1.5 pt-4 border-t border-slate-200 dark:border-slate-800">
           <button
-            onClick={generateShareDailyWA}
-            className="px-2.5 py-1 bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold rounded-lg flex items-center gap-1 shadow-sm transition-all"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs rounded-xl hover:bg-black/5 dark:hover:bg-white/5 opacity-70"
           >
-            <Share2 className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Share Daily</span>
+            {theme === 'dark' ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5" />}
+            <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
           </button>
+          <div className="flex items-center gap-2 px-3 py-1.5 text-[11px] text-rose-500 font-semibold cursor-pointer">
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Keluar (Logout)</span>
+          </div>
         </div>
-      </section>
+      </aside>
 
-      {/* NAVIGATION TABS */}
-      <nav className={`w-full overflow-x-auto no-scrollbar border-b px-3 sm:px-6 flex gap-1 ${theme === 'dark' ? 'border-slate-800' : 'border-slate-200'}`}>
-        {[
-          { key: 'overview', label: 'Store Overview', icon: BarChart3 },
-          { key: 'weekly', label: 'Weekly Sales', icon: TrendingUp },
-          { key: 'staff', label: 'Staff Performance', icon: Users },
-          { key: 'bnpl', label: 'BNPL', icon: CreditCard },
-          { key: 'schedule', label: 'Schedule', icon: Calendar },
-          { key: 'feedback', label: 'Feedback', icon: MessageSquare },
-          { key: 'search', label: 'Cari Produk', icon: Search },
-          ...(loggedInSalesId === ADMIN_SALES_ID ? [{ key: 'admin', label: 'Admin Portal', icon: ShieldAlert }] : [])
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.key;
-          return (
+      {/* ==================================================== */}
+      {/* AREA KONTEN UTAMA                                    */}
+      {/* ==================================================== */}
+      <div className="flex-1 flex flex-col min-w-0">
+        
+        {/* TOP BAR / HEADER */}
+        <header className={`w-full border-b px-4 py-3 flex flex-wrap items-center justify-between gap-3 ${theme === 'dark' ? 'bg-[#1A1831] border-slate-800' : 'bg-[#FAF9F5] border-slate-200/80'}`}>
+          <div>
+            <h1 className="text-sm sm:text-base font-extrabold flex items-center gap-1.5 leading-none">
+              Halo, {loggedInStaffName} 👋
+            </h1>
+            <p className="text-[10px] opacity-60 mt-1">
+              Live Feed: DATABASE (gid: 602901290) & BNPL DATABASE (gid: 2697970)
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
             <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key as any)}
-              className={`flex items-center gap-1.5 py-2.5 px-3 border-b-2 whitespace-nowrap text-xs font-medium transition-all ${
-                isActive
-                  ? 'border-[#054FF0] text-[#054FF0] font-bold'
-                  : 'border-transparent opacity-60 hover:opacity-100'
+              onClick={generateShareDailyWA}
+              className="px-3 py-1.5 bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition-all"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span>Share Daily (WhatsApp)</span>
+            </button>
+
+            <button
+              onClick={fetchAllSpreadsheetData}
+              disabled={isLoading}
+              className={`px-3 py-1.5 rounded-xl border text-xs flex items-center gap-1.5 ${
+                theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
               }`}
             >
-              <Icon className="w-3.5 h-3.5" />
-              <span>{tab.label}</span>
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-[#054FF0]' : ''}`} />
+              <span>{lastSync ? `Sync Live` : 'Sync'}</span>
             </button>
-          );
-        })}
-      </nav>
 
-      {/* MAIN CONTENT */}
-      <main className="w-full max-w-full p-3 sm:p-6 space-y-6">
-        {/* OVERVIEW */}
-        {activeTab === 'overview' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className={`p-3.5 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.04)]'}`}>
-                <div className="flex justify-between items-center text-xs opacity-70 mb-1">
-                  <span>Target Periode</span>
-                  <BarChart3 className="w-3.5 h-3.5 text-[#054FF0]" />
-                </div>
-                <div className="text-sm sm:text-base font-extrabold truncate">{formatCompactIDR(storeMetrics.totalTarget)}</div>
-                <div className="text-[10px] sm:text-xs opacity-60 mt-1">Oktober 2026 Toko</div>
-              </div>
-
-              <div className={`p-3.5 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.04)]'}`}>
-                <div className="flex justify-between items-center text-xs opacity-70 mb-1">
-                  <span>Actual Omzet</span>
-                  <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
-                </div>
-                <div className="text-sm sm:text-base font-extrabold text-emerald-500 truncate">{formatCompactIDR(storeMetrics.totalActual)}</div>
-                <div className="text-[10px] sm:text-xs font-medium text-emerald-500 mt-1">{storeMetrics.overallAch.toFixed(1)}% Terpenuhi</div>
-              </div>
-
-              <div className={`p-3.5 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.04)]'}`}>
-                <div className="flex justify-between items-center text-xs opacity-70 mb-1">
-                  <span>Sisa Gap</span>
-                  <Clock className="w-3.5 h-3.5 text-rose-500" />
-                </div>
-                <div className="text-sm sm:text-base font-extrabold text-rose-500 truncate">{formatCompactIDR(storeMetrics.overallGap)}</div>
-                <div className="text-[10px] sm:text-xs opacity-60 mt-1">{storeMetrics.remainingDays} Hari Tersisa</div>
-              </div>
-
-              <div className={`p-3.5 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.04)]'}`}>
-                <div className="flex justify-between items-center text-xs opacity-70 mb-1">
-                  <span>Run Rate / Hari</span>
-                  <CreditCard className="w-3.5 h-3.5 text-amber-500" />
-                </div>
-                <div className="text-sm sm:text-base font-extrabold text-amber-500 truncate">{formatCompactIDR(storeMetrics.requiredRunRateDaily)}</div>
-                <div className="text-[10px] sm:text-xs opacity-60 mt-1">Time Gone: {storeMetrics.timeGonePercent.toFixed(1)}%</div>
-              </div>
+            <div className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">
+              Actual: {formatCompactIDR(storeMetrics.totalActual)}
             </div>
+          </div>
+        </header>
 
-            {/* KATEGORI */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {[
-                { title: 'Apple Devices', icon: Smartphone, color: 'text-[#054FF0]', ...storeMetrics.categories.apple },
-                { title: 'Android Devices', icon: Smartphone, color: 'text-emerald-500', ...storeMetrics.categories.android },
-                { title: 'Accessories', icon: Headphones, color: 'text-amber-500', ...storeMetrics.categories.acc },
-                { title: 'VAS (Proteksi & Data)', icon: ShieldCheck, color: 'text-purple-500', ...storeMetrics.categories.vas }
-              ].map((c) => {
-                const Icon = c.icon;
-                const ach = c.target > 0 ? (c.actual / c.target) * 100 : 0;
-                return (
-                  <div
-                    key={c.title}
-                    onClick={() =>
-                      setBottomSheetData({
-                        title: `Rincian Kategori: ${c.title}`,
-                        content: (
-                          <div className="space-y-3 text-xs">
-                            <div className="flex justify-between p-2 rounded-lg bg-slate-100 dark:bg-slate-800">
-                              <span>Target</span>
-                              <span className="font-bold">{formatIDR(c.target)}</span>
-                            </div>
-                            <div className="flex justify-between p-2 rounded-lg bg-slate-100 dark:bg-slate-800">
-                              <span>Realisasi</span>
-                              <span className="font-bold text-[#054FF0]">{formatIDR(c.actual)}</span>
-                            </div>
-                            <div className="flex justify-between p-2 rounded-lg bg-slate-100 dark:bg-slate-800">
-                              <span>Pencapaian</span>
-                              <span className="font-bold text-emerald-500">{ach.toFixed(1)}%</span>
-                            </div>
-                          </div>
-                        )
-                      })
-                    }
-                    className={`p-3.5 rounded-2xl border cursor-pointer hover:border-[#054FF0] transition-all ${
-                      theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.04)]'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold flex items-center gap-1.5">
-                        <Icon className={`w-3.5 h-3.5 ${c.color}`} /> {c.title}
-                      </span>
-                      <ChevronRight className="w-3.5 h-3.5 opacity-40" />
-                    </div>
-                    <div className="text-sm font-extrabold">{formatCompactIDR(c.actual)}</div>
-                    <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full mt-2 overflow-hidden">
-                      <div
-                        className="h-full bg-[#054FF0] rounded-full"
-                        style={{ width: `${Math.min(100, ach)}%` }}
-                      />
-                    </div>
-                    <div className="flex justify-between text-[10px] opacity-60 mt-1.5">
-                      <span>Target: {formatCompactIDR(c.target)}</span>
-                      <span className="font-bold text-[#054FF0]">{ach.toFixed(1)}%</span>
-                    </div>
+        {/* PERIOD SELECTOR TABS */}
+        <div className={`w-full border-b px-4 py-2 flex flex-wrap items-center justify-between gap-2 ${theme === 'dark' ? 'bg-slate-900/60 border-slate-800' : 'bg-white/60 border-slate-200/80'}`}>
+          <div className="flex items-center gap-1 bg-black/5 dark:bg-white/5 p-1 rounded-xl">
+            <button
+              onClick={() => setFilterMode('daily')}
+              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
+                filterMode === 'daily' ? 'bg-[#054FF0] text-white shadow-sm' : 'opacity-70'
+              }`}
+            >
+              Daily
+            </button>
+            <button
+              onClick={() => setFilterMode('weekly')}
+              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
+                filterMode === 'weekly' ? 'bg-[#054FF0] text-white shadow-sm' : 'opacity-70'
+              }`}
+            >
+              Weekly
+            </button>
+            <button
+              onClick={() => setFilterMode('monthly')}
+              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
+                filterMode === 'monthly' ? 'bg-[#054FF0] text-white shadow-sm' : 'opacity-70'
+              }`}
+            >
+              Monthly
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {filterMode === 'weekly' ? (
+              <select
+                value={selectedWeek}
+                onChange={(e) => setSelectedWeek(e.target.value)}
+                className="text-xs px-2.5 py-1 rounded-lg border bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700"
+              >
+                <option value="ALL">Semua Minggu</option>
+                {dynamicWeeks.map((w) => (
+                  <option key={w.name} value={w.name}>
+                    {w.name} ({w.minDate} - {w.maxDate})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-blue-50 text-[#054FF0] border border-blue-200">
+                Bulan: Oktober 2026
+              </span>
+            )}
+            <span className="text-[11px] opacity-60">
+              • Terfilter: {filteredTransactions.length} Baris ({filterMode.toUpperCase()} - Oktober 2026)
+            </span>
+          </div>
+        </div>
+
+        {/* VIEW BODY CONTENT */}
+        <main className="p-4 sm:p-6 space-y-6">
+          {/* TAB 1: OVERVIEW */}
+          {activeTab === 'overview' && (
+            <div className="space-y-6">
+              {/* Metrik Utama 4 Kotak */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="p-3.5 rounded-2xl border bg-white dark:bg-slate-800/40 border-slate-200/80 dark:border-slate-700/80 shadow-sm">
+                  <div className="flex justify-between items-center text-xs opacity-60 mb-1">
+                    <span>Target Periode</span>
+                    <BarChart3 className="w-3.5 h-3.5 text-[#054FF0]" />
                   </div>
-                );
-              })}
-            </div>
-
-            {/* CATCH UP */}
-            <div className={`p-4 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.04)]'}`}>
-              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                <div>
-                  <h3 className="text-xs sm:text-sm font-bold flex items-center gap-2">
-                    🎯 Target Harian vs Pencapaian Berjalan (Catch-Up)
-                  </h3>
-                  <p className="text-[11px] opacity-60">Diambil langsung dari Kolom H sheet target staff</p>
+                  <div className="text-sm sm:text-base font-extrabold truncate">{formatCompactIDR(storeMetrics.totalTarget)}</div>
+                  <div className="text-[10px] opacity-60 mt-1">Oktober 2026 Toko</div>
                 </div>
-                <button
-                  onClick={generateShareCatchUpTargetWA}
-                  className="px-3 py-1.5 bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-sm"
-                >
-                  <Share2 className="w-3.5 h-3.5" />
-                  <span>Share Target (WhatsApp)</span>
+
+                <div className="p-3.5 rounded-2xl border bg-white dark:bg-slate-800/40 border-slate-200/80 dark:border-slate-700/80 shadow-sm">
+                  <div className="flex justify-between items-center text-xs opacity-60 mb-1">
+                    <span>Actual Omzet</span>
+                    <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+                  </div>
+                  <div className="text-sm sm:text-base font-extrabold text-emerald-600 truncate">{formatCompactIDR(storeMetrics.totalActual)}</div>
+                  <div className="text-[10px] font-bold text-emerald-600 mt-1">{storeMetrics.overallAch.toFixed(1)}% Terpenuhi</div>
+                </div>
+
+                <div className="p-3.5 rounded-2xl border bg-white dark:bg-slate-800/40 border-slate-200/80 dark:border-slate-700/80 shadow-sm">
+                  <div className="flex justify-between items-center text-xs opacity-60 mb-1">
+                    <span>Sisa Gap</span>
+                    <Clock className="w-3.5 h-3.5 text-rose-500" />
+                  </div>
+                  <div className="text-sm sm:text-base font-extrabold text-rose-500 truncate">{formatCompactIDR(storeMetrics.overallGap)}</div>
+                  <div className="text-[10px] opacity-60 mt-1">{storeMetrics.remainingDays} Hari Tersisa</div>
+                </div>
+
+                <div className="p-3.5 rounded-2xl border bg-white dark:bg-slate-800/40 border-slate-200/80 dark:border-slate-700/80 shadow-sm">
+                  <div className="flex justify-between items-center text-xs opacity-60 mb-1">
+                    <span>Run Rate / Hari</span>
+                    <CreditCard className="w-3.5 h-3.5 text-amber-500" />
+                  </div>
+                  <div className="text-sm sm:text-base font-extrabold text-amber-600 truncate">{formatCompactIDR(storeMetrics.requiredRunRateDaily)}</div>
+                  <div className="text-[10px] opacity-60 mt-1">Time Gone: {storeMetrics.timeGonePercent.toFixed(1)}%</div>
+                </div>
+              </div>
+
+              {/* Kategori Produk */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {[
+                  { title: 'Apple Devices', icon: Smartphone, color: 'text-[#054FF0]', ...storeMetrics.categories.apple },
+                  { title: 'Android Devices', icon: Smartphone, color: 'text-emerald-500', ...storeMetrics.categories.android },
+                  { title: 'Accessories', icon: Headphones, color: 'text-amber-500', ...storeMetrics.categories.acc },
+                  { title: 'VAS (Proteksi & Data)', icon: ShieldCheck, color: 'text-purple-500', ...storeMetrics.categories.vas }
+                ].map((c) => {
+                  const Icon = c.icon;
+                  const ach = c.target > 0 ? (c.actual / c.target) * 100 : 0;
+                  return (
+                    <div
+                      key={c.title}
+                      onClick={() =>
+                        setBottomSheetData({
+                          title: `Rincian Kategori: ${c.title}`,
+                          content: (
+                            <div className="space-y-3 text-xs">
+                              <div className="flex justify-between p-2 rounded-lg bg-slate-100 dark:bg-slate-800">
+                                <span>Target</span>
+                                <span className="font-bold">{formatIDR(c.target)}</span>
+                              </div>
+                              <div className="flex justify-between p-2 rounded-lg bg-slate-100 dark:bg-slate-800">
+                                <span>Realisasi</span>
+                                <span className="font-bold text-[#054FF0]">{formatIDR(c.actual)}</span>
+                              </div>
+                              <div className="flex justify-between p-2 rounded-lg bg-slate-100 dark:bg-slate-800">
+                                <span>Pencapaian</span>
+                                <span className="font-bold text-emerald-500">{ach.toFixed(1)}%</span>
+                              </div>
+                            </div>
+                          )
+                        })
+                      }
+                      className="p-3.5 rounded-2xl border bg-white dark:bg-slate-800/40 border-slate-200/80 dark:border-slate-700/80 shadow-sm cursor-pointer hover:border-[#054FF0] transition-all"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-bold flex items-center gap-1.5">
+                          <Icon className={`w-3.5 h-3.5 ${c.color}`} /> {c.title}
+                        </span>
+                        <ChevronRight className="w-3.5 h-3.5 opacity-40" />
+                      </div>
+                      <div className="text-sm font-extrabold">{formatCompactIDR(c.actual)}</div>
+                      <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full mt-2 overflow-hidden">
+                        <div
+                          className="h-full bg-[#054FF0] rounded-full"
+                          style={{ width: `${Math.min(100, ach)}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-[10px] opacity-60 mt-1.5">
+                        <span>Target: {formatCompactIDR(c.target)}</span>
+                        <span className="font-bold text-[#054FF0]">{ach.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Target Harian Catch-Up */}
+              <div className="p-4 rounded-2xl border bg-white dark:bg-slate-800/40 border-slate-200/80 dark:border-slate-700/80 shadow-sm space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-xs sm:text-sm font-bold flex items-center gap-1.5">
+                      🎯 Target Harian vs Pencapaian Berjalan (Catch-Up)
+                    </h3>
+                    <p className="text-[11px] opacity-60">Diambil langsung dari Kolom H sheet target staff</p>
+                  </div>
+                  <button
+                    onClick={generateShareCatchUpTargetWA}
+                    className="px-3 py-1.5 bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-sm"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>Share Target (WhatsApp)</span>
+                  </button>
+                </div>
+
+                <div className="w-full overflow-hidden">
+                  <table className="w-full table-fixed text-[11px] sm:text-xs text-left">
+                    <thead>
+                      <tr className="border-b border-slate-200 dark:border-slate-700 opacity-60">
+                        <th className="py-2 px-1 w-[40%]">Nama Staff</th>
+                        <th className="py-2 px-1 w-[35%]">Target Catch Up</th>
+                        <th className="py-2 px-1 w-[25%] text-right">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {staffLeaderboard.slice(0, 8).map((s) => (
+                        <tr key={s.salesId}>
+                          <td className="py-2 px-1 font-semibold truncate">{s.salesName}</td>
+                          <td className="py-2 px-1 font-bold text-[#054FF0] truncate">{formatCompactIDR(s.catchUpTarget)}</td>
+                          <td className="py-2 px-1 text-right">
+                            <button
+                              onClick={() => handleOpenStaffDetail(s)}
+                              className="px-2 py-0.5 rounded text-[10px] bg-blue-50 text-[#054FF0] font-bold"
+                            >
+                              Detail
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: FEEDBACK RITEL (PERSIS FOTO AWAL) */}
+          {activeTab === 'feedback' && (
+            <div className="space-y-4">
+              <div className="p-4 rounded-2xl border bg-white dark:bg-slate-800/40 border-slate-200/80 dark:border-slate-700/80 shadow-sm flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-bold flex items-center gap-1.5">
+                    <MessageSquare className="w-4 h-4 text-[#054FF0]" />
+                    Riwayat Feedback Penjualan Hari Ini 📊
+                  </h3>
+                  <p className="text-[11px] opacity-60 mt-0.5">
+                    Hari ini, {selectedDate} • Ulasan performa, kendala, dan apresiasi layanan tim sales
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <select
+                    value={selectedStaffFilter}
+                    onChange={(e) => setSelectedStaffFilter(e.target.value)}
+                    className="px-3 py-1.5 text-xs rounded-xl border bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-white focus:outline-none"
+                  >
+                    <option value="ALL">Pilih Semua Staf</option>
+                    {Array.from(new Set(feedbacks.map((f) => f.salesName))).map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+
+                  <button
+                    onClick={() => {
+                      setEditingFeedbackId(null);
+                      setFeedbackInputName('');
+                      setFeedbackInputRole('Sales Consultant');
+                      setFeedbackInputSentiment('Luar Biasa');
+                      setFeedbackInputText('');
+                      setShowFeedbackModal(true);
+                    }}
+                    className="px-3.5 py-1.5 bg-[#054FF0] hover:bg-[#043ec2] text-white text-xs font-bold rounded-xl shadow-sm flex items-center gap-1.5 transition-all"
+                  >
+                    <span>+ Tulis Feedback Baru</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Daftar Bubble Review */}
+              <div className="space-y-3">
+                {filteredFeedbacks.map((fb) => {
+                  const initials = fb.salesName
+                    .split(' ')
+                    .map((n) => n[0])
+                    .slice(0, 2)
+                    .join('')
+                    .toUpperCase();
+
+                  const isGreat = fb.sentiment === 'Luar Biasa';
+
+                  return (
+                    <div
+                      key={fb.id}
+                      className="p-4 rounded-2xl border bg-white dark:bg-slate-800/40 border-slate-200/90 dark:border-slate-700/80 shadow-[0_2px_8px_rgba(0,0,0,0.03)] space-y-3"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-blue-100 text-[#054FF0] font-bold text-xs flex items-center justify-center shrink-0 border border-blue-200">
+                            {initials}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-bold text-xs">{fb.salesName}</span>
+                              {fb.role && (
+                                <span className="text-[10px] opacity-60">
+                                  ({fb.role})
+                                </span>
+                              )}
+                              {fb.isEdited && (
+                                <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                                  edited
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[10px] opacity-50 mt-0.5">{fb.timestamp}</div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`text-[10px] px-2.5 py-0.5 rounded-full font-semibold border ${
+                              isGreat
+                                ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                                : 'bg-amber-50 text-amber-600 border-amber-200'
+                            }`}
+                          >
+                            {fb.sentiment || 'Luar Biasa'}
+                          </span>
+
+                          <button
+                            onClick={() => {
+                              setEditingFeedbackId(fb.id);
+                              setFeedbackInputName(fb.salesName);
+                              setFeedbackInputRole(fb.role || 'Sales Consultant');
+                              setFeedbackInputSentiment(fb.sentiment || 'Luar Biasa');
+                              setFeedbackInputText(fb.text);
+                              setShowFeedbackModal(true);
+                            }}
+                            className="p-1.5 hover:bg-black/5 rounded-lg text-slate-400 hover:text-[#054FF0]"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="p-3 rounded-xl text-xs leading-relaxed border bg-slate-50/80 dark:bg-slate-900/40 border-slate-200/70 dark:border-slate-700/60 text-slate-700 dark:text-slate-200">
+                        {fb.text}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 pt-1 overflow-x-auto no-scrollbar">
+                        {[
+                          { key: 'like', icon: '👍', count: fb.reactions.like },
+                          { key: 'heart', icon: '🧡', count: fb.reactions.heart },
+                          { key: 'fire', icon: '🔥', count: fb.reactions.fire },
+                          { key: 'dislike', icon: '👎🏻', count: fb.reactions.dislike },
+                          { key: 'sad', icon: '🥲', count: fb.reactions.sad }
+                        ].map((rx) => (
+                          <button
+                            key={rx.key}
+                            onClick={() => {
+                              setFeedbacks(
+                                feedbacks.map((f) =>
+                                  f.id === fb.id
+                                    ? {
+                                        ...f,
+                                        reactions: { ...f.reactions, [rx.key]: (f.reactions as any)[rx.key] + 1 }
+                                      }
+                                    : f
+                                )
+                              );
+                            }}
+                            className={`px-2.5 py-1 rounded-full text-[11px] border font-medium flex items-center gap-1.5 transition-all ${
+                              rx.count > 0
+                                ? 'border-blue-200 bg-blue-50/70 text-[#054FF0]'
+                                : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                            }`}
+                          >
+                            <span>{rx.icon}</span>
+                            <span>{rx.count}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* TAB LAINNYA */}
+          {activeTab === 'weekly' && (
+            <div className="space-y-4">
+              <h3 className="text-sm font-bold">Weekly Sales (WoW)</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                {dynamicWeeks.map((wk) => {
+                  const weekTxs = transactions.filter((t) => t.weekName === wk.name);
+                  const totalWk = weekTxs.reduce((sum, t) => sum + t.amount, 0);
+                  return (
+                    <div key={wk.name} className="p-3.5 rounded-2xl border bg-white dark:bg-slate-800/40 border-slate-200/80 shadow-sm">
+                      <div className="text-xs font-bold">{wk.name}</div>
+                      <div className="text-sm font-extrabold text-[#054FF0] mt-1">{formatCompactIDR(totalWk)}</div>
+                      <div className="text-[10px] opacity-60 mt-1">{wk.minDate} s.d {wk.maxDate}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'staff' && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-bold">Staff Performance Detail</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {staffLeaderboard.map((staf, idx) => (
+                  <div key={staf.salesId} onClick={() => handleOpenStaffDetail(staf)} className="p-3.5 rounded-2xl border bg-white dark:bg-slate-800/40 border-slate-200/80 shadow-sm cursor-pointer hover:border-[#054FF0]">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-xs font-bold">{staf.salesName} (Rank #{idx + 1})</div>
+                      <span className="text-xs font-bold text-[#054FF0]">{staf.ach.toFixed(1)}%</span>
+                    </div>
+                    <div className="text-xs font-bold text-emerald-600">{formatCompactIDR(staf.totalRev)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'bnpl' && (
+            <div className="space-y-4">
+              <h3 className="text-sm font-bold">BNPL Transactions</h3>
+              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                {['ALL', 'Kredivo', 'Indodana', 'Akulaku', 'ShopeePayLater', 'Home Credit'].map((tnd) => {
+                  const filteredBnpl = tnd === 'ALL' ? bnplRecords : bnplRecords.filter((b) => b.tender.toLowerCase().includes(tnd.toLowerCase()));
+                  const tAmount = filteredBnpl.reduce((sum, b) => sum + b.amount, 0);
+                  return (
+                    <div key={tnd} className="px-3 py-2 rounded-xl border bg-white dark:bg-slate-800/40 border-slate-200/80 min-w-[130px]">
+                      <div className="text-[11px] font-bold">{tnd}</div>
+                      <div className="text-xs font-black text-[#054FF0]">{formatCompactIDR(tAmount)}</div>
+                      <div className="text-[10px] opacity-60">{filteredBnpl.length} Transaksi</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'schedule' && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-sm font-bold">Jadwal Shift 1 Minggu</h3>
+                <button onClick={() => window.print()} className="px-2.5 py-1 text-xs border rounded-lg flex items-center gap-1.5">
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Print</span>
                 </button>
               </div>
-
-              <div className="w-full overflow-hidden">
-                <table className="w-full table-fixed text-[11px] sm:text-xs text-left">
+              <div className="p-3 rounded-2xl border bg-white dark:bg-slate-800/40 border-slate-200/80 overflow-x-auto">
+                <table className="w-full text-[10px] sm:text-xs text-center border-collapse min-w-[500px]">
                   <thead>
-                    <tr className="border-b border-slate-200 dark:border-slate-700/80 opacity-70">
-                      <th className="py-2 px-1 w-[40%]">Nama Staff</th>
-                      <th className="py-2 px-1 w-[35%]">Target Catch Up</th>
-                      <th className="py-2 px-1 w-[25%] text-right">Aksi</th>
+                    <tr className="border-b border-slate-200 dark:border-slate-700 opacity-60">
+                      <th className="py-2 px-2 text-left w-28">Nama</th>
+                      {DAYS_OF_WEEK.map((d) => (
+                        <th key={d.key} className="py-2 px-1">{d.label}</th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {staffLeaderboard.slice(0, 8).map((s) => (
-                      <tr key={s.salesId}>
-                        <td className="py-2 px-1 font-semibold truncate">{s.salesName}</td>
-                        <td className="py-2 px-1 font-bold text-[#054FF0] truncate">{formatCompactIDR(s.catchUpTarget)}</td>
-                        <td className="py-2 px-1 text-right">
-                          <button
-                            onClick={() => handleOpenStaffDetail(s)}
-                            className="px-2 py-0.5 rounded text-[10px] bg-blue-50 text-[#054FF0] font-bold"
-                          >
-                            Detail
-                          </button>
-                        </td>
+                    {scheduleState.map((staf, sIdx) => (
+                      <tr key={staf.salesId}>
+                        <td className="py-2 px-2 text-left font-semibold">{staf.salesName}</td>
+                        {DAYS_OF_WEEK.map((d) => {
+                          const shiftVal = staf.shifts[d.key] || 'OFF';
+                          return (
+                            <td key={d.key} className="py-1 px-1">
+                              {loggedInSalesId === ADMIN_SALES_ID ? (
+                                <select
+                                  value={shiftVal}
+                                  onChange={(e) => {
+                                    const updated = [...scheduleState];
+                                    updated[sIdx].shifts[d.key] = e.target.value;
+                                    setScheduleState(updated);
+                                  }}
+                                  className="text-[10px] p-1 rounded font-bold bg-transparent border border-slate-300 dark:border-slate-700"
+                                >
+                                  <option value="D047">D047</option>
+                                  <option value="D103">D103</option>
+                                  <option value="OFF">OFF</option>
+                                  <option value="TR">TR</option>
+                                  <option value="CUTI">CUTI</option>
+                                </select>
+                              ) : (
+                                <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold ${shiftVal === 'D047' ? 'bg-blue-100 text-blue-700' : shiftVal === 'D103' ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'}`}>
+                                  {shiftVal}
+                                </span>
+                              )}
+                            </td>
+                          );
+                        })}
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* FEEDBACK (PERSIS SCREENSHOT & TERSIMPAN) */}
-        {activeTab === 'feedback' && (
-          <div className="space-y-4">
-            <div className={`p-4 rounded-2xl border flex flex-wrap items-center justify-between gap-3 ${
-              theme === 'dark' ? 'bg-[#1E1B3A]/60 border-slate-700/80' : 'bg-white border-slate-200 shadow-sm'
-            }`}>
-              <div>
-                <h3 className="text-sm font-bold flex items-center gap-1.5">
-                  <MessageSquare className="w-4 h-4 text-[#054FF0]" />
-                  Riwayat Feedback Penjualan Hari Ini 📊
-                </h3>
-                <p className="text-[11px] opacity-60 mt-0.5">
-                  Hari ini, {selectedDate} • Ulasan performa, kendala, dan apresiasi layanan tim sales
-                </p>
+          {activeTab === 'search' && (
+            <div className="space-y-4">
+              <h3 className="text-sm font-bold">Rincian Transaksi Log & Cari Produk</h3>
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Cari SKU, Deskripsi, atau Brand..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700"
+                />
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                <select
-                  value={selectedStaffFilter}
-                  onChange={(e) => setSelectedStaffFilter(e.target.value)}
-                  className={`px-3 py-1.5 text-xs rounded-xl border focus:outline-none font-medium ${
-                    theme === 'dark' ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-800'
-                  }`}
-                >
-                  <option value="ALL">Pilih Semua Staf</option>
-                  {Array.from(new Set(feedbacks.map((f) => f.salesName))).map((name) => (
-                    <option key={name} value={name}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
+              {searchQuery && (
+                <div className="grid grid-cols-3 gap-2 p-3 rounded-xl bg-blue-50 text-xs">
+                  <div><span className="opacity-60 block text-[10px]">Ditemukan</span><span className="font-bold">{searchSummary.count} Baris</span></div>
+                  <div><span className="opacity-60 block text-[10px]">Total Qty</span><span className="font-bold">{searchSummary.totalQty} Units</span></div>
+                  <div><span className="opacity-60 block text-[10px]">Total Omzet</span><span className="font-bold text-emerald-600">{formatCompactIDR(searchSummary.totalAmount)}</span></div>
+                </div>
+              )}
+            </div>
+          )}
 
-                <button
-                  onClick={() => {
-                    setEditingFeedbackId(null);
-                    setFeedbackInputName('');
-                    setFeedbackInputRole('Sales Consultant');
-                    setFeedbackInputSentiment('Luar Biasa');
-                    setFeedbackInputText('');
-                    setShowFeedbackModal(true);
-                  }}
-                  className="px-3.5 py-1.5 bg-[#054FF0] hover:bg-[#043ec2] text-white text-xs font-bold rounded-xl shadow-sm flex items-center gap-1.5 transition-all"
-                >
-                  <span>+ Tulis Feedback Baru</span>
-                </button>
+          {activeTab === 'admin' && loggedInSalesId === ADMIN_SALES_ID && (
+            <div className="p-4 rounded-2xl border bg-white dark:bg-slate-800/40 border-slate-200/80 space-y-2">
+              <h3 className="text-sm font-bold text-rose-500">Activity Staff (Admin Log)</h3>
+              <div className="text-xs space-y-1 opacity-70">
+                <div>Admin: 22008089 (Angga Saputra)</div>
+                <div>Lokasi: Grand Indonesia West Mall</div>
+                <div>Status Sesi: Aktif (WIB)</div>
               </div>
             </div>
+          )}
+        </main>
+      </div>
 
-            <div className="space-y-3">
-              {filteredFeedbacks.map((fb) => {
-                const initials = fb.salesName
-                  .split(' ')
-                  .map((n) => n[0])
-                  .slice(0, 2)
-                  .join('')
-                  .toUpperCase();
-
-                const isGreat = fb.sentiment === 'Luar Biasa';
-
-                return (
-                  <div
-                    key={fb.id}
-                    className={`p-4 rounded-2xl border transition-all space-y-3 ${
-                      theme === 'dark' 
-                        ? 'bg-[#1E1B3A]/40 border-slate-700/80 hover:border-slate-600' 
-                        : 'bg-white border-slate-200/90 shadow-[0_2px_8px_rgba(0,0,0,0.03)]'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-blue-100 text-[#054FF0] font-bold text-xs flex items-center justify-center shrink-0 border border-blue-200">
-                          {initials}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-bold text-xs">{fb.salesName}</span>
-                            {fb.role && (
-                              <span className="text-[10px] opacity-60">
-                                ({fb.role})
-                              </span>
-                            )}
-                            {fb.isEdited && (
-                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                                edited
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-[10px] opacity-50 mt-0.5">{fb.timestamp}</div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`text-[10px] px-2.5 py-0.5 rounded-full font-semibold border ${
-                            isGreat
-                              ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
-                              : 'bg-amber-50 text-amber-600 border-amber-200'
-                          }`}
-                        >
-                          {fb.sentiment || 'Luar Biasa'}
-                        </span>
-
-                        <button
-                          onClick={() => {
-                            setEditingFeedbackId(fb.id);
-                            setFeedbackInputName(fb.salesName);
-                            setFeedbackInputRole(fb.role || 'Sales Consultant');
-                            setFeedbackInputSentiment(fb.sentiment || 'Luar Biasa');
-                            setFeedbackInputText(fb.text);
-                            setShowFeedbackModal(true);
-                          }}
-                          className="p-1.5 hover:bg-black/5 rounded-lg text-slate-400 hover:text-[#054FF0]"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className={`p-3 rounded-xl text-xs leading-relaxed border ${
-                      theme === 'dark'
-                        ? 'bg-slate-900/40 border-slate-700/60 text-slate-200'
-                        : 'bg-slate-50/80 border-slate-200/70 text-slate-700'
-                    }`}>
-                      {fb.text}
-                    </div>
-
-                    <div className="flex items-center gap-1.5 pt-1 overflow-x-auto no-scrollbar">
-                      {[
-                        { key: 'like', icon: '👍', count: fb.reactions.like },
-                        { key: 'heart', icon: '🧡', count: fb.reactions.heart },
-                        { key: 'fire', icon: '🔥', count: fb.reactions.fire },
-                        { key: 'dislike', icon: '👎🏻', count: fb.reactions.dislike },
-                        { key: 'sad', icon: '🥲', count: fb.reactions.sad }
-                      ].map((rx) => (
-                        <button
-                          key={rx.key}
-                          onClick={() => {
-                            setFeedbacks(
-                              feedbacks.map((f) =>
-                                f.id === fb.id
-                                  ? {
-                                      ...f,
-                                      reactions: { ...f.reactions, [rx.key]: (f.reactions as any)[rx.key] + 1 }
-                                    }
-                                  : f
-                              )
-                            );
-                          }}
-                          className={`px-2.5 py-1 rounded-full text-[11px] border font-medium flex items-center gap-1.5 transition-all ${
-                            rx.count > 0
-                              ? 'border-blue-200 bg-blue-50/70 text-[#054FF0]'
-                              : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                          }`}
-                        >
-                          <span>{rx.icon}</span>
-                          <span>{rx.count}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* WEEKLY */}
-        {activeTab === 'weekly' && (
-          <div className="space-y-4">
-            <h3 className="text-sm font-bold">Analisis Penjualan Mingguan (WoW)</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-              {dynamicWeeks.map((wk) => {
-                const weekTxs = transactions.filter((t) => t.weekName === wk.name);
-                const totalWk = weekTxs.reduce((sum, t) => sum + t.amount, 0);
-                const isSelected = selectedWeek === wk.name;
-                return (
-                  <div
-                    key={wk.name}
-                    onClick={() => setSelectedWeek(isSelected ? 'ALL' : wk.name)}
-                    className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
-                      isSelected
-                        ? 'border-[#054FF0] bg-blue-500/10'
-                        : theme === 'dark'
-                        ? 'bg-slate-800/40 border-slate-700/80 hover:border-slate-600'
-                        : 'bg-white border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.04)]'
-                    }`}
-                  >
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="font-bold text-xs">{wk.name}</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-[#054FF0] font-semibold">
-                        {weekTxs.length} Tx
-                      </span>
-                    </div>
-                    <div className="text-sm sm:text-base font-extrabold text-[#054FF0]">{formatCompactIDR(totalWk)}</div>
-                    <div className="text-[10px] opacity-60 mt-1">Rentang: {wk.minDate} s.d {wk.maxDate}</div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* STAFF PERFORMANCE */}
-        {activeTab === 'staff' && (
-          <div className="space-y-3">
-            <h3 className="text-sm font-bold">Performa Seluruh Staf Toko (Leaderboard)</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {staffLeaderboard.map((staf, idx) => (
-                <div
-                  key={staf.salesId}
-                  onClick={() => handleOpenStaffDetail(staf)}
-                  className={`p-3.5 rounded-2xl border cursor-pointer hover:border-[#054FF0] transition-all ${
-                    theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.04)]'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-[#054FF0] text-white flex items-center justify-center font-bold text-xs">
-                        {staf.salesName.substring(0, 2).toUpperCase()}
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold">{staf.salesName}</div>
-                        <div className="text-[10px] opacity-60">Rank #{idx + 1}</div>
-                      </div>
-                    </div>
-                    <span className="text-xs font-black text-[#054FF0]">{staf.ach.toFixed(1)}%</span>
-                  </div>
-                  <div className="text-xs font-bold text-emerald-600">{formatCompactIDR(staf.totalRev)}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* BNPL */}
-        {activeTab === 'bnpl' && (
-          <div className="space-y-4">
-            <h3 className="text-sm font-bold">Buy Now Pay Later (BNPL)</h3>
-            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-              {['ALL', 'Kredivo', 'Indodana', 'Akulaku', 'ShopeePayLater', 'Home Credit'].map((tnd) => {
-                const filteredBnpl = tnd === 'ALL' ? bnplRecords : bnplRecords.filter((b) => b.tender.toLowerCase().includes(tnd.toLowerCase()));
-                const tAmount = filteredBnpl.reduce((sum, b) => sum + b.amount, 0);
-                const isAct = bnplActiveTender === tnd;
-
-                return (
-                  <button
-                    key={tnd}
-                    onClick={() => setBnplActiveTender(tnd)}
-                    className={`px-3 py-2 rounded-xl border text-left whitespace-nowrap min-w-[130px] transition-all ${
-                      isAct
-                        ? 'border-[#054FF0] bg-blue-500/10'
-                        : theme === 'dark'
-                        ? 'bg-slate-800/40 border-slate-700/80'
-                        : 'bg-white border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.04)]'
-                    }`}
-                  >
-                    <div className="text-[11px] font-bold">{tnd}</div>
-                    <div className="text-xs font-black text-[#054FF0]">{formatCompactIDR(tAmount)}</div>
-                    <div className="text-[10px] opacity-60">{filteredBnpl.length} Transaksi</div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* SCHEDULE */}
-        {activeTab === 'schedule' && (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-sm font-bold">Jadwal Shift Kerja (1 Minggu)</h3>
-              <button
-                onClick={() => window.print()}
-                className="px-2.5 py-1 text-xs border rounded-lg flex items-center gap-1.5"
-              >
-                <Printer className="w-3.5 h-3.5" />
-                <span>Print / PDF</span>
-              </button>
-            </div>
-
-            <div className={`p-3 rounded-2xl border overflow-x-auto ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.04)]'}`}>
-              <table className="w-full text-[10px] sm:text-xs text-center border-collapse min-w-[500px]">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-700 opacity-70">
-                    <th className="py-2 px-2 text-left w-28">Nama</th>
-                    {DAYS_OF_WEEK.map((d) => (
-                      <th key={d.key} className="py-2 px-1">
-                        <div>{d.label}</div>
-                        <div className="text-[9px] font-normal opacity-70">{d.date}</div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {scheduleState.map((staf, sIdx) => (
-                    <tr key={staf.salesId}>
-                      <td className="py-2 px-2 text-left font-semibold truncate">{staf.salesName}</td>
-                      {DAYS_OF_WEEK.map((d) => {
-                        const shiftVal = staf.shifts[d.key] || 'OFF';
-                        const isEditable = loggedInSalesId === ADMIN_SALES_ID;
-
-                        return (
-                          <td key={d.key} className="py-1 px-1">
-                            {isEditable ? (
-                              <select
-                                value={shiftVal}
-                                onChange={(e) => {
-                                  const updated = [...scheduleState];
-                                  updated[sIdx].shifts[d.key] = e.target.value;
-                                  setScheduleState(updated);
-                                }}
-                                className="text-[10px] p-1 rounded font-bold bg-transparent border border-slate-300 dark:border-slate-700"
-                              >
-                                <option value="D047">D047</option>
-                                <option value="D103">D103</option>
-                                <option value="OFF">OFF</option>
-                                <option value="TR">TR</option>
-                                <option value="CUTI">CUTI</option>
-                              </select>
-                            ) : (
-                              <span
-                                className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold ${
-                                  shiftVal === 'D047'
-                                    ? 'bg-blue-100 text-blue-700'
-                                    : shiftVal === 'D103'
-                                    ? 'bg-amber-100 text-amber-700'
-                                    : 'bg-rose-100 text-rose-700'
-                                }`}
-                              >
-                                {shiftVal}
-                              </span>
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* SEARCH */}
-        {activeTab === 'search' && (
-          <div className="space-y-4">
-            <h3 className="text-sm font-bold">Pencarian Produk & Transaksi</h3>
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Cari SKU, Deskripsi, atau Brand..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full pl-9 pr-3 py-2 text-xs rounded-xl border focus:outline-none ${
-                  theme === 'dark' ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-300'
-                }`}
-              />
-            </div>
-
-            {searchQuery && (
-              <div className="grid grid-cols-3 gap-2 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs">
-                <div>
-                  <span className="opacity-60 block text-[10px]">Ditemukan</span>
-                  <span className="font-bold">{searchSummary.count} Baris</span>
-                </div>
-                <div>
-                  <span className="opacity-60 block text-[10px]">Total Qty</span>
-                  <span className="font-bold">{searchSummary.totalQty} Units</span>
-                </div>
-                <div>
-                  <span className="opacity-60 block text-[10px]">Total Omzet</span>
-                  <span className="font-bold text-emerald-500">{formatCompactIDR(searchSummary.totalAmount)}</span>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ADMIN */}
-        {activeTab === 'admin' && loggedInSalesId === ADMIN_SALES_ID && (
-          <div className="space-y-4">
-            <h3 className="text-sm font-bold flex items-center gap-2 text-rose-500">
-              <ShieldAlert className="w-4 h-4" /> Portal Khusus Admin (22008089)
-            </h3>
-            <div className={`p-4 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.04)]'}`}>
-              <div className="text-xs space-y-2 opacity-80">
-                <div className="flex justify-between border-b pb-1.5 border-slate-700/40">
-                  <span>Sales ID: 22008089 (Angga)</span>
-                  <span className="text-emerald-500 font-bold">Aktif (WIB)</span>
-                </div>
-                <div className="flex justify-between border-b pb-1.5 border-slate-700/40">
-                  <span>Lokasi Presensi:</span>
-                  <span>Grand Indonesia West Mall, Jakarta Pusat</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
-
-      {/* BOTTOM SHEET */}
+      {/* BOTTOM SHEET DRAWER */}
       {bottomSheetData && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
-          <div
-            className={`w-full max-w-lg rounded-t-3xl sm:rounded-2xl p-5 space-y-4 shadow-2xl border max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom duration-200 ${
-              theme === 'dark' ? 'bg-[#1E1B3A] border-slate-700 text-[#FFF6E9]' : 'bg-[#FAF9F5] border-slate-200 text-slate-800'
-            }`}
-          >
+          <div className="w-full max-w-lg rounded-t-3xl sm:rounded-2xl p-5 space-y-4 shadow-2xl border max-h-[85vh] overflow-y-auto bg-white dark:bg-[#1E1B3A] border-slate-200 dark:border-slate-700">
             <div className="w-12 h-1.5 bg-slate-400/40 rounded-full mx-auto" />
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold">{bottomSheetData.title}</h3>
-              <button
-                onClick={() => setBottomSheetData(null)}
-                className="p-1.5 rounded-full hover:bg-black/10"
-              >
+              <button onClick={() => setBottomSheetData(null)} className="p-1.5 rounded-full hover:bg-black/10">
                 <XCircle className="w-4 h-4 opacity-70" />
               </button>
             </div>
@@ -1461,26 +1407,16 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
         </div>
       )}
 
-      {/* MODAL INPUT / EDIT FEEDBACK */}
+      {/* MODAL INPUT FEEDBACK */}
       {showFeedbackModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div
-            className={`w-full max-w-md rounded-2xl p-5 space-y-4 border shadow-xl ${
-              theme === 'dark' ? 'bg-[#1E1B3A] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'
-            }`}
-          >
+          <div className="w-full max-w-md rounded-2xl p-5 space-y-4 border bg-white dark:bg-[#1E1B3A] border-slate-200 dark:border-slate-700 shadow-xl">
             <div className="flex items-center justify-between border-b pb-2.5 border-slate-200 dark:border-slate-700">
               <h3 className="text-sm font-bold">
                 {editingFeedbackId ? 'Edit Catatan Feedback' : 'Tulis Feedback Penjualan Hari Ini'}
               </h3>
-              <button
-                onClick={() => {
-                  setShowFeedbackModal(false);
-                  setEditingFeedbackId(null);
-                }}
-                className="text-slate-400 hover:text-slate-600"
-              >
-                <XCircle className="w-4 h-4" />
+              <button onClick={() => { setShowFeedbackModal(false); setEditingFeedbackId(null); }}>
+                <XCircle className="w-4 h-4 opacity-70" />
               </button>
             </div>
 
@@ -1492,7 +1428,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
                   placeholder="Ketik nama sales..."
                   value={feedbackInputName}
                   onChange={(e) => setFeedbackInputName(e.target.value)}
-                  className="w-full p-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-transparent focus:outline-none focus:border-[#054FF0]"
+                  className="w-full p-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-transparent focus:outline-none"
                 />
               </div>
 
@@ -1533,18 +1469,15 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
                   rows={4}
                   value={feedbackInputText}
                   onChange={(e) => setFeedbackInputText(e.target.value)}
-                  className="w-full p-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-transparent focus:outline-none focus:border-[#054FF0]"
+                  className="w-full p-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-transparent focus:outline-none"
                 />
               </div>
             </div>
 
             <div className="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
               <button
-                onClick={() => {
-                  setShowFeedbackModal(false);
-                  setEditingFeedbackId(null);
-                }}
-                className="px-3.5 py-1.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-black/5"
+                onClick={() => { setShowFeedbackModal(false); setEditingFeedbackId(null); }}
+                className="px-3.5 py-1.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700"
               >
                 Batal
               </button>
