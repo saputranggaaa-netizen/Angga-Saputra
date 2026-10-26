@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
-
+const LOG_API_URL = "https://script.google.com/macros/s/AKfycbx8o8q169jgiq5YdQ9OYOgmPMgtXfLb4clWQwM-ClEAtYgchFGunASt8acjMYnPYFZ5zg/exec";
 // =========================================================================
 // 1. DATA CONTRACTS & INTERFACES
 // =========================================================================
@@ -436,11 +436,22 @@ export default function DigiplusOperationalEngine() {
         setCurrentSalesId(savedUser);
         setCurrentSalesName(savedName || `Sales ${savedUser}`);
       }
-      const savedLogs = localStorage.getItem("digi_ops_activity_logs");
-      if (savedLogs) {
-        try { setActivityLogs(JSON.parse(savedLogs)); } catch (e) {}
-      }
-    }
+      fetch(LOG_API_URL)
+  .then((res) => res.json())
+  .then((data) => {
+    if (Array.isArray(data)) setActivityLogs(data);
+  })
+  .catch((err) => {
+   fetch(LOG_API_URL)
+  .then((res) => res.json())
+  .then((data) => {
+    if (Array.isArray(data)) setActivityLogs(data);
+  })
+  .catch(() => {
+    const savedLogs = localStorage.getItem("digi_ops_activity_logs");
+    if (savedLogs) try { setActivityLogs(JSON.parse(savedLogs)); } catch (e) {}
+  });
+}, []);
   }, []);
 
   const toggleTheme = () => {
@@ -504,6 +515,25 @@ export default function DigiplusOperationalEngine() {
       return updated;
     });
   };
+  // Kirim data login ke Google Sheets online
+    try {
+      fetch(LOG_API_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          waktu: log.timestamp,
+          salesId: log.salesId,
+          salesName: log.salesName,
+          device: log.deviceType,
+          browser: log.browser,
+          lokasi: log.location,
+          koordinat: log.coords
+        })
+      });
+    } catch (err) {
+      console.error("Gagal kirim log online:", err);
+    }
 
   const handleLogout = () => {
     localStorage.removeItem("digi_ops_user");
