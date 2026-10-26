@@ -1,6 +1,5 @@
 <!doctype html>
-<html lang="en">
-  <head>
+<html lang="en" class="dark">  <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Dashboard Penjualan & Sales Performance</title>
@@ -25,23 +24,36 @@
       }
     </script>
     <style>
-      /* Memaksa angka target toko dan nama staf menyala terang */
-      .dark div[class*="rounded"] {
+      <style>
+      /* Paksa semua teks gelap menjadi putih terang */
+      .text-slate-900,
+      .text-slate-800,
+      .text-black,
+      .text-blue-950,
+      .text-blue-900 {
         color: #f8fafc !important;
       }
-      .dark div[class*="rounded"] span {
+
+      /* Teks nama staf & nominal di dalam grid kartu staf */
+      div[class*="grid"] div[class*="rounded"] {
+        color: #ffffff !important;
+      }
+      div[class*="grid"] div[class*="rounded"] div {
+        color: #ffffff !important;
+      }
+      div[class*="grid"] div[class*="rounded"] span {
         color: #94a3b8 !important;
       }
-      .dark div[class*="font-black"],
-      .dark div[class*="font-extrabold"] {
+
+      /* Angka nominal Target Toko Hari Ini & kuota staf jadi cyan terang */
+      div[class*="rounded"] [class*="font-black"],
+      div[class*="rounded"] [class*="font-extrabold"] {
         color: #38bdf8 !important;
       }
-      .dark div[class*="grid"] div[class*="rounded"] div {
-        color: #ffffff !important;
-      }
-      .dark .text-slate-900,
-      .dark .text-black {
-        color: #ffffff !important;
+
+      /* Angka pencapaian hijau tetap menyala */
+      [class*="text-emerald"] {
+        color: #10b981 !important;
       }
     </style>
   </head>
