@@ -2052,51 +2052,67 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-base font-bold">🏆 Rank Sales per Staff & UPT ({periodType.toUpperCase()} Terfilter)</h3>
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs min-w-[600px]">
-                      <thead className={`${innerBg} uppercase text-[11px] border-b border-inherit`}>
-                        <tr>
-                          <th className="py-3.5 px-4 text-center">Rank</th>
-                          <th className="py-3.5 px-4">Nama Salesperson</th>
-                          <th className="py-3.5 px-4 text-right">Actual Omset</th>
-                          <th className="py-3.5 px-4 text-center">Unit</th>
-                          <th className="py-3.5 px-4 text-center">Struk</th>
-                          <th className="py-3.5 px-4 text-center">UPT</th>
-                          <th className="py-3.5 px-4 text-center">Aksi Drilldown</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-inherit font-medium">
-                        {staffList.map((s) => (
-                          <tr key={s.salesId} className="hover:opacity-90 transition">
-                            <td className="py-3.5 px-4 text-center">
-                              <span className={`w-6 h-6 rounded-full inline-flex items-center justify-center font-black text-xs ${
-                                s.rank === 1 ? (isDark ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#054ff0] text-white") : "opacity-60"
-                              }`}>
-                                {s.rank}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <div className="font-bold">{s.name}</div>
-                              <div className="text-[10px] opacity-60 font-mono">ID: {s.salesId}</div>
-                            </td>
-                            <td className="py-3.5 px-4 text-right font-extrabold text-emerald-500 text-sm">{formatIDR(s.actual)}</td>
-                            <td className="py-3.5 px-4 text-center font-bold">{s.qty}</td>
-                            <td className="py-3.5 px-4 text-center opacity-70">{s.invoicesCount}</td>
-                            <td className="py-3.5 px-4 text-center font-black text-sky-500">{s.upt}</td>
-                            <td className="py-3.5 px-4 text-center">
-                              <button
-                                onClick={() => openStaffDetailSheet(s)}
-                                className={`px-3 py-1 rounded-xl text-xs font-bold transition ${activeTabBtn}`}
-                              >
-                                Detail
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="w-full space-y-3">
+            {staffList.map((s: any) => (
+              <div 
+                key={s.salesId} 
+                className={`p-3.5 rounded-2xl ${innerBg} border border-white/10 flex flex-col gap-2.5 shadow-md`}
+              >
+                {/* Baris Atas: Rank, Info Sales, dan Omzet */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-3">
+                    <span 
+                      className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
+                        s.rank === 1 
+                          ? isDark ? "bg-[#F5BA42] text-[#1A1031]" : "bg-[#054ff0] text-white" 
+                          : "opacity-60 text-white"
+                      }`}
+                    >
+                      {s.rank}
+                    </span>
+                    <div>
+                      <h4 className="text-xs sm:text-sm font-bold text-white leading-tight">
+                        {s.name}
+                      </h4>
+                      <p className="text-[10px] opacity-60 font-mono mt-0.5">
+                        ID: {s.salesId}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <p className="text-xs sm:text-sm font-extrabold text-emerald-400 whitespace-nowrap">
+                      {formatIDR(s.actual)}
+                    </p>
                   </div>
                 </div>
+
+                {/* Baris Tengah: Rincian Unit, Struk, UPT */}
+                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-white/10 text-center">
+                  <div className="bg-black/20 py-1.5 px-2 rounded-xl">
+                    <span className="text-[9px] opacity-60 block uppercase font-medium">Unit</span>
+                    <span className="text-xs font-bold text-sky-400">{s.qty}</span>
+                  </div>
+                  <div className="bg-black/20 py-1.5 px-2 rounded-xl">
+                    <span className="text-[9px] opacity-60 block uppercase font-medium">Struk</span>
+                    <span className="text-xs font-bold text-slate-200">{s.invoicesCount}</span>
+                  </div>
+                  <div className="bg-black/20 py-1.5 px-2 rounded-xl">
+                    <span className="text-[9px] opacity-60 block uppercase font-medium">UPT</span>
+                    <span className="text-xs font-bold text-sky-400">{s.upt}</span>
+                  </div>
+                </div>
+
+                {/* Baris Bawah: Tombol Detail Drilldown */}
+                <button
+                  onClick={() => openStaffDetailSheet(s)}
+                  className={`w-full py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center ${activeTabBtn}`}
+                >
+                  Detail Drilldown
+                </button>
+              </div>
+            ))}
+          </div>
               </div>
             )}
 
