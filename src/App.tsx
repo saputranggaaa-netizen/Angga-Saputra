@@ -16,6 +16,7 @@ type MenuTab =
   | "bnpl" 
   | "sales-detail" 
   | "admin-audit";
+  | "product-search";
 
 type ThemeMode = "dark" | "light";
 type PeriodType = "daily" | "weekly" | "monthly";
@@ -204,6 +205,7 @@ export default function DigiplusOperationalEngine() {
   // Theme & Navigation
   const [theme, setTheme] = useState<ThemeMode>("dark");
   const [activeTab, setActiveTab] = useState<MenuTab>("store-overview");
+  const [productSearchQuery, setProductSearchQuery] = useState("");
   const [overviewDetailCategory, setOverviewDetailCategory] = useState<"apple" | "android" | "accessories" | "vas">("apple");
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
@@ -1702,6 +1704,15 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               <span>💳</span>
               <span>BNPL Transactions</span>
             </button>
+            <button
+                onClick={() => { setActiveTab("product-search"); setMobileMenuOpen(false); }}
+                className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition ${
+                  activeTab === "product-search" ? activeTabBtn : "opacity-70 hover:opacity-100"
+                }`}
+              >
+                <span>🔍</span>
+                <span>Cari Produk Terjual</span>
+              </button>
 
             {currentSalesId === ADMIN_ID && (
               <button
@@ -3000,6 +3011,103 @@ _Diperbarui via Digiplus Store Operations Engine._`;
             )}
           </>
         )}
+        {activeTab === "product-search" && (
+            <div className="space-y-6">
+              {/* Header & Input Filter */}
+              <div className={`p-6 ${cardBg} border rounded-2xl shadow-xl space-y-4`}>
+                <h2 className="text-lg font-black text-white flex items-center gap-2">
+                  <span>🔍</span> PENCARIAN PRODUK TERJUAL
+                </h2>
+                <p className="text-xs text-slate-400">
+                  Cari histori transaksi berdasarkan Nomor Artikel SAP atau Nama/Deskripsi Produk.
+                </p>
+
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={productSearchQuery}
+                    onChange={(e) => setProductSearchQuery(e.target.value)}
+                    placeholder="Ketik kode artikel SAP atau nama produk (contoh: iPhone 17, Casing, 102938)..."
+                    className={`w-full p-3.5 pl-10 rounded-xl ${innerBg} border text-sm text-white focus:outline-none focus:border-amber-400`}
+                  />
+                  <span className="absolute left-3.5 top-3.5 text-slate-400">🔎</span>
+                </div>
+              </div>
+
+              {/* Logika Filter & Perhitungan Ringkasan */}
+              {(() => {
+                const query = productSearchQuery.trim().toLowerCase();
+                const filtered = query
+                  ? transactions.filter((t: any) =>
+                      (t.sapArticle && String(t.sapArticle).toLowerCase().includes(query)) ||
+                      (t.productName && String(t.productName).toLowerCase().includes(query))
+                    )
+                  : [];
+
+                const totalQty = filtered.reduce((acc: number, curr: any) => acc + (Number(curr.qty) || 0), 0);
+                const totalAmount = filtered.reduce((acc: number, curr: any) => acc + (Number(curr.amount) || 0), 0);
+
+                return (
+                  <div className="space-y-6">
+                    {/* Ringkasan Akumulasi Total */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className={`p-5 ${cardBg} border rounded-2xl`}>
+                        <span className="text-xs text-slate-400 uppercase font-semibold">Total Unit Terjual</span>
+                        <p className="text-2xl font-black text-amber-400 mt-1">{totalQty.toLocaleString("id-ID")} Qty</p>
+                      </div>
+                      <div className={`p-5 ${cardBg} border rounded-2xl`}>
+                        <span className="text-xs text-slate-400 uppercase font-semibold">Total Nilai Penjualan (Amount)</span>
+                        <p className="text-2xl font-black text-emerald-400 mt-1">Rp {totalAmount.toLocaleString("id-ID")}</p>
+                      </div>
+                    </div>
+
+                    {/* Tabel Detail Transaksi */}
+                    <div className={`overflow-x-auto rounded-2xl border ${cardBg}`}>
+                      <table className="w-full text-left text-xs text-slate-200">
+                        <thead className={`${innerBg} uppercase text-[11px] border-b border-white/10 text-slate-400`}>
+                          <tr>
+                            <th className="py-3 px-4">Tanggal</th>
+                            <th className="py-3 px-4">Sales Person</th>
+                            <th className="py-3 px-4">Artikel SAP</th>
+                            <th className="py-3 px-4">Deskripsi Produk</th>
+                            <th className="py-3 px-4 text-center">Qty</th>
+                            <th className="py-3 px-4 text-right">Amount (Rp)</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5">
+                          {filtered.length > 0 ? (
+                            filtered.map((item: any, idx: number) => (
+                              <tr key={idx} className="hover:bg-white/5">
+                                <td className="py-3 px-4 whitespace-nowrap">{item.date || item.isoDate || "-"}</td>
+                                <td className="py-3 px-4 font-bold text-white">
+                                  {item.salesName || "-"}
+                                  <span className="block text-[10px] text-slate-400 font-normal">{item.salesId}</span>
+                                </td>
+                                <td className="py-3 px-4 font-mono text-amber-400">{item.sapArticle || "-"}</td>
+                                <td className="py-3 px-4 max-w-xs">{item.productName || "-"}</td>
+                                <td className="py-3 px-4 text-center font-bold text-sky-400">{item.qty || 0}</td>
+                                <td className="py-3 px-4 text-right font-bold text-emerald-400">
+                                  Rp {(Number(item.amount) || 0).toLocaleString("id-ID")}
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={6} className="text-center py-8 text-slate-400">
+                                {productSearchQuery
+                                  ? "Tidak ada transaksi yang sesuai dengan kata kunci."
+                                  : "Silakan ketik nama produk atau kode artikel pada kolom di atas."}
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
       </main>
 
       {/* ========================================================= */}
