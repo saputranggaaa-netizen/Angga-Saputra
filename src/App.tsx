@@ -1529,20 +1529,14 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               alt="Logo Digiplus" 
               className="w-16 h-16 object-contain rounded-2xl bg-white p-1 shadow-md mb-2"
             />
-            {/* 2. Tulisan QF01 hitam tanpa background kuning */}
+            {/* 2. Tulisan QF01 */}
             <h2 className="font-black text-2xl text-black tracking-wider mb-2">
               QF01
             </h2>
             <h1 className="text-xl font-bold">DIGIPLUS GRAND INDONESIA</h1>
             <p className={`text-xs ${accentText} mt-1 font-semibold`}>PORTAL DASHBOARD SALES</p>
           </div>
-
-          {loginErr && (
-            <div className="mb-4 p-3 bg-red-500/20 border border-red-500/40 rounded-xl text-red-400 text-xs font-semibold text-center">
-              {loginErr}
-            </div>
-          )}
-
+          
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="text-xs font-bold uppercase tracking-wider">Sales ID / NIK Karyawan</label>
