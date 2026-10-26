@@ -1,1 +1,18 @@
-@import "tailwindcss";
+/* Perbaikan Kontras Kartu Target & Staf di Tema Gelap */
+.dark [class*="bg-slate-800"],
+.dark [class*="bg-[#1E1B3A]"],
+.dark .rounded-2xl {
+  color: #ffffff !important;
+}
+
+.dark [class*="bg-slate-800"] span,
+.dark [class*="bg-[#1E1B3A]"] span {
+  color: #94a3b8 !important;
+}
+
+.dark [class*="bg-slate-800"] .font-black,
+.dark [class*="bg-[#1E1B3A]"] .font-black,
+.dark [class*="bg-slate-800"] .font-extrabold,
+.dark [class*="bg-[#1E1B3A]"] .font-extrabold {
+  color: #38bdf8 !important;
+}
