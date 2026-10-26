@@ -1,18 +1,29 @@
-/* Perbaikan Kontras Kartu Target & Staf di Tema Gelap */
-.dark [class*="bg-slate-800"],
-.dark [class*="bg-[#1E1B3A]"],
-.dark .rounded-2xl {
-  color: #ffffff !important;
+/* PAKSA SEMUA TEKS KARTU & DAFTAR STAF MENYALA TERANG */
+div[class*="rounded"] {
+  color: #f8fafc !important;
 }
 
-.dark [class*="bg-slate-800"] span,
-.dark [class*="bg-[#1E1B3A]"] span {
+/* Judul kecil & keterangan di dalam kartu */
+div[class*="rounded"] span,
+div[class*="rounded"] p {
   color: #94a3b8 !important;
 }
 
-.dark [class*="bg-slate-800"] .font-black,
-.dark [class*="bg-[#1E1B3A]"] .font-black,
-.dark [class*="bg-slate-800"] .font-extrabold,
-.dark [class*="bg-[#1E1B3A]"] .font-extrabold {
+/* Angka nominal target toko di kotak pertama */
+div[class*="rounded"] div[class*="text-xl"],
+div[class*="rounded"] div[class*="text-2xl"],
+div[class*="rounded"] div[class*="font-black"],
+div[class*="rounded"] div[class*="font-extrabold"] {
   color: #38bdf8 !important;
+}
+
+/* Nama staf di kotak daftar staf */
+div[class*="grid"] div[class*="rounded"] div {
+  color: #ffffff !important;
+}
+
+/* Khusus angka hijau (Pencapaian Hari Ini) tetap hijau */
+div[class*="rounded"] div[class*="text-emerald-500"],
+div[class*="rounded"] span[class*="text-emerald-500"] {
+  color: #10b981 !important;
 }
