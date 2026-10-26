@@ -1605,7 +1605,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
             </div>
             <div>
               <h2 className="text-sm font-bold tracking-wider">DIGIPLUS</h2>
-              <p className={`text-[10px] ${accentText} font-semibold`}>STORE OPERATIONS QF01</p>
+              <p className={`text-[10px] ${accentText} font-semibold`}>QF01 DIGIPLUS GRAND INDONESIA</p>
             </div>
           </div>
 
