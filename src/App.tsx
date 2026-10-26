@@ -759,13 +759,13 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
   if (!isMounted) return null;
 
   return (
-    <div className={`min-h-screen w-full max-w-full overflow-x-hidden ${theme === 'dark' ? 'bg-[#1A1831] text-[#FFF6E9]' : 'bg-[#F9F8F3] text-slate-900'}`}>
+    <div className={`min-h-screen w-full max-w-full overflow-x-hidden ${theme === 'dark' ? 'bg-[#1A1831] text-[#FFF6E9]' : 'bg-[#F9F8F3] text-slate-800'}`}>
       {/* ==================================================== */}
       {/* TOP HEADER */}
       {/* ==================================================== */}
       <header className={`w-full border-b px-3 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-40 backdrop-blur-md ${theme === 'dark' ? 'bg-[#1A1831]/95 border-slate-800' : 'bg-[#F9F8F3]/95 border-slate-200'}`}>
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-sm shadow-md shadow-blue-500/20">
+          <div className="w-9 h-9 rounded-xl bg-[#054ff0] flex items-center justify-center text-white font-black text-sm shadow-md shadow-blue-500/20">
             QF
           </div>
           <div>
@@ -819,7 +819,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
           <button
             onClick={() => setFilterMode('daily')}
             className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
-              filterMode === 'daily' ? 'bg-blue-600 text-white shadow-sm' : 'opacity-70 hover:opacity-100'
+              filterMode === 'daily' ? 'bg-[#054ff0] text-white shadow-sm' : 'opacity-70 hover:opacity-100'
             }`}
           >
             Daily
@@ -827,7 +827,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
           <button
             onClick={() => setFilterMode('weekly')}
             className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
-              filterMode === 'weekly' ? 'bg-blue-600 text-white shadow-sm' : 'opacity-70 hover:opacity-100'
+              filterMode === 'weekly' ? 'bg-[#054ff0] text-white shadow-sm' : 'opacity-70 hover:opacity-100'
             }`}
           >
             Weekly
@@ -835,7 +835,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
           <button
             onClick={() => setFilterMode('monthly')}
             className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
-              filterMode === 'monthly' ? 'bg-blue-600 text-white shadow-sm' : 'opacity-70 hover:opacity-100'
+              filterMode === 'monthly' ? 'bg-[#054ff0] text-white shadow-sm' : 'opacity-70 hover:opacity-100'
             }`}
           >
             Monthly
@@ -928,7 +928,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
         {activeTab === 'overview' && (
           <div className="space-y-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className={`p-3.5 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200'}`}>
+              <div className={`p-3.5 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.04)]'}`}>
                 <div className="flex justify-between items-center text-xs opacity-70 mb-1">
                   <span>Target Periode</span>
                   <BarChart3 className="w-3.5 h-3.5 text-blue-500" />
@@ -937,7 +937,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
                 <div className="text-[10px] sm:text-xs opacity-60 mt-1">Oktober 2026 Toko</div>
               </div>
 
-              <div className={`p-3.5 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200'}`}>
+              <div className={`p-3.5 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.04)]'}`}>
                 <div className="flex justify-between items-center text-xs opacity-70 mb-1">
                   <span>Actual Omzet</span>
                   <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
@@ -946,7 +946,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
                 <div className="text-[10px] sm:text-xs font-medium text-emerald-500 mt-1">{storeMetrics.overallAch.toFixed(1)}% Terpenuhi</div>
               </div>
 
-              <div className={`p-3.5 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200'}`}>
+              <div className={`p-3.5 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.04)]'}`}>
                 <div className="flex justify-between items-center text-xs opacity-70 mb-1">
                   <span>Sisa Gap</span>
                   <Clock className="w-3.5 h-3.5 text-rose-500" />
@@ -955,7 +955,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
                 <div className="text-[10px] sm:text-xs opacity-60 mt-1">{storeMetrics.remainingDays} Hari Tersisa</div>
               </div>
 
-              <div className={`p-3.5 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200'}`}>
+              <div className={`p-3.5 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.04)]'}`}>
                 <div className="flex justify-between items-center text-xs opacity-70 mb-1">
                   <span>Run Rate / Hari</span>
                   <CreditCard className="w-3.5 h-3.5 text-amber-500" />
@@ -1000,7 +1000,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
                       })
                     }
                     className={`p-3.5 rounded-2xl border cursor-pointer hover:border-blue-500 transition-all ${
-                      theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200'
+                      theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.04)]'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-2">
@@ -1012,7 +1012,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
                     <div className="text-sm font-extrabold">{formatCompactIDR(c.actual)}</div>
                     <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full mt-2 overflow-hidden">
                       <div
-                        className="h-full bg-blue-600 rounded-full"
+                        className="h-full bg-[#054ff0] rounded-full"
                         style={{ width: `${Math.min(100, ach)}%` }}
                       />
                     </div>
@@ -1026,7 +1026,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
             </div>
 
             {/* Daily Catch-Up Table */}
-            <div className={`p-4 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200'}`}>
+            <div className={`p-4 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.04)]'}`}>
               <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                 <div>
                   <h3 className="text-xs sm:text-sm font-bold flex items-center gap-2">
@@ -1114,7 +1114,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
               })}
             </div>
 
-            <div className={`p-4 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200'}`}>
+            <div className={`p-4 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.04)]'}`}>
               <h4 className="text-xs font-bold mb-3">Realisasi Tim ({selectedWeek === 'ALL' ? 'Semua Minggu' : selectedWeek})</h4>
               <div className="w-full overflow-hidden">
                 <table className="w-full table-fixed text-[11px] sm:text-xs">
@@ -1159,12 +1159,12 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
                   key={staf.salesId}
                   onClick={() => handleOpenStaffDetail(staf)}
                   className={`p-3.5 rounded-2xl border cursor-pointer hover:border-blue-500 transition-all ${
-                    theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200'
+                    theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.04)]'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs">
+                      <div className="w-8 h-8 rounded-full bg-[#054ff0] text-white flex items-center justify-center font-bold text-xs">
                         {staf.salesName.substring(0, 2).toUpperCase()}
                       </div>
                       <div>
@@ -1226,7 +1226,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
               })}
             </div>
 
-            <div className={`p-4 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200'}`}>
+            <div className={`p-4 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.04)]'}`}>
               <h4 className="text-xs font-bold mb-3">Detail Transaksi BNPL ({bnplActiveTender})</h4>
               <div className="w-full overflow-hidden">
                 <table className="w-full table-fixed text-[11px] sm:text-xs">
@@ -1278,7 +1278,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
               </div>
             </div>
 
-            <div className={`p-3 rounded-2xl border overflow-x-auto ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200'}`}>
+            <div className={`p-3 rounded-2xl border overflow-x-auto ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.04)]'}`}>
               <table className="w-full text-[10px] sm:text-xs text-center border-collapse min-w-[500px]">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-700 opacity-70">
@@ -1356,7 +1356,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
                   setFeedbackInputText('');
                   setShowFeedbackModal(true);
                 }}
-                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm"
+                className="px-3 py-1.5 bg-[#054ff0] hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm"
               >
                 + Tulis Feedback
               </button>
@@ -1367,7 +1367,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
                 <div
                   key={fb.id}
                   className={`p-3.5 rounded-2xl border space-y-2 ${
-                    theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200'
+                    theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.04)]'
                   }`}
                 >
                   <div className="flex items-center justify-between text-xs">
@@ -1494,7 +1494,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
             <h3 className="text-sm font-bold flex items-center gap-2 text-rose-500">
               <ShieldAlert className="w-4 h-4" /> Portal Khusus Admin (22008089) — Activity Log
             </h3>
-            <div className={`p-4 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200'}`}>
+            <div className={`p-4 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/80' : 'bg-white border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.04)]'}`}>
               <div className="text-xs space-y-2 opacity-80">
                 <div className="flex justify-between border-b pb-1.5 border-slate-700/40">
                   <span>Sales ID: 22008089 (Angga)</span>
@@ -1521,7 +1521,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
           <div
             className={`w-full max-w-lg rounded-t-3xl sm:rounded-2xl p-5 space-y-4 shadow-2xl border max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom duration-200 ${
-              theme === 'dark' ? 'bg-[#1E1B3A] border-slate-700 text-[#FFF6E9]' : 'bg-white border-slate-200 text-slate-900'
+              theme === 'dark' ? 'bg-[#1E1B3A] border-slate-700 text-[#FFF6E9]' : 'bg-[#FAF9F5] border-slate-200 text-slate-800'
             }`}
           >
             <div className="w-12 h-1.5 bg-slate-400/40 rounded-full mx-auto" />
@@ -1607,7 +1607,7 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
                     setShowFeedbackModal(false);
                   }
                 }}
-                className="px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-600 text-white"
+                className="px-3 py-1.5 text-xs font-bold rounded-lg bg-[#054ff0] text-white"
               >
                 {editingFeedbackId ? 'Simpan Perubahan' : 'Kirim Feedback'}
               </button>
