@@ -9,10 +9,44 @@
     <meta property="og:description" content="Dashboard interaktif analisis penjualan dan performa tim sales dengan integrasi data Google Sheets." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- CDN Tailwind CSS untuk memulihkan seluruh layout, tombol, dan warna -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              brand: '#054FF0'
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      /* Memaksa angka target toko dan nama staf menyala terang */
+      .dark div[class*="rounded"] {
+        color: #f8fafc !important;
+      }
+      .dark div[class*="rounded"] span {
+        color: #94a3b8 !important;
+      }
+      .dark div[class*="font-black"],
+      .dark div[class*="font-extrabold"] {
+        color: #38bdf8 !important;
+      }
+      .dark div[class*="grid"] div[class*="rounded"] div {
+        color: #ffffff !important;
+      }
+      .dark .text-slate-900,
+      .dark .text-black {
+        color: #ffffff !important;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-
