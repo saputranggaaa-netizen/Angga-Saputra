@@ -436,24 +436,21 @@ export default function DigiplusOperationalEngine() {
         setCurrentSalesId(savedUser);
         setCurrentSalesName(savedName || `Sales ${savedUser}`);
       }
-      fetch(LOG_API_URL)
-  .then((res) => res.json())
-  .then((data) => {
-    if (Array.isArray(data)) setActivityLogs(data);
-  })
-  .catch((err) => {
-   fetch(LOG_API_URL)
-  .then((res) => res.json())
-  .then((data) => {
-    if (Array.isArray(data)) setActivityLogs(data);
-  })
-  .catch(() => {
-    const savedLogs = localStorage.getItem("digi_ops_activity_logs");
-    if (savedLogs) try { setActivityLogs(JSON.parse(savedLogs)); } catch (e) {}
-  });
-}, []);
+    fetch(LOG_API_URL)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setActivityLogs(data);
+      })
+      .catch(() => {
+        const savedLogs = localStorage.getItem("digi_ops_activity_logs");
+        if (savedLogs) {
+          try {
+            setActivityLogs(JSON.parse(savedLogs));
+          } catch (e) {}
+        }
+      });
   }, []);
-
+  
   const toggleTheme = () => {
     const next = theme === "dark" ? "light" : "dark";
     setTheme(next);
