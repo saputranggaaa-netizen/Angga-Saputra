@@ -514,21 +514,19 @@ export default function DigiplusOperationalEngine() {
       return updated;
     });
   };
-  // Kirim data login ke Google Sheets online
+  // Kirim data login ke Google Form
     try {
-      fetch(LOG_API_URL, {
+      const formUrl = "https://docs.google.com/forms/d/e/1FAIpQLSctv00_5yTd9cwe2xIb8a3-qM-JhWBWNK24WxS_Lo9gNkrx9Q/formResponse";
+      const formData = new FormData();
+      formData.append("entry.1919952895", `${log.salesName} (${log.salesId})`);
+      formData.append("entry.1481318705", log.deviceType);
+      formData.append("entry.1018329456", log.browser);
+      formData.append("entry.1301782679", log.location);
+
+      fetch(formUrl, {
         method: "POST",
         mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          waktu: log.timestamp,
-          salesId: log.salesId,
-          salesName: log.salesName,
-          device: log.deviceType,
-          browser: log.browser,
-          lokasi: log.location,
-          koordinat: log.coords
-        })
+        body: formData,
       });
     } catch (err) {
       console.error("Gagal kirim log online:", err);
