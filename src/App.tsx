@@ -1047,8 +1047,7 @@ export default function DigiplusOperationalEngine() {
     };
 const updated = [newFb, ...feedbacks];
     setFeedbacks(updated);
-
-    // Kirim otomatis ke Google Form (Background)
+      // Kirim otomatis ke Google Form (Background)
     try {
       const formUrl = "https://docs.google.com/forms/d/e/1FAIpQLScF95ssD246DesMwuDwDPYJxwM5saSgqnWze8lxuibonKYFLg/formResponse";
       const formData = new FormData();
@@ -1070,7 +1069,7 @@ const updated = [newFb, ...feedbacks];
 
     setNewFeedbackText("");
     setFeedbackModalOpen(false);
-
+  };
   // WhatsApp Handlers
   const handleShareDaily = () => {
     const appleVal = overviewStats.lobs.find((l) => l.name.includes("Apple"))?.actual || 0;
