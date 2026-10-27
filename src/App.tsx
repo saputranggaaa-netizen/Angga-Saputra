@@ -1045,16 +1045,31 @@ export default function DigiplusOperationalEngine() {
       reactions: { thumbsUp: 1, heart: 0, fire: 1, thumbsDown: 0, sad: 0 },
       userReactions: ["thumbsUp", "fire"],
     };
-
-    const updated = [newFb, ...feedbacks];
+const updated = [newFb, ...feedbacks];
     setFeedbacks(updated);
+
+    // Kirim otomatis ke Google Form (Background)
+    try {
+      const formUrl = "https://docs.google.com/forms/d/e/1FAIpQLScF95ssD246DesMwuDwDPYJxwM5saSgqnWze8lxuibonKYFLg/formResponse";
+      const formData = new FormData();
+      formData.append("entry.1072268483", newFb.staffName || newFb.name || currentSalesName);
+      formData.append("entry.1945520939", newFb.content || newFb.text || newFeedbackText);
+
+      fetch(formUrl, {
+        method: "POST",
+        mode: "no-cors",
+        body: formData,
+      });
+    } catch (err) {
+      console.error("Gagal kirim ke Google Form:", err);
+    }
+
     if (typeof window !== "undefined") {
       localStorage.setItem("digi_ops_feedbacks", JSON.stringify(updated));
     }
 
     setNewFeedbackText("");
     setFeedbackModalOpen(false);
-  };
 
   // WhatsApp Handlers
   const handleShareDaily = () => {
