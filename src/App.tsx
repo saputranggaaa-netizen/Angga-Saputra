@@ -2112,9 +2112,10 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                   Detail Drilldown
                 </button>
               </div>
-            ))}
-          </div>
-              </div>
+        ))}
+      </div>
+    </div>
+  </div>
             {/* ========================================================= */}
             {/* TAB 2: WEEKLY SALES (DARI SHEET DATABASE KOLOM O)        */}
             {/* ========================================================= */}
