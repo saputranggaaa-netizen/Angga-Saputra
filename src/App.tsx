@@ -413,10 +413,39 @@ export default function DigiplusOperationalEngine() {
       setIsLoading(false);
     }
   };
+const fetchOnlineActivityLogs = async () => {
+    const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTDbyOKLJBawzRaso45Z2bXTBZBQflG-y2TQnSvru9JBQIPVKQ8dg_CZA5LievEgnV_ocOxKWBSE9uz/pub?gid=422013492&single=true&output=csv";
 
+    try {
+      const res = await fetch(csvUrl);
+      const text = await res.text();
+      const rows = text.split("\n").filter((r) => r.trim() !== "");
+      
+      if (rows.length <= 1) return;
+
+      const logs = rows.slice(1).map((row, idx) => {
+        const cols = row.split(",").map((c) => c.replace(/^"|"$/g, "").trim());
+        return {
+          id: `online-${idx}`,
+          timestamp: cols[0] || "-",
+          salesName: cols[1] || "-",
+          salesId: "",
+          deviceType: cols[2] || "-",
+          browser: cols[3] || "-",
+          location: cols[4] || "-",
+          coords: "-"
+        };
+      });
+
+      setActivityLogs(logs.reverse());
+    } catch (err) {
+      console.error("Gagal mengambil log aktivitas:", err);
+    }
+  };
   useEffect(() => {
     setIsMounted(true);
     fetchLiveGoogleSheets();
+    fetchOnlineActivityLogs();
 
     if (typeof window !== "undefined") {
       const savedUser = localStorage.getItem("digi_ops_user");
