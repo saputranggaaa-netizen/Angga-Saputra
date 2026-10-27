@@ -503,7 +503,7 @@ export default function DigiplusOperationalEngine() {
       deviceType: isMobile ? "Handphone / Mobile" : "Komputer / PC",
       browser: typeof navigator !== "undefined" && navigator.userAgent.includes("Chrome") ? "Chrome" : "Safari",
       location: "Store Grand Indonesia",
-      coords: "-6.1953, 106.8219",
+      coords: "-",
     };
 
     setActivityLogs((prev) => {
