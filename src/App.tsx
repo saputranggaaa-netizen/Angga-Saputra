@@ -1,7 +1,105 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
-const LOG_API_URL = "https://script.google.com/macros/s/AKfycbx8o8q169jgiq5YdQ9OYOgmPMgtXfLb4clWQwM-ClEAtYgchFGunASt8acjMYnPYFZ5zg/exec";
+const LOG_API_URL = "https://script.google.com/macros/s/AKfycbymMye32fTgxNg4rKtLn5iqVWq4xenaZSJ2bxGW4yfZdMYoYKRbXYYCKrx1n_Uul_JNdw/exec";
+
+// Modal Upload Bukti ke RAW SalesPerson (Kolom M-O)
+export const UploadRawSalesModal = ({ isOpen, onClose, selectedInvoice, defaultSalesName }: any) => {
+  const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
+  const [catatan, setCatatan] = React.useState("");
+  const [isUploading, setIsUploading] = React.useState(false);
+
+  if (!isOpen) return null;
+
+  const handleUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedFile) {
+      alert("Silakan pilih file terlebih dahulu.");
+      return;
+    }
+
+    setIsUploading(true);
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64Data = (reader.result as string).split(",")[1];
+
+      const payload = {
+        fileName: selectedFile.name,
+        mimeType: selectedFile.type,
+        fileBase64: base64Data,
+        searchKey: selectedInvoice || "", 
+        colN_Value: defaultSalesName || "Staf Grand Indonesia", 
+        colO_Value: catatan || "Bukti Transaksi",              
+      };
+
+      try {
+        // Ganti dengan URL deployment Web App Apps Script Anda
+        const scriptUrl = "PASTE_URL_WEB_APP_APPS_SCRIPT_DISINI";
+
+        await fetch(scriptUrl, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        alert("File berhasil diunggah! Link file dan data tercatat di Kolom M–O.");
+        setSelectedFile(null);
+        setCatatan("");
+        onClose();
+      } catch (err) {
+        console.error("Gagal upload file:", err);
+        alert("Terjadi kesalahan saat upload.");
+      } finally {
+        setIsUploading(false);
+      }
+    };
+
+    reader.readAsDataURL(selectedFile);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div className="w-full max-w-md rounded-3xl bg-[#131722] border border-white/10 p-6 space-y-4 shadow-2xl">
+        <div className="flex justify-between items-center border-b border-white/10 pb-3">
+          <h3 className="text-sm font-bold text-white">Upload Bukti Transaksi (RAW SalesPerson)</h3>
+          <button type="button" onClick={onClose} className="text-slate-400 hover:text-white text-xs">✕</button>
+        </div>
+
+        <form onSubmit={handleUpload} className="space-y-4">
+          <div>
+            <label className="text-[11px] text-slate-300 block mb-1">Pilih File / Foto Bukti:</label>
+            <input
+              type="file"
+              onChange={(e) => setSelectedFile(e.target.files ? e.target.files[0] : null)}
+              className="w-full text-xs text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:bg-blue-600 file:text-white"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] text-slate-300 block mb-1">Catatan Tambahan (Kolom O):</label>
+            <input
+              type="text"
+              value={catatan}
+              onChange={(e) => setCatatan(e.target.value)}
+              placeholder="Catatan / keterangan..."
+              className="w-full px-3 py-2 text-xs rounded-xl bg-black/40 border border-white/10 text-white focus:outline-none"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={isUploading}
+            className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 text-white font-bold rounded-xl text-xs transition"
+          >
+            {isUploading ? "Mengunggah ke Drive & Menulis Sheet..." : "Upload & Simpan ke Kolom M-O"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
 // =========================================================================
 // 1. DATA CONTRACTS & INTERFACES
 // =========================================================================
@@ -200,6 +298,7 @@ const INITIAL_FEEDBACKS: FeedbackItem[] = [
 
 export default function DigiplusOperationalEngine() {
   const [isMounted, setIsMounted] = useState<boolean>(false);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
 
   // Theme & Navigation
   const [theme, setTheme] = useState<ThemeMode>("dark");
@@ -1776,6 +1875,13 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               <span>📋</span>
               <span>Rincian Transaksi Log</span>
             </button>
+            <button
+            onClick={() => { setUploadModalOpen(true); setMobileMenuOpen(false); }}
+            className="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition opacity-70 hover:opacity-100 hover:bg-white/5"
+          >
+            <span>📤</span>
+            <span>Upload Bukti RAW</span>
+          </button>
           </nav>
         </div>
 
@@ -3195,6 +3301,13 @@ _Diperbarui via Digiplus Store Operations Engine._`;
           </div>
         </div>
       )}
+      {/* Modal Upload RAW SalesPerson */}
+      <UploadRawSalesModal
+        isOpen={uploadModalOpen}
+        onClose={() => setUploadModalOpen(false)}
+        selectedInvoice=""
+        defaultSalesName={currentSalesName || "Store Leader Admin"}
+      />
     </div>
   );
 }
