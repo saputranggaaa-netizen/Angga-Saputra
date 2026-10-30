@@ -826,7 +826,7 @@ export default function DigiplusOperationalEngine() {
     };
   }, [activeTransactions, periodType, selectedDate, transactions]);
   
-  // 5. Kalkulasi Perbandingan MoM Kategori & Staff
+  // Kalkulasi Perbandingan MoM Kategori, Staff & Detail Devices Turun
   const momAnalytics = useMemo(() => {
     const initMetrics = () => ({
       totalSales: 0,
@@ -841,7 +841,8 @@ export default function DigiplusOperationalEngine() {
     const baseMetrics = initMetrics();
     const compareMetrics = initMetrics();
 
-    const staffMap: Record<string, { base: number; compare: number }> = {};
+    const staffMap: Record<string, { base: number; compare: number; baseItems: any[]; compareItems: any[] }> = {};
+    const productDeviceMap: Record<string, { name: string; brand: string; base: number; compare: number; baseQty: number; compareQty: number }> = {};
 
     transactions.forEach((t: any) => {
       const rawMonth = (t.monthKey || t.month || "").toString().trim();
@@ -856,27 +857,53 @@ export default function DigiplusOperationalEngine() {
       const brand = (t.brandName || t.brand || "").toString().toUpperCase();
       const inv = (t.invoice || "").toString().trim();
       const sales = (t.salesName || "Unknown").toString().trim();
+      const pName = (t.productName || "Unknown").trim();
 
       const targetObj = isBase ? baseMetrics : compareMetrics;
       targetObj.totalSales += amt;
       targetObj.totalQty += qty;
       if (inv) targetObj.invoices.add(inv);
 
-      if (brand.includes("APPLE") || cat.includes("APPLE")) {
+      const isAppleDev = brand.includes("APPLE") && (cat.includes("DEVICES") || pName.toUpperCase().includes("IPHONE") || pName.toUpperCase().includes("IPAD") || pName.toUpperCase().includes("MAC"));
+      const isAndroidDev = cat.includes("DEVICES") && !brand.includes("APPLE");
+
+      if (isAppleDev) {
         targetObj.appleSales += amt;
-      } else if (brand.includes("SAMSUNG") || brand.includes("XIAOMI") || cat.includes("ANDROID")) {
+      } else if (isAndroidDev) {
         targetObj.androidSales += amt;
       } else if (cat.includes("VAS") || cat.includes("PROTEKSI") || cat.includes("TELKOMSEL")) {
         targetObj.vasSales += amt;
-      } else if (cat.includes("ACCESSORIES") || cat.includes("CASE") || cat.includes("CHARGER")) {
+      } else if (cat.includes("ACCESSORIES")) {
         targetObj.accessoriesSales += amt;
       }
 
-      if (!staffMap[sales]) {
-        staffMap[sales] = { base: 0, compare: 0 };
+      // Tracking Khusus Devices yang Naik/Turun
+      if (isAppleDev || isAndroidDev) {
+        if (!productDeviceMap[pName]) {
+          productDeviceMap[pName] = { name: pName, brand: isAppleDev ? "Apple" : "Android", base: 0, compare: 0, baseQty: 0, compareQty: 0 };
+        }
+        if (isBase) {
+          productDeviceMap[pName].base += amt;
+          productDeviceMap[pName].baseQty += qty;
+        }
+        if (isCompare) {
+          productDeviceMap[pName].compare += amt;
+          productDeviceMap[pName].compareQty += qty;
+        }
       }
-      if (isBase) staffMap[sales].base += amt;
-      if (isCompare) staffMap[sales].compare += amt;
+
+      // Akumulasi Staff & Simpan Itemnya untuk Detail Drilldown
+      if (!staffMap[sales]) {
+        staffMap[sales] = { base: 0, compare: 0, baseItems: [], compareItems: [] };
+      }
+      if (isBase) {
+        staffMap[sales].base += amt;
+        staffMap[sales].baseItems.push(t);
+      }
+      if (isCompare) {
+        staffMap[sales].compare += amt;
+        staffMap[sales].compareItems.push(t);
+      }
     });
 
     const uptBase = baseMetrics.invoices.size > 0 ? (baseMetrics.totalQty / baseMetrics.invoices.size) : 0;
@@ -903,36 +930,22 @@ export default function DigiplusOperationalEngine() {
     const staffComparison = Object.entries(staffMap).map(([name, val]) => {
       const diff = val.base - val.compare;
       const growth = calcGrowth(val.base, val.compare);
-      return { name, base: val.base, compare: val.compare, diff, growth };
+      return { name, base: val.base, compare: val.compare, diff, growth, baseItems: val.baseItems, compareItems: val.compareItems };
     }).sort((a, b) => b.base - a.base);
 
-    return { summary, staffComparison };
+    // List Perangkat yang Mengalami Penurunan (Disgrowth) Diurutkan dari Minus Terbesar
+    const droppedDevices = Object.values(productDeviceMap)
+      .map((p) => {
+        const diff = p.base - p.compare;
+        const growth = calcGrowth(p.base, p.compare);
+        return { ...p, diff, growth };
+      })
+      .filter((p) => p.diff < 0)
+      .sort((a, b) => a.diff - b.diff);
+
+    return { summary, staffComparison, droppedDevices };
   }, [transactions, momBaseMonth, momCompareMonth]);
-    
-  // 6. Trend Harian
-  const dailyTrendStats = useMemo(() => {
-    const dailyMap = new Map<string, number>();
-    transactions.forEach((t) => {
-      if (t.isoDate && t.isoDate.startsWith("2026-10")) {
-        dailyMap.set(t.isoDate, (dailyMap.get(t.isoDate) || 0) + t.amount);
-      }
-    });
-
-    const dates = Array.from(dailyMap.keys()).sort();
-    const idealDailyTarget = Math.round(8728667173 / 31);
-
-    return dates.map((date) => {
-      const actual = dailyMap.get(date) || 0;
-      return {
-        date,
-        dayLabel: date.split("-")[2] + " Okt",
-        actual,
-        target: idealDailyTarget,
-        gap: actual - idealDailyTarget,
-      };
-    });
-  }, [transactions]);
-
+  
   // 7. Rekap Mingguan Dinamis
   const weeklyReport = useMemo(() => {
     return AUTO_WEEKS.map((wDef, idx) => {
@@ -3450,10 +3463,13 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               })}
             </div>
 
-            {/* Tabel Performa Sales Person Pembanding 2 Bulan */}
+            {/* Tabel Performa Sales Person (Klik nama untuk detail) */}
             <div className="bg-[#181a24] rounded-2xl border border-slate-800 overflow-hidden">
               <div className="px-5 py-4 border-b border-slate-800 flex justify-between items-center">
-                <h3 className="text-sm font-bold text-white">Perbandingan Penjualan Staff Sales Person</h3>
+                <div>
+                  <h3 className="text-sm font-bold text-white">Perbandingan Penjualan Staff Sales Person</h3>
+                  <p className="text-[11px] text-amber-400 mt-0.5">💡 Klik pada nama sales untuk melihat rincian barang yang dijual</p>
+                </div>
                 <span className="text-xs text-slate-400">Total {momAnalytics.staffComparison.length} Staff</span>
               </div>
 
@@ -3470,9 +3486,16 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/60 text-slate-200">
-                    {momAnalytics.staffComparison.map((st, i) => (
-                      <tr key={i} className="hover:bg-slate-800/30 transition">
-                        <td className="px-4 py-3 font-semibold text-white">{st.name}</td>
+                    {momAnalytics.staffComparison.map((st: any, i: number) => (
+                      <tr key={i} className="hover:bg-slate-800/40 transition">
+                        <td 
+                          className="px-4 py-3 font-semibold text-sky-400 hover:underline cursor-pointer flex items-center gap-1.5"
+                          onClick={() => openLobDetailSheet(`Penjualan ${st.name} (${momBaseMonth})`, st.baseItems || [])}
+                        >
+                          <span>👤</span>
+                          <span>{st.name}</span>
+                          <span className="text-[9px] bg-sky-500/10 text-sky-400 px-1.5 py-0.5 rounded border border-sky-400/20">Lihat Item</span>
+                        </td>
                         <td className="px-4 py-3 text-right font-medium text-amber-300">
                           Rp {st.base.toLocaleString("id-ID")}
                         </td>
@@ -3498,7 +3521,77 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                 </table>
               </div>
             </div>
-          </div>
+
+            {/* Tabel Khusus: Kategori Produk Devices yang Mengalami Penurunan (Disgrowth) */}
+            <div className="bg-[#181a24] rounded-2xl border border-rose-900/40 overflow-hidden shadow-xl mt-6">
+              <div className="px-5 py-4 border-b border-rose-900/30 flex justify-between items-center bg-rose-500/5">
+                <div>
+                  <h3 className="text-sm font-bold text-rose-400 flex items-center gap-2">
+                    <span>⚠️</span>
+                    <span>Daftar Produk Devices yang Turun (Defisit Terbesar)</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Produk smartphone & tablet yang penjualannya merosot dibanding {momCompareMonth}
+                  </p>
+                </div>
+                <span className="text-xs text-rose-400 font-bold bg-rose-500/10 px-2.5 py-1 rounded-full border border-rose-500/20">
+                  {(momAnalytics.droppedDevices || []).length} Produk Defisit
+                </span>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-900/60 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                    <tr>
+                      <th className="px-4 py-3">Nama Produk Device</th>
+                      <th className="px-4 py-3">Brand</th>
+                      <th className="px-4 py-3 text-center">{momBaseMonth} (Qty)</th>
+                      <th className="px-4 py-3 text-right">{momBaseMonth} (Omset)</th>
+                      <th className="px-4 py-3 text-center">{momCompareMonth} (Qty)</th>
+                      <th className="px-4 py-3 text-right">{momCompareMonth} (Omset)</th>
+                      <th className="px-4 py-3 text-right">Defisit Penurunan</th>
+                      <th className="px-4 py-3 text-right">Growth (%)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 text-slate-200">
+                    {(!momAnalytics.droppedDevices || momAnalytics.droppedDevices.length === 0) ? (
+                      <tr>
+                        <td colSpan={8} className="text-center py-6 text-slate-400">
+                          Tidak ada produk device yang mengalami penurunan omset.
+                        </td>
+                      </tr>
+                    ) : (
+                      momAnalytics.droppedDevices.slice(0, 20).map((d: any, i: number) => (
+                        <tr key={i} className="hover:bg-slate-800/30 transition">
+                          <td className="px-4 py-3 font-semibold text-white max-w-xs">{d.name}</td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              d.brand === "Apple" ? "bg-sky-500/15 text-sky-400 border border-sky-400/20" : "bg-indigo-500/15 text-indigo-400 border border-indigo-400/20"
+                            }`}>
+                              {d.brand}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center font-bold text-amber-300">{d.baseQty}</td>
+                          <td className="px-4 py-3 text-right font-medium text-amber-300">
+                            Rp {d.base.toLocaleString("id-ID")}
+                          </td>
+                          <td className="px-4 py-3 text-center font-bold text-slate-400">{d.compareQty}</td>
+                          <td className="px-4 py-3 text-right text-slate-400">
+                            Rp {d.compare.toLocaleString("id-ID")}
+                          </td>
+                          <td className="px-4 py-3 text-right font-extrabold text-rose-400 font-mono">
+                            Rp {d.diff.toLocaleString("id-ID")}
+                          </td>
+                          <td className="px-4 py-3 text-right font-black text-rose-400 font-mono">
+                            {d.growth.toFixed(1)}%
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
         )}
       </main>
 
