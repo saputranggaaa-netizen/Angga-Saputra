@@ -35,7 +35,7 @@ export const UploadRawSalesModal = ({ isOpen, onClose, selectedInvoice, defaultS
 
       try {
         // Ganti dengan URL deployment Web App Apps Script Anda
-        const scriptUrl = "PASTE_URL_WEB_APP_APPS_SCRIPT_DISINI";
+        const scriptUrl = "https://script.google.com/macros/s/AKfycbymMye32fTgxNg4rKtLn5iqVWq4xenaZSJ2bxGW4yfZdMYoYKRbXYYCKrx1n_Uul_JNdw/exec";
 
         await fetch(scriptUrl, {
           method: "POST",
