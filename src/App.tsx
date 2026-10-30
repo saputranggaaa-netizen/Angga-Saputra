@@ -340,6 +340,7 @@ export default function DigiplusOperationalEngine() {
   const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>(INITIAL_FEEDBACKS);
   const [selectedFeedbackStaff, setSelectedFeedbackStaff] = useState<string>("ALL");
   const [feedbackModalOpen, setFeedbackModalOpen] = useState<boolean>(false);
+  const [uploadModalOpen, setUploadModalOpen] = useState<boolean>(false);
   const [newFeedbackStaff, setNewFeedbackStaff] = useState<string>("Liesbeth Febrina");
   const [newFeedbackSentiment, setNewFeedbackSentiment] = useState<"Luar Biasa" | "Cukup Baik" | "Kecewa">("Luar Biasa");
   const [newFeedbackText, setNewFeedbackText] = useState<string>("");
