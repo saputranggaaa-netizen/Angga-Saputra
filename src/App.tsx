@@ -850,7 +850,7 @@ const momAnalytics = useMemo(() => {
   return { summary, staffComparison };
 }, [transactions, momBaseMonth, momCompareMonth]);
     // Kategori & Breakdown LOB Stats
-  const categoryStats = useMemo(() => {
+  const overviewStats = useMemo(() => {
     const currentTarget = overviewStats?.target || 0;
 
     // Apple Devices: Hardware Murni Apple
