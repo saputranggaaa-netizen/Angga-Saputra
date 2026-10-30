@@ -3320,6 +3320,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
         )}
 
         {/* TAB 11: ANALISIS MoM GROWTH */}
+        {/* TAB 11: ANALISIS MoM GROWTH */}
         {activeTab === "mom-comparison" && (
           <div className="space-y-6">
             <div className="bg-[#181a24] p-5 rounded-2xl border border-slate-800 flex flex-wrap items-center justify-between gap-4">
@@ -3361,6 +3362,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               </div>
             </div>
 
+            {/* Kartu Grid Metrik LOB & UPT (Bisa di-tap untuk rincian) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {momAnalytics.summary.map((item, idx) => {
                 const isClickable = ["Apple Devices", "Android Devices", "Accessories", "VAS & Services"].includes(item.label);
@@ -3368,7 +3370,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                 const handleCardClick = () => {
                   if (!isClickable) return;
                   
-                  // Filter transaksi berdasarkan kategori dan bulan analisis yang aktif
                   const currentMonthTrx = transactions.filter((t: any) => {
                     const rawM = (t.monthKey || t.month || "").toString().trim();
                     return rawM === momBaseMonth;
@@ -3438,6 +3439,52 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                   </div>
                 );
               })}
+            </div>
+
+            {/* Tabel Performa Sales Person Pembanding 2 Bulan */}
+            <div className="bg-[#181a24] rounded-2xl border border-slate-800 overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-800 flex justify-between items-center">
+                <h3 className="text-sm font-bold text-white">Perbandingan Penjualan Staff Sales Person</h3>
+                <span className="text-xs text-slate-400">Total {momAnalytics.staffComparison.length} Staff</span>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-900/60 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                    <tr>
+                      <th className="px-4 py-3">Nama Sales</th>
+                      <th className="px-4 py-3 text-right">{momBaseMonth} (Aktual)</th>
+                      <th className="px-4 py-3 text-right">{momCompareMonth} (Lalu)</th>
+                      <th className="px-4 py-3 text-right">Selisih (Gap)</th>
+                      <th className="px-4 py-3 text-right">Growth (%)</th>
+                      <th className="px-4 py-3 text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 text-slate-200">
+                    {momAnalytics.staffComparison.map((st, i) => (
+                      <tr key={i} className="hover:bg-slate-800/30 transition">
+                        <td className="px-4 py-3 font-semibold text-white">{st.name}</td>
+                        <td className="px-4 py-3 text-right font-medium text-amber-300">
+                          Rp {st.base.toLocaleString("id-ID")}
+                        </td>
+                        <td className="px-4 py-3 text-right text-slate-400">
+                          Rp {st.compare.toLocaleString("id-ID")}
+                        </td>
+                        <td className={`px-4 py-3 text-right font-medium ${st.diff >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                          {st.diff >= 0 ? "+" : ""}Rp {st.diff.toLocaleString("id-ID")}
+                        </td>
+                        <td className={`px-4 py-3 text-right font-bold ${st.growth >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                          {st.growth >= 0 ? `+${st.growth.toFixed(1)}%` : `${st.growth.toFixed(1)}%`}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                            st.growth >= 0 ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400"
+                          }`}>
+                            {st.growth >= 0 ? "Growth" : "Disgrowth"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
