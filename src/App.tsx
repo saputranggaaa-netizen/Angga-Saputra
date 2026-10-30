@@ -3305,7 +3305,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
         isOpen={uploadModalOpen}
         onClose={() => setUploadModalOpen(false)}
         selectedInvoice=""
-        defaultSalesName={currentSalesName || "Store Leader Admin"}
+        defaultSalesName="Store Leader Admin"
       />
     </div>
   );
