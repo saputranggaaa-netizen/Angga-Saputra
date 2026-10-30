@@ -799,7 +799,7 @@ export default function DigiplusOperationalEngine() {
       storeUPT,
       todayActual,
       lobs: [
-        { name: "Apple Devices (Hardware)", icon: "🍎", actual: appleActual, target: appleTarget, achv: calcAchv(appleActual, appleTarget), variance: appleActual - appleTarget, estimate: Math.round(appleActual * 1.29), color: "text-sky-500 dark:text-sky-400" },
+        { name: "Apple Devices (Hardware)", icon: "🍎", actual: appleActual, target: appleTarget, achv: calcAchv(appleActual, appleTarget), variance: appleActual - appleTarget, estimate: Math.round(appleActual * 1.29), color: "text-sky-600 dark:text-sky-400" },
         { name: "Android Devices (Samsung, Xiaomi, dll)", icon: "🤖", actual: androidActual, target: androidTarget, achv: calcAchv(androidActual, androidTarget), variance: androidActual - androidTarget, estimate: Math.round(androidActual * 1.29), color: "text-indigo-600 dark:text-indigo-400" },
         { name: "Accessories (Cases & Acc)", icon: "🔌", actual: accActual, target: accTarget, achv: calcAchv(accActual, accTarget), variance: accActual - accTarget, estimate: Math.round(accActual * 1.29), color: "text-amber-600 dark:text-amber-400" },
         { name: "VAS (Qoala, Telkomsel, XL, Indosat)", icon: "🛡️", actual: vasActual, target: vasTarget, achv: calcAchv(vasActual, vasTarget), variance: vasActual - vasTarget, estimate: Math.round(vasActual * 1.29), color: "text-purple-600 dark:text-purple-400" }
@@ -1460,15 +1460,15 @@ _Diperbarui via Digiplus Store Operations Engine._`;
   const openLobDetailSheet = (lobName: string, items: RawTransaction[]) => {
     openCustomBottomSheet(`Rincian Produk: ${lobName} (${items.length} Item)`, (
       <div className="space-y-4 text-xs font-semibold">
-        <div className="flex justify-between items-center p-3.5 rounded-2xl bg-black/25 border border-slate-700/60 shadow-inner">
-          <span className="font-bold text-slate-300">Total Nilai Kategori:</span>
-          <strong className="text-emerald-400 font-black text-sm sm:text-base">
+        <div className="flex justify-between items-center p-3.5 rounded-2xl bg-black/10 dark:bg-black/25 border border-inherit shadow-inner">
+          <span className="font-bold text-slate-700 dark:text-slate-300">Total Nilai Kategori:</span>
+          <strong className="text-emerald-600 dark:text-emerald-400 font-black text-sm sm:text-base">
             {formatIDR(items.reduce((acc, c) => acc + c.amount, 0))}
           </strong>
         </div>
-        <div className="overflow-x-auto rounded-2xl border border-inherit">
+        <div className="overflow-x-auto rounded-2xl border border-inherit w-full">
           <table className="w-full text-left text-xs min-w-[500px]">
-            <thead className="bg-black/40 uppercase text-[10px] font-black tracking-wider border-b border-inherit">
+            <thead className="bg-black/10 dark:bg-black/40 uppercase text-[10px] font-black tracking-wider border-b border-inherit">
               <tr>
                 <th className="py-3 px-4 font-black">Nama Produk</th>
                 <th className="py-3 px-4 font-black">SAP Article</th>
@@ -1480,15 +1480,15 @@ _Diperbarui via Digiplus Store Operations Engine._`;
             <tbody className="divide-y divide-inherit font-semibold">
               {items.map((it, idx) => (
                 <tr key={idx} className="hover:opacity-90">
-                  <td className="py-3 px-4 font-bold text-white">{it.productName}</td>
+                  <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{it.productName}</td>
                   <td className="py-3 px-4 font-mono font-bold opacity-75 text-[11px]">{it.sapArticle || "-"}</td>
                   <td className="py-3 px-4">
-                    <span className="px-2 py-0.5 rounded text-[10px] bg-slate-700/50 text-slate-200 font-extrabold border border-slate-600/40">
+                    <span className="px-2 py-0.5 rounded text-[10px] bg-slate-200 dark:bg-slate-700/50 text-slate-900 dark:text-slate-200 font-extrabold border border-slate-300 dark:border-slate-600/40">
                       {it.brand}
                     </span>
                   </td>
-                  <td className="py-3 px-4 text-center font-black text-amber-300">{it.qty}</td>
-                  <td className="py-3 px-4 text-right font-black text-emerald-400 font-mono">{formatIDR(it.amount)}</td>
+                  <td className="py-3 px-4 text-center font-black text-amber-600 dark:text-amber-300">{it.qty}</td>
+                  <td className="py-3 px-4 text-right font-black text-emerald-600 dark:text-emerald-400 font-mono">{formatIDR(it.amount)}</td>
                 </tr>
               ))}
             </tbody>
@@ -1502,34 +1502,34 @@ _Diperbarui via Digiplus Store Operations Engine._`;
     openCustomBottomSheet(`Rincian Lengkap Salesperson: ${staff.name}`, (
       <div className="space-y-5 text-xs font-semibold">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
-          <div className="p-3 rounded-2xl border bg-black/25 border-slate-700/60 shadow-sm">
-            <span className="text-slate-400 font-bold text-[10px] uppercase block tracking-wider">Actual</span>
-            <strong className="text-emerald-400 font-black text-sm block mt-0.5">{formatIDR(staff.actual)}</strong>
+          <div className="p-3 rounded-2xl border bg-black/10 dark:bg-black/25 border-inherit shadow-sm">
+            <span className="text-slate-500 dark:text-slate-400 font-bold text-[10px] uppercase block tracking-wider">Actual</span>
+            <strong className="text-emerald-600 dark:text-emerald-400 font-black text-sm block mt-0.5">{formatIDR(staff.actual)}</strong>
           </div>
-          <div className="p-3 rounded-2xl border bg-black/25 border-slate-700/60 shadow-sm">
-            <span className="text-slate-400 font-bold text-[10px] uppercase block tracking-wider">Target</span>
-            <strong className="text-slate-200 font-black text-sm block mt-0.5">{formatIDR(staff.target)}</strong>
+          <div className="p-3 rounded-2xl border bg-black/10 dark:bg-black/25 border-inherit shadow-sm">
+            <span className="text-slate-500 dark:text-slate-400 font-bold text-[10px] uppercase block tracking-wider">Target</span>
+            <strong className="text-slate-800 dark:text-slate-200 font-black text-sm block mt-0.5">{formatIDR(staff.target)}</strong>
           </div>
-          <div className="p-3 rounded-2xl border bg-black/25 border-slate-700/60 shadow-sm">
-            <span className="text-slate-400 font-bold text-[10px] uppercase block tracking-wider">Achv</span>
-            <strong className={`font-black text-sm block mt-0.5 ${staff.achievement >= 100 ? "text-emerald-400" : "text-amber-400"}`}>
+          <div className="p-3 rounded-2xl border bg-black/10 dark:bg-black/25 border-inherit shadow-sm">
+            <span className="text-slate-500 dark:text-slate-400 font-bold text-[10px] uppercase block tracking-wider">Achv</span>
+            <strong className={`font-black text-sm block mt-0.5 ${staff.achievement >= 100 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
               {staff.achievement}%
             </strong>
           </div>
-          <div className="p-3 rounded-2xl border bg-black/25 border-slate-700/60 shadow-sm">
-            <span className="text-slate-400 font-bold text-[10px] uppercase block tracking-wider">UPT</span>
-            <strong className="text-sky-400 font-black text-sm block mt-0.5">{staff.upt}</strong>
+          <div className="p-3 rounded-2xl border bg-black/10 dark:bg-black/25 border-inherit shadow-sm">
+            <span className="text-slate-500 dark:text-slate-400 font-bold text-[10px] uppercase block tracking-wider">UPT</span>
+            <strong className="text-sky-600 dark:text-sky-400 font-black text-sm block mt-0.5">{staff.upt}</strong>
           </div>
         </div>
 
         <div>
-          <h4 className="text-xs font-black text-sky-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          <h4 className="text-xs font-black text-sky-600 dark:text-sky-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
             <span>🍎</span>
             <span>Rincian Apple Devices</span>
           </h4>
-          <div className="overflow-x-auto rounded-2xl border border-inherit">
+          <div className="overflow-x-auto rounded-2xl border border-inherit w-full">
             <table className="w-full text-left text-xs">
-              <thead className="bg-black/30 uppercase text-[10px] font-black border-b border-inherit">
+              <thead className="bg-black/10 dark:bg-black/30 uppercase text-[10px] font-black border-b border-inherit">
                 <tr>
                   <th className="py-2.5 px-3 font-black">Produk</th>
                   <th className="py-2.5 px-3 text-center font-black">Qty</th>
@@ -1539,12 +1539,12 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               <tbody className="divide-y divide-inherit font-semibold">
                 {staff.appleSub.map((p, idx) => (
                   <tr key={idx}>
-                    <td className="py-2.5 px-3 font-bold flex items-center gap-1.5 text-white">
+                    <td className="py-2.5 px-3 font-bold flex items-center gap-1.5 text-slate-900 dark:text-white">
                       <span>{p.icon}</span>
                       <span>{p.name}</span>
                     </td>
-                    <td className="py-2.5 px-3 text-center font-black text-amber-300">{p.qty}</td>
-                    <td className="py-2.5 px-3 text-right font-black text-emerald-400 font-mono">{formatIDR(p.actual)}</td>
+                    <td className="py-2.5 px-3 text-center font-black text-amber-600 dark:text-amber-300">{p.qty}</td>
+                    <td className="py-2.5 px-3 text-right font-black text-emerald-600 dark:text-emerald-400 font-mono">{formatIDR(p.actual)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1553,13 +1553,13 @@ _Diperbarui via Digiplus Store Operations Engine._`;
         </div>
 
         <div>
-          <h4 className="text-xs font-black text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          <h4 className="text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
             <span>🤖</span>
             <span>Rincian Android Devices</span>
           </h4>
-          <div className="overflow-x-auto rounded-2xl border border-inherit">
+          <div className="overflow-x-auto rounded-2xl border border-inherit w-full">
             <table className="w-full text-left text-xs">
-              <thead className="bg-black/30 uppercase text-[10px] font-black border-b border-inherit">
+              <thead className="bg-black/10 dark:bg-black/30 uppercase text-[10px] font-black border-b border-inherit">
                 <tr>
                   <th className="py-2.5 px-3 font-black">Brand</th>
                   <th className="py-2.5 px-3 text-center font-black">Qty</th>
@@ -1569,12 +1569,12 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               <tbody className="divide-y divide-inherit font-semibold">
                 {staff.androidSub.map((p, idx) => (
                   <tr key={idx}>
-                    <td className="py-2.5 px-3 font-bold flex items-center gap-1.5 text-white">
+                    <td className="py-2.5 px-3 font-bold flex items-center gap-1.5 text-slate-900 dark:text-white">
                       <span>{p.icon}</span>
                       <span>{p.name}</span>
                     </td>
-                    <td className="py-2.5 px-3 text-center font-black text-amber-300">{p.qty}</td>
-                    <td className="py-2.5 px-3 text-right font-black text-emerald-400 font-mono">{formatIDR(p.actual)}</td>
+                    <td className="py-2.5 px-3 text-center font-black text-amber-600 dark:text-amber-300">{p.qty}</td>
+                    <td className="py-2.5 px-3 text-right font-black text-emerald-600 dark:text-emerald-400 font-mono">{formatIDR(p.actual)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1602,35 +1602,35 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
     openCustomBottomSheet(`Pencapaian Staf: ${wLabel}`, (
       <div className="space-y-4 text-xs font-semibold">
-        <div className="flex justify-between items-center p-3.5 rounded-2xl bg-black/25 border border-slate-700/60 shadow-inner">
-          <span className="font-bold text-slate-300">Total Penjualan Minggu Ini:</span>
-          <strong className="text-emerald-400 font-black text-sm sm:text-base">
+        <div className="flex justify-between items-center p-3.5 rounded-2xl bg-black/10 dark:bg-black/25 border border-inherit shadow-inner">
+          <span className="font-bold text-slate-700 dark:text-slate-300">Total Penjualan Minggu Ini:</span>
+          <strong className="text-emerald-600 dark:text-emerald-400 font-black text-sm sm:text-base">
             {formatIDR(weekTransactions.reduce((acc, c) => acc + c.amount, 0))}
           </strong>
         </div>
-        <div className="overflow-x-auto rounded-2xl border border-inherit">
+        <div className="overflow-x-auto rounded-2xl border border-inherit w-full">
           <table className="w-full text-left text-xs min-w-[600px]">
-            <thead className="bg-black/40 uppercase text-[10px] font-black border-b border-inherit tracking-wider">
+            <thead className="bg-black/10 dark:bg-black/40 uppercase text-[10px] font-black border-b border-inherit tracking-wider">
               <tr>
                 <th className="py-3 px-3 font-black">Salesperson</th>
                 <th className="py-3 px-3 text-center font-black">Unit</th>
-                <th className="py-3 px-3 text-right font-black text-sky-400">Apple</th>
-                <th className="py-3 px-3 text-right font-black text-indigo-400">Android</th>
-                <th className="py-3 px-3 text-right font-black text-amber-400">Acc</th>
-                <th className="py-3 px-3 text-right font-black text-purple-400">VAS</th>
+                <th className="py-3 px-3 text-right font-black text-sky-600 dark:text-sky-400">Apple</th>
+                <th className="py-3 px-3 text-right font-black text-indigo-600 dark:text-indigo-400">Android</th>
+                <th className="py-3 px-3 text-right font-black text-amber-600 dark:text-amber-400">Acc</th>
+                <th className="py-3 px-3 text-right font-black text-purple-600 dark:text-purple-400">VAS</th>
                 <th className="py-3 px-3 text-right font-black">Total</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-inherit font-semibold">
               {staffRows.map((s, idx) => (
                 <tr key={idx} className="hover:opacity-90">
-                  <td className="py-3 px-3 font-black text-white">{s.name}</td>
-                  <td className="py-3 px-3 text-center font-black text-amber-300">{s.qty}</td>
-                  <td className="py-3 px-3 text-right font-mono font-bold text-sky-400">{formatIDR(s.apple)}</td>
-                  <td className="py-3 px-3 text-right font-mono font-bold text-indigo-400">{formatIDR(s.android)}</td>
-                  <td className="py-3 px-3 text-right font-mono font-bold text-amber-400">{formatIDR(s.acc)}</td>
-                  <td className="py-3 px-3 text-right font-mono font-bold text-purple-400">{formatIDR(s.vas)}</td>
-                  <td className="py-3 px-3 text-right font-black text-emerald-400 font-mono">{formatIDR(s.total)}</td>
+                  <td className="py-3 px-3 font-black text-slate-900 dark:text-white">{s.name}</td>
+                  <td className="py-3 px-3 text-center font-black text-amber-600 dark:text-amber-300">{s.qty}</td>
+                  <td className="py-3 px-3 text-right font-mono font-bold text-sky-600 dark:text-sky-400">{formatIDR(s.apple)}</td>
+                  <td className="py-3 px-3 text-right font-mono font-bold text-indigo-600 dark:text-indigo-400">{formatIDR(s.android)}</td>
+                  <td className="py-3 px-3 text-right font-mono font-bold text-amber-600 dark:text-amber-400">{formatIDR(s.acc)}</td>
+                  <td className="py-3 px-3 text-right font-mono font-bold text-purple-600 dark:text-purple-400">{formatIDR(s.vas)}</td>
+                  <td className="py-3 px-3 text-right font-black text-emerald-600 dark:text-emerald-400 font-mono">{formatIDR(s.total)}</td>
                 </tr>
               ))}
             </tbody>
@@ -1905,7 +1905,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
         </div>
       </div>
 
-      {/* 3. AREA KONTEN UTAMA (TERKUNCI AGAR TIDAK GESER DI IPHONE) */}
+      {/* 3. AREA KONTEN UTAMA (LEBAR PROPORSIONAL & TIDAK GESER DI HP) */}
       <div className="flex-1 flex flex-col min-w-0 w-full max-w-full overflow-x-hidden pb-24 lg:pb-8">
         
         {/* Top Header Mobile Khusus HP */}
@@ -1928,7 +1928,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
           </button>
         </div>
 
-        <main className="p-3 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full flex-1 overflow-x-hidden">
+        <main className="p-3 sm:p-6 lg:p-8 w-full max-w-[1700px] mx-auto flex-1 overflow-x-hidden">
           <header className="mb-6 border-b border-inherit pb-5 print:hidden">
             <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
               <div>
@@ -2324,7 +2324,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                 </div>
               )}
 
-              {/* TAB 3: STAFF PERFORMANCE DETAIL - ANTI GESER DI IPHONE */}
+              {/* TAB 3: STAFF PERFORMANCE DETAIL */}
               {activeTab === "staff-performance" && (
                 <div className="space-y-6">
                   <div className="flex flex-wrap items-center justify-between gap-4">
@@ -2370,11 +2370,9 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                           onClick={() => openStaffDetailSheet(staff)}
                           className={`${cardBg} rounded-3xl transition-all duration-300 hover:-translate-y-1 hover:border-sky-400/50 overflow-hidden relative flex flex-col justify-between cursor-pointer w-full`}
                         >
-                          {/* Aksen Garis Hijau di Atas Card */}
                           <div className="h-2 w-full bg-[#10B981] shadow-sm shadow-emerald-500/30" />
 
                           <div className="p-5 sm:p-6 space-y-4 sm:space-y-5">
-                            {/* Header: Avatar, Nama, Role & Badge Status */}
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex items-center gap-3">
                                 <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full ${isDark ? "bg-sky-500/20 text-sky-300 border border-sky-400/40" : "bg-blue-100 text-blue-800 border border-blue-300"} shadow-md flex items-center justify-center font-black text-lg sm:text-xl shrink-0 overflow-hidden`}>
@@ -2397,7 +2395,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
                             <div className={`border-t ${isDark ? "border-white/10" : "border-slate-300/80"}`} />
 
-                            {/* Total Penjualan, Target & Progress Bar */}
                             <div className="space-y-2">
                               <div className="flex justify-between items-baseline gap-2">
                                 <span className={`text-xs font-bold shrink-0 ${textMuted}`}>Total Penjualan:</span>
@@ -2425,7 +2422,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
                             <div className={`border-t ${isDark ? "border-white/10" : "border-slate-300/80"}`} />
 
-                            {/* 3 Box Metrik: UPT, ATV, Trx */}
                             <div className="grid grid-cols-3 gap-2">
                               <div className={`${innerBg} py-2.5 px-1.5 rounded-2xl text-center border border-inherit`}>
                                 <span className={`text-[10px] font-black block uppercase tracking-wider ${textMuted}`}>UPT</span>
@@ -2445,7 +2441,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                               </div>
                             </div>
 
-                            {/* Rincian Kategori Produk */}
                             <div className="space-y-1.5 pt-1 text-xs">
                               <div className="flex justify-between items-center gap-2">
                                 <span className={`font-bold ${textMuted}`}>Apple:</span>
@@ -2470,7 +2465,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
                             <div className={`border-t ${isDark ? "border-white/10" : "border-slate-300/80"}`} />
 
-                            {/* Bagian Bawah: Poin Reward */}
                             <div className="flex justify-between items-center pt-1">
                               <div className={`flex items-center gap-1.5 text-xs font-bold ${textMuted}`}>
                                 <span>🎗️</span>
@@ -2546,7 +2540,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                           TARGET PER STAF HARI INI
                         </span>
                         <div className="text-xl sm:text-2xl font-black text-sky-600 dark:text-sky-400 mt-1 font-mono">
-                          {formatIDR(dailyTargetCalculated.targetPerStaffToday)}
+                          {formatIDR(dailyTargetPerStaffToday)}
                         </div>
                         <span className={`text-[11px] ${textMuted} mt-1 block font-bold`}>
                           Dibagi {dailyTargetCalculated.staffCount} Staf Bertugas
@@ -2943,7 +2937,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                 </div>
               )}
 
-              {/* TAB 7: BNPL */}
+              {/* TAB 7: BNPL (TEXT GELAP PEKAT & LEBAR) */}
               {activeTab === "bnpl" && (
                 <div className="space-y-6">
                   <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-4 overflow-hidden`}>
@@ -2967,19 +2961,22 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {/* KARTU BNPL: TEKS NOMINAL HITAM / GELAP DI LIGHT MODE */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
                       {bnplSummary.tenders.map((t, idx) => (
                         <div key={idx} className={`p-4 ${innerBg} border rounded-2xl space-y-1.5 shadow-sm`}>
                           <div className="flex justify-between items-center">
                             <span className={`text-xs font-black uppercase ${accentText}`}>{t.tender}</span>
-                            <span className="text-[10px] px-2 py-0.5 rounded-full font-black bg-slate-200 dark:bg-slate-700/50 text-slate-800 dark:text-slate-200">
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-black bg-slate-200 dark:bg-slate-700/50 text-slate-900 dark:text-slate-200 border border-slate-300 dark:border-transparent">
                               {t.share}% Toko
                             </span>
                           </div>
-                          <div className="text-base font-black font-mono">{formatIDR(t.amount)}</div>
-                          <div className="flex justify-between text-[11px] font-bold opacity-80">
-                            <span>Qty: <strong className="font-black text-amber-600 dark:text-amber-300">{t.qty} Unit</strong></span>
-                            <span>Est: <strong className="font-black font-mono">{formatIDR(t.estimate)}</strong></span>
+                          <div className="text-base sm:text-lg font-black font-mono text-slate-950 dark:text-white">
+                            {formatIDR(t.amount)}
+                          </div>
+                          <div className="flex justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                            <span>Qty: <strong className="font-black text-amber-700 dark:text-amber-300">{t.qty} Unit</strong></span>
+                            <span>Est: <strong className="font-black font-mono text-slate-900 dark:text-slate-200">{formatIDR(t.estimate)}</strong></span>
                           </div>
                         </div>
                       ))}
@@ -3546,7 +3543,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
       {bottomSheetOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm transition-opacity animate-in fade-in overflow-hidden p-0 sm:p-4">
           <div className={`w-full sm:max-w-2xl max-h-[85vh] rounded-t-3xl sm:rounded-3xl ${cardBg} border-2 border-inherit shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300`}>
-            <div className="flex items-center justify-between p-4 sm:p-5 border-b border-inherit bg-black/20">
+            <div className="flex items-center justify-between p-4 sm:p-5 border-b border-inherit bg-black/10 dark:bg-black/20">
               <h3 className={`text-sm sm:text-base font-black ${textMain} flex items-center gap-2 truncate`}>
                 <span>📋</span>
                 <span className="truncate">{sheetTitle}</span>
@@ -3554,7 +3551,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
               <button
                 onClick={() => setBottomSheetOpen(false)}
-                className="w-8 h-8 rounded-full bg-slate-700/40 hover:bg-slate-700/60 flex items-center justify-center text-sm font-black text-slate-300 shrink-0"
+                className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700/40 hover:bg-slate-300 dark:hover:bg-slate-700/60 flex items-center justify-center text-sm font-black text-slate-800 dark:text-slate-300 shrink-0"
               >
                 ✕
               </button>
