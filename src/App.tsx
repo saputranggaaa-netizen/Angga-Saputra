@@ -848,7 +848,7 @@ const fetchOnlineActivityLogs = async () => {
       accItems,
       vasItems
     };
-  }, [activeTransactions, periodType, selectedDate, transactions]);
+  
   
 // Kalkulasi Perbandingan MoM Kategori & Staff
 const momAnalytics = useMemo(() => {
