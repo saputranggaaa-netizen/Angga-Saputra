@@ -333,7 +333,7 @@ export default function DigiplusOperationalEngine() {
   const [periodType, setPeriodType] = useState<PeriodType>("monthly");
   const [selectedMonth, setSelectedMonth] = useState<string>("Oktober2026");
   const [momBaseMonth, setMomBaseMonth] = useState<string>("Oktober2026");
-  const [momCompareMonth, setMomCompareMonth] = useState<string>("September2026");
+  const [momCompareMonth, setMomCompareMonth] = useState<string>("Agustus2026");
   const [selectedWeek, setSelectedWeek] = useState<string>("ALL");
   const [selectedDate, setSelectedDate] = useState<string>("ALL");
 
@@ -362,7 +362,7 @@ export default function DigiplusOperationalEngine() {
   const SPREADSHEET_ID = "1v_QCLTDKORjVnByrzo9qRiivdU8CGO99nJri9jBETWM";
   const ADMIN_ID = "22008089";
 
-  // Normalisasi Tanggal & Bulan (Membaca Kolom M Secara Langsung & Fleksibel)
+  // Normalisasi Tanggal & Bulan Kolom M
   const parseNormalizedDate = (rawDateStr: string, rawMonthStr: string) => {
     let isoDate = "";
 
@@ -386,7 +386,6 @@ export default function DigiplusOperationalEngine() {
       }
     }
 
-    // Normalisasi Kolom M
     const cleanRawM = String(rawMonthStr || "").trim();
     const mLower = cleanRawM.toLowerCase();
     let monthKey = "";
@@ -410,6 +409,7 @@ export default function DigiplusOperationalEngine() {
 
     return { isoDate, monthKey };
   };
+
   // Live Fetching Hook
   const fetchLiveGoogleSheets = async () => {
     setIsLoading(true);
@@ -454,14 +454,14 @@ export default function DigiplusOperationalEngine() {
           // Tetap DEVICES
         } else if (groupCategory === "VAS" || brand === "QOALA" || brand === "TELKOMSEL" || brand === "XL" || brand === "INDOSAT" || pUpper.includes("PROTEKSI") || pUpper.includes("MYPRIO")) {
           groupCategory = "VAS";
-        } else if (groupCategory === "ACCESSORIES" || pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE") || pUpper.includes("BAND") || pUpper.includes("STRAP")) {
+        } else if (groupCategory === "ACCESSORIES") {
           groupCategory = "ACCESSORIES";
         } else if (brand === "APPLE" && (pUpper.includes("IPHONE") || pUpper.includes("IPAD") || pUpper.includes("MAC") || pUpper.includes("WATCH") || pUpper.includes("AIRPOD"))) {
           groupCategory = "DEVICES";
         } else if (["SAMSUNG", "XIAOMI", "OPPO", "MOTOROLA", "HUAWEI", "INFINIX"].includes(brand) && (pUpper.includes("PHONE") || pUpper.includes("GALAXY") || pUpper.includes("REDMI"))) {
           groupCategory = "DEVICES";
         } else {
-          groupCategory = "ACCESSORIES";
+          groupCategory = "OTHER";
         }
 
         if (invoice && amount > 0 && salesName) {
@@ -753,7 +753,7 @@ export default function DigiplusOperationalEngine() {
     });
   }, [transactions, selectedMonth, periodType, selectedDate, selectedWeek]);
 
-  // 4. Kalkulasi Overview Metrics & LOB Breakdown (HARUS SEBELUM dailyTargetCalculated & bnplSummary)
+  // 4. Kalkulasi Overview Metrics & LOB Breakdown
   const overviewStats = useMemo(() => {
     const activeTx = activeTransactions || [];
 
@@ -826,7 +826,7 @@ export default function DigiplusOperationalEngine() {
     };
   }, [activeTransactions, periodType, selectedDate, transactions]);
   
-  // Kalkulasi Perbandingan MoM Kategori, Staff & Detail Devices Turun
+  // 5. Kalkulasi Perbandingan MoM Kategori, Staff & Detail Devices Turun
   const momAnalytics = useMemo(() => {
     const initMetrics = () => ({
       totalSales: 0,
@@ -933,7 +933,7 @@ export default function DigiplusOperationalEngine() {
       return { name, base: val.base, compare: val.compare, diff, growth, baseItems: val.baseItems, compareItems: val.compareItems };
     }).sort((a, b) => b.base - a.base);
 
-    // List Perangkat yang Mengalami Penurunan (Disgrowth) Diurutkan dari Minus Terbesar
+    // List Perangkat yang Mengalami Penurunan (Disgrowth)
     const droppedDevices = Object.values(productDeviceMap)
       .map((p) => {
         const diff = p.base - p.compare;
@@ -945,7 +945,31 @@ export default function DigiplusOperationalEngine() {
 
     return { summary, staffComparison, droppedDevices };
   }, [transactions, momBaseMonth, momCompareMonth]);
-  
+    
+  // 6. Trend Harian
+  const dailyTrendStats = useMemo(() => {
+    const dailyMap = new Map<string, number>();
+    transactions.forEach((t) => {
+      if (t.isoDate && t.isoDate.startsWith("2026-10")) {
+        dailyMap.set(t.isoDate, (dailyMap.get(t.isoDate) || 0) + t.amount);
+      }
+    });
+
+    const dates = Array.from(dailyMap.keys()).sort();
+    const idealDailyTarget = Math.round(8728667173 / 31);
+
+    return dates.map((date) => {
+      const actual = dailyMap.get(date) || 0;
+      return {
+        date,
+        dayLabel: date.split("-")[2] + " Okt",
+        actual,
+        target: idealDailyTarget,
+        gap: actual - idealDailyTarget,
+      };
+    });
+  }, [transactions]);
+
   // 7. Rekap Mingguan Dinamis
   const weeklyReport = useMemo(() => {
     return AUTO_WEEKS.map((wDef, idx) => {
@@ -1061,7 +1085,7 @@ export default function DigiplusOperationalEngine() {
         else if (t.brand === "INFINIX") { map[id].androidMap["Infinix Devices"].actual += t.amount; map[id].androidMap["Infinix Devices"].qty += t.qty; }
       }
 
-      if (t.groupCategory === "ACCESSORIES" || isCaseAcc) {
+      if (t.groupCategory === "ACCESSORIES") {
         const item = t.productName.trim() || "Aksesoris";
         if (!map[id].accMap[item]) map[id].accMap[item] = { actual: 0, qty: 0, icon: "🔌" };
         map[id].accMap[item].actual += t.amount;
@@ -1398,7 +1422,7 @@ _Generated via Store Performance Engine._`;
 Periode: 1 Minggu (Senin s.d. Minggu)
 
 👥 *Personil Standby per Hari:*
-${scheduleDaySummary.map((d, i) => `• ${daysLabel[i]}: ${d.totalStaff} Orang (Pagi D047: ${d.morning} | Siang D103: ${d.evening})`).join("\n")}
+${scheduleDaySummary.map((d, i) => `• ${dayNames[i]}: ${d.totalStaff} Orang (Pagi D047: ${d.morning} | Siang D103: ${d.evening})`).join("\n")}
 
 _Diperbarui via Digiplus Store Operations Engine._`;
 
@@ -1447,50 +1471,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
         weeklyRows.push([w.label, w.range, formatIDR(w.sales), String(w.qty), String(w.invCount), `${w.wowGrowth}%`]);
       });
       slide3.addTable(weeklyRows, { x: 0.5, y: 1.5, w: 9.0, fill: "F8FAFC", fontSize: 10, border: { pt: 1, color: "CBD5E1" } });
-
-      const slide4 = pptx.addSlide();
-      slide4.addText("KATEGORI PRODUK 1: ANDROID DEVICES (ALL BRANDS)", { x: 0.5, y: 0.5, fontSize: 20, bold: true, color: "0F172A" });
-      slide4.addText("Termasuk seluruh perangkat smartphone/tablet Xiaomi, Redmi, Samsung, Oppo, Vivo, Motorola yang tercatat pada kolom L sebagai DEVICES.", { x: 0.5, y: 1.2, fontSize: 12, color: "475569" });
-      slide4.addTable([
-        ["KATEGORI LOB", "ACTUAL REVENUE", "TARGET", "ACHIEVEMENT", "STATUS"],
-        ["Android Devices Hardware", formatIDR(overviewStats.lobs[1].actual), formatIDR(overviewStats.lobs[1].target), `${overviewStats.lobs[1].achv}%`, "Tertinggal"],
-      ], { x: 0.5, y: 2.2, w: 9.0, fill: "F1F5F9", fontSize: 11 });
-
-      const slide5 = pptx.addSlide();
-      slide5.addText("KATEGORI PRODUK 2: APPLE ECOSYSTEM (HARDWARE MURNI)", { x: 0.5, y: 0.5, fontSize: 20, bold: true, color: "0F172A" });
-      slide5.addText("Hanya mencakup iPhone, iPad, MacBook, Apple Watch, dan AirPods. Aksesoris dan casing pihak ketiga dialokasikan terpisah.", { x: 0.5, y: 1.2, fontSize: 12, color: "475569" });
-      slide5.addTable([
-        ["KATEGORI LOB", "ACTUAL REVENUE", "TARGET", "ACHIEVEMENT", "STATUS"],
-        ["Apple Devices Hardware", formatIDR(overviewStats.lobs[0].actual), formatIDR(overviewStats.lobs[0].target), `${overviewStats.lobs[0].achv}%`, "Tertinggal"],
-      ], { x: 0.5, y: 2.2, w: 9.0, fill: "F1F5F9", fontSize: 11 });
-
-      const slide6 = pptx.addSlide();
-      slide6.addText("KATEGORI PRODUK 3: ACCESSORIES & VAS (ATTACH RATE)", { x: 0.5, y: 0.5, fontSize: 20, bold: true, color: "0F172A" });
-      slide6.addTable([
-        ["LOB PENDUKUNG", "ACTUAL OMSET", "TARGET", "ACHV %", "KETERANGAN"],
-        ["Accessories (Casing, Adapter, dll)", formatIDR(overviewStats.lobs[2].actual), formatIDR(overviewStats.lobs[2].target), `${overviewStats.lobs[2].achv}%`, "Attach Rate Casing & Charger"],
-        ["VAS (Qoala, Telkomsel, XL, Indosat)", formatIDR(overviewStats.lobs[3].actual), formatIDR(overviewStats.lobs[3].target), `${overviewStats.lobs[3].achv}%`, "Proteksi Gadget & Data Bundling"],
-      ], { x: 0.5, y: 1.8, w: 9.0, fill: "F8FAFC", fontSize: 11 });
-
-      const slide7 = pptx.addSlide();
-      slide7.addText("EVALUASI KINERJA STAF (STAFF LEADERBOARD)", { x: 0.5, y: 0.5, fontSize: 20, bold: true, color: "0F172A" });
-      const staffRows = [["RANK", "NAMA SALESPERSON", "ACTUAL OMSET", "TARGET KUOTA", "ACHV %", "UPT", "STATUS"]];
-      staffList.forEach((s) => {
-        staffRows.push([`#${s.rank}`, s.name, formatIDR(s.actual), formatIDR(s.target), `${s.achievement}%`, String(s.upt), s.status]);
-      });
-      slide7.addTable(staffRows, { x: 0.5, y: 1.4, w: 9.0, fill: "F1F5F9", fontSize: 9 });
-
-      const slide8 = pptx.addSlide();
-      slide8.addText("FEEDBACK, KENDALA, & SUARA STAF (VOICE OF FIELD STAFF)", { x: 0.5, y: 0.5, fontSize: 20, bold: true, color: "0F172A" });
-      const fbRows = [["WAKTU", "SALESPERSON", "SENTIMEN", "CATATAN FEEDBACK / KENDALA LAPANGAN"]];
-      feedbacks.slice(0, 4).forEach((f) => {
-        fbRows.push([f.timestamp, f.salesName, f.sentiment, f.text]);
-      });
-      slide8.addTable(fbRows, { x: 0.5, y: 1.4, w: 9.0, fill: "F8FAFC", fontSize: 9 });
-
-      const slide9 = pptx.addSlide();
-      slide9.addText("RENCANA AKSI & REKOMENDASI TAKTIS", { x: 0.5, y: 0.5, fontSize: 20, bold: true, color: "0F172A" });
-      slide9.addText("1. Fokus Penutupan Gap: Kejar kekurangan omset melalui kampanye bundling proteksi Qoala dan aksesoris.\n2. Optimalisasi Program BNPL: Tawarkan cicilan 0% Kredivo, Indodana, Akulaku, dan Home Credit kepada customer walk-in.\n3. Daily Huddle & Coaching: Evaluasi harian target individual per shift untuk memastikan seluruh staf mencapai kuota minimum.\n4. Follow-up Prospek: Hubungi kembali database customer yang berminat pada seri iPhone 17 dan Galaxy S26 Ultra.", { x: 0.5, y: 1.6, w: 9.0, fontSize: 13, color: "1E293B", lineSpacing: 26 });
 
       pptx.writeFile({ fileName: `Laporan_Operasional_QF01_${selectedDate}.pptx` });
     } catch (err) {
@@ -1574,7 +1554,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
         <div>
           <h4 className="text-xs font-bold text-sky-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
             <span>🍎</span>
-            <span>Rincian Apple Devices (Hardware Utama)</span>
+            <span>Rincian Apple Devices</span>
           </h4>
           <div className="overflow-x-auto rounded-xl border border-inherit">
             <table className="w-full text-left text-xs">
@@ -1594,21 +1574,17 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     </td>
                     <td className="py-2 px-3 text-center">{p.qty}</td>
                     <td className="py-2 px-3 text-right font-bold text-emerald-400">{formatIDR(p.actual)}</td>
-                 </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
-      </main>
+        </div>
 
         <div>
           <h4 className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
             <span>🤖</span>
-            <span>Rincian Android Devices (Samsung, Xiaomi, dll)</span>
+            <span>Rincian Android Devices</span>
           </h4>
           <div className="overflow-x-auto rounded-xl border border-inherit">
             <table className="w-full text-left text-xs">
@@ -1628,66 +1604,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     </td>
                     <td className="py-2 px-3 text-center">{p.qty}</td>
                     <td className="py-2 px-3 text-right font-bold text-emerald-400">{formatIDR(p.actual)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div>
-          <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <span>🔌</span>
-            <span>Accessories (Nominal Besar ke Kecil)</span>
-          </h4>
-          <div className="overflow-x-auto rounded-xl border border-inherit">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-black/30 uppercase text-[10px] border-b border-inherit">
-                <tr>
-                  <th className="py-2 px-3">Nama Aksesoris</th>
-                  <th className="py-2 px-3 text-center">Qty</th>
-                  <th className="py-2 px-3 text-right">Nominal</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-inherit">
-                {staff.accessoriesSub.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} className="py-3 px-3 text-center opacity-60">Tidak ada item aksesoris.</td>
-                  </tr>
-                ) : (
-                  staff.accessoriesSub.map((p, idx) => (
-                    <tr key={idx}>
-                      <td className="py-2 px-3 font-semibold">{p.name}</td>
-                      <td className="py-2 px-3 text-center">{p.qty}</td>
-                      <td className="py-2 px-3 text-right font-bold text-amber-400">{formatIDR(p.actual)}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div>
-          <h4 className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <span>🛡️</span>
-            <span>VAS (Qoala, Telkomsel, XL, Indosat)</span>
-          </h4>
-          <div className="overflow-x-auto rounded-xl border border-inherit">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-black/30 uppercase text-[10px] border-b border-inherit">
-                <tr>
-                  <th className="py-2 px-3">Layanan</th>
-                  <th className="py-2 px-3 text-center">Qty</th>
-                  <th className="py-2 px-3 text-right">Nominal</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-inherit">
-                {staff.vasSub.map((p, idx) => (
-                  <tr key={idx}>
-                    <td className="py-2 px-3 font-semibold">{p.name}</td>
-                    <td className="py-2 px-3 text-center">{p.qty}</td>
-                    <td className="py-2 px-3 text-right font-bold text-purple-400">{formatIDR(p.actual)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -2079,9 +1995,9 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     className={`${innerBg} border rounded-xl px-2.5 py-1 font-bold focus:outline-none`}
                   >
                     <option value="ALL">Semua Bulan</option>
-{availableMonths.map((m) => (
-  <option key={m} value={m}>{m}</option>
-))}
+                    {availableMonths.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
                   </select>
                 </div>
               )}
@@ -2630,7 +2546,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                         TARGET PER STAF HARI INI
                       </span>
                       <div className="text-2xl font-black text-[#0369A1] dark:text-sky-400 mt-1">
-                        {formatIDR(dailyTargetCalculated.targetPerStaffToday)}
+                        {formatIDR(dailyTargetPerStaffToday)}
                       </div>
                       <span className="text-[11px] text-[#64748B] mt-1 block">
                         Dibagi {dailyTargetCalculated.staffCount} Staf Bertugas
@@ -3346,7 +3262,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
         )}
 
         {/* TAB 11: ANALISIS MoM GROWTH */}
-        {/* TAB 11: ANALISIS MoM GROWTH */}
         {activeTab === "mom-comparison" && (
           <div className="space-y-6">
             <div className="bg-[#181a24] p-5 rounded-2xl border border-slate-800 flex flex-wrap items-center justify-between gap-4">
@@ -3417,9 +3332,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     });
                   } else if (item.label === "Accessories") {
                     targetItems = currentMonthTrx.filter((t: any) => {
-                      const pUpper = (t.productName || "").toUpperCase();
-                      const isCaseAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE");
-                      return t.groupCategory === "ACCESSORIES" || isCaseAcc;
+                      return t.groupCategory === "ACCESSORIES";
                     });
                   } else if (item.label.includes("VAS")) {
                     targetItems = currentMonthTrx.filter((t: any) => {
@@ -3586,8 +3499,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                           <td className="px-4 py-3 text-right font-extrabold text-rose-400 font-mono">
                             Rp {d.diff.toLocaleString("id-ID")}
                           </td>
-                          <td className="px-4 py-3 text-right font-black text-rose-400 font-mono">
-                            {d.growth.toFixed(1)}%
                           <td className="px-4 py-3 text-right font-black text-rose-400 font-mono">
                             {d.growth.toFixed(1)}%
                           </td>
