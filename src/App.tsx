@@ -362,7 +362,7 @@ export default function DigiplusOperationalEngine() {
   const SPREADSHEET_ID = "1v_QCLTDKORjVnByrzo9qRiivdU8CGO99nJri9jBETWM";
   const ADMIN_ID = "22008089";
 
-  // Normalisasi Tanggal & Bulan
+  // Normalisasi Tanggal & Bulan (Mendukung Agustus, September, Oktober, dll)
   const parseNormalizedDate = (rawDateStr: string, rawMonthStr: string) => {
     let isoDate = "";
     let monthKey = "";
@@ -388,19 +388,20 @@ export default function DigiplusOperationalEngine() {
     }
 
     const mClean = String(rawMonthStr || "").trim().toLowerCase();
-    if (mClean.includes("okt") || mClean.includes("2026-10") || mClean.includes("10-2026")) {
-      monthKey = "Oktober2026";
-    } else if (mClean.includes("sep") || mClean.includes("2026-09")) {
+    if (mClean.includes("agu") || mClean.includes("aug") || mClean.includes("2026-08") || mClean.includes("08-2026") || (isoDate && isoDate.startsWith("2026-08"))) {
+      monthKey = "Agustus2026";
+    } else if (mClean.includes("sep") || mClean.includes("2026-09") || mClean.includes("09-2026") || (isoDate && isoDate.startsWith("2026-09"))) {
       monthKey = "September2026";
-    } else if (isoDate) {
-      monthKey = isoDate.startsWith("2026-10") ? "Oktober2026" : "September2026";
+    } else if (mClean.includes("okt") || mClean.includes("oct") || mClean.includes("2026-10") || mClean.includes("10-2026") || (isoDate && isoDate.startsWith("2026-10"))) {
+      monthKey = "Oktober2026";
+    } else if (rawMonthStr && String(rawMonthStr).trim() !== "") {
+      monthKey = String(rawMonthStr).trim();
     } else {
       monthKey = "Oktober2026";
     }
 
     return { isoDate, monthKey };
   };
-
   // Live Fetching Hook
   const fetchLiveGoogleSheets = async () => {
     setIsLoading(true);
@@ -2051,9 +2052,10 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     onChange={(e) => setSelectedMonth(e.target.value)}
                     className={`${innerBg} border rounded-xl px-2.5 py-1 font-bold focus:outline-none`}
                   >
-                    <option value="Oktober2026">Oktober 2026</option>
-                    <option value="September2026">September 2026</option>
                     <option value="ALL">Semua Bulan</option>
+{availableMonths.map((m) => (
+  <option key={m} value={m}>{m}</option>
+))}
                   </select>
                 </div>
               )}
@@ -3360,75 +3362,82 @@ _Diperbarui via Digiplus Store Operations Engine._`;
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {momAnalytics.summary.map((item, idx) => (
-                <div key={idx} className="bg-[#181a24] p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
-                  <div className="flex justify-between items-start">
-                    <span className="text-xs font-medium text-slate-400">{item.label}</span>
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${
-                      item.growth >= 0 ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
-                    }`}>
-                      {item.growth >= 0 ? `▲ +${item.growth.toFixed(1)}%` : `▼ ${item.growth.toFixed(1)}%`}
-                    </span>
-                  </div>
+              {momAnalytics.summary.map((item, idx) => {
+                const isClickable = ["Apple Devices", "Android Devices", "Accessories", "VAS & Services"].includes(item.label);
+                
+                const handleCardClick = () => {
+                  if (!isClickable) return;
+                  
+                  // Filter transaksi berdasarkan kategori dan bulan analisis yang aktif
+                  const currentMonthTrx = transactions.filter((t: any) => {
+                    const rawM = (t.monthKey || t.month || "").toString().trim();
+                    return rawM === momBaseMonth;
+                  });
 
-                  <div className="mt-3">
-                    <div className="text-lg font-extrabold text-white">
-                      {item.isCurrency ? `Rp ${item.base.toLocaleString("id-ID")}` : item.base.toFixed(2)}
-                    </div>
-                    <div className="text-[11px] text-slate-400 mt-1 flex justify-between">
-                      <span>{momCompareMonth}: {item.isCurrency ? `Rp ${item.compare.toLocaleString("id-ID")}` : item.compare.toFixed(2)}</span>
-                      <span className={item.diff >= 0 ? "text-emerald-400" : "text-rose-400"}>
-                        {item.diff >= 0 ? "+" : ""}{item.isCurrency ? `Rp ${item.diff.toLocaleString("id-ID")}` : item.diff.toFixed(2)}
+                  let targetItems: RawTransaction[] = [];
+                  if (item.label === "Apple Devices") {
+                    targetItems = currentMonthTrx.filter((t: any) => {
+                      const pUpper = (t.productName || "").toUpperCase();
+                      const isHardware = pUpper.includes("IPHONE") || pUpper.includes("IPAD") || pUpper.includes("AIRPOD") || pUpper.includes("MACBOOK") || pUpper.includes("WATCH");
+                      const isCaseOrAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE") || pUpper.includes("POWER");
+                      return (t.brand === "APPLE" && (t.groupCategory === "DEVICES" || isHardware)) && !isCaseOrAcc;
+                    });
+                  } else if (item.label === "Android Devices") {
+                    targetItems = currentMonthTrx.filter((t: any) => {
+                      const pUpper = (t.productName || "").toUpperCase();
+                      const isCaseOrAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE");
+                      return t.groupCategory === "DEVICES" && t.brand !== "APPLE" && !isCaseOrAcc;
+                    });
+                  } else if (item.label === "Accessories") {
+                    targetItems = currentMonthTrx.filter((t: any) => {
+                      const pUpper = (t.productName || "").toUpperCase();
+                      const isCaseAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE");
+                      return t.groupCategory === "ACCESSORIES" || isCaseAcc;
+                    });
+                  } else if (item.label.includes("VAS")) {
+                    targetItems = currentMonthTrx.filter((t: any) => {
+                      const pUpper = (t.productName || "").toUpperCase();
+                      return t.groupCategory === "VAS" || t.brand === "QOALA" || pUpper.includes("PROTEKSI") || t.brand === "TELKOMSEL" || t.brand === "XL" || t.brand === "INDOSAT";
+                    });
+                  }
+
+                  openLobDetailSheet(`${item.label} (${momBaseMonth})`, targetItems);
+                };
+
+                return (
+                  <div
+                    key={idx}
+                    onClick={handleCardClick}
+                    className={`bg-[#181a24] p-4 rounded-xl border border-slate-800 flex flex-col justify-between transition-all ${
+                      isClickable ? "cursor-pointer hover:border-amber-400/60 hover:bg-[#1e2230] hover:scale-[1.01]" : ""
+                    }`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-medium text-slate-400">{item.label}</span>
+                        {isClickable && <span className="text-[10px] text-amber-400 font-bold bg-amber-400/10 px-1.5 py-0.5 rounded">Tap Rincian 🔍</span>}
+                      </div>
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${
+                        item.growth >= 0 ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                      }`}>
+                        {item.growth >= 0 ? `▲ +${item.growth.toFixed(1)}%` : `▼ ${item.growth.toFixed(1)}%`}
                       </span>
                     </div>
+
+                    <div className="mt-3">
+                      <div className="text-lg font-extrabold text-white">
+                        {item.isCurrency ? `Rp ${item.base.toLocaleString("id-ID")}` : item.base.toFixed(2)}
+                      </div>
+                      <div className="text-[11px] text-slate-400 mt-1 flex justify-between">
+                        <span>{momCompareMonth}: {item.isCurrency ? `Rp ${item.compare.toLocaleString("id-ID")}` : item.compare.toFixed(2)}</span>
+                        <span className={item.diff >= 0 ? "text-emerald-400" : "text-rose-400"}>
+                          {item.diff >= 0 ? "+" : ""}{item.isCurrency ? `Rp ${item.diff.toLocaleString("id-ID")}` : item.diff.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="bg-[#181a24] rounded-2xl border border-slate-800 overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-800 flex justify-between items-center">
-                <h3 className="text-sm font-bold text-white">Perbandingan Penjualan Staff Sales Person</h3>
-                <span className="text-xs text-slate-400">Total {momAnalytics.staffComparison.length} Staff</span>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-900/60 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
-                    <tr>
-                      <th className="px-4 py-3">Nama Sales</th>
-                      <th className="px-4 py-3 text-right">{momBaseMonth} (Aktual)</th>
-                      <th className="px-4 py-3 text-right">{momCompareMonth} (Lalu)</th>
-                      <th className="px-4 py-3 text-right">Selisih (Gap)</th>
-                      <th className="px-4 py-3 text-right">Growth (%)</th>
-                      <th className="px-4 py-3 text-center">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/60 text-slate-200">
-                    {momAnalytics.staffComparison.map((st, i) => (
-                      <tr key={i} className="hover:bg-slate-800/30 transition">
-                        <td className="px-4 py-3 font-semibold text-white">{st.name}</td>
-                        <td className="px-4 py-3 text-right font-medium text-amber-300">
-                          Rp {st.base.toLocaleString("id-ID")}
-                        </td>
-                        <td className="px-4 py-3 text-right text-slate-400">
-                          Rp {st.compare.toLocaleString("id-ID")}
-                        </td>
-                        <td className={`px-4 py-3 text-right font-medium ${st.diff >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                          {st.diff >= 0 ? "+" : ""}Rp {st.diff.toLocaleString("id-ID")}
-                        </td>
-                        <td className={`px-4 py-3 text-right font-bold ${st.growth >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                          {st.growth >= 0 ? `+${st.growth.toFixed(1)}%` : `${st.growth.toFixed(1)}%`}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
-                            st.growth >= 0 ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400"
-                          }`}>
-                            {st.growth >= 0 ? "Growth" : "Disgrowth"}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                );
+              })}
                   </tbody>
                 </table>
               </div>
