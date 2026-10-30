@@ -1600,6 +1600,8 @@ _Diperbarui via Digiplus Store Operations Engine._`;
             </table>
           </div>
         </div>
+        )}
+      </main>
 
         <div>
           <h4 className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
