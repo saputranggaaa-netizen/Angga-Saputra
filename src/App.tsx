@@ -733,22 +733,55 @@ const fetchOnlineActivityLogs = async () => {
     });
   }, [transactions, selectedMonth, periodType, selectedDate, selectedWeek]);
 
-  // Kalkulasi Overview Metrics
+  // Kalkulasi Overview Metrics & LOB Breakdown
   const overviewStats = useMemo(() => {
-    const actual = activeTransactions.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-    
-    const target = periodType === "daily"
-      ? Math.round(8728667173 / 31)
-      : periodType === "weekly"
-      ? Math.round((8728667173 / 31) * 7)
-      : 8728667173;
+    const activeTx = activeTransactions || [];
+
+    const actual = activeTx.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
+    const target = periodType === "daily" 
+      ? Math.round(6728667173 / 31) 
+      : periodType === "weekly" 
+      ? Math.round((6728667173 / 31) * 7) 
+      : 6728667173;
 
     const achv = calcAchv(actual, target);
     const variance = actual - target;
     const estimate = Math.round(actual * 1.29);
-    const qtyTotal = activeTransactions.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
-    const invoiceCount = new Set(activeTransactions.map((t) => t.invoice)).size;
+    const qtyTotal = activeTx.reduce((acc: number, t: any) => acc + (Number(t.qty) || 1), 0);
+    const invoiceCount = new Set(activeTx.map((t: any) => t.invoice)).size;
     const storeUPT = calcUpt(qtyTotal, invoiceCount);
+
+    // Apple Devices (Hardware Murni Apple)
+    const appleItems = activeTx.filter((t: any) => {
+      const pUpper = (t.productName || "").toUpperCase();
+      const isHardware = pUpper.includes("IPHONE") || pUpper.includes("IPAD") || pUpper.includes("AIRPOD") || pUpper.includes("MACBOOK") || pUpper.includes("WATCH");
+      const isCaseOrAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE") || pUpper.includes("POWER");
+      return (t.brand === "APPLE" && (t.groupCategory === "DEVICES" || isHardware)) && !isCaseOrAcc;
+    });
+    const appleActual = appleItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
+    const appleTarget = Math.round(target * 0.794);
+
+    // Android Devices
+    const androidItems = activeTx.filter((t: any) => {
+      const pUpper = (t.productName || "").toUpperCase();
+      const isCaseOrAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE");
+      return t.groupCategory === "DEVICES" && t.brand !== "APPLE" && !isCaseOrAcc;
+    });
+    const androidActual = androidItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
+    const androidTarget = Math.round(target * 0.108);
+
+    // Accessories
+    const accItems = activeTx.filter((t: any) => t.groupCategory === "ACCESSORIES");
+    const accActual = accItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
+    const accTarget = Math.round(target * 0.053);
+
+    // VAS
+    const vasItems = activeTx.filter((t: any) => t.groupCategory === "VAS");
+    const vasActual = vasItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
+    const vasTarget = Math.round(target * 0.045);
+
+    const todayItems = (transactions || []).filter((t: any) => t.isoDate === selectedDate);
+    const todayActual = todayItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
 
     return {
       actual,
@@ -759,8 +792,63 @@ const fetchOnlineActivityLogs = async () => {
       qtyTotal,
       invoiceCount,
       storeUPT,
+      todayActual,
+      lobs: [
+        { name: "Apple Devices (Hardware)", icon: "🍎", actual: appleActual, target: appleTarget, achv: calcAchv(appleActual, appleTarget), variance: appleActual - appleTarget, estimate: Math.round(appleActual * 1.29) },
+        { name: "Android Devices (Samsung, Xiaomi, dll)", icon: "🤖", actual: androidActual, target: androidTarget, achv: calcAchv(androidActual, androidTarget), variance: androidActual - androidTarget, estimate: Math.round(androidActual * 1.29) },
+        { name: "Accessories (Cases & Acc)", icon: "🔌", actual: accActual, target: accTarget, achv: calcAchv(accActual, accTarget), variance: accActual - accTarget, estimate: Math.round(accActual * 1.29) },
+        { name: "VAS (Qoala, Telkomsel, XL, Indosat)", icon: "🛡️", actual: vasActual, target: vasTarget, achv: calcAchv(vasActual, vasTarget), variance: vasActual - vasTarget, estimate: Math.round(vasActual * 1.29) }
+      ],
+      appleItems,
+      androidItems,
+      accItems,
+      vasItems
     };
-  }, [activeTransactions, periodType]);
+  }, [activeTransactions, periodType, selectedDate, transactions]);
+    // Android Devices
+    const androidItems = activeTx.filter((t: any) => {
+      const pUpper = (t.productName || "").toUpperCase();
+      const isCaseOrAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE");
+      return t.groupCategory === "DEVICES" && t.brand !== "APPLE" && !isCaseOrAcc;
+    });
+    const androidActual = androidItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
+    const androidTarget = Math.round(target * 0.108);
+
+    // Accessories
+    const accItems = activeTx.filter((t: any) => t.groupCategory === "ACCESSORIES");
+    const accActual = accItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
+    const accTarget = Math.round(target * 0.053);
+
+    // VAS
+    const vasItems = activeTx.filter((t: any) => t.groupCategory === "VAS");
+    const vasActual = vasItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
+    const vasTarget = Math.round(target * 0.045);
+
+    const todayItems = (transactions || []).filter((t: any) => t.isoDate === selectedDate);
+    const todayActual = todayItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
+
+    return {
+      actual,
+      target,
+      achv,
+      variance,
+      estimate,
+      qtyTotal,
+      invoiceCount,
+      storeUPT,
+      todayActual,
+      lobs: [
+        { name: "Apple Devices (Hardware)", icon: "🍎", actual: appleActual, target: appleTarget, achv: calcAchv(appleActual, appleTarget), variance: appleActual - appleTarget, estimate: Math.round(appleActual * 1.29) },
+        { name: "Android Devices (Samsung, Xiaomi, dll)", icon: "🤖", actual: androidActual, target: androidTarget, achv: calcAchv(androidActual, androidTarget), variance: androidActual - androidTarget, estimate: Math.round(androidActual * 1.29) },
+        { name: "Accessories (Cases & Acc)", icon: "🔌", actual: accActual, target: accTarget, achv: calcAchv(accActual, accTarget), variance: accActual - accTarget, estimate: Math.round(accActual * 1.29) },
+        { name: "VAS (Qoala, Telkomsel, XL, Indosat)", icon: "🛡️", actual: vasActual, target: vasTarget, achv: calcAchv(vasActual, vasTarget), variance: vasActual - vasTarget, estimate: Math.round(vasActual * 1.29) }
+      ],
+      appleItems,
+      androidItems,
+      accItems,
+      vasItems
+    };
+  }, [activeTransactions, periodType, selectedDate, transactions]);
   
 // Kalkulasi Perbandingan MoM Kategori & Staff
 const momAnalytics = useMemo(() => {
@@ -849,64 +937,7 @@ const momAnalytics = useMemo(() => {
 
   return { summary, staffComparison };
 }, [transactions, momBaseMonth, momCompareMonth]);
-    // Kategori & Breakdown LOB Stats
-  const overviewStats = useMemo(() => {
-    const currentTarget = overviewStats?.target || 0;
-
-    // Apple Devices: Hardware Murni Apple
-    const appleItems = activeTransactions.filter((t: any) => {
-      const pUpper = (t.productName || "").toUpperCase();
-      const isHardware = pUpper.includes("IPHONE") || pUpper.includes("IPAD") || pUpper.includes("AIRPOD") || pUpper.includes("MACBOOK") || pUpper.includes("WATCH");
-      const isCaseOrAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE") || pUpper.includes("POWER");
-      return (t.brand === "APPLE" && (t.groupCategory === "DEVICES" || isHardware)) && !isCaseOrAcc;
-    });
-    const appleActual = appleItems.reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0);
-    const appleTarget = Math.round(currentTarget * 0.794);
-
-    // Android Devices
-    const androidItems = activeTransactions.filter((t: any) => {
-      const pUpper = (t.productName || "").toUpperCase();
-      const isCaseOrAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE");
-      return t.groupCategory === "DEVICES" && t.brand !== "APPLE" && !isCaseOrAcc;
-    });
-    const androidActual = androidItems.reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0);
-    const androidTarget = Math.round(currentTarget * 0.108);
-
-    // Accessories
-    const accItems = activeTransactions.filter((t: any) => t.groupCategory === "ACCESSORIES");
-    const accActual = accItems.reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0);
-    const accTarget = Math.round(currentTarget * 0.053);
-
-    // VAS
-    const vasItems = activeTransactions.filter((t: any) => t.groupCategory === "VAS");
-    const vasActual = vasItems.reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0);
-    const vasTarget = Math.round(currentTarget * 0.045);
-
-    const todayItems = transactions.filter((t: any) => t.isoDate === selectedDate);
-    const todayActual = todayItems.reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0);
-
-    return {
-      actual: overviewStats?.actual || 0,
-      target: currentTarget,
-      achv: overviewStats?.achv || 0,
-      variance: overviewStats?.variance || 0,
-      estimate: overviewStats?.estimate || 0,
-      qtyTotal: overviewStats?.qtyTotal || 0,
-      invoiceCount: overviewStats?.invoiceCount || 0,
-      storeUPT: overviewStats?.storeUPT || 0,
-      todayActual,
-      lobs: [
-        { name: "Apple Devices (Hardware)", icon: "🍎", actual: appleActual, target: appleTarget, achv: calcAchv(appleActual, appleTarget), variance: appleActual - appleTarget, estimate: Math.round(appleActual * 1.29) },
-        { name: "Android Devices (Samsung, Xiaomi, dll)", icon: "🤖", actual: androidActual, target: androidTarget, achv: calcAchv(androidActual, androidTarget), variance: androidActual - androidTarget, estimate: Math.round(androidActual * 1.29) },
-        { name: "Accessories (Cases & Acc)", icon: "🔌", actual: accActual, target: accTarget, achv: calcAchv(accActual, accTarget), variance: accActual - accTarget, estimate: Math.round(accActual * 1.29) },
-        { name: "VAS (Qoala, Telkomsel, XL, Indosat)", icon: "🛡️", actual: vasActual, target: vasTarget, achv: calcAchv(vasActual, vasTarget), variance: vasActual - vasTarget, estimate: Math.round(vasActual * 1.29) }
-      ],
-      appleItems,
-      androidItems,
-      accItems,
-      vasItems
-    };
-  }, [activeTransactions, periodType, selectedDate, transactions, overviewStats]);
+    
   // Trend Harian
   const dailyTrendStats = useMemo(() => {
     const dailyMap = new Map<string, number>();
