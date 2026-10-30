@@ -849,7 +849,62 @@ const momAnalytics = useMemo(() => {
 
   return { summary, staffComparison };
 }, [transactions, momBaseMonth, momCompareMonth]);
-    
+    // Kategori & Breakdown LOB Stats
+  const categoryStats = useMemo(() => {
+    // Apple Devices: Hardware Murni Apple
+    const appleItems = activeTransactions.filter((t: any) => {
+      const pUpper = (t.productName || "").toUpperCase();
+      const isHardware = pUpper.includes("IPHONE") || pUpper.includes("IPAD") || pUpper.includes("AIRPOD") || pUpper.includes("MACBOOK") || pUpper.includes("WATCH");
+      const isCaseOrAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE") || pUpper.includes("POWER");
+      return (t.brand === "APPLE" && (t.groupCategory === "DEVICES" || isHardware)) && !isCaseOrAcc;
+    });
+    const appleActual = appleItems.reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0);
+    const appleTarget = Math.round(target * 0.794);
+
+    // Android Devices
+    const androidItems = activeTransactions.filter((t: any) => {
+      const pUpper = (t.productName || "").toUpperCase();
+      const isCaseOrAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE");
+      return t.groupCategory === "DEVICES" && t.brand !== "APPLE" && !isCaseOrAcc;
+    });
+    const androidActual = androidItems.reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0);
+    const androidTarget = Math.round(target * 0.108);
+
+    // Accessories
+    const accItems = activeTransactions.filter((t: any) => t.groupCategory === "ACCESSORIES");
+    const accActual = accItems.reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0);
+    const accTarget = Math.round(target * 0.053);
+
+    // VAS
+    const vasItems = activeTransactions.filter((t: any) => t.groupCategory === "VAS");
+    const vasActual = vasItems.reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0);
+    const vasTarget = Math.round(target * 0.045);
+
+    const todayItems = transactions.filter((t: any) => t.isoDate === selectedDate);
+    const todayActual = todayItems.reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0);
+
+    return {
+      actual,
+      target,
+      achv,
+      variance,
+      estimate,
+      qtyTotal,
+      invoiceCount,
+      storeUPT,
+      todayActual,
+      lobs: [
+        { name: "Apple Devices (Hardware)", icon: "🍎", actual: appleActual, target: appleTarget, achv: calcAchv(appleActual, appleTarget), variance: appleActual - appleTarget, estimate: Math.round(appleActual * 1.29) },
+        { name: "Android Devices (Samsung, Xiaomi, dll)", icon: "🤖", actual: androidActual, target: androidTarget, achv: calcAchv(androidActual, androidTarget), variance: androidActual - androidTarget, estimate: Math.round(androidActual * 1.29) },
+        { name: "Accessories (Cases & Acc)", icon: "🔌", actual: accActual, target: accTarget, achv: calcAchv(accActual, accTarget), variance: accActual - accTarget, estimate: Math.round(accActual * 1.29) },
+        { name: "VAS (Qoala, Telkomsel, XL, Indosat)", icon: "🛡️", actual: vasActual, target: vasTarget, achv: calcAchv(vasActual, vasTarget), variance: vasActual - vasTarget, estimate: Math.round(vasActual * 1.29) }
+      ],
+      appleItems,
+      androidItems,
+      accItems,
+      vasItems
+    };
+  }, [activeTransactions, periodType, selectedDate, transactions, target, actual, achv, variance, estimate, qtyTotal, invoiceCount, storeUPT]);
   // Trend Harian
   const dailyTrendStats = useMemo(() => {
     const dailyMap = new Map<string, number>();
