@@ -60,7 +60,7 @@ export const UploadRawSalesModal = ({ isOpen, onClose, selectedInvoice, defaultS
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md rounded-3xl bg-[#131722] border border-white/10 p-6 space-y-4 shadow-2xl">
+      <div className="w-full max-w-md rounded-3xl bg-[#09122A] border border-white/10 p-6 space-y-4 shadow-2xl">
         <div className="flex justify-between items-center border-b border-white/10 pb-3">
           <h3 className="text-sm font-bold text-white">Upload Bukti Transaksi (RAW SalesPerson)</h3>
           <button type="button" onClick={onClose} className="text-slate-400 hover:text-white text-xs">✕</button>
@@ -72,7 +72,7 @@ export const UploadRawSalesModal = ({ isOpen, onClose, selectedInvoice, defaultS
             <input
               type="file"
               onChange={(e) => setSelectedFile(e.target.files ? e.target.files[0] : null)}
-              className="w-full text-xs text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:bg-blue-600 file:text-white"
+              className="w-full text-xs text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:bg-sky-600 file:text-white"
             />
           </div>
 
@@ -90,7 +90,7 @@ export const UploadRawSalesModal = ({ isOpen, onClose, selectedInvoice, defaultS
           <button
             type="submit"
             disabled={isUploading}
-            className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 text-white font-bold rounded-xl text-xs transition"
+            className="w-full py-2.5 bg-sky-600 hover:bg-sky-500 disabled:bg-slate-700 text-white font-bold rounded-xl text-xs transition"
           >
             {isUploading ? "Mengunggah ke Drive & Menulis Sheet..." : "Upload & Simpan ke Kolom M-O"}
           </button>
@@ -362,7 +362,7 @@ export default function DigiplusOperationalEngine() {
   const SPREADSHEET_ID = "1v_QCLTDKORjVnByrzo9qRiivdU8CGO99nJri9jBETWM";
   const ADMIN_ID = "22008089";
 
-  // Normalisasi Tanggal & Bulan Kolom M
+  // Normalisasi Tanggal & Bulan Kolom M (Agustus, September, Oktober)
   const parseNormalizedDate = (rawDateStr: string, rawMonthStr: string) => {
     let isoDate = "";
 
@@ -687,7 +687,7 @@ export default function DigiplusOperationalEngine() {
     setCurrentSalesName("");
   };
 
-  // 1. Available Months
+  // 1. Available Months Dinamis
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
     transactions.forEach((t: any) => {
@@ -1416,7 +1416,7 @@ _Generated via Store Performance Engine._`;
   };
 
   const handleShareScheduleWA = () => {
-    const daysLabel = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
+    const dayNames = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
     const text = 
 `*JADWAL SHIFT OPERASIONAL TOKO QF01 GRAND INDONESIA*
 Periode: 1 Minggu (Senin s.d. Minggu)
@@ -1451,9 +1451,9 @@ _Diperbarui via Digiplus Store Operations Engine._`;
       pptx.layout = "LAYOUT_16x9";
 
       const slide1 = pptx.addSlide();
-      slide1.background = { color: "1A1831" };
-      slide1.addText("STORE SALES PERFORMANCE & STAFF OPERATIONS REPORT", { x: 0.8, y: 1.8, fontSize: 24, bold: true, color: "F5BA42" });
-      slide1.addText("Evaluasi Mingguan (WoW), Kategori Produk, & Suara Lapangan\nKode Toko: QF01 | Periode: Oktober 2026 | Cut-off: " + selectedDate, { x: 0.8, y: 3.2, fontSize: 14, color: "FFF6E9" });
+      slide1.background = { color: "0A1128" };
+      slide1.addText("STORE SALES PERFORMANCE & STAFF OPERATIONS REPORT", { x: 0.8, y: 1.8, fontSize: 24, bold: true, color: "38BDF8" });
+      slide1.addText("Evaluasi Mingguan (WoW), Kategori Produk, & Suara Lapangan\nKode Toko: QF01 | Periode: Oktober 2026 | Cut-off: " + selectedDate, { x: 0.8, y: 3.2, fontSize: 14, color: "F8FAFC" });
 
       const slide2 = pptx.addSlide();
       slide2.addText("CORE KPI METRICS (TARGET VS PENCAPAIAN)", { x: 0.5, y: 0.5, fontSize: 20, bold: true, color: "0F172A" });
@@ -1671,14 +1671,27 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
   if (!isMounted) return null;
 
+  // Tema Clean Glassmorphism (Navy Glass vs Soft Light Gray Glass)
   const isDark = theme === "dark";
-  const bgMain = isDark ? "bg-[#1A1831]" : "bg-[#F9F8F3]";
-  const textMain = isDark ? "text-[#FFF6E9]" : "text-[#1E293B]";
-  const textMuted = isDark ? "text-[#FFF6E9]/70" : "text-slate-600";
-  const cardBg = isDark ? "bg-[#221F40] border-[#3B3666]" : "bg-white border-[#E5E2D9] shadow-sm";
-  const innerBg = isDark ? "bg-[#141226] border-[#3B3666]" : "bg-[#F2EFE9] border-[#E5E2D9]";
-  const accentText = isDark ? "text-[#F5BA42]" : "text-[#054ff0]";
-  const activeTabBtn = isDark ? "bg-[#F5BA42] text-[#1A1831] font-black shadow-md" : "bg-[#054ff0] text-white font-black shadow-md";
+  const bgMain = isDark 
+    ? "bg-[#0A1128] bg-gradient-to-br from-[#070D1E] via-[#0A1128] to-[#0F1B3D]" 
+    : "bg-[#F3F4F6] bg-gradient-to-br from-[#F8FAFC] via-[#F1F5F9] to-[#E2E8F0]";
+
+  const textMain = isDark ? "text-slate-100" : "text-slate-800";
+  const textMuted = isDark ? "text-slate-400" : "text-slate-500";
+
+  const cardBg = isDark 
+    ? "bg-[#0E1A38]/70 backdrop-blur-xl border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.35)]" 
+    : "bg-white/80 backdrop-blur-xl border border-slate-200/80 shadow-[0_8px_30px_rgb(0,0,0,0.04)]";
+
+  const innerBg = isDark 
+    ? "bg-[#14234B]/50 backdrop-blur-md border border-white/5" 
+    : "bg-slate-100/70 backdrop-blur-md border border-slate-200/60";
+
+  const accentText = isDark ? "text-sky-400" : "text-blue-600";
+  const activeTabBtn = isDark 
+    ? "bg-sky-500 text-white font-extrabold shadow-lg shadow-sky-500/25 border border-sky-400/30" 
+    : "bg-blue-600 text-white font-extrabold shadow-lg shadow-blue-600/20";
 
   if (!isLoggedIn) {
     return (
@@ -1690,7 +1703,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               alt="Logo Digiplus" 
               className="w-16 h-16 object-contain rounded-2xl bg-white p-1 shadow-md mb-2"
             />
-            <h2 className="font-black text-2xl text-black tracking-wider mb-2">
+            <h2 className="font-black text-2xl tracking-wider mb-1">
               QF01
             </h2>
             <h1 className="text-xl font-bold">DIGIPLUS GRAND INDONESIA</h1>
@@ -1728,7 +1741,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
             <button
               type="submit"
-              className={`w-full py-3.5 ${isDark ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#054ff0] text-white"} font-black rounded-xl text-xs uppercase tracking-wider transition mt-2 shadow-lg`}
+              className={`w-full py-3.5 ${isDark ? "bg-sky-500 text-white" : "bg-blue-600 text-white"} font-black rounded-xl text-xs uppercase tracking-wider transition mt-2 shadow-lg`}
             >
               Masuk Dashboard
             </button>
@@ -1743,7 +1756,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
       <div className="lg:hidden fixed bottom-5 right-5 z-40 print:hidden">
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className={`w-14 h-14 rounded-full ${isDark ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#054ff0] text-white"} font-black text-2xl flex items-center justify-center shadow-2xl transition active:scale-95`}
+          className={`w-14 h-14 rounded-full ${isDark ? "bg-sky-500 text-white" : "bg-blue-600 text-white"} font-black text-2xl flex items-center justify-center shadow-2xl transition active:scale-95`}
         >
           {mobileMenuOpen ? "✕" : "☰"}
         </button>
@@ -1753,15 +1766,15 @@ _Diperbarui via Digiplus Store Operations Engine._`;
         <div onClick={() => setMobileMenuOpen(false)} className="lg:hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-40 print:hidden" />
       )}
 
-      {/* SIDEBAR */}
+      {/* SIDEBAR CLEAN GLASS */}
       <aside
         className={`fixed lg:sticky top-0 h-screen z-50 transition-transform duration-300 print:hidden ${
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        } w-72 ${isDark ? "bg-[#141226] border-[#3B3666]" : "bg-[#F2EFE9] border-[#E5E2D9]"} border-r flex flex-col justify-between shrink-0 shadow-2xl lg:shadow-none`}
+        } w-72 ${isDark ? "bg-[#09122A]/80 border-white/10" : "bg-white/70 border-slate-200/80"} backdrop-blur-2xl border-r flex flex-col justify-between shrink-0 shadow-2xl lg:shadow-none`}
       >
         <div className="p-4 overflow-y-auto">
           <div className="flex items-center gap-3 pb-4 border-b border-inherit">
-            <div className={`w-10 h-10 ${isDark ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#054ff0] text-white"} rounded-xl flex items-center justify-center font-black text-lg`}>
+            <div className={`w-10 h-10 ${isDark ? "bg-sky-500 text-white" : "bg-blue-600 text-white"} rounded-xl flex items-center justify-center font-black text-lg`}>
               QF10
             </div>
             <div>
@@ -1814,7 +1827,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               <button
                 onClick={handleExportToPptx}
                 disabled={isExportingPptx}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-500/40 text-[#F5BA42] font-black text-xs shadow-md transition active:scale-95"
+                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-gradient-to-r from-sky-500/20 to-blue-500/20 hover:from-sky-500/30 hover:to-blue-500/30 border border-sky-500/40 text-sky-400 font-black text-xs shadow-md transition active:scale-95"
               >
                 <span>📽️</span>
                 <span>{isExportingPptx ? "Membuat Slide..." : "Export ke Slide PPTX"}</span>
@@ -2081,7 +2094,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                         <span className={`font-bold ${accentText}`}>77.4%</span>
                       </div>
                       <div className={`w-full ${innerBg} h-2.5 rounded-full overflow-hidden`}>
-                        <div className={`${isDark ? "bg-[#F5BA42]" : "bg-[#054ff0]"} h-full rounded-full`} style={{ width: "77.4%" }}></div>
+                        <div className="bg-sky-500 h-full rounded-full" style={{ width: "77.4%" }}></div>
                       </div>
                     </div>
 
@@ -2215,70 +2228,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     </table>
                   </div>
                 </div>
-
-                <div className={`p-4 sm:p-6 ${cardBg} border rounded-3xl shadow-xl`}>
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-base font-bold">🏆 Rank Sales per Staff & UPT ({periodType.toUpperCase()} Terfilter)</h3>
-                  </div>
-                  <div className="w-full space-y-3">
-                    {staffList.map((s: any) => (
-                      <div 
-                        key={s.salesId} 
-                        className={`p-3.5 rounded-2xl ${innerBg} border border-white/10 flex flex-col gap-2.5 shadow-md`}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-3">
-                            <span 
-                              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
-                                s.rank === 1 
-                                  ? isDark ? "bg-[#F5BA42] text-[#1A1031]" : "bg-[#054ff0] text-white" 
-                                  : "opacity-60 text-white"
-                              }`}
-                            >
-                              {s.rank}
-                            </span>
-                            <div>
-                              <h4 className="text-xs sm:text-sm font-bold text-white leading-tight">
-                                {s.name}
-                              </h4>
-                              <p className="text-[10px] opacity-60 font-mono mt-0.5">
-                                ID: {s.salesId}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="text-right">
-                            <p className="text-xs sm:text-sm font-extrabold text-emerald-400 whitespace-nowrap">
-                              {formatIDR(s.actual)}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-2 pt-2 border-t border-white/10 text-center">
-                          <div className="bg-black/20 py-1.5 px-2 rounded-xl">
-                            <span className="text-[9px] opacity-60 block uppercase font-medium">Unit</span>
-                            <span className="text-xs font-bold text-sky-400">{s.qty}</span>
-                          </div>
-                          <div className="bg-black/20 py-1.5 px-2 rounded-xl">
-                            <span className="text-[9px] opacity-60 block uppercase font-medium">Struk</span>
-                            <span className="text-xs font-bold text-slate-200">{s.invoicesCount}</span>
-                          </div>
-                          <div className="bg-black/20 py-1.5 px-2 rounded-xl">
-                            <span className="text-[9px] opacity-60 block uppercase font-medium">UPT</span>
-                            <span className="text-xs font-bold text-sky-400">{s.upt}</span>
-                          </div>
-                        </div>
-
-                        <button
-                          onClick={() => openStaffDetailSheet(s)}
-                          className={`w-full py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center ${activeTabBtn}`}
-                        >
-                          Detail Drilldown
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
               </div>
             )}
 
@@ -2293,7 +2242,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                         <span>WEEKLY SALES & WEEK-OVER-WEEK (WOW) DARI DATABASE KOLOM O</span>
                       </h2>
                       <p className={`text-xs ${textMuted} mt-1`}>
-                        Mendeteksi seluruh minggu otomatis dari Kolom O sheet <code>DATABASE</code> (termasuk W5 dan minggu mendatang).
+                        Mendeteksi seluruh minggu otomatis dari Kolom O sheet <code>DATABASE</code>.
                       </p>
                     </div>
 
@@ -2365,7 +2314,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                             <td className="py-4 px-4 text-center opacity-70">{w.invCount}</td>
                             <td className="py-4 px-4 text-right font-mono opacity-80">{formatIDR(w.target)}</td>
                             <td className="py-4 px-4 text-right font-extrabold text-emerald-400 text-sm">{formatIDR(w.sales)}</td>
-                            <td className="py-4 px-4 text-center font-bold text-amber-400">{w.achv}%</td>
+                            <td className="py-4 px-4 text-center font-bold text-sky-400">{w.achv}%</td>
                             <td className="py-4 px-4 text-center font-bold">
                               {i === 0 ? (
                                 <span className="opacity-50">Baseline</span>
@@ -2392,99 +2341,168 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               </div>
             )}
 
-            {/* TAB 3: STAFF PERFORMANCE DETAIL */}
+            {/* TAB 3: STAFF PERFORMANCE DETAIL - CLEAN CARD STYLE */}
             {activeTab === "staff-performance" && (
-              <div className="space-y-6 sm:space-y-8">
+              <div className="space-y-6">
                 <div className="flex flex-wrap items-center justify-between gap-4">
-                  <h2 className="text-base sm:text-lg font-black tracking-wide flex items-center gap-2">
-                    <span>👥</span>
-                    <span>RINCIAN DETAIL SELURUH STAF SALES ({staffList.length} ORANG)</span>
-                  </h2>
+                  <div>
+                    <h2 className="text-base sm:text-lg font-black tracking-wide flex items-center gap-2">
+                      <span>🏆</span>
+                      <span>STAFF PERFORMANCE LEADERBOARD ({staffList.length} STAF)</span>
+                    </h2>
+                    <p className={`text-xs ${textMuted} mt-0.5`}>
+                      Evaluasi pencapaian target, UPT, ATV, rincian kategori produk, dan poin reward staf.
+                    </p>
+                  </div>
                 </div>
 
-                {staffList.map((staff) => (
-                  <div key={staff.salesId} className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl relative overflow-hidden space-y-5`}>
-                    <div className="flex flex-wrap justify-between items-start gap-4 pb-4 border-b border-inherit">
-                      <div className="flex items-center gap-3">
-                        <div className="relative">
-                          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl tracking-wider shadow-lg ${staff.rank === 1 ? "bg-amber-500/20 border-2 border-[#F5BA42] text-[#F5BA42]" : `${innerBg} border`}`}>
-                            {staff.initials}
-                          </div>
-                          <span className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full inline-flex items-center justify-center font-black text-xs ${
-                            staff.rank === 1 ? (isDark ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#054ff0] text-white") : `${innerBg} border`
-                          }`}>
-                            #{staff.rank}
-                          </span>
-                        </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {staffList.map((staff: any) => {
+                    const appleTotal = staff.appleSub.reduce((acc: number, c: any) => acc + (Number(c.actual) || 0), 0);
+                    const androidTotal = staff.androidSub.reduce((acc: number, c: any) => acc + (Number(c.actual) || 0), 0);
+                    const accTotal = staff.totalAccActual || 0;
+                    const vasTotal = staff.totalVasActual || 0;
 
-                        <div>
-                          <h3 className="text-lg sm:text-xl font-black flex items-center gap-2">
-                            <span>{staff.name}</span>
-                            {staff.rank === 1 && (
-                              <span className={`text-[10px] ${isDark ? "bg-[#F5BA42] text-[#1A1831]" : "bg-[#054ff0] text-white"} px-2 py-0.5 rounded-full font-black uppercase`}>
-                                Top 1 👑
-                              </span>
-                            )}
-                          </h3>
-                          <p className={`text-xs ${textMuted} font-mono`}>ID Staf: {staff.salesId} • {staff.invoicesCount} Struk Terbit</p>
-                        </div>
-                      </div>
+                    const atvVal = staff.invoicesCount > 0 ? Math.round(staff.actual / staff.invoicesCount) : 0;
+                    const formatCompactATV = (num: number) => {
+                      if (num >= 1000000) {
+                        return `Rp ${(num / 1000000).toFixed(1)}...`;
+                      }
+                      return formatIDR(num);
+                    };
 
-                      <div className="flex flex-wrap items-center gap-2 text-right">
-                        <div className={`px-3 py-1.5 rounded-xl border ${innerBg}`}>
-                          <span className="text-[9px] opacity-60 uppercase block">Actual Omset</span>
-                          <span className="text-xs sm:text-sm font-black text-emerald-400">{formatIDR(staff.actual)}</span>
-                        </div>
-                        <div className={`px-3 py-1.5 rounded-xl border ${innerBg}`}>
-                          <span className="text-[9px] opacity-60 uppercase block">UPT Staf</span>
-                          <span className="text-xs sm:text-sm font-black text-sky-400">{staff.upt}</span>
-                        </div>
-                      </div>
-                    </div>
+                    const rewardPoints = Math.min(100, Math.max(0, Number(((staff.achievement * 0.6) + (staff.upt * 10)).toFixed(1))));
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                      <div className={`p-3 rounded-xl border ${innerBg}`}>
-                        <span className={`font-bold ${accentText} block mb-1`}>📌 Evaluasi Kinerja:</span>
-                        <p className="opacity-80 leading-relaxed">{staff.ringkasan}</p>
-                      </div>
-                      <div className={`p-3 rounded-xl border ${innerBg}`}>
-                        <span className="font-bold text-emerald-400 block mb-1">⚡ Rekomendasi Tindakan:</span>
-                        <p className="opacity-80 leading-relaxed">{staff.rekomendasi}</p>
-                      </div>
-                    </div>
+                    const isProductive = staff.achievement >= 90;
+                    const badgeText = isProductive ? "Productive" : staff.achievement >= 60 ? "On Track" : "Need Focus";
+                    const badgeColor = isProductive
+                      ? "bg-emerald-500/15 text-emerald-400 border border-emerald-400/30"
+                      : staff.achievement >= 60
+                      ? "bg-amber-500/15 text-amber-400 border border-amber-400/30"
+                      : "bg-rose-500/15 text-rose-400 border border-rose-400/30";
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className={`p-4 rounded-2xl border ${innerBg}`}>
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
-                            <span>🔌</span>
-                            <span>Accessories Pencapaian</span>
-                          </span>
-                          <span className="text-xs font-black text-amber-400">{formatIDR(staff.totalAccActual)}</span>
-                        </div>
-                      </div>
-
-                      <div className={`p-4 rounded-2xl border ${innerBg}`}>
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-xs font-bold text-purple-400 flex items-center gap-1.5">
-                            <span>🛡️</span>
-                            <span>VAS Pencapaian</span>
-                          </span>
-                          <span className="text-xs font-black text-purple-400">{formatIDR(staff.totalVasActual)}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="pt-2 flex justify-end">
-                      <button
+                    return (
+                      <div
+                        key={staff.salesId}
                         onClick={() => openStaffDetailSheet(staff)}
-                        className={`px-4 py-2.5 rounded-xl text-xs font-black transition flex items-center gap-1.5 ${activeTabBtn}`}
+                        className={`${cardBg} rounded-3xl transition-all duration-300 hover:-translate-y-1 hover:border-sky-400/40 overflow-hidden relative flex flex-col justify-between cursor-pointer`}
                       >
-                        <span>Detail &gt;</span>
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                        {/* Aksen Garis Hijau di Atas Card */}
+                        <div className="h-1.5 w-full bg-[#10B981] shadow-sm shadow-emerald-500/30" />
+
+                        <div className="p-6 space-y-5">
+                          {/* Header: Avatar, Nama, Role & Badge Status */}
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-3.5">
+                              <div className={`w-14 h-14 rounded-full ${isDark ? "bg-sky-500/20 text-sky-300 border border-sky-400/30" : "bg-blue-50 text-blue-600 border border-blue-200"} shadow-sm flex items-center justify-center font-black text-lg shrink-0 overflow-hidden`}>
+                                {staff.initials}
+                              </div>
+                              <div>
+                                <h3 className={`text-base font-extrabold leading-tight ${textMain}`}>
+                                  {staff.name}
+                                </h3>
+                                <p className={`text-xs font-medium mt-0.5 ${textMuted}`}>
+                                  Senior Sales Specialist
+                                </p>
+                              </div>
+                            </div>
+
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold tracking-wide shrink-0 ${badgeColor}`}>
+                              {badgeText}
+                            </span>
+                          </div>
+
+                          <div className={`border-t ${isDark ? "border-white/10" : "border-slate-200/70"}`} />
+
+                          {/* Total Penjualan, Target & Progress Bar */}
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-baseline">
+                              <span className={`text-xs font-medium ${textMuted}`}>Total Penjualan:</span>
+                              <span className={`text-base sm:text-lg font-black ${textMain}`}>
+                                {formatIDR(staff.actual)}
+                              </span>
+                            </div>
+
+                            <div className="flex justify-between items-baseline text-xs">
+                              <span className={`font-medium ${textMuted}`}>
+                                Target: {formatIDR(staff.target)}
+                              </span>
+                              <span className="font-extrabold text-[#10B981]">
+                                {staff.achievement}%
+                              </span>
+                            </div>
+
+                            {/* Bar Hijau Persentase Pencapaian */}
+                            <div className={`w-full h-2.5 rounded-full overflow-hidden ${innerBg}`}>
+                              <div
+                                className="h-full bg-[#10B981] rounded-full transition-all duration-500 shadow-sm shadow-emerald-500/50"
+                                style={{ width: `${Math.min(staff.achievement, 100)}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className={`border-t ${isDark ? "border-white/10" : "border-slate-200/70"}`} />
+
+                          {/* 3 Box Metrik: UPT, ATV, Trx */}
+                          <div className="grid grid-cols-3 gap-2.5">
+                            <div className={`${innerBg} py-3 px-2 rounded-2xl text-center`}>
+                              <span className={`text-[10px] font-bold block uppercase tracking-wider ${textMuted}`}>UPT</span>
+                              <span className={`text-sm font-black mt-0.5 block ${textMain}`}>{staff.upt}</span>
+                            </div>
+
+                            <div className={`${innerBg} py-3 px-2 rounded-2xl text-center`}>
+                              <span className={`text-[10px] font-bold block uppercase tracking-wider ${textMuted}`}>ATV</span>
+                              <span className={`text-xs sm:text-sm font-black mt-0.5 block truncate ${textMain}`}>
+                                {formatCompactATV(atvVal)}
+                              </span>
+                            </div>
+
+                            <div className={`${innerBg} py-3 px-2 rounded-2xl text-center`}>
+                              <span className={`text-[10px] font-bold block uppercase tracking-wider ${textMuted}`}>Trx</span>
+                              <span className={`text-sm font-black mt-0.5 block ${textMain}`}>{staff.invoicesCount}</span>
+                            </div>
+                          </div>
+
+                          {/* Rincian Kategori Produk */}
+                          <div className="space-y-2 pt-1 text-xs">
+                            <div className="flex justify-between items-center">
+                              <span className={`font-medium ${textMuted}`}>Apple:</span>
+                              <span className={`font-bold ${textMain}`}>{formatIDR(appleTotal)}</span>
+                            </div>
+
+                            <div className="flex justify-between items-center">
+                              <span className={`font-medium ${textMuted}`}>Android:</span>
+                              <span className={`font-bold ${textMain}`}>{formatIDR(androidTotal)}</span>
+                            </div>
+
+                            <div className="flex justify-between items-center">
+                              <span className={`font-medium ${textMuted}`}>Aksesoris:</span>
+                              <span className={`font-bold ${textMain}`}>{formatIDR(accTotal)}</span>
+                            </div>
+
+                            <div className="flex justify-between items-center">
+                              <span className={`font-medium ${textMuted}`}>VAS / Warranty:</span>
+                              <span className={`font-bold ${textMain}`}>{formatIDR(vasTotal)}</span>
+                            </div>
+                          </div>
+
+                          <div className={`border-t ${isDark ? "border-white/10" : "border-slate-200/70"}`} />
+
+                          {/* Bagian Bawah: Poin Reward */}
+                          <div className="flex justify-between items-center pt-1">
+                            <div className={`flex items-center gap-1.5 text-xs font-semibold ${textMuted}`}>
+                              <span>🎗️</span>
+                              <span>Poin Reward</span>
+                            </div>
+                            <span className="text-sm font-extrabold text-sky-400">
+                              {rewardPoints} pts
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
@@ -2513,59 +2531,59 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className={`p-4 rounded-2xl border ${isDark ? "bg-[#141226] border-[#3B3666]" : "bg-white border-slate-200 shadow-sm"}`}>
-                      <span className="text-[11px] font-bold text-[#475569] uppercase block tracking-wider">
+                    <div className={`p-4 rounded-2xl border ${innerBg}`}>
+                      <span className={`text-[11px] font-bold ${textMuted} uppercase block tracking-wider`}>
                         TARGET TOKO HARI INI
                       </span>
-                      <div className="text-2xl font-black text-[#0F172A] dark:text-[#FFF6E9] mt-1">
+                      <div className={`text-2xl font-black mt-1 ${textMain}`}>
                         {formatIDR(dailyTargetCalculated.targetStoreToday)}
                       </div>
-                      <span className="text-[11px] font-bold text-[#B45309] dark:text-amber-400 mt-1 block">
+                      <span className="text-[11px] font-bold text-amber-400 mt-1 block">
                         Wajib Dikejar per Hari
                       </span>
                     </div>
 
-                    <div className={`p-4 rounded-2xl border ${isDark ? "bg-[#141226] border-[#3B3666]" : "bg-white border-slate-200 shadow-sm"}`}>
-                      <span className="text-[11px] font-bold text-[#475569] uppercase block tracking-wider">
+                    <div className={`p-4 rounded-2xl border ${innerBg}`}>
+                      <span className={`text-[11px] font-bold ${textMuted} uppercase block tracking-wider`}>
                         PENCAPAIAN HARI INI
                       </span>
-                      <div className="text-2xl font-black text-[#047857] dark:text-emerald-400 mt-1">
+                      <div className="text-2xl font-black text-emerald-400 mt-1">
                         {formatIDR(dailyTargetCalculated.actualToday)}
                       </div>
                       <span className={`text-[11px] font-bold mt-1 inline-block px-2.5 py-0.5 rounded ${
                         dailyTargetCalculated.actualToday >= dailyTargetCalculated.targetStoreToday 
-                          ? "bg-emerald-100 text-[#047857]" 
-                          : "bg-[#FEE2E2] text-[#991B1B]"
+                          ? "bg-emerald-500/15 text-emerald-400 border border-emerald-400/30" 
+                          : "bg-rose-500/15 text-rose-400 border border-rose-400/30"
                       }`}>
                         {dailyTargetCalculated.actualToday >= dailyTargetCalculated.targetStoreToday ? "Tercapai" : "Belum Tercapai"} ({dailyTargetCalculated.achvToday}%)
                       </span>
                     </div>
 
-                    <div className={`p-4 rounded-2xl border ${isDark ? "bg-[#141226] border-[#3B3666]" : "bg-white border-slate-200 shadow-sm"}`}>
-                      <span className="text-[11px] font-bold text-[#475569] uppercase block tracking-wider">
+                    <div className={`p-4 rounded-2xl border ${innerBg}`}>
+                      <span className={`text-[11px] font-bold ${textMuted} uppercase block tracking-wider`}>
                         TARGET PER STAF HARI INI
                       </span>
-                      <div className="text-2xl font-black text-[#0369A1] dark:text-sky-400 mt-1">
-                        {formatIDR(dailyTargetPerStaffToday)}
+                      <div className="text-2xl font-black text-sky-400 mt-1">
+                        {formatIDR(dailyTargetCalculated.targetPerStaffToday)}
                       </div>
-                      <span className="text-[11px] text-[#64748B] mt-1 block">
+                      <span className={`text-[11px] ${textMuted} mt-1 block`}>
                         Dibagi {dailyTargetCalculated.staffCount} Staf Bertugas
                       </span>
                     </div>
                   </div>
 
                   <div className="space-y-2 pt-2">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#475569] dark:text-slate-300">
+                    <h3 className={`text-xs font-bold uppercase tracking-wider ${textMuted}`}>
                       DAFTAR STAF BERTUGAS HARI INI & KUOTA TARGET:
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
                       {dailyTargetCalculated.staffOnDuty.map((s) => (
-                        <div key={s.id} className={`p-3 rounded-xl border flex justify-between items-center ${isDark ? "bg-[#141226] border-[#3B3666]" : "bg-[#F8FAFC] border-slate-200"}`}>
+                        <div key={s.id} className={`p-3 rounded-xl border flex justify-between items-center ${innerBg}`}>
                           <div>
-                            <span className="font-bold text-xs text-[#0F172A] dark:text-white block">{s.name}</span>
-                            <span className="text-[10px] text-[#64748B]">{s.role}</span>
+                            <span className={`font-bold text-xs ${textMain} block`}>{s.name}</span>
+                            <span className={`text-[10px] ${textMuted}`}>{s.role}</span>
                           </div>
-                          <span className="font-mono font-bold text-xs text-[#0F172A] dark:text-[#F5BA42]">
+                          <span className={`font-mono font-bold text-xs ${accentText}`}>
                             {formatIDR(dailyTargetCalculated.targetPerStaffToday)}
                           </span>
                         </div>
@@ -2574,7 +2592,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                   </div>
 
                   <div className="pt-4 border-t border-inherit space-y-3">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#475569] dark:text-slate-300">
+                    <h3 className={`text-xs font-bold uppercase tracking-wider ${textMuted}`}>
                       RIWAYAT PENCAPAIAN TANGGAL BERJALAN (1 - 31 OKT):
                     </h3>
                     <div className="overflow-x-auto rounded-2xl border border-inherit">
@@ -2595,19 +2613,19 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                               <tr key={i} className="hover:opacity-90">
                                 <td className="py-2.5 px-3 font-bold">{d.dayLabel} (Hari {i + 1})</td>
                                 <td className="py-2.5 px-3 text-right font-mono opacity-70">{formatIDR(d.target)}</td>
-                                <td className="py-2.5 px-3 text-right font-extrabold text-[#047857] dark:text-emerald-400">{formatIDR(d.actual)}</td>
+                                <td className="py-2.5 px-3 text-right font-extrabold text-emerald-400">{formatIDR(d.actual)}</td>
                                 <td className="py-2.5 px-3 text-center">
                                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                                     pAchv >= 100 
-                                      ? "bg-emerald-100 text-[#047857]" 
+                                      ? "bg-emerald-500/15 text-emerald-400" 
                                       : pAchv >= 70 
-                                      ? "bg-amber-100 text-[#B45309]" 
-                                      : "bg-[#FEE2E2] text-[#991B1B]"
+                                      ? "bg-amber-500/15 text-amber-400" 
+                                      : "bg-rose-500/15 text-rose-400"
                                   }`}>
                                     {pAchv}%
                                   </span>
                                 </td>
-                                <td className={`py-2.5 px-3 text-right font-mono font-bold ${d.gap >= 0 ? "text-[#047857] dark:text-emerald-400" : "text-[#991B1B] dark:text-red-400"}`}>
+                                <td className={`py-2.5 px-3 text-right font-mono font-bold ${d.gap >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                                   {formatIDR(d.gap)}
                                 </td>
                               </tr>
@@ -2686,7 +2704,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                       <tbody className="divide-y divide-inherit font-medium">
                         {scheduleData.map((s) => (
                           <tr key={s.id} className="hover:opacity-90 transition">
-                            <td className="py-3 px-4 font-bold text-white">{s.name}</td>
+                            <td className="py-3 px-4 font-bold">{s.name}</td>
                             <td className="py-3 px-3 opacity-70 text-[11px]">{s.role}</td>
                             {(["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const).map((dayKey) => {
                               const shift = s[dayKey];
@@ -2775,7 +2793,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
                       <button
                         onClick={() => setFeedbackModalOpen(true)}
-                        className="px-4 py-2 rounded-xl bg-[#0052FF] hover:bg-blue-700 text-white text-xs font-bold transition shadow-lg shadow-blue-500/20 active:scale-95"
+                        className="px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold transition shadow-lg shadow-sky-500/20 active:scale-95"
                       >
                         + Tulis Feedback Baru
                       </button>
@@ -2788,13 +2806,11 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                       .map((fb) => (
                         <div
                           key={fb.id}
-                          className={`p-4 sm:p-5 rounded-2xl border transition-all ${
-                            isDark ? "bg-[#141226] border-[#3B3666]" : "bg-[#FAF9F5] border-[#E5E2D9] shadow-sm"
-                          }`}
+                          className={`p-4 sm:p-5 rounded-2xl border transition-all ${innerBg}`}
                         >
                           <div className="flex flex-wrap justify-between items-start gap-2 mb-3">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-blue-500/20 text-blue-400 font-bold flex items-center justify-center text-xs border border-blue-400/40">
+                              <div className="w-10 h-10 rounded-full bg-sky-500/20 text-sky-400 font-bold flex items-center justify-center text-xs border border-sky-400/40">
                                 {fb.initials}
                               </div>
                               <div>
@@ -2812,7 +2828,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                                   ? "bg-emerald-500/15 text-emerald-400 border-emerald-400/30"
                                   : fb.sentiment === "Cukup Baik"
                                   ? "bg-amber-500/15 text-amber-400 border-amber-400/30"
-                                  : "bg-red-500/15 text-red-400 border-red-400/30"
+                                  : "bg-rose-500/15 text-rose-400 border-rose-400/30"
                               }`}
                             >
                               {fb.sentiment}
@@ -2820,9 +2836,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                           </div>
 
                           <div
-                            className={`p-3.5 rounded-xl border text-xs leading-relaxed ${
-                              isDark ? "bg-[#1E1B38] border-[#3B3666] text-[#FFF6E9]" : "bg-white border-[#EAE7DC] text-[#1E293B]"
-                            }`}
+                            className={`p-3.5 rounded-xl border text-xs leading-relaxed ${cardBg}`}
                           >
                             {fb.text}
                           </div>
@@ -2842,7 +2856,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                                   onClick={() => handleToggleReaction(fb.id, btn.key)}
                                   className={`px-2.5 py-1 rounded-full text-xs font-bold border transition flex items-center gap-1 active:scale-90 ${
                                     isClicked
-                                      ? "bg-blue-500/20 text-blue-400 border-blue-400 shadow-sm"
+                                      ? "bg-sky-500/20 text-sky-400 border-sky-400 shadow-sm"
                                       : `${innerBg} border-inherit opacity-70 hover:opacity-100`
                                   }`}
                                 >
@@ -2860,7 +2874,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                 {/* MODAL INPUT FEEDBACK */}
                 {feedbackModalOpen && (
                   <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-                    <div className={`w-full max-w-lg rounded-3xl ${cardBg} border-2 border-[#3B3666] p-6 shadow-2xl space-y-4`}>
+                    <div className={`w-full max-w-lg rounded-3xl ${cardBg} border-2 border-white/10 p-6 shadow-2xl space-y-4`}>
                       <div className="flex justify-between items-center pb-3 border-b border-inherit">
                         <h3 className="font-bold text-sm flex items-center gap-2">
                           <span>✍️</span>
@@ -2936,7 +2950,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                           </button>
                           <button
                             type="submit"
-                            className="px-5 py-2 rounded-xl bg-[#0052FF] hover:bg-blue-700 text-white font-bold"
+                            className="px-5 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-bold"
                           >
                             Kirim Feedback
                           </button>
@@ -3183,7 +3197,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                   value={productSearchQuery}
                   onChange={(e) => setProductSearchQuery(e.target.value)}
                   placeholder="Ketik kode artikel SAP atau nama produk (contoh: iPhone 17, Casing, 102938)..."
-                  className={`w-full p-3.5 pl-10 rounded-xl ${innerBg} border text-sm text-white focus:outline-none focus:border-amber-400`}
+                  className={`w-full p-3.5 pl-10 rounded-xl ${innerBg} border text-sm text-white focus:outline-none focus:border-sky-400`}
                 />
                 <span className="absolute left-3.5 top-3.5 text-slate-400">🔎</span>
               </div>
@@ -3206,7 +3220,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className={`p-5 ${cardBg} border rounded-2xl`}>
                       <span className="text-xs text-slate-400 uppercase font-semibold">Total Unit Terjual</span>
-                      <p className="text-2xl font-black text-amber-400 mt-1">{totalQty.toLocaleString("id-ID")} Qty</p>
+                      <p className="text-2xl font-black text-sky-400 mt-1">{totalQty.toLocaleString("id-ID")} Qty</p>
                     </div>
                     <div className={`p-5 ${cardBg} border rounded-2xl`}>
                       <span className="text-xs text-slate-400 uppercase font-semibold">Total Nilai Penjualan (Amount)</span>
@@ -3235,7 +3249,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                                 {item.salesName || "-"}
                                 <span className="block text-[10px] text-slate-400 font-normal">{item.salesId}</span>
                               </td>
-                              <td className="py-3 px-4 font-mono text-amber-400">{item.sapArticle || "-"}</td>
+                              <td className="py-3 px-4 font-mono text-sky-400">{item.sapArticle || "-"}</td>
                               <td className="py-3 px-4 max-w-xs">{item.productName || "-"}</td>
                               <td className="py-3 px-4 text-center font-bold text-sky-400">{item.qty || 0}</td>
                               <td className="py-3 px-4 text-right font-bold text-emerald-400">
@@ -3264,39 +3278,39 @@ _Diperbarui via Digiplus Store Operations Engine._`;
         {/* TAB 11: ANALISIS MoM GROWTH */}
         {activeTab === "mom-comparison" && (
           <div className="space-y-6">
-            <div className="bg-[#181a24] p-5 rounded-2xl border border-slate-800 flex flex-wrap items-center justify-between gap-4">
+            <div className={`${cardBg} p-5 rounded-2xl border flex flex-wrap items-center justify-between gap-4`}>
               <div>
-                <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <h2 className={`text-base font-bold ${textMain} flex items-center gap-2`}>
                   <span>📈</span> Analisis MoM Growth vs Disgrowth
                 </h2>
-                <p className="text-xs text-slate-400 mt-0.5">Bandingkan performa LOB dan produktivitas sales antar 2 periode bulan</p>
+                <p className={`text-xs ${textMuted} mt-0.5`}>Bandingkan performa LOB dan produktivitas sales antar 2 periode bulan</p>
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-700">
-                  <span className="text-[11px] text-slate-400 font-medium">Bulan Analisis:</span>
+                <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
+                  <span className={`text-[11px] ${textMuted} font-medium`}>Bulan Analisis:</span>
                   <select
                     value={momBaseMonth}
                     onChange={(e) => setMomBaseMonth(e.target.value)}
-                    className="bg-transparent text-amber-400 font-bold text-xs focus:outline-none"
+                    className={`bg-transparent ${accentText} font-bold text-xs focus:outline-none`}
                   >
                     {availableMonths.map((m) => (
-                      <option key={`base-${m}`} value={m} className="bg-slate-900 text-white">{m}</option>
+                      <option key={`base-${m}`} value={m} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-800"}>{m}</option>
                     ))}
                   </select>
                 </div>
 
-                <span className="text-xs font-bold text-slate-500">VS</span>
+                <span className="text-xs font-bold opacity-60">VS</span>
 
-                <div className="flex items-center gap-2 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-700">
-                  <span className="text-[11px] text-slate-400 font-medium">Pembanding:</span>
+                <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
+                  <span className={`text-[11px] ${textMuted} font-medium`}>Pembanding:</span>
                   <select
                     value={momCompareMonth}
                     onChange={(e) => setMomCompareMonth(e.target.value)}
-                    className="bg-transparent text-slate-200 font-bold text-xs focus:outline-none"
+                    className={`bg-transparent ${textMain} font-bold text-xs focus:outline-none`}
                   >
                     {availableMonths.map((m) => (
-                      <option key={`cmp-${m}`} value={m} className="bg-slate-900 text-white">{m}</option>
+                      <option key={`cmp-${m}`} value={m} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-800"}>{m}</option>
                     ))}
                   </select>
                 </div>
@@ -3348,14 +3362,14 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                   <div
                     key={idx}
                     onClick={handleCardClick}
-                    className={`bg-[#181a24] p-4 rounded-xl border border-slate-800 flex flex-col justify-between transition-all ${
-                      isClickable ? "cursor-pointer hover:border-amber-400/60 hover:bg-[#1e2230] hover:scale-[1.01]" : ""
+                    className={`${cardBg} p-4 rounded-xl border flex flex-col justify-between transition-all ${
+                      isClickable ? "cursor-pointer hover:border-sky-400/60 hover:scale-[1.01]" : ""
                     }`}
                   >
                     <div className="flex justify-between items-start">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-medium text-slate-400">{item.label}</span>
-                        {isClickable && <span className="text-[10px] text-amber-400 font-bold bg-amber-400/10 px-1.5 py-0.5 rounded">Tap Rincian 🔍</span>}
+                        <span className={`text-xs font-medium ${textMuted}`}>{item.label}</span>
+                        {isClickable && <span className="text-[10px] text-sky-400 font-bold bg-sky-500/10 px-1.5 py-0.5 rounded border border-sky-400/20">Tap Rincian 🔍</span>}
                       </div>
                       <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${
                         item.growth >= 0 ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
@@ -3365,10 +3379,10 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     </div>
 
                     <div className="mt-3">
-                      <div className="text-lg font-extrabold text-white">
+                      <div className={`text-lg font-extrabold ${textMain}`}>
                         {item.isCurrency ? `Rp ${item.base.toLocaleString("id-ID")}` : item.base.toFixed(2)}
                       </div>
-                      <div className="text-[11px] text-slate-400 mt-1 flex justify-between">
+                      <div className={`text-[11px] ${textMuted} mt-1 flex justify-between`}>
                         <span>{momCompareMonth}: {item.isCurrency ? `Rp ${item.compare.toLocaleString("id-ID")}` : item.compare.toFixed(2)}</span>
                         <span className={item.diff >= 0 ? "text-emerald-400" : "text-rose-400"}>
                           {item.diff >= 0 ? "+" : ""}{item.isCurrency ? `Rp ${item.diff.toLocaleString("id-ID")}` : item.diff.toFixed(2)}
@@ -3381,18 +3395,18 @@ _Diperbarui via Digiplus Store Operations Engine._`;
             </div>
 
             {/* Tabel Performa Sales Person (Klik nama untuk detail) */}
-            <div className="bg-[#181a24] rounded-2xl border border-slate-800 overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-800 flex justify-between items-center">
+            <div className={`${cardBg} rounded-2xl border overflow-hidden`}>
+              <div className={`px-5 py-4 border-b border-inherit flex justify-between items-center`}>
                 <div>
-                  <h3 className="text-sm font-bold text-white">Perbandingan Penjualan Staff Sales Person</h3>
-                  <p className="text-[11px] text-amber-400 mt-0.5">💡 Klik pada nama sales untuk melihat rincian barang yang dijual</p>
+                  <h3 className={`text-sm font-bold ${textMain}`}>Perbandingan Penjualan Staff Sales Person</h3>
+                  <p className={`text-[11px] ${accentText} mt-0.5`}>💡 Klik pada nama sales untuk melihat rincian barang yang dijual</p>
                 </div>
-                <span className="text-xs text-slate-400">Total {momAnalytics.staffComparison.length} Staff</span>
+                <span className={`text-xs ${textMuted}`}>Total {momAnalytics.staffComparison.length} Staff</span>
               </div>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-900/60 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                  <thead className={`${innerBg} ${textMuted} uppercase text-[10px] tracking-wider border-b border-inherit`}>
                     <tr>
                       <th className="px-4 py-3">Nama Sales</th>
                       <th className="px-4 py-3 text-right">{momBaseMonth} (Aktual)</th>
@@ -3402,9 +3416,9 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                       <th className="px-4 py-3 text-center">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/60 text-slate-200">
+                  <tbody className="divide-y divide-inherit">
                     {momAnalytics.staffComparison.map((st: any, i: number) => (
-                      <tr key={i} className="hover:bg-slate-800/40 transition">
+                      <tr key={i} className="hover:opacity-90 transition">
                         <td 
                           className="px-4 py-3 font-semibold text-sky-400 hover:underline cursor-pointer flex items-center gap-1.5"
                           onClick={() => openLobDetailSheet(`Penjualan ${st.name} (${momBaseMonth})`, st.baseItems || [])}
@@ -3416,7 +3430,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                         <td className="px-4 py-3 text-right font-medium text-amber-300">
                           Rp {st.base.toLocaleString("id-ID")}
                         </td>
-                        <td className="px-4 py-3 text-right text-slate-400">
+                        <td className={`px-4 py-3 text-right ${textMuted}`}>
                           Rp {st.compare.toLocaleString("id-ID")}
                         </td>
                         <td className={`px-4 py-3 text-right font-medium ${st.diff >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
@@ -3440,14 +3454,14 @@ _Diperbarui via Digiplus Store Operations Engine._`;
             </div>
 
             {/* Tabel Khusus: Kategori Produk Devices yang Mengalami Penurunan (Disgrowth) */}
-            <div className="bg-[#181a24] rounded-2xl border border-rose-900/40 overflow-hidden shadow-xl mt-6">
+            <div className={`${cardBg} rounded-2xl border border-rose-900/40 overflow-hidden shadow-xl mt-6`}>
               <div className="px-5 py-4 border-b border-rose-900/30 flex justify-between items-center bg-rose-500/5">
                 <div>
                   <h3 className="text-sm font-bold text-rose-400 flex items-center gap-2">
                     <span>⚠️</span>
                     <span>Daftar Produk Devices yang Turun (Defisit Terbesar)</span>
                   </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className={`text-xs ${textMuted} mt-0.5`}>
                     Produk smartphone & tablet yang penjualannya merosot dibanding {momCompareMonth}
                   </p>
                 </div>
@@ -3458,7 +3472,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-900/60 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                  <thead className={`${innerBg} ${textMuted} uppercase text-[10px] tracking-wider border-b border-inherit`}>
                     <tr>
                       <th className="px-4 py-3">Nama Produk Device</th>
                       <th className="px-4 py-3">Brand</th>
@@ -3470,17 +3484,17 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                       <th className="px-4 py-3 text-right">Growth (%)</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/60 text-slate-200">
+                  <tbody className="divide-y divide-inherit">
                     {(!momAnalytics.droppedDevices || momAnalytics.droppedDevices.length === 0) ? (
                       <tr>
-                        <td colSpan={8} className="text-center py-6 text-slate-400">
+                        <td colSpan={8} className="text-center py-6 opacity-60">
                           Tidak ada produk device yang mengalami penurunan omset.
                         </td>
                       </tr>
                     ) : (
                       momAnalytics.droppedDevices.slice(0, 20).map((d: any, i: number) => (
-                        <tr key={i} className="hover:bg-slate-800/30 transition">
-                          <td className="px-4 py-3 font-semibold text-white max-w-xs">{d.name}</td>
+                        <tr key={i} className="hover:opacity-90 transition">
+                          <td className={`px-4 py-3 font-semibold ${textMain} max-w-xs`}>{d.name}</td>
                           <td className="px-4 py-3">
                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                               d.brand === "Apple" ? "bg-sky-500/15 text-sky-400 border border-sky-400/20" : "bg-indigo-500/15 text-indigo-400 border border-indigo-400/20"
@@ -3492,8 +3506,8 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                           <td className="px-4 py-3 text-right font-medium text-amber-300">
                             Rp {d.base.toLocaleString("id-ID")}
                           </td>
-                          <td className="px-4 py-3 text-center font-bold text-slate-400">{d.compareQty}</td>
-                          <td className="px-4 py-3 text-right text-slate-400">
+                          <td className={`px-4 py-3 text-center font-bold ${textMuted}`}>{d.compareQty}</td>
+                          <td className={`px-4 py-3 text-right ${textMuted}`}>
                             Rp {d.compare.toLocaleString("id-ID")}
                           </td>
                           <td className="px-4 py-3 text-right font-extrabold text-rose-400 font-mono">
@@ -3516,9 +3530,9 @@ _Diperbarui via Digiplus Store Operations Engine._`;
       {/* BOTTOM SHEET MODAL DRILLDOWN */}
       {bottomSheetOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm transition-opacity animate-in fade-in">
-          <div className={`w-full sm:max-w-2xl max-h-[85vh] rounded-t-3xl sm:rounded-3xl ${cardBg} border-2 border-[#3B3666] shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300`}>
+          <div className={`w-full sm:max-w-2xl max-h-[85vh] rounded-t-3xl sm:rounded-3xl ${cardBg} border-2 border-white/10 shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300`}>
             <div className="flex items-center justify-between p-4 sm:p-5 border-b border-inherit bg-black/20">
-              <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+              <h3 className={`text-sm sm:text-base font-bold ${textMain} flex items-center gap-2`}>
                 <span>📋</span>
                 <span>{sheetTitle}</span>
               </h3>
