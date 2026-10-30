@@ -298,6 +298,7 @@ const INITIAL_FEEDBACKS: FeedbackItem[] = [
 
 export default function DigiplusOperationalEngine() {
   const [isMounted, setIsMounted] = useState<boolean>(false);
+  const [uploadModalOpen, setUploadModalOpen] = useState<boolean>(false);
 
   // Theme & Navigation
   const [theme, setTheme] = useState<ThemeMode>("dark");
