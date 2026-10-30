@@ -735,9 +735,9 @@ const fetchOnlineActivityLogs = async () => {
 
   // Kalkulasi Overview Metrics & LOB Breakdown
   const overviewStats = useMemo(() => {
-    const activeTx = activeTransactions || [];
+    const activeTransactions = activeTransactions || [];
 
-    const actual = activeTx.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
+    const actual = activeTransactions.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
     const target = periodType === "daily" 
       ? Math.round(6728667173 / 31) 
       : periodType === "weekly" 
@@ -747,12 +747,12 @@ const fetchOnlineActivityLogs = async () => {
     const achv = calcAchv(actual, target);
     const variance = actual - target;
     const estimate = Math.round(actual * 1.29);
-    const qtyTotal = activeTx.reduce((acc: number, t: any) => acc + (Number(t.qty) || 1), 0);
-    const invoiceCount = new Set(activeTx.map((t: any) => t.invoice)).size;
+    const qtyTotal = activeTransactions.reduce((acc: number, t: any) => acc + (Number(t.qty) || 1), 0);
+    const invoiceCount = new Set(activeTransactions.map((t: any) => t.invoice)).size;
     const storeUPT = calcUpt(qtyTotal, invoiceCount);
 
     // Apple Devices (Hardware Murni Apple)
-    const appleItems = activeTx.filter((t: any) => {
+    const appleItems = activeTransactions.filter((t: any) => {
       const pUpper = (t.productName || "").toUpperCase();
       const isHardware = pUpper.includes("IPHONE") || pUpper.includes("IPAD") || pUpper.includes("AIRPOD") || pUpper.includes("MACBOOK") || pUpper.includes("WATCH");
       const isCaseOrAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE") || pUpper.includes("POWER");
@@ -762,7 +762,7 @@ const fetchOnlineActivityLogs = async () => {
     const appleTarget = Math.round(target * 0.794);
 
     // Android Devices
-    const androidItems = activeTx.filter((t: any) => {
+    const androidItems = activeTransactions.filter((t: any) => {
       const pUpper = (t.productName || "").toUpperCase();
       const isCaseOrAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE");
       return t.groupCategory === "DEVICES" && t.brand !== "APPLE" && !isCaseOrAcc;
@@ -771,12 +771,12 @@ const fetchOnlineActivityLogs = async () => {
     const androidTarget = Math.round(target * 0.108);
 
     // Accessories
-    const accItems = activeTx.filter((t: any) => t.groupCategory === "ACCESSORIES");
+    const accItems = activeTransactions.filter((t: any) => t.groupCategory === "ACCESSORIES");
     const accActual = accItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
     const accTarget = Math.round(target * 0.053);
 
     // VAS
-    const vasItems = activeTx.filter((t: any) => t.groupCategory === "VAS");
+    const vasItems = activeTransactions.filter((t: any) => t.groupCategory === "VAS");
     const vasActual = vasItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
     const vasTarget = Math.round(target * 0.045);
 
@@ -806,7 +806,7 @@ const fetchOnlineActivityLogs = async () => {
     };
   }, [activeTransactions, periodType, selectedDate, transactions]);
     // Android Devices
-    const androidItems = activeTx.filter((t: any) => {
+    const androidItems = activeTransactions.filter((t: any) => {
       const pUpper = (t.productName || "").toUpperCase();
       const isCaseOrAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE");
       return t.groupCategory === "DEVICES" && t.brand !== "APPLE" && !isCaseOrAcc;
@@ -815,12 +815,12 @@ const fetchOnlineActivityLogs = async () => {
     const androidTarget = Math.round(target * 0.108);
 
     // Accessories
-    const accItems = activeTx.filter((t: any) => t.groupCategory === "ACCESSORIES");
+    const accItems = activeTransactions.filter((t: any) => t.groupCategory === "ACCESSORIES");
     const accActual = accItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
     const accTarget = Math.round(target * 0.053);
 
     // VAS
-    const vasItems = activeTx.filter((t: any) => t.groupCategory === "VAS");
+    const vasItems = activeTransactions.filter((t: any) => t.groupCategory === "VAS");
     const vasActual = vasItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
     const vasTarget = Math.round(target * 0.045);
 
