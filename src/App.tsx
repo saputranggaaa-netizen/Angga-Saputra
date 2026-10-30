@@ -747,7 +747,93 @@ const fetchOnlineActivityLogs = async () => {
     const qtyTotal = activeTransactions.reduce((acc, t) => acc + t.qty, 0);
     const invoiceCount = new Set(activeTransactions.map((t) => t.invoice)).size;
     const storeUPT = calcUpt(qtyTotal, invoiceCount);
+// Kalkulasi Perbandingan MoM Kategori & Staff
+const momAnalytics = useMemo(() => {
+  const initMetrics = () => ({
+    totalSales: 0,
+    appleSales: 0,
+    androidSales: 0,
+    accessoriesSales: 0,
+    vasSales: 0,
+    totalQty: 0,
+    invoices: new Set<string>(),
+  });
 
+  const baseMetrics = initMetrics();
+  const compareMetrics = initMetrics();
+
+  const staffMap: Record<string, { base: number; compare: number }> = {};
+
+  transactions.forEach((t: any) => {
+    const rawMonth = (t.monthKey || t.month || "").toString().trim();
+    const isBase = rawMonth === momBaseMonth;
+    const isCompare = rawMonth === momCompareMonth;
+
+    if (!isBase && !isCompare) return;
+
+    const amt = Number(t.amount) || 0;
+    const qty = Number(t.qty) || 1;
+    const cat = (t.productType || t.groupCategory || "").toString().toUpperCase();
+    const brand = (t.brandName || "").toString().toUpperCase();
+    const inv = (t.invoice || "").toString().trim();
+    const sales = (t.salesName || "Unknown").toString().trim();
+
+    // Akumulasi Metrik Periode
+    const target = isBase ? baseMetrics : compareMetrics;
+    target.totalSales += amt;
+    target.totalQty += qty;
+    if (inv) target.invoices.add(inv);
+
+    // Kategori LOB
+    if (brand.includes("APPLE") || cat.includes("APPLE")) {
+      target.appleSales += amt;
+    } else if (brand.includes("SAMSUNG") || brand.includes("XIAOMI") || cat.includes("ANDROID")) {
+      target.androidSales += amt;
+    } else if (cat.includes("VAS") || cat.includes("PROTEKSI") || cat.includes("TELKOMSEL")) {
+      target.vasSales += amt;
+    } else if (cat.includes("ACCESSORIES") || cat.includes("CASE") || cat.includes("CHARGER")) {
+      target.accessoriesSales += amt;
+    }
+
+    // Akumulasi Sales Staff
+    if (!staffMap[sales]) {
+      staffMap[sales] = { base: 0, compare: 0 };
+    }
+    if (isBase) staffMap[sales].base += amt;
+    if (isCompare) staffMap[sales].compare += amt;
+  });
+
+  // Hitung UPT (Unit Per Transaction) = Total Qty / Total Transaksi
+  const uptBase = baseMetrics.invoices.size > 0 ? (baseMetrics.totalQty / baseMetrics.invoices.size) : 0;
+  const uptCompare = compareMetrics.invoices.size > 0 ? (compareMetrics.totalQty / compareMetrics.invoices.size) : 0;
+
+  // Helper kalkulasi growth (%)
+  const calcGrowth = (curr: number, prev: number) => {
+    if (prev === 0) return curr > 0 ? 100 : 0;
+    return ((curr - prev) / prev) * 100;
+  };
+
+  const summary = [
+    { label: "Total MTD Sales", base: baseMetrics.totalSales, compare: compareMetrics.totalSales, isCurrency: true },
+    { label: "Apple Devices", base: baseMetrics.appleSales, compare: compareMetrics.appleSales, isCurrency: true },
+    { label: "Android Devices", base: baseMetrics.androidSales, compare: compareMetrics.androidSales, isCurrency: true },
+    { label: "Accessories", base: baseMetrics.accessoriesSales, compare: compareMetrics.accessoriesSales, isCurrency: true },
+    { label: "VAS & Services", base: baseMetrics.vasSales, compare: compareMetrics.vasSales, isCurrency: true },
+    { label: "UPT (Units Per Trx)", base: uptBase, compare: uptCompare, isCurrency: false },
+  ].map((item) => {
+    const diff = item.base - item.compare;
+    const growth = calcGrowth(item.base, item.compare);
+    return { ...item, diff, growth };
+  });
+
+  const staffComparison = Object.entries(staffMap).map(([name, val]) => {
+    const diff = val.base - val.compare;
+    const growth = calcGrowth(val.base, val.compare);
+    return { name, base: val.base, compare: val.compare, diff, growth };
+  }).sort((a, b) => b.base - a.base);
+
+  return { summary, staffComparison };
+}, [transactions, momBaseMonth, momCompareMonth]);
     // Apple Devices: Hardware Murni Apple
     const appleItems = activeTransactions.filter((t) => {
       const pUpper = t.productName.toUpperCase();
@@ -1793,7 +1879,15 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               <span>📈</span>
               <span>Weekly sales (WoW)</span>
             </button>
-
+<button
+            onClick={() => { setActiveTab("mom-comparison"); setMobileMenuOpen(false); }}
+            className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition ${
+              activeTab === "mom-comparison" ? activeTabBtn : "opacity-70 hover:opacity-100 hover:bg-white/5"
+            }`}
+          >
+            <span>📊</span>
+            <span>MoM Growth Analysis</span>
+          </button>
             {/* PINTASAN EXPORT PPTX DI SIDEBAR */}
             <div className="px-1 py-1">
               <button
@@ -3282,6 +3376,131 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               })()}
             </div>
           )}
+        {/* Menu Tab Lainnya Di Atas */}
+
+        {/* HALAMAN ANALISIS MoM GROWTH */}
+        {activeTab === "mom-comparison" && (
+          <div className="space-y-6">
+            {/* Baris Filter 2 Bulan */}
+            <div className="bg-[#181a24] p-5 rounded-2xl border border-slate-800 flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h2 className="text-base font-bold text-white flex items-center gap-2">
+                  <span>📈</span> Analisis MoM Growth vs Disgrowth
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">Bandingkan performa LOB dan produktivitas sales antar 2 periode bulan</p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {/* Dropdown Bulan Basis (Terbaru) */}
+                <div className="flex items-center gap-2 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-700">
+                  <span className="text-[11px] text-slate-400 font-medium">Bulan Analisis:</span>
+                  <select
+                    value={momBaseMonth}
+                    onChange={(e) => setMomBaseMonth(e.target.value)}
+                    className="bg-transparent text-amber-400 font-bold text-xs focus:outline-none"
+                  >
+                    {availableMonths.map((m) => (
+                      <option key={`base-${m}`} value={m} className="bg-slate-900 text-white">{m}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <span className="text-xs font-bold text-slate-500">VS</span>
+
+                {/* Dropdown Bulan Pembanding (Lama) */}
+                <div className="flex items-center gap-2 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-700">
+                  <span className="text-[11px] text-slate-400 font-medium">Pembanding:</span>
+                  <select
+                    value={momCompareMonth}
+                    onChange={(e) => setMomCompareMonth(e.target.value)}
+                    className="bg-transparent text-slate-200 font-bold text-xs focus:outline-none"
+                  >
+                    {availableMonths.map((m) => (
+                      <option key={`cmp-${m}`} value={m} className="bg-slate-900 text-white">{m}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Kartu Grid Metrik LOB & UPT */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {momAnalytics.summary.map((item, idx) => (
+                <div key={idx} className="bg-[#181a24] p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
+                  <div className="flex justify-between items-start">
+                    <span className="text-xs font-medium text-slate-400">{item.label}</span>
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${
+                      item.growth >= 0 ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                    }`}>
+                      {item.growth >= 0 ? `▲ +${item.growth.toFixed(1)}%` : `▼ ${item.growth.toFixed(1)}%`}
+                    </span>
+                  </div>
+
+                  <div className="mt-3">
+                    <div className="text-lg font-extrabold text-white">
+                      {item.isCurrency ? `Rp ${item.base.toLocaleString("id-ID")}` : item.base.toFixed(2)}
+                    </div>
+                    <div className="text-[11px] text-slate-400 mt-1 flex justify-between">
+                      <span>{momCompareMonth}: {item.isCurrency ? `Rp ${item.compare.toLocaleString("id-ID")}` : item.compare.toFixed(2)}</span>
+                      <span className={item.diff >= 0 ? "text-emerald-400" : "text-rose-400"}>
+                        {item.diff >= 0 ? "+" : ""}{item.isCurrency ? `Rp ${item.diff.toLocaleString("id-ID")}` : item.diff.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Tabel Performa Sales Person Pembanding 2 Bulan */}
+            <div className="bg-[#181a24] rounded-2xl border border-slate-800 overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-800 flex justify-between items-center">
+                <h3 className="text-sm font-bold text-white">Perbandingan Penjualan Staff Sales Person</h3>
+                <span className="text-xs text-slate-400">Total {momAnalytics.staffComparison.length} Staff</span>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-900/60 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                    <tr>
+                      <th className="px-4 py-3">Nama Sales</th>
+                      <th className="px-4 py-3 text-right">{momBaseMonth} (Aktual)</th>
+                      <th className="px-4 py-3 text-right">{momCompareMonth} (Lalu)</th>
+                      <th className="px-4 py-3 text-right">Selisih (Gap)</th>
+                      <th className="px-4 py-3 text-right">Growth (%)</th>
+                      <th className="px-4 py-3 text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 text-slate-200">
+                    {momAnalytics.staffComparison.map((st, i) => (
+                      <tr key={i} className="hover:bg-slate-800/30 transition">
+                        <td className="px-4 py-3 font-semibold text-white">{st.name}</td>
+                        <td className="px-4 py-3 text-right font-medium text-amber-300">
+                          Rp {st.base.toLocaleString("id-ID")}
+                        </td>
+                        <td className="px-4 py-3 text-right text-slate-400">
+                          Rp {st.compare.toLocaleString("id-ID")}
+                        </td>
+                        <td className={`px-4 py-3 text-right font-medium ${st.diff >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                          {st.diff >= 0 ? "+" : ""}Rp {st.diff.toLocaleString("id-ID")}
+                        </td>
+                        <td className={`px-4 py-3 text-right font-bold ${st.growth >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                          {st.growth >= 0 ? `+${st.growth.toFixed(1)}%` : `${st.growth.toFixed(1)}%`}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                            st.growth >= 0 ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400"
+                          }`}>
+                            {st.growth >= 0 ? "Growth" : "Disgrowth"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* ========================================================= */}
