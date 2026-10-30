@@ -735,7 +735,8 @@ const fetchOnlineActivityLogs = async () => {
 
   // Kalkulasi Overview Metrics
   const overviewStats = useMemo(() => {
-    const actual = activeTransactions.reduce((acc, t) => acc + t.amount, 0);
+    const actual = activeTransactions.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+    
     const target = periodType === "daily"
       ? Math.round(8728667173 / 31)
       : periodType === "weekly"
@@ -745,9 +746,10 @@ const fetchOnlineActivityLogs = async () => {
     const achv = calcAchv(actual, target);
     const variance = actual - target;
     const estimate = Math.round(actual * 1.29);
-    const qtyTotal = activeTransactions.reduce((acc, t) => acc + t.qty, 0);
+    const qtyTotal = activeTransactions.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
     const invoiceCount = new Set(activeTransactions.map((t) => t.invoice)).size;
     const storeUPT = calcUpt(qtyTotal, invoiceCount);
+
     return {
       actual,
       target,
@@ -759,9 +761,7 @@ const fetchOnlineActivityLogs = async () => {
       storeUPT,
     };
   }, [activeTransactions, periodType]);
-
-  // Kalkulasi Perbandingan MoM Kategori & Staff
-  const momAnalytics = useMemo(() => {
+  
 // Kalkulasi Perbandingan MoM Kategori & Staff
 const momAnalytics = useMemo(() => {
   const initMetrics = () => ({
