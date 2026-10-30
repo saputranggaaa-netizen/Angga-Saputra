@@ -323,8 +323,9 @@ export default function DigiplusOperationalEngine() {
   const [lastSyncTime, setLastSyncTime] = useState<string>("");
 
   // Period Filters
-  const [periodType, setPeriodType] = useState<PeriodType>("monthly");
   const [selectedMonth, setSelectedMonth] = useState<string>("Oktober2026");
+  const [momBaseMonth, setMomBaseMonth] = useState<string>("Oktober2026");
+  const [momCompareMonth, setMomCompareMonth] = useState<string>("September2026");
   // Ekstrak semua bulan unik dari data transaksi secara otomatis
 const availableMonths = useMemo(() => {
   const months = new Set<string>();
@@ -747,6 +748,20 @@ const fetchOnlineActivityLogs = async () => {
     const qtyTotal = activeTransactions.reduce((acc, t) => acc + t.qty, 0);
     const invoiceCount = new Set(activeTransactions.map((t) => t.invoice)).size;
     const storeUPT = calcUpt(qtyTotal, invoiceCount);
+    return {
+      actual,
+      target,
+      achv,
+      variance,
+      estimate,
+      qtyTotal,
+      invoiceCount,
+      storeUPT,
+    };
+  }, [activeTransactions, periodType]);
+
+  // Kalkulasi Perbandingan MoM Kategori & Staff
+  const momAnalytics = useMemo(() => {
 // Kalkulasi Perbandingan MoM Kategori & Staff
 const momAnalytics = useMemo(() => {
   const initMetrics = () => ({
