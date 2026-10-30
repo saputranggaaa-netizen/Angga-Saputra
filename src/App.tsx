@@ -362,10 +362,9 @@ export default function DigiplusOperationalEngine() {
   const SPREADSHEET_ID = "1v_QCLTDKORjVnByrzo9qRiivdU8CGO99nJri9jBETWM";
   const ADMIN_ID = "22008089";
 
-  // Normalisasi Tanggal & Bulan (Mendukung Agustus, September, Oktober, dll)
+  // Normalisasi Tanggal & Bulan (Membaca Kolom M Secara Langsung & Fleksibel)
   const parseNormalizedDate = (rawDateStr: string, rawMonthStr: string) => {
     let isoDate = "";
-    let monthKey = "";
 
     if (rawDateStr) {
       const cleanStr = String(rawDateStr).trim().replace(/\//g, "-");
@@ -387,15 +386,24 @@ export default function DigiplusOperationalEngine() {
       }
     }
 
-    const mClean = String(rawMonthStr || "").trim().toLowerCase();
-    if (mClean.includes("agu") || mClean.includes("aug") || mClean.includes("2026-08") || mClean.includes("08-2026") || (isoDate && isoDate.startsWith("2026-08"))) {
+    // Normalisasi Kolom M
+    const cleanRawM = String(rawMonthStr || "").trim();
+    const mLower = cleanRawM.toLowerCase();
+    let monthKey = "";
+
+    if (mLower.includes("agu") || mLower.includes("aug") || mLower.includes("08-2026") || mLower.includes("2026-08")) {
       monthKey = "Agustus2026";
-    } else if (mClean.includes("sep") || mClean.includes("2026-09") || mClean.includes("09-2026") || (isoDate && isoDate.startsWith("2026-09"))) {
+    } else if (mLower.includes("sep") || mLower.includes("09-2026") || mLower.includes("2026-09")) {
       monthKey = "September2026";
-    } else if (mClean.includes("okt") || mClean.includes("oct") || mClean.includes("2026-10") || mClean.includes("10-2026") || (isoDate && isoDate.startsWith("2026-10"))) {
+    } else if (mLower.includes("okt") || mLower.includes("oct") || mLower.includes("10-2026") || mLower.includes("2026-10")) {
       monthKey = "Oktober2026";
-    } else if (rawMonthStr && String(rawMonthStr).trim() !== "") {
-      monthKey = String(rawMonthStr).trim();
+    } else if (cleanRawM !== "") {
+      monthKey = cleanRawM;
+    } else if (isoDate) {
+      if (isoDate.startsWith("2026-08")) monthKey = "Agustus2026";
+      else if (isoDate.startsWith("2026-09")) monthKey = "September2026";
+      else if (isoDate.startsWith("2026-10")) monthKey = "Oktober2026";
+      else monthKey = "Oktober2026";
     } else {
       monthKey = "Oktober2026";
     }
@@ -461,6 +469,7 @@ export default function DigiplusOperationalEngine() {
             date: String(rawDate),
             isoDate,
             monthKey,
+            month: monthKey,
             salesId,
             salesName,
             invoice,
