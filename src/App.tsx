@@ -323,10 +323,10 @@ export default function DigiplusOperationalEngine() {
   const [lastSyncTime, setLastSyncTime] = useState<string>("");
 
   // Period Filters
+  const [periodType, setPeriodType] = useState<PeriodType>("monthly");
   const [selectedMonth, setSelectedMonth] = useState<string>("Oktober2026");
   const [momBaseMonth, setMomBaseMonth] = useState<string>("Oktober2026");
   const [momCompareMonth, setMomCompareMonth] = useState<string>("September2026");
-  // Ekstrak semua bulan unik dari data transaksi secara otomatis
 const availableMonths = useMemo(() => {
   const months = new Set<string>();
   transactions.forEach((t: any) => {
