@@ -1594,12 +1594,14 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     </td>
                     <td className="py-2 px-3 text-center">{p.qty}</td>
                     <td className="py-2 px-3 text-right font-bold text-emerald-400">{formatIDR(p.actual)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                 </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
-        </div>
         )}
       </main>
 
