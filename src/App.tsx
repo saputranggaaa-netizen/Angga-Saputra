@@ -904,7 +904,7 @@ const momAnalytics = useMemo(() => {
       appleItems,
       androidItems,
       accItems,
-      vasItems
+      vasItems,
     };
   }, [activeTransactions, periodType, selectedDate, transactions]);
   // Trend Harian
