@@ -851,6 +851,8 @@ const momAnalytics = useMemo(() => {
 }, [transactions, momBaseMonth, momCompareMonth]);
     // Kategori & Breakdown LOB Stats
   const categoryStats = useMemo(() => {
+    const currentTarget = overviewStats?.target || 0;
+
     // Apple Devices: Hardware Murni Apple
     const appleItems = activeTransactions.filter((t: any) => {
       const pUpper = (t.productName || "").toUpperCase();
@@ -859,7 +861,7 @@ const momAnalytics = useMemo(() => {
       return (t.brand === "APPLE" && (t.groupCategory === "DEVICES" || isHardware)) && !isCaseOrAcc;
     });
     const appleActual = appleItems.reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0);
-    const appleTarget = Math.round(target * 0.794);
+    const appleTarget = Math.round(currentTarget * 0.794);
 
     // Android Devices
     const androidItems = activeTransactions.filter((t: any) => {
@@ -868,30 +870,30 @@ const momAnalytics = useMemo(() => {
       return t.groupCategory === "DEVICES" && t.brand !== "APPLE" && !isCaseOrAcc;
     });
     const androidActual = androidItems.reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0);
-    const androidTarget = Math.round(target * 0.108);
+    const androidTarget = Math.round(currentTarget * 0.108);
 
     // Accessories
     const accItems = activeTransactions.filter((t: any) => t.groupCategory === "ACCESSORIES");
     const accActual = accItems.reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0);
-    const accTarget = Math.round(target * 0.053);
+    const accTarget = Math.round(currentTarget * 0.053);
 
     // VAS
     const vasItems = activeTransactions.filter((t: any) => t.groupCategory === "VAS");
     const vasActual = vasItems.reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0);
-    const vasTarget = Math.round(target * 0.045);
+    const vasTarget = Math.round(currentTarget * 0.045);
 
     const todayItems = transactions.filter((t: any) => t.isoDate === selectedDate);
     const todayActual = todayItems.reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0);
 
     return {
-      actual,
-      target,
-      achv,
-      variance,
-      estimate,
-      qtyTotal,
-      invoiceCount,
-      storeUPT,
+      actual: overviewStats?.actual || 0,
+      target: currentTarget,
+      achv: overviewStats?.achv || 0,
+      variance: overviewStats?.variance || 0,
+      estimate: overviewStats?.estimate || 0,
+      qtyTotal: overviewStats?.qtyTotal || 0,
+      invoiceCount: overviewStats?.invoiceCount || 0,
+      storeUPT: overviewStats?.storeUPT || 0,
       todayActual,
       lobs: [
         { name: "Apple Devices (Hardware)", icon: "🍎", actual: appleActual, target: appleTarget, achv: calcAchv(appleActual, appleTarget), variance: appleActual - appleTarget, estimate: Math.round(appleActual * 1.29) },
@@ -904,7 +906,7 @@ const momAnalytics = useMemo(() => {
       accItems,
       vasItems
     };
-  }, [activeTransactions, periodType, selectedDate, transactions, target, actual, achv, variance, estimate, qtyTotal, invoiceCount, storeUPT]);
+  }, [activeTransactions, periodType, selectedDate, transactions, overviewStats]);
   // Trend Harian
   const dailyTrendStats = useMemo(() => {
     const dailyMap = new Map<string, number>();
