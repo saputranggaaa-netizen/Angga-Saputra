@@ -60,30 +60,30 @@ export const UploadRawSalesModal = ({ isOpen, onClose, selectedInvoice, defaultS
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="w-full max-w-md rounded-3xl bg-[#09122A] border border-white/15 p-6 space-y-4 shadow-2xl">
-        <div className="flex justify-between items-center border-b border-white/10 pb-3">
-          <h3 className="text-sm font-black text-white">Upload Bukti Transaksi (RAW SalesPerson)</h3>
-          <button type="button" onClick={onClose} className="text-slate-400 hover:text-white text-xs font-bold p-1">✕</button>
+      <div className="w-full max-w-md rounded-3xl bg-white dark:bg-[#09122A] border border-slate-300 dark:border-white/15 p-6 space-y-4 shadow-2xl">
+        <div className="flex justify-between items-center border-b border-slate-200 dark:border-white/10 pb-3">
+          <h3 className="text-sm font-black text-slate-950 dark:text-white">Upload Bukti Transaksi (RAW SalesPerson)</h3>
+          <button type="button" onClick={onClose} className="text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white text-xs font-bold p-1">✕</button>
         </div>
 
         <form onSubmit={handleUpload} className="space-y-4">
           <div>
-            <label className="text-[11px] font-bold text-slate-200 block mb-1">Pilih File / Foto Bukti:</label>
+            <label className="text-[11px] font-bold text-slate-800 dark:text-slate-200 block mb-1">Pilih File / Foto Bukti:</label>
             <input
               type="file"
               onChange={(e) => setSelectedFile(e.target.files ? e.target.files[0] : null)}
-              className="w-full text-xs text-slate-200 font-semibold file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:bg-sky-600 file:text-white file:font-bold"
+              className="w-full text-xs text-slate-900 dark:text-slate-200 font-semibold file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:bg-sky-600 file:text-white file:font-bold"
             />
           </div>
 
           <div>
-            <label className="text-[11px] font-bold text-slate-200 block mb-1">Catatan Tambahan (Kolom O):</label>
+            <label className="text-[11px] font-bold text-slate-800 dark:text-slate-200 block mb-1">Catatan Tambahan (Kolom O):</label>
             <input
               type="text"
               value={catatan}
               onChange={(e) => setCatatan(e.target.value)}
               placeholder="Catatan / keterangan..."
-              className="w-full px-3 py-2 text-xs font-semibold rounded-xl bg-black/40 border border-white/10 text-white focus:outline-none"
+              className="w-full px-3 py-2 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-black/40 border border-slate-300 dark:border-white/10 text-slate-950 dark:text-white focus:outline-none"
             />
           </div>
 
@@ -264,7 +264,7 @@ const INITIAL_SCHEDULE: StaffScheduleItem[] = [
   { id: "11", name: "Amzahri", role: "Daily Worker", mon: "OFF", tue: "D103", wed: "D047", thu: "OFF", fri: "D103", sat: "D047", sun: "D047" },
 ];
 
-const INITIAL_FEEDBACKS: FeedbackItem[] = [
+const DEFAULT_FEEDBACKS: FeedbackItem[] = [
   {
     id: "fb-1",
     salesName: "Liesbeth Febrina",
@@ -298,6 +298,17 @@ const INITIAL_FEEDBACKS: FeedbackItem[] = [
     reactions: { thumbsUp: 4, heart: 1, fire: 2, thumbsDown: 0, sad: 0 },
     userReactions: [],
   },
+  {
+    id: "fb-4",
+    salesName: "Siti Amelia",
+    salesRole: "Sales Assistant",
+    initials: "SA",
+    sentiment: "Luar Biasa",
+    timestamp: "Kemarin, 19:10 WIB",
+    text: "Penyampaian promo cashback bank partner sangat jelas, customer terdorong menambah pembelian tempered glass dan proteksi layar tambahan.",
+    reactions: { thumbsUp: 5, heart: 2, fire: 3, thumbsDown: 0, sad: 0 },
+    userReactions: [],
+  }
 ];
 
 export default function DigiplusOperationalEngine() {
@@ -341,8 +352,8 @@ export default function DigiplusOperationalEngine() {
   // BNPL Tab Filter
   const [selectedBnplTender, setSelectedBnplTender] = useState<string>("ALL");
 
-  // Feedback State
-  const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>(INITIAL_FEEDBACKS);
+  // Feedback State (Dipastikan Tidak Pernah Kosong)
+  const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>(DEFAULT_FEEDBACKS);
   const [selectedFeedbackStaff, setSelectedFeedbackStaff] = useState<string>("ALL");
   const [feedbackModalOpen, setFeedbackModalOpen] = useState<boolean>(false);
   const [newFeedbackStaff, setNewFeedbackStaff] = useState<string>("Liesbeth Febrina");
@@ -522,40 +533,9 @@ export default function DigiplusOperationalEngine() {
     }
   };
 
-  const fetchOnlineActivityLogs = async () => {
-    const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTDbyOKLJBawzRaso45Z2bXTBZBQflG-y2TQnSvru9JBQIPVKQ8dg_CZA5LievEgnV_ocOxKWBSE9uz/pub?gid=422013492&single=true&output=csv";
-
-    try {
-      const res = await fetch(csvUrl);
-      const text = await res.text();
-      const rows = text.split("\n").filter((r) => r.trim() !== "");
-      
-      if (rows.length <= 1) return;
-
-      const logs = rows.slice(1).map((row, idx) => {
-        const cols = row.split(",").map((c) => c.replace(/^"|"$/g, "").trim());
-        return {
-          id: `online-${idx}`,
-          timestamp: cols[0] || "-",
-          salesName: cols[1] || "-",
-          salesId: "",
-          deviceType: cols[2] || "-",
-          browser: cols[3] || "-",
-          location: cols[4] || "-",
-          coords: "-"
-        };
-      });
-
-      setActivityLogs(logs.reverse());
-    } catch (err) {
-      console.error("Gagal mengambil log aktivitas:", err);
-    }
-  };
-
   useEffect(() => {
     setIsMounted(true);
     fetchLiveGoogleSheets();
-    fetchOnlineActivityLogs();
 
     if (typeof window !== "undefined") {
       const savedUser = localStorage.getItem("digi_ops_user");
@@ -569,7 +549,16 @@ export default function DigiplusOperationalEngine() {
         try { setScheduleData(JSON.parse(savedSchedule)); } catch (e) {}
       }
       if (savedFeedbacks) {
-        try { setFeedbacks(JSON.parse(savedFeedbacks)); } catch (e) {}
+        try { 
+          const parsed = JSON.parse(savedFeedbacks);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setFeedbacks(parsed);
+          } else {
+            setFeedbacks(DEFAULT_FEEDBACKS);
+          }
+        } catch (e) {
+          setFeedbacks(DEFAULT_FEEDBACKS);
+        }
       }
       if (savedUser) {
         setIsLoggedIn(true);
@@ -577,20 +566,6 @@ export default function DigiplusOperationalEngine() {
         setCurrentSalesName(savedName || `Sales ${savedUser}`);
       }
     }
-
-    fetch(LOG_API_URL)
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) setActivityLogs(data);
-      })
-      .catch(() => {
-        const savedLogs = localStorage.getItem("digi_ops_activity_logs");
-        if (savedLogs) {
-          try {
-            setActivityLogs(JSON.parse(savedLogs));
-          } catch (e) {}
-        }
-      });
   }, []);
 
   const toggleTheme = () => {
@@ -627,49 +602,6 @@ export default function DigiplusOperationalEngine() {
     setCurrentSalesName(detectedName);
     setIsLoggedIn(true);
     setLoginErr("");
-
-    const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
-    const log: ActivityLog = {
-      id: Date.now().toString(),
-      salesId: cleanId,
-      salesName: detectedName,
-      timestamp: new Date().toLocaleDateString("id-ID", {
-        weekday: "short",
-        day: "numeric",
-        month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-      }) + " WIB",
-      deviceType: isMobile ? "Handphone / Mobile" : "Komputer / PC",
-      browser: typeof navigator !== "undefined" && navigator.userAgent.includes("Chrome") ? "Chrome" : "Safari",
-      location: "Store Grand Indonesia",
-      coords: "-",
-    };
-
-    setActivityLogs((prev) => {
-      const updated = [log, ...prev.slice(0, 49)];
-      if (typeof window !== "undefined") {
-        localStorage.setItem("digi_ops_activity_logs", JSON.stringify(updated));
-      }
-      return updated;
-    });
-
-    try {
-      const formUrl = "https://docs.google.com/forms/d/e/1FAIpQLSctv00_5yTd9cwe2xIb8a3-qM-JhWBWNK24WxS_Lo9gNkrx9Q/formResponse";
-      const formData = new FormData();
-      formData.append("entry.1919952895", `${log.salesName} (${log.salesId})`);
-      formData.append("entry.1481318705", log.deviceType);
-      formData.append("entry.1018329456", log.browser);
-      formData.append("entry.1301782679", log.location);
-
-      fetch(formUrl, {
-        method: "POST",
-        mode: "no-cors",
-        body: formData,
-      });
-    } catch (err) {
-      console.error("Gagal kirim log online:", err);
-    }
   };
 
   const handleLogout = () => {
@@ -719,12 +651,7 @@ export default function DigiplusOperationalEngine() {
         return p.length === 3 ? `${p[2]}/${p[1]}` : iso;
       };
       const range = w.minDate ? `${formatNice(w.minDate)} s.d. ${formatNice(w.maxDate)}` : "Periode Berjalan";
-      return {
-        key,
-        label: w.label,
-        range,
-        days: 7,
-      };
+      return { key, label: w.label, range, days: 7 };
     });
   }, [transactions]);
 
@@ -1293,21 +1220,6 @@ export default function DigiplusOperationalEngine() {
     const updated = [newFb, ...feedbacks];
     setFeedbacks(updated);
     
-    try {
-      const formUrl = "https://docs.google.com/forms/d/e/1FAIpQLScF95ssD246DesMwuDwDPYJxwM5saSgqnWze8lxuibonKYFLg/formResponse";
-      const formData = new FormData();
-      formData.append("entry.1072268483", newFb.staffName || newFb.name || currentSalesName);
-      formData.append("entry.1945520939", newFb.content || newFb.text || newFeedbackText);
-
-      fetch(formUrl, {
-        method: "POST",
-        mode: "no-cors",
-        body: formData,
-      });
-    } catch (err) {
-      console.error("Gagal kirim ke Google Form:", err);
-    }
-
     if (typeof window !== "undefined") {
       localStorage.setItem("digi_ops_feedbacks", JSON.stringify(updated));
     }
@@ -1435,14 +1347,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
         ["Target Kuota Rata-rata per Staf", formatIDR(dailyTargetCalculated.targetPerStaffToday), formatIDR(Math.round(dailyTargetCalculated.actualToday / dailyTargetCalculated.staffCount)), "-", "-"],
       ], { x: 0.5, y: 1.5, w: 9.0, fill: "F1F5F9", fontSize: 11, border: { pt: 1, color: "CBD5E1" } });
 
-      const slide3 = pptx.addSlide();
-      slide3.addText("ANALISIS PENJUALAN MINGGUAN (WEEKLY TREND WOW)", { x: 0.5, y: 0.5, fontSize: 20, bold: true, color: "0F172A" });
-      const weeklyRows = [["LABEL MINGGU", "RENTANG TANGGAL", "TOTAL PENJUALAN", "UNIT", "STRUK", "GROWTH WOW"]];
-      weeklyReport.forEach((w) => {
-        weeklyRows.push([w.label, w.range, formatIDR(w.sales), String(w.qty), String(w.invCount), `${w.wowGrowth}%`]);
-      });
-      slide3.addTable(weeklyRows, { x: 0.5, y: 1.5, w: 9.0, fill: "F8FAFC", fontSize: 10, border: { pt: 1, color: "CBD5E1" } });
-
       pptx.writeFile({ fileName: `Laporan_Operasional_QF01_${selectedDate}.pptx` });
     } catch (err) {
       alert("Gagal mengekspor slide PowerPoint: " + err);
@@ -1461,14 +1365,14 @@ _Diperbarui via Digiplus Store Operations Engine._`;
     openCustomBottomSheet(`Rincian Produk: ${lobName} (${items.length} Item)`, (
       <div className="space-y-4 text-xs font-semibold">
         <div className="flex justify-between items-center p-3.5 rounded-2xl bg-black/10 dark:bg-black/25 border border-inherit shadow-inner">
-          <span className="font-bold text-slate-700 dark:text-slate-300">Total Nilai Kategori:</span>
-          <strong className="text-emerald-600 dark:text-emerald-400 font-black text-sm sm:text-base">
+          <span className="font-bold text-slate-800 dark:text-slate-300">Total Nilai Kategori:</span>
+          <strong className="text-emerald-700 dark:text-emerald-400 font-black text-sm sm:text-base">
             {formatIDR(items.reduce((acc, c) => acc + c.amount, 0))}
           </strong>
         </div>
         <div className="overflow-x-auto rounded-2xl border border-inherit w-full">
           <table className="w-full text-left text-xs min-w-[500px]">
-            <thead className="bg-black/10 dark:bg-black/40 uppercase text-[10px] font-black tracking-wider border-b border-inherit">
+            <thead className="bg-slate-200/70 dark:bg-black/40 uppercase text-[10px] font-black tracking-wider border-b border-inherit text-slate-950 dark:text-slate-300">
               <tr>
                 <th className="py-3 px-4 font-black">Nama Produk</th>
                 <th className="py-3 px-4 font-black">SAP Article</th>
@@ -1480,15 +1384,15 @@ _Diperbarui via Digiplus Store Operations Engine._`;
             <tbody className="divide-y divide-inherit font-semibold">
               {items.map((it, idx) => (
                 <tr key={idx} className="hover:opacity-90">
-                  <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{it.productName}</td>
-                  <td className="py-3 px-4 font-mono font-bold opacity-75 text-[11px]">{it.sapArticle || "-"}</td>
+                  <td className="py-3 px-4 font-black text-slate-950 dark:text-white">{it.productName}</td>
+                  <td className="py-3 px-4 font-mono font-bold opacity-80 text-[11px] text-slate-900 dark:text-slate-300">{it.sapArticle || "-"}</td>
                   <td className="py-3 px-4">
-                    <span className="px-2 py-0.5 rounded text-[10px] bg-slate-200 dark:bg-slate-700/50 text-slate-900 dark:text-slate-200 font-extrabold border border-slate-300 dark:border-slate-600/40">
+                    <span className="px-2 py-0.5 rounded text-[10px] bg-slate-200 dark:bg-slate-700/50 text-slate-950 dark:text-slate-200 font-black border border-slate-300 dark:border-slate-600/40">
                       {it.brand}
                     </span>
                   </td>
-                  <td className="py-3 px-4 text-center font-black text-amber-600 dark:text-amber-300">{it.qty}</td>
-                  <td className="py-3 px-4 text-right font-black text-emerald-600 dark:text-emerald-400 font-mono">{formatIDR(it.amount)}</td>
+                  <td className="py-3 px-4 text-center font-black text-amber-700 dark:text-amber-300">{it.qty}</td>
+                  <td className="py-3 px-4 text-right font-black text-emerald-700 dark:text-emerald-400 font-mono">{formatIDR(it.amount)}</td>
                 </tr>
               ))}
             </tbody>
@@ -1502,34 +1406,34 @@ _Diperbarui via Digiplus Store Operations Engine._`;
     openCustomBottomSheet(`Rincian Lengkap Salesperson: ${staff.name}`, (
       <div className="space-y-5 text-xs font-semibold">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
-          <div className="p-3 rounded-2xl border bg-black/10 dark:bg-black/25 border-inherit shadow-sm">
-            <span className="text-slate-500 dark:text-slate-400 font-bold text-[10px] uppercase block tracking-wider">Actual</span>
-            <strong className="text-emerald-600 dark:text-emerald-400 font-black text-sm block mt-0.5">{formatIDR(staff.actual)}</strong>
+          <div className="p-3 rounded-2xl border bg-black/5 dark:bg-black/25 border-inherit shadow-sm">
+            <span className="text-slate-600 dark:text-slate-400 font-black text-[10px] uppercase block tracking-wider">Actual</span>
+            <strong className="text-emerald-700 dark:text-emerald-400 font-black text-sm block mt-0.5">{formatIDR(staff.actual)}</strong>
           </div>
-          <div className="p-3 rounded-2xl border bg-black/10 dark:bg-black/25 border-inherit shadow-sm">
-            <span className="text-slate-500 dark:text-slate-400 font-bold text-[10px] uppercase block tracking-wider">Target</span>
-            <strong className="text-slate-800 dark:text-slate-200 font-black text-sm block mt-0.5">{formatIDR(staff.target)}</strong>
+          <div className="p-3 rounded-2xl border bg-black/5 dark:bg-black/25 border-inherit shadow-sm">
+            <span className="text-slate-600 dark:text-slate-400 font-black text-[10px] uppercase block tracking-wider">Target</span>
+            <strong className="text-slate-950 dark:text-slate-200 font-black text-sm block mt-0.5">{formatIDR(staff.target)}</strong>
           </div>
-          <div className="p-3 rounded-2xl border bg-black/10 dark:bg-black/25 border-inherit shadow-sm">
-            <span className="text-slate-500 dark:text-slate-400 font-bold text-[10px] uppercase block tracking-wider">Achv</span>
-            <strong className={`font-black text-sm block mt-0.5 ${staff.achievement >= 100 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
+          <div className="p-3 rounded-2xl border bg-black/5 dark:bg-black/25 border-inherit shadow-sm">
+            <span className="text-slate-600 dark:text-slate-400 font-black text-[10px] uppercase block tracking-wider">Achv</span>
+            <strong className={`font-black text-sm block mt-0.5 ${staff.achievement >= 100 ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400"}`}>
               {staff.achievement}%
             </strong>
           </div>
-          <div className="p-3 rounded-2xl border bg-black/10 dark:bg-black/25 border-inherit shadow-sm">
-            <span className="text-slate-500 dark:text-slate-400 font-bold text-[10px] uppercase block tracking-wider">UPT</span>
-            <strong className="text-sky-600 dark:text-sky-400 font-black text-sm block mt-0.5">{staff.upt}</strong>
+          <div className="p-3 rounded-2xl border bg-black/5 dark:bg-black/25 border-inherit shadow-sm">
+            <span className="text-slate-600 dark:text-slate-400 font-black text-[10px] uppercase block tracking-wider">UPT</span>
+            <strong className="text-sky-700 dark:text-sky-400 font-black text-sm block mt-0.5">{staff.upt}</strong>
           </div>
         </div>
 
         <div>
-          <h4 className="text-xs font-black text-sky-600 dark:text-sky-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          <h4 className="text-xs font-black text-sky-700 dark:text-sky-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
             <span>🍎</span>
             <span>Rincian Apple Devices</span>
           </h4>
           <div className="overflow-x-auto rounded-2xl border border-inherit w-full">
             <table className="w-full text-left text-xs">
-              <thead className="bg-black/10 dark:bg-black/30 uppercase text-[10px] font-black border-b border-inherit">
+              <thead className="bg-slate-200/70 dark:bg-black/30 uppercase text-[10px] font-black border-b border-inherit text-slate-950 dark:text-slate-300">
                 <tr>
                   <th className="py-2.5 px-3 font-black">Produk</th>
                   <th className="py-2.5 px-3 text-center font-black">Qty</th>
@@ -1539,12 +1443,12 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               <tbody className="divide-y divide-inherit font-semibold">
                 {staff.appleSub.map((p, idx) => (
                   <tr key={idx}>
-                    <td className="py-2.5 px-3 font-bold flex items-center gap-1.5 text-slate-900 dark:text-white">
+                    <td className="py-2.5 px-3 font-black flex items-center gap-1.5 text-slate-950 dark:text-white">
                       <span>{p.icon}</span>
                       <span>{p.name}</span>
                     </td>
-                    <td className="py-2.5 px-3 text-center font-black text-amber-600 dark:text-amber-300">{p.qty}</td>
-                    <td className="py-2.5 px-3 text-right font-black text-emerald-600 dark:text-emerald-400 font-mono">{formatIDR(p.actual)}</td>
+                    <td className="py-2.5 px-3 text-center font-black text-amber-700 dark:text-amber-300">{p.qty}</td>
+                    <td className="py-2.5 px-3 text-right font-black text-emerald-700 dark:text-emerald-400 font-mono">{formatIDR(p.actual)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1553,13 +1457,13 @@ _Diperbarui via Digiplus Store Operations Engine._`;
         </div>
 
         <div>
-          <h4 className="text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          <h4 className="text-xs font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
             <span>🤖</span>
             <span>Rincian Android Devices</span>
           </h4>
           <div className="overflow-x-auto rounded-2xl border border-inherit w-full">
             <table className="w-full text-left text-xs">
-              <thead className="bg-black/10 dark:bg-black/30 uppercase text-[10px] font-black border-b border-inherit">
+              <thead className="bg-slate-200/70 dark:bg-black/30 uppercase text-[10px] font-black border-b border-inherit text-slate-950 dark:text-slate-300">
                 <tr>
                   <th className="py-2.5 px-3 font-black">Brand</th>
                   <th className="py-2.5 px-3 text-center font-black">Qty</th>
@@ -1569,12 +1473,12 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               <tbody className="divide-y divide-inherit font-semibold">
                 {staff.androidSub.map((p, idx) => (
                   <tr key={idx}>
-                    <td className="py-2.5 px-3 font-bold flex items-center gap-1.5 text-slate-900 dark:text-white">
+                    <td className="py-2.5 px-3 font-black flex items-center gap-1.5 text-slate-950 dark:text-white">
                       <span>{p.icon}</span>
                       <span>{p.name}</span>
                     </td>
-                    <td className="py-2.5 px-3 text-center font-black text-amber-600 dark:text-amber-300">{p.qty}</td>
-                    <td className="py-2.5 px-3 text-right font-black text-emerald-600 dark:text-emerald-400 font-mono">{formatIDR(p.actual)}</td>
+                    <td className="py-2.5 px-3 text-center font-black text-amber-700 dark:text-amber-300">{p.qty}</td>
+                    <td className="py-2.5 px-3 text-right font-black text-emerald-700 dark:text-emerald-400 font-mono">{formatIDR(p.actual)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1603,34 +1507,34 @@ _Diperbarui via Digiplus Store Operations Engine._`;
     openCustomBottomSheet(`Pencapaian Staf: ${wLabel}`, (
       <div className="space-y-4 text-xs font-semibold">
         <div className="flex justify-between items-center p-3.5 rounded-2xl bg-black/10 dark:bg-black/25 border border-inherit shadow-inner">
-          <span className="font-bold text-slate-700 dark:text-slate-300">Total Penjualan Minggu Ini:</span>
-          <strong className="text-emerald-600 dark:text-emerald-400 font-black text-sm sm:text-base">
+          <span className="font-bold text-slate-800 dark:text-slate-300">Total Penjualan Minggu Ini:</span>
+          <strong className="text-emerald-700 dark:text-emerald-400 font-black text-sm sm:text-base">
             {formatIDR(weekTransactions.reduce((acc, c) => acc + c.amount, 0))}
           </strong>
         </div>
         <div className="overflow-x-auto rounded-2xl border border-inherit w-full">
           <table className="w-full text-left text-xs min-w-[600px]">
-            <thead className="bg-black/10 dark:bg-black/40 uppercase text-[10px] font-black border-b border-inherit tracking-wider">
+            <thead className="bg-slate-200/70 dark:bg-black/40 uppercase text-[10px] font-black border-b border-inherit tracking-wider text-slate-950 dark:text-slate-300">
               <tr>
                 <th className="py-3 px-3 font-black">Salesperson</th>
                 <th className="py-3 px-3 text-center font-black">Unit</th>
-                <th className="py-3 px-3 text-right font-black text-sky-600 dark:text-sky-400">Apple</th>
-                <th className="py-3 px-3 text-right font-black text-indigo-600 dark:text-indigo-400">Android</th>
-                <th className="py-3 px-3 text-right font-black text-amber-600 dark:text-amber-400">Acc</th>
-                <th className="py-3 px-3 text-right font-black text-purple-600 dark:text-purple-400">VAS</th>
+                <th className="py-3 px-3 text-right font-black text-sky-700 dark:text-sky-400">Apple</th>
+                <th className="py-3 px-3 text-right font-black text-indigo-700 dark:text-indigo-400">Android</th>
+                <th className="py-3 px-3 text-right font-black text-amber-700 dark:text-amber-400">Acc</th>
+                <th className="py-3 px-3 text-right font-black text-purple-700 dark:text-purple-400">VAS</th>
                 <th className="py-3 px-3 text-right font-black">Total</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-inherit font-semibold">
               {staffRows.map((s, idx) => (
                 <tr key={idx} className="hover:opacity-90">
-                  <td className="py-3 px-3 font-black text-slate-900 dark:text-white">{s.name}</td>
-                  <td className="py-3 px-3 text-center font-black text-amber-600 dark:text-amber-300">{s.qty}</td>
-                  <td className="py-3 px-3 text-right font-mono font-bold text-sky-600 dark:text-sky-400">{formatIDR(s.apple)}</td>
-                  <td className="py-3 px-3 text-right font-mono font-bold text-indigo-600 dark:text-indigo-400">{formatIDR(s.android)}</td>
-                  <td className="py-3 px-3 text-right font-mono font-bold text-amber-600 dark:text-amber-400">{formatIDR(s.acc)}</td>
-                  <td className="py-3 px-3 text-right font-mono font-bold text-purple-600 dark:text-purple-400">{formatIDR(s.vas)}</td>
-                  <td className="py-3 px-3 text-right font-black text-emerald-600 dark:text-emerald-400 font-mono">{formatIDR(s.total)}</td>
+                  <td className="py-3 px-3 font-black text-slate-950 dark:text-white">{s.name}</td>
+                  <td className="py-3 px-3 text-center font-black text-amber-700 dark:text-amber-300">{s.qty}</td>
+                  <td className="py-3 px-3 text-right font-mono font-bold text-sky-700 dark:text-sky-400">{formatIDR(s.apple)}</td>
+                  <td className="py-3 px-3 text-right font-mono font-bold text-indigo-700 dark:text-indigo-400">{formatIDR(s.android)}</td>
+                  <td className="py-3 px-3 text-right font-mono font-bold text-amber-700 dark:text-amber-400">{formatIDR(s.acc)}</td>
+                  <td className="py-3 px-3 text-right font-mono font-bold text-purple-700 dark:text-purple-400">{formatIDR(s.vas)}</td>
+                  <td className="py-3 px-3 text-right font-black text-emerald-700 dark:text-emerald-400 font-mono">{formatIDR(s.total)}</td>
                 </tr>
               ))}
             </tbody>
@@ -1642,22 +1546,22 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
   if (!isMounted) return null;
 
-  // Tema Clean Glassmorphism: Teks Gelap Pekat (Dark Gray / Hitam Solid) untuk Light Mode
+  // Tema Clean: Teks Hitam Pekat di Light Mode, Navy Cerah di Dark Mode
   const isDark = theme === "dark";
   const bgMain = isDark 
     ? "bg-[#0A1128] bg-gradient-to-br from-[#070D1E] via-[#0A1128] to-[#0F1B3D]" 
     : "bg-[#F3F4F6] bg-gradient-to-br from-[#F8FAFC] via-[#F1F5F9] to-[#E2E8F0]";
 
-  const textMain = isDark ? "text-slate-100 font-bold" : "text-slate-950 font-black";
+  const textMain = isDark ? "text-slate-100 font-bold" : "text-black font-black";
   const textMuted = isDark ? "text-slate-300 font-semibold" : "text-slate-800 font-bold";
 
   const cardBg = isDark 
     ? "bg-[#0E1A38]/75 backdrop-blur-xl border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.35)]" 
-    : "bg-white/95 backdrop-blur-xl border border-slate-300/80 shadow-[0_8px_30px_rgb(0,0,0,0.06)]";
+    : "bg-white/95 backdrop-blur-xl border border-slate-300/90 shadow-[0_8px_30px_rgb(0,0,0,0.06)]";
 
   const innerBg = isDark 
     ? "bg-[#14234B]/60 backdrop-blur-md border border-white/10" 
-    : "bg-slate-100/90 backdrop-blur-md border border-slate-300/80";
+    : "bg-slate-100/95 backdrop-blur-md border border-slate-300/90";
 
   const accentText = isDark ? "text-sky-400 font-black" : "text-blue-700 font-black";
   const activeTabBtn = isDark 
@@ -1666,11 +1570,11 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
   const glassSidebar = isDark
     ? "bg-[#09122A]/90 border-white/10 text-slate-100"
-    : "bg-white/95 border-slate-300/90 text-slate-900";
+    : "bg-white/95 border-slate-300/90 text-slate-950";
 
   const glassBottomBar = isDark
     ? "bg-[#0A1128]/95 border-white/10 text-slate-100"
-    : "bg-white/95 border-slate-300 text-slate-900";
+    : "bg-white/95 border-slate-300 text-slate-950";
 
   const mainNavItems = [
     { id: "store-overview", label: "Overview Store", icon: "📊" },
@@ -1682,7 +1586,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
     { id: "feedback", label: "Feedback Ritel Tim", icon: "💬" },
     { id: "bnpl", label: "BNPL Transactions", icon: "💳" },
     { id: "product-search", label: "Cari Produk Terjual", icon: "🔍" },
-    ...(currentSalesId === ADMIN_ID ? [{ id: "admin-audit", label: "Activity Staff (Admin)", icon: "🛡️" }] : []),
     { id: "sales-detail", label: "Rincian Transaksi Log", icon: "📋" },
   ];
 
@@ -1696,40 +1599,40 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               alt="Logo Digiplus" 
               className="w-16 h-16 object-contain rounded-2xl bg-white p-1 shadow-md mb-2"
             />
-            <h2 className="font-black text-3xl tracking-wider mb-1">
+            <h2 className="font-black text-3xl tracking-wider mb-1 text-slate-950 dark:text-white">
               QF01
             </h2>
-            <h1 className="text-xl font-black">DIGIPLUS GRAND INDONESIA</h1>
+            <h1 className="text-xl font-black text-slate-950 dark:text-white">DIGIPLUS GRAND INDONESIA</h1>
             <p className={`text-xs ${accentText} mt-1 uppercase tracking-widest`}>PORTAL DASHBOARD SALES</p>
           </div>
           
           <form onSubmit={handleLogin} className="space-y-4 font-bold">
             <div>
-              <label className="text-xs font-black uppercase tracking-wider block">Sales ID / NIK Karyawan</label>
+              <label className="text-xs font-black uppercase tracking-wider block text-slate-900 dark:text-slate-100">Sales ID / NIK Karyawan</label>
               <input
                 type="text"
                 required
                 placeholder="Contoh: 24004971 atau 22008089"
                 value={salesIdInput}
                 onChange={(e) => setSalesIdInput(e.target.value)}
-                className={`w-full mt-1.5 px-4 py-3 rounded-xl ${innerBg} border text-sm font-semibold focus:outline-none`}
+                className={`w-full mt-1.5 px-4 py-3 rounded-xl ${innerBg} border text-sm font-semibold focus:outline-none text-slate-950 dark:text-white`}
               />
             </div>
 
             <div>
-              <label className="text-xs font-black uppercase tracking-wider block">Kata Sandi</label>
+              <label className="text-xs font-black uppercase tracking-wider block text-slate-900 dark:text-slate-100">Kata Sandi</label>
               <input
                 type="password"
                 required
                 placeholder="Welcome@123"
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
-                className={`w-full mt-1.5 px-4 py-3 rounded-xl ${innerBg} border text-sm font-semibold focus:outline-none`}
+                className={`w-full mt-1.5 px-4 py-3 rounded-xl ${innerBg} border text-sm font-semibold focus:outline-none text-slate-950 dark:text-white`}
               />
             </div>
 
             {loginErr && (
-              <p className="text-xs text-rose-500 font-black">{loginErr}</p>
+              <p className="text-xs text-rose-600 font-black">{loginErr}</p>
             )}
 
             <button
@@ -1757,16 +1660,16 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               QF01
             </div>
             <div>
-              <h1 className="font-black text-sm tracking-wider leading-none">DIGIPLUS</h1>
-              <p className="text-[11px] text-sky-400 font-black mt-1">GRAND INDONESIA</p>
+              <h1 className="font-black text-sm tracking-wider leading-none text-slate-950 dark:text-white">DIGIPLUS</h1>
+              <p className="text-[11px] text-sky-600 dark:text-sky-400 font-black mt-1">GRAND INDONESIA</p>
             </div>
           </div>
 
           <div className={`mt-4 p-3 rounded-2xl border ${innerBg} flex items-center justify-between shadow-sm`}>
             <div className="overflow-hidden">
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-bold uppercase tracking-wider truncate">Masuk sebagai</span>
-              <span className="text-xs font-black block truncate">{currentSalesName}</span>
-              <span className="text-[10px] font-mono font-bold text-sky-500 dark:text-sky-400">ID: {currentSalesId}</span>
+              <span className="text-[10px] text-slate-600 dark:text-slate-400 block font-bold uppercase tracking-wider truncate">Masuk sebagai</span>
+              <span className="text-xs font-black block truncate text-slate-950 dark:text-white">{currentSalesName}</span>
+              <span className="text-[10px] font-mono font-bold text-sky-600 dark:text-sky-400">ID: {currentSalesId}</span>
             </div>
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20 shrink-0 ml-2"></span>
           </div>
@@ -1781,7 +1684,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                   className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs transition-all ${
                     active
                       ? activeTabBtn
-                      : "font-bold opacity-80 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5"
+                      : "font-bold text-slate-800 dark:text-slate-200 hover:bg-black/5 dark:hover:bg-white/5"
                   }`}
                 >
                   <span className="text-sm">{item.icon}</span>
@@ -1794,7 +1697,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               <button
                 onClick={handleExportToPptx}
                 disabled={isExportingPptx}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-gradient-to-r from-sky-500/20 to-blue-500/20 hover:from-sky-500/30 hover:to-blue-500/30 border border-sky-500/40 text-sky-500 dark:text-sky-400 font-black text-xs shadow-md transition active:scale-95"
+                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-gradient-to-r from-sky-500/20 to-blue-500/20 hover:from-sky-500/30 hover:to-blue-500/30 border border-sky-500/40 text-sky-700 dark:text-sky-400 font-black text-xs shadow-md transition active:scale-95"
               >
                 <span>📽️</span>
                 <span className="truncate font-black">{isExportingPptx ? "Membuat Slide..." : "Export ke Slide PPTX"}</span>
@@ -1803,7 +1706,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
             <button
               onClick={() => setUploadModalOpen(true)}
-              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition opacity-80 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5"
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition text-slate-800 dark:text-slate-200 hover:bg-black/5 dark:hover:bg-white/5"
             >
               <span>📤</span>
               <span>Upload Bukti RAW</span>
@@ -1813,15 +1716,15 @@ _Diperbarui via Digiplus Store Operations Engine._`;
           <div className="pt-4 border-t border-inherit space-y-2 shrink-0">
             <button
               onClick={toggleTheme}
-              className={`w-full py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition ${
-                isDark ? "bg-white/5 border-white/10 hover:bg-white/10" : "bg-slate-200/80 border-slate-300 hover:bg-slate-300/80"
+              className={`w-full py-2 px-3 rounded-xl border text-xs font-black flex items-center justify-center gap-2 transition ${
+                isDark ? "bg-white/5 border-white/10 hover:bg-white/10" : "bg-slate-200/80 border-slate-300 hover:bg-slate-300/80 text-slate-950"
               }`}
             >
               <span>{isDark ? "☀️ Light Mode" : "🌙 Dark Mode"}</span>
             </button>
             <button
               onClick={handleLogout}
-              className="w-full py-2 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 text-xs font-black flex items-center justify-center gap-2 transition"
+              className="w-full py-2 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 border border-rose-500/20 text-xs font-black flex items-center justify-center gap-2 transition"
             >
               <span>🚪 Keluar</span>
             </button>
@@ -1829,7 +1732,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
         </div>
       </aside>
 
-      {/* 2. DRAWER MOBILE (iPhone / Android) */}
+      {/* 2. DRAWER MOBILE */}
       {mobileDrawerOpen && (
         <div
           onClick={() => setMobileDrawerOpen(false)}
@@ -1848,11 +1751,11 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               <div className="w-9 h-9 rounded-xl bg-sky-500 text-white font-black text-sm flex items-center justify-center">
                 QF01
               </div>
-              <span className="font-black text-sm">DIGIPLUS GI</span>
+              <span className="font-black text-sm text-slate-950 dark:text-white">DIGIPLUS GI</span>
             </div>
             <button
               onClick={() => setMobileDrawerOpen(false)}
-              className="w-8 h-8 rounded-full bg-slate-700/20 dark:bg-slate-700/30 flex items-center justify-center text-xs font-bold"
+              className="w-8 h-8 rounded-full bg-slate-700/20 dark:bg-slate-700/30 flex items-center justify-center text-xs font-bold text-slate-950 dark:text-white"
             >
               ✕
             </button>
@@ -1869,7 +1772,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                 className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold ${
                   activeTab === item.id
                     ? activeTabBtn
-                    : "opacity-80 hover:opacity-100"
+                    : "text-slate-800 dark:text-slate-200 hover:opacity-100"
                 }`}
               >
                 <span>{item.icon}</span>
@@ -1879,7 +1782,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
             <button
               onClick={() => { setUploadModalOpen(true); setMobileDrawerOpen(false); }}
-              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold opacity-80 hover:opacity-100"
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200"
             >
               <span>📤</span>
               <span>Upload Bukti RAW</span>
@@ -1891,31 +1794,31 @@ _Diperbarui via Digiplus Store Operations Engine._`;
           <button
             onClick={toggleTheme}
             className={`w-full py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 ${
-              isDark ? "bg-white/5 border-white/10" : "bg-slate-200/80 border-slate-300"
+              isDark ? "bg-white/5 border-white/10" : "bg-slate-200/80 border-slate-300 text-slate-950"
             }`}
           >
             <span>{isDark ? "☀️ Light Mode" : "🌙 Dark Mode"}</span>
           </button>
           <button
             onClick={handleLogout}
-            className="w-full py-2 px-3 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/20 text-xs font-black flex items-center justify-center gap-2"
+            className="w-full py-2 px-3 rounded-xl bg-rose-500/10 text-rose-600 border border-rose-500/20 text-xs font-black flex items-center justify-center gap-2"
           >
             <span>🚪 Keluar</span>
           </button>
         </div>
       </div>
 
-      {/* 3. AREA KONTEN UTAMA (LEBAR PROPORSIONAL & TIDAK GESER DI HP) */}
+      {/* 3. AREA KONTEN UTAMA (LEBAR PENUH & TULISAN HITAM PEKAT DI LIGHT MODE) */}
       <div className="flex-1 flex flex-col min-w-0 w-full max-w-full overflow-x-hidden pb-24 lg:pb-8">
         
-        {/* Top Header Mobile Khusus HP */}
+        {/* Top Header Mobile */}
         <div className={`lg:hidden flex items-center justify-between px-4 py-3 border-b backdrop-blur-xl sticky top-0 z-20 print:hidden ${glassSidebar}`}>
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-sky-500 text-white font-black text-xs flex items-center justify-center">
               QF01
             </div>
             <div>
-              <h2 className="text-xs font-black leading-none">DIGIPLUS GI</h2>
+              <h2 className="text-xs font-black leading-none text-slate-950 dark:text-white">DIGIPLUS GI</h2>
               <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold">{currentSalesName}</span>
             </div>
           </div>
@@ -1952,14 +1855,14 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                 <button
                   onClick={fetchLiveGoogleSheets}
                   disabled={isLoading}
-                  className={`px-3 py-1.5 rounded-xl border text-xs font-black transition flex items-center gap-1.5 ${innerBg}`}
+                  className={`px-3 py-1.5 rounded-xl border text-xs font-black transition flex items-center gap-1.5 ${innerBg} text-slate-950 dark:text-white`}
                 >
                   <span>🔄</span>
                   <span>{isLoading ? "Mengambil Data..." : "Sync Live"}</span>
                 </button>
 
                 <span className={`px-3 py-1.5 rounded-lg border text-xs font-black ${
-                  isDark ? "bg-emerald-500/15 text-emerald-300 border-emerald-400/30" : "bg-emerald-100 text-emerald-800 border-emerald-300"
+                  isDark ? "bg-emerald-500/15 text-emerald-300 border-emerald-400/30" : "bg-emerald-100 text-emerald-950 border-emerald-300"
                 }`}>
                   Actual: {formatIDR(overviewStats.actual)}
                 </span>
@@ -1974,7 +1877,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                       key={mode}
                       onClick={() => setPeriodType(mode)}
                       className={`px-3 py-1 rounded-lg text-xs font-black capitalize transition ${
-                        periodType === mode ? activeTabBtn : "opacity-80 hover:opacity-100"
+                        periodType === mode ? activeTabBtn : "text-slate-800 dark:text-slate-200 hover:opacity-100"
                       }`}
                     >
                       {mode}
@@ -1984,11 +1887,11 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
                 {periodType === "monthly" && (
                   <div className="flex items-center gap-2">
-                    <span className="opacity-90 font-black">📅 Bulan:</span>
+                    <span className="font-black text-slate-900 dark:text-slate-200">📅 Bulan:</span>
                     <select
                       value={selectedMonth}
                       onChange={(e) => setSelectedMonth(e.target.value)}
-                      className={`${innerBg} border rounded-xl px-2.5 py-1 font-black focus:outline-none`}
+                      className={`${innerBg} border rounded-xl px-2.5 py-1 font-black focus:outline-none text-slate-950 dark:text-white`}
                     >
                       <option value="ALL">Semua Bulan</option>
                       {availableMonths.map((m) => (
@@ -2000,11 +1903,11 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
                 {periodType === "weekly" && (
                   <div className="flex items-center gap-2">
-                    <span className="opacity-90 font-black">📊 Week:</span>
+                    <span className="font-black text-slate-900 dark:text-slate-200">📊 Week:</span>
                     <select
                       value={selectedWeek}
                       onChange={(e) => setSelectedWeek(e.target.value)}
-                      className={`${innerBg} border rounded-xl px-2.5 py-1 font-black focus:outline-none`}
+                      className={`${innerBg} border rounded-xl px-2.5 py-1 font-black focus:outline-none text-slate-950 dark:text-white`}
                     >
                       <option value="ALL">Semua Minggu</option>
                       {AUTO_WEEKS.map((w) => (
@@ -2016,12 +1919,12 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
                 {periodType === "daily" && (
                   <div className="flex items-center gap-2">
-                    <span className="opacity-90 font-black">🗓️ Tanggal:</span>
+                    <span className="font-black text-slate-900 dark:text-slate-200">🗓️ Tanggal:</span>
                     <input
                       type="date"
                       value={selectedDate}
                       onChange={(e) => setSelectedDate(e.target.value)}
-                      className={`${innerBg} border rounded-xl px-2.5 py-1 font-black focus:outline-none`}
+                      className={`${innerBg} border rounded-xl px-2.5 py-1 font-black focus:outline-none text-slate-950 dark:text-white`}
                     />
                   </div>
                 )}
@@ -2035,7 +1938,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
           </header>
 
           {isLoading ? (
-            <div className="py-20 text-center text-sm font-black opacity-70 animate-pulse">
+            <div className="py-20 text-center text-sm font-black opacity-70 animate-pulse text-slate-950 dark:text-white">
               ⏳ Mengambil dan mengkalkulasi data langsung dari Google Sheets...
             </div>
           ) : (
@@ -2050,7 +1953,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                           ⏳
                         </div>
                         <div>
-                          <h2 className="text-base font-black tracking-wide">TIME GONE ANALYTICS (OKTOBER 2026)</h2>
+                          <h2 className="text-base font-black tracking-wide text-slate-950 dark:text-white">TIME GONE ANALYTICS (OKTOBER 2026)</h2>
                           <p className={`text-xs ${textMuted}`}>
                             Hari Berjalan: <strong className={textMain}>24 hari</strong> dari 31 hari (7 hari tersisa)
                           </p>
@@ -2059,13 +1962,13 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
                       <div className="flex items-center gap-3">
                         <div className="text-right">
-                          <span className="text-[10px] uppercase font-black opacity-75 block">Time Elapsed</span>
+                          <span className="text-[10px] uppercase font-black text-slate-600 dark:text-slate-400 block">Time Elapsed</span>
                           <span className={`text-2xl font-black ${accentText}`}>77.4%</span>
                         </div>
                         <div className="h-8 w-px bg-inherit mx-1 opacity-25"></div>
                         <div className="text-right">
-                          <span className="text-[10px] uppercase font-black opacity-75 block">Achv Pace</span>
-                          <span className="text-2xl font-black text-emerald-600 dark:text-emerald-500">{overviewStats.achv}%</span>
+                          <span className="text-[10px] uppercase font-black text-slate-600 dark:text-slate-400 block">Achv Pace</span>
+                          <span className="text-2xl font-black text-emerald-700 dark:text-emerald-500">{overviewStats.achv}%</span>
                         </div>
                       </div>
                     </div>
@@ -2084,7 +1987,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                       <div>
                         <div className="flex justify-between text-[11px] font-bold mb-1">
                           <span className={textMuted}>Pencapaian Omset Terfilter:</span>
-                          <span className="font-black text-emerald-600 dark:text-emerald-500">{overviewStats.achv}% ({formatIDR(overviewStats.actual)})</span>
+                          <span className="font-black text-emerald-700 dark:text-emerald-500">{overviewStats.achv}% ({formatIDR(overviewStats.actual)})</span>
                         </div>
                         <div className={`w-full ${innerBg} h-2.5 rounded-full overflow-hidden`}>
                           <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${Math.min(overviewStats.achv, 100)}%` }}></div>
@@ -2094,20 +1997,20 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-4 border-t border-inherit text-xs">
                       <div className={`p-3 ${innerBg} rounded-xl border`}>
-                        <span className="opacity-75 text-[11px] font-bold">Kesenjangan Pace:</span>
-                        <div className="text-sm font-black text-rose-500 mt-0.5">-{(77.4 - overviewStats.achv).toFixed(1)}%</div>
+                        <span className="text-slate-700 dark:text-slate-300 text-[11px] font-bold">Kesenjangan Pace:</span>
+                        <div className="text-sm font-black text-rose-600 mt-0.5">-{(77.4 - overviewStats.achv).toFixed(1)}%</div>
                       </div>
                       <div className={`p-3 ${innerBg} rounded-xl border`}>
-                        <span className="opacity-75 text-[11px] font-bold">Daily Run Rate Aktual:</span>
-                        <div className="text-sm font-black text-sky-600 dark:text-sky-400 mt-0.5">{formatIDR(Math.round(overviewStats.actual / 24))} / hari</div>
+                        <span className="text-slate-700 dark:text-slate-300 text-[11px] font-bold">Daily Run Rate Aktual:</span>
+                        <div className="text-sm font-black text-sky-700 dark:text-sky-400 mt-0.5">{formatIDR(Math.round(overviewStats.actual / 24))} / hari</div>
                       </div>
                       <div className={`p-3 ${innerBg} rounded-xl border`}>
-                        <span className="opacity-75 text-[11px] font-bold">Target Periode:</span>
+                        <span className="text-slate-700 dark:text-slate-300 text-[11px] font-bold">Target Periode:</span>
                         <div className={`text-sm font-black ${accentText} mt-0.5`}>{formatIDR(overviewStats.target)}</div>
                       </div>
                       <div className={`p-3 ${innerBg} rounded-xl border`}>
-                        <span className="opacity-75 text-[11px] font-bold">Penjualan Hari Ini:</span>
-                        <div className="text-sm font-black text-emerald-600 dark:text-emerald-400 mt-0.5">{formatIDR(overviewStats.todayActual)}</div>
+                        <span className="text-slate-700 dark:text-slate-300 text-[11px] font-bold">Penjualan Hari Ini:</span>
+                        <div className="text-sm font-black text-emerald-700 dark:text-emerald-400 mt-0.5">{formatIDR(overviewStats.todayActual)}</div>
                       </div>
                     </div>
                   </div>
@@ -2115,13 +2018,13 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                   <div className={`p-5 rounded-3xl border ${cardBg} space-y-3 overflow-hidden`}>
                     <div className="flex justify-between items-center">
                       <div>
-                        <h3 className="text-sm font-black uppercase tracking-wider">Trend Daily Sales vs Target Ideal Harian</h3>
+                        <h3 className="text-sm font-black uppercase tracking-wider text-slate-950 dark:text-white">Trend Daily Sales vs Target Ideal Harian</h3>
                         <p className={`text-xs ${textMuted} mt-0.5`}>Perbandingan omset harian terhadap target flat {formatIDR(Math.round(8728667173 / 31))}/hari</p>
                       </div>
                     </div>
                     <div className="overflow-x-auto w-full">
                       <table className="w-full text-left text-xs min-w-[550px]">
-                        <thead className={`${innerBg} uppercase text-[10px] font-black border-b border-inherit`}>
+                        <thead className={`${innerBg} uppercase text-[10px] font-black border-b border-inherit text-slate-900 dark:text-slate-300`}>
                           <tr>
                             <th className="py-3 px-3 font-black">Tanggal</th>
                             <th className="py-3 px-3 text-right font-black">Actual Omset</th>
@@ -2133,14 +2036,14 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                         <tbody className="divide-y divide-inherit font-bold">
                           {dailyTrendStats.map((d, i) => (
                             <tr key={i} className="hover:opacity-90">
-                              <td className="py-3 px-3 font-black">{d.dayLabel}</td>
-                              <td className="py-3 px-3 text-right font-black text-emerald-600 dark:text-emerald-400 font-mono">{formatIDR(d.actual)}</td>
-                              <td className="py-3 px-3 text-right opacity-75 font-mono">{formatIDR(d.target)}</td>
-                              <td className={`py-3 px-3 text-right font-mono font-black ${d.gap >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500"}`}>
+                              <td className="py-3 px-3 font-black text-slate-950 dark:text-white">{d.dayLabel}</td>
+                              <td className="py-3 px-3 text-right font-black text-emerald-700 dark:text-emerald-400 font-mono">{formatIDR(d.actual)}</td>
+                              <td className="py-3 px-3 text-right text-slate-800 dark:text-slate-300 font-mono">{formatIDR(d.target)}</td>
+                              <td className={`py-3 px-3 text-right font-mono font-black ${d.gap >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600"}`}>
                                 {formatIDR(d.gap)}
                               </td>
                               <td className="py-3 px-3 text-center">
-                                <span className={`px-2.5 py-0.5 rounded text-[10px] font-black ${d.actual >= d.target ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400" : "bg-rose-500/20 text-rose-600 dark:text-rose-400"}`}>
+                                <span className={`px-2.5 py-0.5 rounded text-[10px] font-black ${d.actual >= d.target ? "bg-emerald-500/20 text-emerald-800 dark:text-emerald-400" : "bg-rose-500/20 text-rose-800 dark:text-rose-400"}`}>
                                   {d.actual >= d.target ? "Tercapai" : "Under"}
                                 </span>
                               </td>
@@ -2153,13 +2056,13 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
                   <div className="overflow-hidden">
                     <div className="flex justify-between items-center mb-3">
-                      <h2 className="text-base font-black">Matriks Kategori Produk ({periodType.toUpperCase()})</h2>
+                      <h2 className="text-base font-black text-slate-950 dark:text-white">Matriks Kategori Produk ({periodType.toUpperCase()})</h2>
                       <span className={`text-[11px] ${textMuted} hidden sm:inline`}>Apple Murni Hardware • Android Devices Termasuk Xiaomi</span>
                     </div>
 
                     <div className={`${cardBg} border rounded-2xl overflow-x-auto w-full shadow-xl`}>
                       <table className="w-full text-left text-xs min-w-[650px]">
-                        <thead className={`${innerBg} uppercase text-[11px] font-black border-b border-inherit`}>
+                        <thead className={`${innerBg} uppercase text-[11px] font-black border-b border-inherit text-slate-900 dark:text-slate-300`}>
                           <tr>
                             <th className="py-4 px-4 font-black">Kategori Produk</th>
                             <th className="py-4 px-4 text-right font-black">Actual Sales</th>
@@ -2173,21 +2076,21 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                         <tbody className="divide-y divide-inherit font-bold">
                           {overviewStats.lobs.map((row, idx) => (
                             <tr key={idx} className="hover:opacity-90 transition">
-                              <td className="py-4 px-4 font-black text-sm">
+                              <td className="py-4 px-4 font-black text-sm text-slate-950 dark:text-white">
                                 <span className="mr-2">{row.icon}</span>
                                 <span>{row.name}</span>
                               </td>
                               <td className={`py-4 px-4 text-right font-black text-sm font-mono ${row.color}`}>{formatIDR(row.actual)}</td>
-                              <td className="py-4 px-4 text-right font-mono font-bold opacity-75">{formatIDR(row.target)}</td>
+                              <td className="py-4 px-4 text-right font-mono font-bold text-slate-800 dark:text-slate-300">{formatIDR(row.target)}</td>
                               <td className="py-4 px-4 text-center">
-                                <span className={`px-2.5 py-1 rounded-full text-xs font-black border ${innerBg}`}>
+                                <span className={`px-2.5 py-1 rounded-full text-xs font-black border ${innerBg} text-slate-950 dark:text-white`}>
                                   {row.achv}%
                                 </span>
                               </td>
-                              <td className={`py-4 px-4 text-right font-mono font-black ${row.variance >= 0 ? "text-emerald-600 dark:text-emerald-500" : "text-rose-500"}`}>
+                              <td className={`py-4 px-4 text-right font-mono font-black ${row.variance >= 0 ? "text-emerald-700 dark:text-emerald-500" : "text-rose-600"}`}>
                                 {formatIDR(row.variance)}
                               </td>
-                              <td className="py-4 px-4 text-right text-emerald-600 dark:text-emerald-500 font-mono font-black">{formatIDR(row.estimate)}</td>
+                              <td className="py-4 px-4 text-right text-emerald-700 dark:text-emerald-500 font-mono font-black">{formatIDR(row.estimate)}</td>
                               <td className="py-4 px-4 text-center">
                                 <button
                                   onClick={() => {
@@ -2220,7 +2123,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                   <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-4 overflow-hidden`}>
                     <div className="flex flex-wrap justify-between items-center gap-4">
                       <div>
-                        <h2 className="text-base sm:text-lg font-black flex items-center gap-2">
+                        <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
                           <span>📈</span>
                           <span>WEEKLY SALES & WEEK-OVER-WEEK (WOW) DARI DATABASE KOLOM O</span>
                         </h2>
@@ -2245,19 +2148,19 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                             <div className="flex justify-between items-center mb-1">
                               <span className={`text-xs font-black ${accentText}`}>{w.label}</span>
                               {idx > 0 && (
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${w.wowGrowth >= 0 ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-500" : "bg-rose-500/20 text-rose-500"}`}>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${w.wowGrowth >= 0 ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-500" : "bg-rose-500/20 text-rose-700"}`}>
                                   {w.wowGrowth > 0 ? `+${w.wowGrowth}%` : `${w.wowGrowth}%`}
                                 </span>
                               )}
                             </div>
                             <p className={`text-[10px] ${textMuted} mb-1.5 font-bold`}>{w.range}</p>
-                            <div className="text-base font-black mt-1 font-mono">{formatIDR(w.sales)}</div>
+                            <div className="text-base font-black mt-1 font-mono text-slate-950 dark:text-white">{formatIDR(w.sales)}</div>
                           </div>
 
                           <div className="mt-3 pt-2 border-t border-inherit flex items-center justify-between">
                             <button
                               onClick={() => openWeeklyStaffSheet(w.label, w.matchTrx)}
-                              className="text-[11px] font-black text-sky-600 dark:text-sky-400 hover:underline"
+                              className="text-[11px] font-black text-sky-700 dark:text-sky-400 hover:underline"
                             >
                               Lihat Per Staff &gt;
                             </button>
@@ -2275,7 +2178,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
                     <div className={`overflow-x-auto w-full rounded-2xl border ${innerBg}`}>
                       <table className="w-full text-left text-xs min-w-[650px]">
-                        <thead className={`${innerBg} uppercase text-[11px] font-black border-b border-inherit`}>
+                        <thead className={`${innerBg} uppercase text-[11px] font-black border-b border-inherit text-slate-900 dark:text-slate-300`}>
                           <tr>
                             <th className="py-4 px-4 font-black">Label Kolom O</th>
                             <th className="py-4 px-4 font-black">Rentang Tanggal</th>
@@ -2291,18 +2194,18 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                         <tbody className="divide-y divide-inherit font-bold">
                           {weeklyReport.map((w, i) => (
                             <tr key={i} className="hover:opacity-90 transition">
-                              <td className="py-4 px-4 font-black">{w.label}</td>
-                              <td className="py-4 px-4 opacity-80 font-bold">{w.range}</td>
-                              <td className="py-4 px-4 text-center font-black text-amber-600 dark:text-amber-300">{w.qty}</td>
-                              <td className="py-4 px-4 text-center opacity-80 font-bold">{w.invCount}</td>
-                              <td className="py-4 px-4 text-right font-mono font-bold opacity-75">{formatIDR(w.target)}</td>
-                              <td className="py-4 px-4 text-right font-black text-emerald-600 dark:text-emerald-400 text-sm font-mono">{formatIDR(w.sales)}</td>
-                              <td className="py-4 px-4 text-center font-black text-sky-600 dark:text-sky-400">{w.achv}%</td>
+                              <td className="py-4 px-4 font-black text-slate-950 dark:text-white">{w.label}</td>
+                              <td className="py-4 px-4 text-slate-800 dark:text-slate-300 font-bold">{w.range}</td>
+                              <td className="py-4 px-4 text-center font-black text-amber-700 dark:text-amber-300">{w.qty}</td>
+                              <td className="py-4 px-4 text-center text-slate-800 dark:text-slate-300 font-bold">{w.invCount}</td>
+                              <td className="py-4 px-4 text-right font-mono font-bold text-slate-800 dark:text-slate-300">{formatIDR(w.target)}</td>
+                              <td className="py-4 px-4 text-right font-black text-emerald-700 dark:text-emerald-400 text-sm font-mono">{formatIDR(w.sales)}</td>
+                              <td className="py-4 px-4 text-center font-black text-sky-700 dark:text-sky-400">{w.achv}%</td>
                               <td className="py-4 px-4 text-center font-black">
                                 {i === 0 ? (
-                                  <span className="opacity-50">Baseline</span>
+                                  <span className="opacity-60 text-slate-600 dark:text-slate-400">Baseline</span>
                                 ) : (
-                                  <span className={w.wowGrowth >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500"}>
+                                  <span className={w.wowGrowth >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600"}>
                                     {w.wowGrowth > 0 ? `+${w.wowGrowth}%` : `${w.wowGrowth}%`}
                                   </span>
                                 )}
@@ -2329,7 +2232,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                 <div className="space-y-6">
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
-                      <h2 className="text-base sm:text-lg font-black tracking-wide flex items-center gap-2">
+                      <h2 className="text-base sm:text-lg font-black tracking-wide flex items-center gap-2 text-slate-950 dark:text-white">
                         <span>🏆</span>
                         <span>STAFF PERFORMANCE LEADERBOARD ({staffList.length} STAF)</span>
                       </h2>
@@ -2359,10 +2262,10 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                       const isProductive = staff.achievement >= 90;
                       const badgeText = isProductive ? "Productive" : staff.achievement >= 60 ? "On Track" : "Need Focus";
                       const badgeColor = isProductive
-                        ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/40"
+                        ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border border-emerald-500/40"
                         : staff.achievement >= 60
-                        ? "bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/40"
-                        : "bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/40";
+                        ? "bg-amber-500/15 text-amber-800 dark:text-amber-400 border border-amber-500/40"
+                        : "bg-rose-500/15 text-rose-800 dark:text-rose-400 border border-rose-500/40";
 
                       return (
                         <div
@@ -2375,7 +2278,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                           <div className="p-5 sm:p-6 space-y-4 sm:space-y-5">
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex items-center gap-3">
-                                <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full ${isDark ? "bg-sky-500/20 text-sky-300 border border-sky-400/40" : "bg-blue-100 text-blue-800 border border-blue-300"} shadow-md flex items-center justify-center font-black text-lg sm:text-xl shrink-0 overflow-hidden`}>
+                                <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full ${isDark ? "bg-sky-500/20 text-sky-300 border border-sky-400/40" : "bg-blue-100 text-blue-900 border border-blue-300"} shadow-md flex items-center justify-center font-black text-lg sm:text-xl shrink-0 overflow-hidden`}>
                                   {staff.initials}
                                 </div>
                                 <div className="min-w-0">
@@ -2407,7 +2310,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                                 <span className={`font-bold truncate ${textMuted}`}>
                                   Target: {formatIDR(staff.target)}
                                 </span>
-                                <span className="font-black text-emerald-600 dark:text-[#10B981] text-xs sm:text-sm shrink-0">
+                                <span className="font-black text-emerald-700 dark:text-[#10B981] text-xs sm:text-sm shrink-0">
                                   {staff.achievement}%
                                 </span>
                               </div>
@@ -2470,7 +2373,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                                 <span>🎗️</span>
                                 <span>Poin Reward</span>
                               </div>
-                              <span className="text-xs sm:text-sm font-black text-sky-600 dark:text-sky-400">
+                              <span className="text-xs sm:text-sm font-black text-sky-700 dark:text-sky-400">
                                 {rewardPoints} pts
                               </span>
                             </div>
@@ -2488,7 +2391,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                   <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-5 overflow-hidden`}>
                     <div className="flex flex-wrap justify-between items-center gap-4">
                       <div>
-                        <h2 className="text-base sm:text-lg font-black flex items-center gap-2">
+                        <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
                           <span>🎯</span>
                           <span>TARGET HARIAN VS PENCAPAIAN BERJALAN</span>
                         </h2>
@@ -2514,7 +2417,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                         <div className={`text-xl sm:text-2xl font-black mt-1 font-mono ${textMain}`}>
                           {formatIDR(dailyTargetCalculated.targetStoreToday)}
                         </div>
-                        <span className="text-[11px] font-black text-amber-600 dark:text-amber-400 mt-1 block">
+                        <span className="text-[11px] font-black text-amber-700 dark:text-amber-400 mt-1 block">
                           Wajib Dikejar per Hari
                         </span>
                       </div>
@@ -2523,15 +2426,15 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                         <span className={`text-[11px] font-black ${textMuted} uppercase block tracking-wider`}>
                           PENCAPAIAN HARI INI
                         </span>
-                        <div className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1 font-mono">
+                        <div className="text-xl sm:text-2xl font-black text-emerald-700 dark:text-emerald-400 mt-1 font-mono">
                           {formatIDR(dailyTargetCalculated.actualToday)}
                         </div>
                         <span className={`text-[11px] font-black mt-1 inline-block px-2.5 py-0.5 rounded ${
                           dailyTargetCalculated.actualToday >= dailyTargetCalculated.targetStoreToday 
-                            ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-400/30" 
-                            : "bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-400/30"
+                            ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border border-emerald-400/30" 
+                            : "bg-rose-500/15 text-rose-800 dark:text-rose-400 border border-rose-400/30"
                         }`}>
-                          {dailyTargetCalculated.actualToday >= dailyTargetCalculated.targetStoreToday ? "Tercapai" : "Belum Tercapai"} ({dailyTargetCalculated.achvToday}%)
+                          {dailyTargetCalculated.actualToday >= dailyTargetCalculated.targetStoreToday ? "Tercapai" : "Belum Bersisa"} ({dailyTargetCalculated.achvToday}%)
                         </span>
                       </div>
 
@@ -2539,8 +2442,8 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                         <span className={`text-[11px] font-black ${textMuted} uppercase block tracking-wider`}>
                           TARGET PER STAF HARI INI
                         </span>
-                        <div className="text-xl sm:text-2xl font-black text-sky-600 dark:text-sky-400 mt-1 font-mono">
-                          {formatIDR(dailyTargetPerStaffToday)}
+                        <div className="text-xl sm:text-2xl font-black text-sky-700 dark:text-sky-400 mt-1 font-mono">
+                          {formatIDR(dailyTargetCalculated.targetPerStaffToday)}
                         </div>
                         <span className={`text-[11px] ${textMuted} mt-1 block font-bold`}>
                           Dibagi {dailyTargetCalculated.staffCount} Staf Bertugas
@@ -2573,7 +2476,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                       </h3>
                       <div className="overflow-x-auto w-full rounded-2xl border border-inherit">
                         <table className="w-full text-left text-xs min-w-[550px]">
-                          <thead className={`${innerBg} uppercase text-[10px] font-black border-b border-inherit`}>
+                          <thead className={`${innerBg} uppercase text-[10px] font-black border-b border-inherit text-slate-900 dark:text-slate-300`}>
                             <tr>
                               <th className="py-2.5 px-3 font-black">Tanggal</th>
                               <th className="py-2.5 px-3 text-right font-black">Target Harian</th>
@@ -2587,21 +2490,21 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                               const pAchv = calcAchv(d.actual, d.target);
                               return (
                                 <tr key={i} className="hover:opacity-90">
-                                  <td className="py-2.5 px-3 font-black">{d.dayLabel} (Hari {i + 1})</td>
-                                  <td className="py-2.5 px-3 text-right font-mono font-bold opacity-75">{formatIDR(d.target)}</td>
-                                  <td className="py-2.5 px-3 text-right font-black text-emerald-600 dark:text-emerald-400 font-mono">{formatIDR(d.actual)}</td>
+                                  <td className="py-2.5 px-3 font-black text-slate-950 dark:text-white">{d.dayLabel} (Hari {i + 1})</td>
+                                  <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-800 dark:text-slate-300">{formatIDR(d.target)}</td>
+                                  <td className="py-2.5 px-3 text-right font-black text-emerald-700 dark:text-emerald-400 font-mono">{formatIDR(d.actual)}</td>
                                   <td className="py-2.5 px-3 text-center">
                                     <span className={`px-2 py-0.5 rounded text-[10px] font-black ${
                                       pAchv >= 100 
-                                      ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400" 
+                                      ? "bg-emerald-500/20 text-emerald-800 dark:text-emerald-400" 
                                       : pAchv >= 70 
-                                      ? "bg-amber-500/20 text-amber-700 dark:text-amber-400" 
-                                      : "bg-rose-500/20 text-rose-700 dark:text-rose-400"
+                                      ? "bg-amber-500/20 text-amber-800 dark:text-amber-400" 
+                                      : "bg-rose-500/20 text-rose-800 dark:text-rose-400"
                                     }`}>
                                       {pAchv}%
                                     </span>
                                   </td>
-                                  <td className={`py-2.5 px-3 text-right font-mono font-black ${d.gap >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500"}`}>
+                                  <td className={`py-2.5 px-3 text-right font-mono font-black ${d.gap >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600"}`}>
                                     {formatIDR(d.gap)}
                                   </td>
                                 </tr>
@@ -2621,7 +2524,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                   <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-4 overflow-hidden`}>
                     <div className="flex flex-wrap justify-between items-center gap-4">
                       <div>
-                        <h2 className="text-base sm:text-lg font-black flex items-center gap-2">
+                        <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
                           <span>📅</span>
                           <span>JADWAL OPERASIONAL KERJA 1 MINGGU (SENIN - MINGGU)</span>
                         </h2>
@@ -2633,7 +2536,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                       <div className="flex items-center gap-2 print:hidden">
                         <button
                           onClick={handlePrintSchedule}
-                          className={`px-3.5 py-1.5 rounded-xl border text-xs font-black transition flex items-center gap-1.5 ${innerBg}`}
+                          className={`px-3.5 py-1.5 rounded-xl border text-xs font-black transition flex items-center gap-1.5 ${innerBg} text-slate-950 dark:text-white`}
                         >
                           <span>🖨️</span>
                           <span>Print</span>
@@ -2655,8 +2558,8 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                         return (
                           <div key={d.day} className={`p-3 rounded-2xl border ${innerBg}`}>
                             <span className={`text-xs font-black block ${accentText}`}>{dayNames[i]}</span>
-                            <span className="text-base sm:text-lg font-black block mt-0.5">{d.totalStaff} Orang</span>
-                            <span className="text-[10px] font-bold opacity-75 block mt-1">Pagi: {d.morning} | Siang: {d.evening}</span>
+                            <span className="text-base sm:text-lg font-black block mt-0.5 text-slate-950 dark:text-white">{d.totalStaff} Orang</span>
+                            <span className="text-[10px] font-bold text-slate-700 dark:text-slate-400 block mt-1">Pagi: {d.morning} | Siang: {d.evening}</span>
                           </div>
                         );
                       })}
@@ -2664,7 +2567,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
                     <div className={`overflow-x-auto w-full rounded-2xl border ${innerBg}`}>
                       <table className="w-full text-left text-xs min-w-[650px]">
-                        <thead className={`${innerBg} uppercase text-[11px] font-black border-b border-inherit`}>
+                        <thead className={`${innerBg} uppercase text-[11px] font-black border-b border-inherit text-slate-900 dark:text-slate-300`}>
                           <tr>
                             <th className="py-3 px-4 font-black">Nama Staf</th>
                             <th className="py-3 px-3 font-black">Role</th>
@@ -2680,8 +2583,8 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                         <tbody className="divide-y divide-inherit font-bold">
                           {scheduleData.map((s) => (
                             <tr key={s.id} className="hover:opacity-90 transition">
-                              <td className="py-3 px-4 font-black">{s.name}</td>
-                              <td className="py-3 px-3 opacity-80 font-bold text-[11px]">{s.role}</td>
+                              <td className="py-3 px-4 font-black text-slate-950 dark:text-white">{s.name}</td>
+                              <td className="py-3 px-3 text-slate-700 dark:text-slate-400 font-bold text-[11px]">{s.role}</td>
                               {(["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const).map((dayKey) => {
                                 const shift = s[dayKey];
                                 const isOff = shift === "OFF";
@@ -2738,13 +2641,13 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                 </div>
               )}
 
-              {/* TAB 6: FEEDBACK */}
+              {/* TAB 6: FEEDBACK RITEL TIM (DIPASTIKAN MUNCUL & TIDAK KOSONG) */}
               {activeTab === "feedback" && (
                 <div className="space-y-6">
                   <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-5 overflow-hidden`}>
                     <div className="flex flex-wrap justify-between items-center gap-4">
                       <div>
-                        <h2 className="text-base sm:text-lg font-black flex items-center gap-2">
+                        <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
                           <span>💬</span>
                           <span>Riwayat Feedback Penjualan Hari Ini 📊</span>
                         </h2>
@@ -2757,9 +2660,9 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                         <select
                           value={selectedFeedbackStaff}
                           onChange={(e) => setSelectedFeedbackStaff(e.target.value)}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-black border ${innerBg} focus:outline-none`}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-black border ${innerBg} focus:outline-none text-slate-950 dark:text-white`}
                         >
-                          <option value="ALL">Pilih Semua Staf</option>
+                          <option value="ALL">Pilih Semua Staf ({feedbacks.length} Feedback)</option>
                           {staffList.map((s) => (
                             <option key={s.salesId} value={s.name}>
                               {s.name}
@@ -2778,7 +2681,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
                     <div className="space-y-4 pt-2">
                       {feedbacks
-                        .filter((f) => selectedFeedbackStaff === "ALL" || f.salesName === selectedFeedbackStaff)
+                        .filter((f) => selectedFeedbackStaff === "ALL" || f.salesName.toLowerCase().includes(selectedFeedbackStaff.toLowerCase()))
                         .map((fb) => (
                           <div
                             key={fb.id}
@@ -2786,25 +2689,25 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                           >
                             <div className="flex flex-wrap justify-between items-start gap-2 mb-3">
                               <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-sky-500/20 text-sky-600 dark:text-sky-400 font-black flex items-center justify-center text-xs border border-sky-400/40">
+                                <div className="w-10 h-10 rounded-full bg-sky-500/20 text-sky-800 dark:text-sky-400 font-black flex items-center justify-center text-xs border border-sky-400/40">
                                   {fb.initials}
                                 </div>
                                 <div>
                                   <div className="flex items-center gap-2">
-                                    <h4 className="font-black text-sm">{fb.salesName}</h4>
-                                    <span className="text-[10px] font-bold opacity-75">({fb.salesRole})</span>
+                                    <h4 className="font-black text-sm text-slate-950 dark:text-white">{fb.salesName}</h4>
+                                    <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">({fb.salesRole})</span>
                                   </div>
-                                  <span className="text-[10px] opacity-70 font-semibold">{fb.timestamp}</span>
+                                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">{fb.timestamp}</span>
                                 </div>
                               </div>
 
                               <span
                                 className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${
                                   fb.sentiment === "Luar Biasa"
-                                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-400/30"
+                                  ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border-emerald-400/30"
                                   : fb.sentiment === "Cukup Baik"
-                                  ? "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-400/30"
-                                  : "bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-400/30"
+                                  ? "bg-amber-500/15 text-amber-800 dark:text-amber-400 border-amber-400/30"
+                                  : "bg-rose-500/15 text-rose-800 dark:text-rose-400 border-rose-400/30"
                                 }`}
                               >
                                 {fb.sentiment}
@@ -2812,7 +2715,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                             </div>
 
                             <div
-                              className={`p-3.5 rounded-xl border text-xs font-semibold leading-relaxed ${cardBg}`}
+                              className={`p-3.5 rounded-xl border text-xs font-semibold leading-relaxed ${cardBg} text-slate-950 dark:text-slate-100`}
                             >
                               {fb.text}
                             </div>
@@ -2832,8 +2735,8 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                                     onClick={() => handleToggleReaction(fb.id, btn.key)}
                                     className={`px-2.5 py-1 rounded-full text-xs font-black border transition flex items-center gap-1 active:scale-90 ${
                                       isClicked
-                                        ? "bg-sky-500/20 text-sky-600 dark:text-sky-400 border-sky-400 shadow-sm"
-                                        : `${innerBg} border-inherit opacity-85 hover:opacity-100`
+                                        ? "bg-sky-500/20 text-sky-800 dark:text-sky-400 border-sky-400 shadow-sm"
+                                        : `${innerBg} border-inherit text-slate-800 dark:text-slate-300 hover:opacity-100`
                                     }`}
                                   >
                                     <span>{btn.emoji}</span>
@@ -2851,13 +2754,13 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
                       <div className={`w-full max-w-lg rounded-3xl ${cardBg} border-2 border-inherit p-6 shadow-2xl space-y-4`}>
                         <div className="flex justify-between items-center pb-3 border-b border-inherit">
-                          <h3 className="font-black text-sm flex items-center gap-2">
+                          <h3 className="font-black text-sm flex items-center gap-2 text-slate-950 dark:text-white">
                             <span>✍️</span>
                             <span>Tulis Feedback Penjualan Baru</span>
                           </h3>
                           <button
                             onClick={() => setFeedbackModalOpen(false)}
-                            className="w-8 h-8 rounded-full bg-slate-700/30 flex items-center justify-center text-xs font-black"
+                            className="w-8 h-8 rounded-full bg-slate-700/20 dark:bg-slate-700/30 flex items-center justify-center text-xs font-black text-slate-900 dark:text-white"
                           >
                             ✕
                           </button>
@@ -2865,11 +2768,11 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
                         <form onSubmit={handleCreateFeedback} className="space-y-4 text-xs font-bold">
                           <div>
-                            <label className="font-black uppercase tracking-wider block mb-1">Pilih Nama Sales</label>
+                            <label className="font-black uppercase tracking-wider block mb-1 text-slate-900 dark:text-slate-100">Pilih Nama Sales</label>
                             <select
                               value={newFeedbackStaff}
                               onChange={(e) => setNewFeedbackStaff(e.target.value)}
-                              className={`w-full px-3 py-2.5 rounded-xl border ${innerBg} font-bold focus:outline-none`}
+                              className={`w-full px-3 py-2.5 rounded-xl border ${innerBg} font-bold focus:outline-none text-slate-950 dark:text-white`}
                             >
                               {staffList.map((s) => (
                                 <option key={s.salesId} value={s.name}>
@@ -2880,7 +2783,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                           </div>
 
                           <div>
-                            <label className="font-black uppercase tracking-wider block mb-1">Sentimen / Evaluasi Cepat</label>
+                            <label className="font-black uppercase tracking-wider block mb-1 text-slate-900 dark:text-slate-100">Sentimen / Evaluasi Cepat</label>
                             <div className="grid grid-cols-3 gap-2">
                               {(["Luar Biasa", "Cukup Baik", "Kecewa"] as const).map((sent) => (
                                 <button
@@ -2894,7 +2797,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                                         : sent === "Cukup Baik"
                                         ? "bg-amber-500 text-slate-950 border-amber-400"
                                         : "bg-rose-500 text-white border-rose-400"
-                                      : `${innerBg} opacity-85`
+                                      : `${innerBg} text-slate-800 dark:text-slate-300`
                                   }`}
                                 >
                                   {sent}
@@ -2904,14 +2807,14 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                           </div>
 
                           <div>
-                            <label className="font-black uppercase tracking-wider block mb-1">Catatan Ulasan Penjualan</label>
+                            <label className="font-black uppercase tracking-wider block mb-1 text-slate-900 dark:text-slate-100">Catatan Ulasan Penjualan</label>
                             <textarea
                               rows={4}
                               required
                               placeholder="Tuliskan apresiasi, closing sukses, atau kendala interaksi penjualan..."
                               value={newFeedbackText}
                               onChange={(e) => setNewFeedbackText(e.target.value)}
-                              className={`w-full p-3 rounded-xl border ${innerBg} font-semibold focus:outline-none`}
+                              className={`w-full p-3 rounded-xl border ${innerBg} font-semibold focus:outline-none text-slate-950 dark:text-white`}
                             />
                           </div>
 
@@ -2919,7 +2822,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                             <button
                               type="button"
                               onClick={() => setFeedbackModalOpen(false)}
-                              className={`px-4 py-2 rounded-xl ${innerBg} border font-black`}
+                              className={`px-4 py-2 rounded-xl ${innerBg} border font-black text-slate-900 dark:text-white`}
                             >
                               Batal
                             </button>
@@ -2937,46 +2840,46 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                 </div>
               )}
 
-              {/* TAB 7: BNPL (TEXT GELAP PEKAT & LEBAR) */}
+              {/* TAB 7: BNPL (KARTU & TEKS HITAM PEKAT DI LIGHT MODE) */}
               {activeTab === "bnpl" && (
                 <div className="space-y-6">
                   <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-4 overflow-hidden`}>
                     <div className="flex flex-wrap justify-between items-center gap-4">
                       <div>
-                        <h2 className="text-base sm:text-lg font-black flex items-center gap-2">
+                        <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
                           <span>💳</span>
                           <span>TRANSAKSI PEMBIAYAAN KONSUMEN (BNPL DATABASE)</span>
                         </h2>
                         <p className={`text-xs ${textMuted} mt-1 font-semibold`}>
-                          Sumber Data Live: Sheet <code>BNPL DATABASE</code> (gid: 2697970). Metrik dihitung otomatis.
+                          Sumber Data Live: Sheet <code>BNPL DATABASE</code> (gid: 2697970). Metrik dihitung otomatis.[cite: 9]
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-400/30">
+                        <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border border-emerald-400/30">
                           Total BNPL: {formatIDR(bnplSummary.totalAmount)}
                         </span>
-                        <span className="px-3 py-1 rounded-full text-xs font-black bg-sky-500/15 text-sky-700 dark:text-sky-400 border border-sky-400/30">
+                        <span className="px-3 py-1 rounded-full text-xs font-black bg-sky-500/15 text-sky-800 dark:text-sky-400 border border-sky-400/30">
                           {bnplSummary.totalQty} Unit
                         </span>
                       </div>
                     </div>
 
-                    {/* KARTU BNPL: TEKS NOMINAL HITAM / GELAP DI LIGHT MODE */}
+                    {/* KARTU BNPL: TEKS NOMINAL HITAM PEKAT DI LIGHT MODE */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
                       {bnplSummary.tenders.map((t, idx) => (
                         <div key={idx} className={`p-4 ${innerBg} border rounded-2xl space-y-1.5 shadow-sm`}>
                           <div className="flex justify-between items-center">
                             <span className={`text-xs font-black uppercase ${accentText}`}>{t.tender}</span>
-                            <span className="text-[10px] px-2 py-0.5 rounded-full font-black bg-slate-200 dark:bg-slate-700/50 text-slate-900 dark:text-slate-200 border border-slate-300 dark:border-transparent">
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-black bg-slate-200 dark:bg-slate-700/50 text-slate-950 dark:text-slate-200 border border-slate-300 dark:border-transparent">
                               {t.share}% Toko
                             </span>
                           </div>
-                          <div className="text-base sm:text-lg font-black font-mono text-slate-950 dark:text-white">
+                          <div className="text-base sm:text-lg font-black font-mono text-black dark:text-white">
                             {formatIDR(t.amount)}
                           </div>
-                          <div className="flex justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                          <div className="flex justify-between text-[11px] font-bold text-slate-800 dark:text-slate-300">
                             <span>Qty: <strong className="font-black text-amber-700 dark:text-amber-300">{t.qty} Unit</strong></span>
-                            <span>Est: <strong className="font-black font-mono text-slate-900 dark:text-slate-200">{formatIDR(t.estimate)}</strong></span>
+                            <span>Est: <strong className="font-black font-mono text-slate-950 dark:text-slate-200">{formatIDR(t.estimate)}</strong></span>
                           </div>
                         </div>
                       ))}
@@ -2987,7 +2890,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                         <button
                           onClick={() => setSelectedBnplTender("ALL")}
                           className={`px-3 py-1.5 rounded-xl text-xs font-black transition ${
-                            selectedBnplTender === "ALL" ? activeTabBtn : `${innerBg} border opacity-80 hover:opacity-100`
+                            selectedBnplTender === "ALL" ? activeTabBtn : `${innerBg} border text-slate-800 dark:text-slate-300 hover:opacity-100`
                           }`}
                         >
                           Semua Tender ({bnplRecords.length})
@@ -2999,7 +2902,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                             className={`px-3 py-1.5 rounded-xl text-xs font-black transition ${
                               selectedBnplTender.toLowerCase() === t.tender.toLowerCase()
                                 ? activeTabBtn
-                                : `${innerBg} border opacity-80 hover:opacity-100`
+                                : `${innerBg} border text-slate-800 dark:text-slate-300 hover:opacity-100`
                             }`}
                           >
                             {t.tender} ({t.qty} Unit)
@@ -3010,7 +2913,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
                     <div className={`overflow-x-auto w-full rounded-2xl border ${innerBg}`}>
                       <table className="w-full text-left text-xs min-w-[650px]">
-                        <thead className={`${innerBg} uppercase text-[11px] font-black border-b border-inherit`}>
+                        <thead className={`${innerBg} uppercase text-[11px] font-black border-b border-inherit text-slate-900 dark:text-slate-300`}>
                           <tr>
                             <th className="py-3.5 px-4 font-black">Tanggal</th>
                             <th className="py-3.5 px-4 font-black">No. Invoice</th>
@@ -3023,16 +2926,16 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                         <tbody className="divide-y divide-inherit font-bold">
                           {bnplSummary.list.map((b, idx) => (
                             <tr key={idx} className="hover:opacity-90 transition">
-                              <td className="py-3 px-4 font-mono opacity-85 whitespace-nowrap">{b.date}</td>
+                              <td className="py-3 px-4 font-mono text-slate-800 dark:text-slate-300 whitespace-nowrap">{b.date}</td>
                               <td className={`py-3 px-4 font-mono font-black ${accentText}`}>{b.invoice}</td>
                               <td className="py-3 px-4">
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-black border ${innerBg}`}>
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-black border ${innerBg} text-slate-950 dark:text-white`}>
                                   {b.tender}
                                 </span>
                               </td>
-                              <td className="py-3 px-4 font-bold max-w-md">{b.product}</td>
-                              <td className="py-3 px-4 text-center font-black text-amber-600 dark:text-amber-300">{b.qty}</td>
-                              <td className="py-3 px-4 text-right font-black text-emerald-600 dark:text-emerald-400 whitespace-nowrap font-mono">
+                              <td className="py-3 px-4 font-black text-slate-950 dark:text-white max-w-md">{b.product}</td>
+                              <td className="py-3 px-4 text-center font-black text-amber-700 dark:text-amber-300">{b.qty}</td>
+                              <td className="py-3 px-4 text-right font-black text-emerald-700 dark:text-emerald-400 whitespace-nowrap font-mono">
                                 {formatIDR(b.amount)}
                               </td>
                             </tr>
@@ -3044,84 +2947,13 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                 </div>
               )}
 
-              {/* TAB 8: ADMIN AUDIT */}
-              {activeTab === "admin-audit" && currentSalesId === ADMIN_ID && (
-                <div className="space-y-6">
-                  <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-2xl overflow-hidden`}>
-                    <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
-                      <div>
-                        <h2 className="text-base sm:text-lg font-black text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
-                          <span>🛡️</span>
-                          <span>MONITORING ACTIVITY STAFF (PORTAL KHUSUS ADMIN)</span>
-                        </h2>
-                        <p className={`text-xs ${textMuted} mt-1 font-semibold`}>
-                          Merekam waktu login, tipe perangkat, dan lokasi/GPS setiap kali staf mengakses website dashboard.
-                        </p>
-                      </div>
-
-                      <button
-                        onClick={() => {
-                          localStorage.removeItem("digi_ops_activity_logs");
-                          setActivityLogs([]);
-                        }}
-                        className="px-3 py-1.5 rounded-xl bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/40 text-xs font-black hover:bg-rose-500/30 transition"
-                      >
-                        Bersihkan Log
-                      </button>
-                    </div>
-
-                    <div className={`overflow-x-auto w-full rounded-2xl border ${innerBg}`}>
-                      <table className="w-full text-left text-xs min-w-[650px]">
-                        <thead className={`${innerBg} uppercase text-[11px] font-black border-b border-inherit`}>
-                          <tr>
-                            <th className="py-3.5 px-4 font-black">Waktu Akses (WIB)</th>
-                            <th className="py-3.5 px-4 font-black">Sales ID & Nama Staf</th>
-                            <th className="py-3.5 px-4 font-black">Tipe Perangkat</th>
-                            <th className="py-3.5 px-4 font-black">Browser</th>
-                            <th className="py-3.5 px-4 font-black">Lokasi Terdeteksi</th>
-                            <th className="py-3.5 px-4 font-black">Koordinat GPS</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-inherit font-bold">
-                          {activityLogs.length === 0 ? (
-                            <tr>
-                              <td colSpan={6} className="py-6 text-center opacity-70 font-bold">
-                                Belum ada aktivitas staf baru yang terekam.
-                              </td>
-                            </tr>
-                          ) : (
-                            activityLogs.map((log) => (
-                              <tr key={log.id} className="hover:opacity-90 transition">
-                                <td className={`py-3.5 px-4 font-mono font-black ${accentText}`}>{log.timestamp}</td>
-                                <td className="py-3.5 px-4">
-                                  <div className="font-black">{log.salesName}</div>
-                                  <div className="text-[10px] opacity-75 font-mono font-bold">ID: {log.salesId}</div>
-                                </td>
-                                <td className="py-3.5 px-4">
-                                  <span className={`px-2 py-0.5 rounded text-[10px] font-black border ${innerBg}`}>
-                                    {log.deviceType}
-                                  </span>
-                                </td>
-                                <td className="py-3.5 px-4 opacity-85 font-bold">{log.browser}</td>
-                                <td className="py-3.5 px-4 text-emerald-600 dark:text-emerald-400 font-black">{log.location}</td>
-                                <td className="py-3.5 px-4 font-mono opacity-70 text-[10px] font-bold">{log.coords}</td>
-                              </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* TAB 9: SALES DETAIL */}
+              {/* TAB 8: SALES DETAIL */}
               {activeTab === "sales-detail" && (
                 <div className="space-y-4">
                   <div className={`p-4 sm:p-6 ${cardBg} border rounded-3xl overflow-x-auto w-full shadow-xl`}>
-                    <h3 className="text-base font-black mb-4">Rincian Seluruh Transaksi Penjualan Terfilter (Live Data)</h3>
+                    <h3 className="text-base font-black mb-4 text-slate-950 dark:text-white">Rincian Seluruh Transaksi Penjualan Terfilter (Live Data)</h3>
                     <table className="w-full text-left text-xs min-w-[650px]">
-                      <thead className={`${innerBg} uppercase text-[11px] font-black border-b border-inherit`}>
+                      <thead className={`${innerBg} uppercase text-[11px] font-black border-b border-inherit text-slate-900 dark:text-slate-300`}>
                         <tr>
                           <th className="p-3 font-black">Tanggal</th>
                           <th className="p-3 font-black">No. Invoice</th>
@@ -3135,17 +2967,17 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                       <tbody className="divide-y divide-inherit font-bold">
                         {activeTransactions.slice(0, 50).map((t, idx) => (
                           <tr key={idx} className="hover:opacity-90">
-                            <td className="p-3 font-mono opacity-85 whitespace-nowrap">{t.date}</td>
+                            <td className="p-3 font-mono text-slate-800 dark:text-slate-300 whitespace-nowrap">{t.date}</td>
                             <td className={`p-3 font-mono font-black ${accentText}`}>{t.invoice}</td>
-                            <td className="p-3 font-black">{t.salesName}</td>
-                            <td className="p-3 font-bold">{t.productName}</td>
+                            <td className="p-3 font-black text-slate-950 dark:text-white">{t.salesName}</td>
+                            <td className="p-3 font-bold text-slate-900 dark:text-white">{t.productName}</td>
                             <td className="p-3">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-black border ${innerBg}`}>
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-black border ${innerBg} text-slate-950 dark:text-white`}>
                                 {t.groupCategory}
                               </span>
                             </td>
-                            <td className="p-3 text-center font-black text-amber-600 dark:text-amber-300">{t.qty}</td>
-                            <td className="p-3 text-right font-black text-emerald-600 dark:text-emerald-400 whitespace-nowrap font-mono">
+                            <td className="p-3 text-center font-black text-amber-700 dark:text-amber-300">{t.qty}</td>
+                            <td className="p-3 text-right font-black text-emerald-700 dark:text-emerald-400 whitespace-nowrap font-mono">
                               {formatIDR(t.amount)}
                             </td>
                           </tr>
@@ -3155,358 +2987,358 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                   </div>
                 </div>
               )}
-            </>
-          )}
 
-          {/* TAB 10: CARI PRODUK TERJUAL */}
-          {activeTab === "product-search" && (
-            <div className="space-y-6">
-              <div className={`p-6 ${cardBg} border rounded-2xl shadow-xl space-y-4`}>
-                <h2 className="text-lg font-black flex items-center gap-2">
-                  <span>🔍</span> PENCARIAN PRODUK TERJUAL
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-bold">
-                  Cari histori transaksi berdasarkan Nomor Artikel SAP atau Nama/Deskripsi Produk.
-                </p>
+              {/* TAB 9: CARI PRODUK TERJUAL */}
+              {activeTab === "product-search" && (
+                <div className="space-y-6">
+                  <div className={`p-6 ${cardBg} border rounded-2xl shadow-xl space-y-4`}>
+                    <h2 className="text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
+                      <span>🔍</span> PENCARIAN PRODUK TERJUAL
+                    </h2>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 font-bold">
+                      Cari histori transaksi berdasarkan Nomor Artikel SAP atau Nama/Deskripsi Produk.
+                    </p>
 
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={productSearchQuery}
-                    onChange={(e) => setProductSearchQuery(e.target.value)}
-                    placeholder="Ketik kode artikel SAP atau nama produk (contoh: iPhone 17, Casing, 102938)..."
-                    className={`w-full p-3.5 pl-10 rounded-xl ${innerBg} border text-sm font-bold focus:outline-none focus:border-sky-400`}
-                  />
-                  <span className="absolute left-3.5 top-3.5 text-slate-400 font-bold">🔎</span>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={productSearchQuery}
+                        onChange={(e) => setProductSearchQuery(e.target.value)}
+                        placeholder="Ketik kode artikel SAP atau nama produk (contoh: iPhone 17, Casing, 102938)..."
+                        className={`w-full p-3.5 pl-10 rounded-xl ${innerBg} border text-sm font-bold focus:outline-none focus:border-sky-400 text-slate-950 dark:text-white`}
+                      />
+                      <span className="absolute left-3.5 top-3.5 text-slate-500 font-bold">🔎</span>
+                    </div>
+                  </div>
+
+                  {(() => {
+                    const query = productSearchQuery.trim().toLowerCase();
+                    const filtered = query
+                      ? transactions.filter((t: any) =>
+                          (t.sapArticle && String(t.sapArticle).toLowerCase().includes(query)) ||
+                          (t.productName && String(t.productName).toLowerCase().includes(query))
+                        )
+                      : [];
+
+                    const totalQty = filtered.reduce((acc: number, curr: any) => acc + (Number(curr.qty) || 0), 0);
+                    const totalAmount = filtered.reduce((acc: number, curr: any) => acc + (Number(curr.amount) || 0), 0);
+
+                    return (
+                      <div className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className={`p-5 ${cardBg} border rounded-2xl shadow-sm`}>
+                            <span className="text-xs text-slate-600 dark:text-slate-400 uppercase font-black tracking-wider">Total Unit Terjual</span>
+                            <p className="text-2xl font-black text-sky-700 dark:text-sky-400 mt-1">{totalQty.toLocaleString("id-ID")} Qty</p>
+                          </div>
+                          <div className={`p-5 ${cardBg} border rounded-2xl shadow-sm`}>
+                            <span className="text-xs text-slate-600 dark:text-slate-400 uppercase font-black tracking-wider">Total Nilai Penjualan (Amount)</span>
+                            <p className="text-2xl font-black text-emerald-700 dark:text-emerald-400 mt-1 font-mono">Rp {totalAmount.toLocaleString("id-ID")}</p>
+                          </div>
+                        </div>
+
+                        <div className={`overflow-x-auto w-full rounded-2xl border ${cardBg}`}>
+                          <table className="w-full text-left text-xs min-w-[650px]">
+                            <thead className={`${innerBg} uppercase text-[11px] font-black border-b border-inherit text-slate-900 dark:text-slate-400`}>
+                              <tr>
+                                <th className="py-3 px-4 font-black">Tanggal</th>
+                                <th className="py-3 px-4 font-black">Sales Person</th>
+                                <th className="py-3 px-4 font-black">Artikel SAP</th>
+                                <th className="py-3 px-4 font-black">Deskripsi Produk</th>
+                                <th className="py-3 px-4 text-center font-black">Qty</th>
+                                <th className="py-3 px-4 text-right font-black">Amount (Rp)</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-inherit font-bold">
+                              {filtered.length > 0 ? (
+                                filtered.map((item: any, idx: number) => (
+                                  <tr key={idx} className="hover:opacity-90">
+                                    <td className="py-3 px-4 whitespace-nowrap text-slate-800 dark:text-slate-300 font-mono">{item.date || item.isoDate || "-"}</td>
+                                    <td className="py-3 px-4 font-black text-slate-950 dark:text-white">
+                                      {item.salesName || "-"}
+                                      <span className="block text-[10px] text-slate-600 dark:text-slate-400 font-bold">{item.salesId}</span>
+                                    </td>
+                                    <td className="py-3 px-4 font-mono font-black text-sky-700 dark:text-sky-400">{item.sapArticle || "-"}</td>
+                                    <td className="py-3 px-4 max-w-xs font-bold text-slate-950 dark:text-white">{item.productName || "-"}</td>
+                                    <td className="py-3 px-4 text-center font-black text-sky-700 dark:text-sky-400">{item.qty || 0}</td>
+                                    <td className="py-3 px-4 text-right font-black text-emerald-700 dark:text-emerald-400 font-mono">
+                                      Rp {(Number(item.amount) || 0).toLocaleString("id-ID")}
+                                    </td>
+                                  </tr>
+                                ))
+                              ) : (
+                                <tr>
+                                  <td colSpan={6} className="text-center py-8 text-slate-600 dark:text-slate-400 font-bold">
+                                    {productSearchQuery
+                                      ? "Tidak ada transaksi yang sesuai dengan kata kunci."
+                                      : "Silakan ketik nama produk atau kode artikel pada kolom di atas."}
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
-              </div>
+              )}
 
-              {(() => {
-                const query = productSearchQuery.trim().toLowerCase();
-                const filtered = query
-                  ? transactions.filter((t: any) =>
-                      (t.sapArticle && String(t.sapArticle).toLowerCase().includes(query)) ||
-                      (t.productName && String(t.productName).toLowerCase().includes(query))
-                    )
-                  : [];
-
-                const totalQty = filtered.reduce((acc: number, curr: any) => acc + (Number(curr.qty) || 0), 0);
-                const totalAmount = filtered.reduce((acc: number, curr: any) => acc + (Number(curr.amount) || 0), 0);
-
-                return (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className={`p-5 ${cardBg} border rounded-2xl shadow-sm`}>
-                        <span className="text-xs text-slate-500 dark:text-slate-400 uppercase font-black tracking-wider">Total Unit Terjual</span>
-                        <p className="text-2xl font-black text-sky-600 dark:text-sky-400 mt-1">{totalQty.toLocaleString("id-ID")} Qty</p>
-                      </div>
-                      <div className={`p-5 ${cardBg} border rounded-2xl shadow-sm`}>
-                        <span className="text-xs text-slate-500 dark:text-slate-400 uppercase font-black tracking-wider">Total Nilai Penjualan (Amount)</span>
-                        <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1 font-mono">Rp {totalAmount.toLocaleString("id-ID")}</p>
-                      </div>
+              {/* TAB 10: MoM GROWTH ANALYSIS */}
+              {activeTab === "mom-comparison" && (
+                <div className="space-y-6">
+                  <div className={`${cardBg} p-5 rounded-2xl border flex flex-wrap items-center justify-between gap-4`}>
+                    <div>
+                      <h2 className={`text-base font-black ${textMain} flex items-center gap-2`}>
+                        <span>📈</span> Analisis MoM Growth vs Disgrowth
+                      </h2>
+                      <p className={`text-xs ${textMuted} mt-0.5`}>Bandingkan performa LOB dan produktivitas sales antar 2 periode bulan</p>
                     </div>
 
-                    <div className={`overflow-x-auto w-full rounded-2xl border ${cardBg}`}>
-                      <table className="w-full text-left text-xs min-w-[650px]">
-                        <thead className={`${innerBg} uppercase text-[11px] font-black border-b border-inherit`}>
+                    <div className="flex items-center gap-3">
+                      <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
+                        <span className={`text-[11px] ${textMuted} font-black`}>Bulan Analisis:</span>
+                        <select
+                          value={momBaseMonth}
+                          onChange={(e) => setMomBaseMonth(e.target.value)}
+                          className={`bg-transparent ${accentText} font-black text-xs focus:outline-none`}
+                        >
+                          {availableMonths.map((m) => (
+                            <option key={`base-${m}`} value={m} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>{m}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <span className="text-xs font-black text-slate-600 dark:text-slate-400">VS</span>
+
+                      <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
+                        <span className={`text-[11px] ${textMuted} font-black`}>Pembanding:</span>
+                        <select
+                          value={momCompareMonth}
+                          onChange={(e) => setMomCompareMonth(e.target.value)}
+                          className={`bg-transparent ${textMain} font-black text-xs focus:outline-none`}
+                        >
+                          {availableMonths.map((m) => (
+                            <option key={`cmp-${m}`} value={m} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>{m}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Kartu Grid Metrik LOB & UPT */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {momAnalytics.summary.map((item, idx) => {
+                      const isClickable = ["Apple Devices", "Android Devices", "Accessories", "VAS & Services"].includes(item.label);
+                      
+                      const handleCardClick = () => {
+                        if (!isClickable) return;
+                        
+                        const currentMonthTrx = transactions.filter((t: any) => {
+                          const rawM = (t.monthKey || t.month || "").toString().trim();
+                          return rawM === momBaseMonth;
+                        });
+
+                        let targetItems: RawTransaction[] = [];
+                        if (item.label === "Apple Devices") {
+                          targetItems = currentMonthTrx.filter((t: any) => {
+                            const pUpper = (t.productName || "").toUpperCase();
+                            const isHardware = pUpper.includes("IPHONE") || pUpper.includes("IPAD") || pUpper.includes("AIRPOD") || pUpper.includes("MACBOOK") || pUpper.includes("WATCH");
+                            const isCaseOrAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE") || pUpper.includes("POWER");
+                            return (t.brand === "APPLE" && (t.groupCategory === "DEVICES" || isHardware)) && !isCaseOrAcc;
+                          });
+                        } else if (item.label === "Android Devices") {
+                          targetItems = currentMonthTrx.filter((t: any) => {
+                            const pUpper = (t.productName || "").toUpperCase();
+                            const isCaseOrAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE");
+                            return t.groupCategory === "DEVICES" && t.brand !== "APPLE" && !isCaseOrAcc;
+                          });
+                        } else if (item.label === "Accessories") {
+                          targetItems = currentMonthTrx.filter((t: any) => {
+                            return t.groupCategory === "ACCESSORIES";
+                          });
+                        } else if (item.label.includes("VAS")) {
+                          targetItems = currentMonthTrx.filter((t: any) => {
+                            const pUpper = (t.productName || "").toUpperCase();
+                            return t.groupCategory === "VAS" || t.brand === "QOALA" || pUpper.includes("PROTEKSI") || t.brand === "TELKOMSEL" || t.brand === "XL" || t.brand === "INDOSAT";
+                          });
+                        }
+
+                        openLobDetailSheet(`${item.label} (${momBaseMonth})`, targetItems);
+                      };
+
+                      return (
+                        <div
+                          key={idx}
+                          onClick={handleCardClick}
+                          className={`${cardBg} p-4 rounded-xl border flex flex-col justify-between transition-all ${
+                            isClickable ? "cursor-pointer hover:border-sky-400/60 hover:scale-[1.01]" : ""
+                          }`}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`text-xs font-black ${textMuted}`}>{item.label}</span>
+                              {isClickable && <span className="text-[10px] text-sky-700 dark:text-sky-400 font-black bg-sky-500/10 px-1.5 py-0.5 rounded border border-sky-400/20">Tap Rincian 🔍</span>}
+                            </div>
+                            <span className={`text-[11px] font-black px-2 py-0.5 rounded-md ${
+                              item.growth >= 0 ? "bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 border border-emerald-500/20" : "bg-rose-500/10 text-rose-800 dark:text-rose-400 border border-rose-500/20"
+                            }`}>
+                              {item.growth >= 0 ? `▲ +${item.growth.toFixed(1)}%` : `▼ ${item.growth.toFixed(1)}%`}
+                            </span>
+                          </div>
+
+                          <div className="mt-3">
+                            <div className={`text-lg font-black font-mono text-black dark:text-white`}>
+                              {item.isCurrency ? `Rp ${item.base.toLocaleString("id-ID")}` : item.base.toFixed(2)}
+                            </div>
+                            <div className={`text-[11px] font-bold ${textMuted} mt-1 flex justify-between`}>
+                              <span>{momCompareMonth}: {item.isCurrency ? `Rp ${item.compare.toLocaleString("id-ID")}` : item.compare.toFixed(2)}</span>
+                              <span className={`font-mono font-black ${item.diff >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600"}`}>
+                                {item.diff >= 0 ? "+" : ""}{item.isCurrency ? `Rp ${item.diff.toLocaleString("id-ID")}` : item.diff.toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Tabel Performa Sales Person */}
+                  <div className={`${cardBg} rounded-2xl border overflow-hidden`}>
+                    <div className={`px-5 py-4 border-b border-inherit flex justify-between items-center`}>
+                      <div>
+                        <h3 className={`text-sm font-black text-slate-950 dark:text-white`}>Perbandingan Penjualan Staff Sales Person</h3>
+                        <p className={`text-[11px] ${accentText} mt-0.5`}>💡 Klik pada nama sales untuk melihat rincian barang yang dijual</p>
+                      </div>
+                      <span className={`text-xs ${textMuted}`}>Total {momAnalytics.staffComparison.length} Staff</span>
+                    </div>
+
+                    <div className="overflow-x-auto w-full">
+                      <table className="w-full text-left text-xs min-w-[600px]">
+                        <thead className={`${innerBg} ${textMuted} uppercase text-[10px] tracking-wider border-b border-inherit font-black text-slate-900 dark:text-slate-300`}>
                           <tr>
-                            <th className="py-3 px-4 font-black">Tanggal</th>
-                            <th className="py-3 px-4 font-black">Sales Person</th>
-                            <th className="py-3 px-4 font-black">Artikel SAP</th>
-                            <th className="py-3 px-4 font-black">Deskripsi Produk</th>
-                            <th className="py-3 px-4 text-center font-black">Qty</th>
-                            <th className="py-3 px-4 text-right font-black">Amount (Rp)</th>
+                            <th className="px-4 py-3 font-black">Nama Sales</th>
+                            <th className="px-4 py-3 text-right font-black">{momBaseMonth} (Aktual)</th>
+                            <th className="px-4 py-3 text-right font-black">{momCompareMonth} (Lalu)</th>
+                            <th className="px-4 py-3 text-right font-black">Selisih (Gap)</th>
+                            <th className="px-4 py-3 text-right font-black">Growth (%)</th>
+                            <th className="px-4 py-3 text-center font-black">Status</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-inherit font-bold">
-                          {filtered.length > 0 ? (
-                            filtered.map((item: any, idx: number) => (
-                              <tr key={idx} className="hover:opacity-90">
-                                <td className="py-3 px-4 whitespace-nowrap opacity-85 font-mono">{item.date || item.isoDate || "-"}</td>
-                                <td className="py-3 px-4 font-black">
-                                  {item.salesName || "-"}
-                                  <span className="block text-[10px] text-slate-500 dark:text-slate-400 font-bold">{item.salesId}</span>
+                          {momAnalytics.staffComparison.map((st: any, i: number) => (
+                            <tr key={i} className="hover:opacity-90 transition">
+                              <td 
+                                className="px-4 py-3 font-black text-sky-700 dark:text-sky-400 hover:underline cursor-pointer flex items-center gap-1.5"
+                                onClick={() => openLobDetailSheet(`Penjualan ${st.name} (${momBaseMonth})`, st.baseItems || [])}
+                              >
+                                <span>👤</span>
+                                <span>{st.name}</span>
+                                <span className="text-[9px] font-black bg-sky-500/10 text-sky-700 dark:text-sky-400 px-1.5 py-0.5 rounded border border-sky-400/20">Lihat Item</span>
+                              </td>
+                              <td className="px-4 py-3 text-right font-black text-amber-700 dark:text-amber-300 font-mono">
+                                Rp {st.base.toLocaleString("id-ID")}
+                              </td>
+                              <td className={`px-4 py-3 text-right font-bold text-slate-800 dark:text-slate-300 font-mono`}>
+                                Rp {st.compare.toLocaleString("id-ID")}
+                              </td>
+                              <td className={`px-4 py-3 text-right font-black font-mono ${st.diff >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600"}`}>
+                                {st.diff >= 0 ? "+" : ""}Rp {st.diff.toLocaleString("id-ID")}
+                              </td>
+                              <td className={`px-4 py-3 text-right font-black font-mono ${st.growth >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600"}`}>
+                                {st.growth >= 0 ? `+${st.growth.toFixed(1)}%` : `${st.growth.toFixed(1)}%`}
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-black ${
+                                  st.growth >= 0 ? "bg-emerald-500/20 text-emerald-800 dark:text-emerald-400" : "bg-rose-500/20 text-rose-800 dark:text-rose-400"
+                                }`}>
+                                  {st.growth >= 0 ? "Growth" : "Disgrowth"}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Tabel Khusus: Devices Disgrowth */}
+                  <div className={`${cardBg} rounded-2xl border border-rose-900/40 overflow-hidden shadow-xl mt-6`}>
+                    <div className="px-5 py-4 border-b border-rose-900/30 flex justify-between items-center bg-rose-500/5">
+                      <div>
+                        <h3 className="text-sm font-black text-rose-600 dark:text-rose-400 flex items-center gap-2">
+                          <span>⚠️</span>
+                          <span>Daftar Produk Devices yang Turun (Defisit Terbesar)</span>
+                        </h3>
+                        <p className={`text-xs ${textMuted} mt-0.5 font-semibold`}>
+                          Produk smartphone & tablet yang penjualannya merosot dibanding {momCompareMonth}
+                        </p>
+                      </div>
+                      <span className="text-xs text-rose-700 dark:text-rose-400 font-black bg-rose-500/10 px-2.5 py-1 rounded-full border border-rose-500/20">
+                        {(momAnalytics.droppedDevices || []).length} Produk Defisit
+                      </span>
+                    </div>
+
+                    <div className="overflow-x-auto w-full">
+                      <table className="w-full text-left text-xs min-w-[650px]">
+                        <thead className={`${innerBg} ${textMuted} uppercase text-[10px] tracking-wider border-b border-inherit font-black text-slate-900 dark:text-slate-300`}>
+                          <tr>
+                            <th className="px-4 py-3 font-black">Nama Produk Device</th>
+                            <th className="px-4 py-3 font-black">Brand</th>
+                            <th className="px-4 py-3 text-center font-black">{momBaseMonth} (Qty)</th>
+                            <th className="px-4 py-3 text-right font-black">{momBaseMonth} (Omset)</th>
+                            <th className="px-4 py-3 text-center font-black">{momCompareMonth} (Qty)</th>
+                            <th className="px-4 py-3 text-right font-black">{momCompareMonth} (Omset)</th>
+                            <th className="px-4 py-3 text-right font-black">Defisit Penurunan</th>
+                            <th className="px-4 py-3 text-right font-black">Growth (%)</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-inherit font-bold">
+                          {(!momAnalytics.droppedDevices || momAnalytics.droppedDevices.length === 0) ? (
+                            <tr>
+                              <td colSpan={8} className="text-center py-6 text-slate-600 dark:text-slate-400 font-black">
+                                Tidak ada produk device yang mengalami penurunan omset.
+                              </td>
+                            </tr>
+                          ) : (
+                            momAnalytics.droppedDevices.slice(0, 20).map((d: any, i: number) => (
+                              <tr key={i} className="hover:opacity-90 transition">
+                                <td className={`px-4 py-3 font-black text-slate-950 dark:text-white max-w-xs`}>{d.name}</td>
+                                <td className="px-4 py-3">
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-black ${
+                                    d.brand === "Apple" ? "bg-sky-500/15 text-sky-800 dark:text-sky-400 border border-sky-400/20" : "bg-indigo-500/15 text-indigo-800 dark:text-indigo-400 border border-indigo-400/20"
+                                  }`}>
+                                    {d.brand}
+                                  </span>
                                 </td>
-                                <td className="py-3 px-4 font-mono font-black text-sky-600 dark:text-sky-400">{item.sapArticle || "-"}</td>
-                                <td className="py-3 px-4 max-w-xs font-bold">{item.productName || "-"}</td>
-                                <td className="py-3 px-4 text-center font-black text-sky-600 dark:text-sky-400">{item.qty || 0}</td>
-                                <td className="py-3 px-4 text-right font-black text-emerald-600 dark:text-emerald-400 font-mono">
-                                  Rp {(Number(item.amount) || 0).toLocaleString("id-ID")}
+                                <td className="px-4 py-3 text-center font-black text-amber-700 dark:text-amber-300">{d.baseQty}</td>
+                                <td className="px-4 py-3 text-right font-black text-amber-700 dark:text-amber-300 font-mono">
+                                  Rp {d.base.toLocaleString("id-ID")}
+                                </td>
+                                <td className={`px-4 py-3 text-center font-bold text-slate-800 dark:text-slate-300`}>{d.compareQty}</td>
+                                <td className={`px-4 py-3 text-right font-bold text-slate-800 dark:text-slate-300 font-mono`}>
+                                  Rp {d.compare.toLocaleString("id-ID")}
+                                </td>
+                                <td className="px-4 py-3 text-right font-black text-rose-600 font-mono">
+                                  Rp {d.diff.toLocaleString("id-ID")}
+                                </td>
+                                <td className="px-4 py-3 text-right font-black text-rose-600 font-mono">
+                                  {d.growth.toFixed(1)}%
                                 </td>
                               </tr>
                             ))
-                          ) : (
-                            <tr>
-                              <td colSpan={6} className="text-center py-8 opacity-75 font-bold">
-                                {productSearchQuery
-                                  ? "Tidak ada transaksi yang sesuai dengan kata kunci."
-                                  : "Silakan ketik nama produk atau kode artikel pada kolom di atas."}
-                              </td>
-                            </tr>
                           )}
                         </tbody>
                       </table>
                     </div>
                   </div>
-                );
-              })()}
-            </div>
-          )}
-
-          {/* TAB 11: ANALISIS MoM GROWTH */}
-          {activeTab === "mom-comparison" && (
-            <div className="space-y-6">
-              <div className={`${cardBg} p-5 rounded-2xl border flex flex-wrap items-center justify-between gap-4`}>
-                <div>
-                  <h2 className={`text-base font-black ${textMain} flex items-center gap-2`}>
-                    <span>📈</span> Analisis MoM Growth vs Disgrowth
-                  </h2>
-                  <p className={`text-xs ${textMuted} mt-0.5`}>Bandingkan performa LOB dan produktivitas sales antar 2 periode bulan</p>
                 </div>
-
-                <div className="flex items-center gap-3">
-                  <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
-                    <span className={`text-[11px] ${textMuted} font-black`}>Bulan Analisis:</span>
-                    <select
-                      value={momBaseMonth}
-                      onChange={(e) => setMomBaseMonth(e.target.value)}
-                      className={`bg-transparent ${accentText} font-black text-xs focus:outline-none`}
-                    >
-                      {availableMonths.map((m) => (
-                        <option key={`base-${m}`} value={m} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>{m}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <span className="text-xs font-black opacity-60">VS</span>
-
-                  <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
-                    <span className={`text-[11px] ${textMuted} font-black`}>Pembanding:</span>
-                    <select
-                      value={momCompareMonth}
-                      onChange={(e) => setMomCompareMonth(e.target.value)}
-                      className={`bg-transparent ${textMain} font-black text-xs focus:outline-none`}
-                    >
-                      {availableMonths.map((m) => (
-                        <option key={`cmp-${m}`} value={m} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>{m}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Kartu Grid Metrik LOB & UPT */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {momAnalytics.summary.map((item, idx) => {
-                  const isClickable = ["Apple Devices", "Android Devices", "Accessories", "VAS & Services"].includes(item.label);
-                  
-                  const handleCardClick = () => {
-                    if (!isClickable) return;
-                    
-                    const currentMonthTrx = transactions.filter((t: any) => {
-                      const rawM = (t.monthKey || t.month || "").toString().trim();
-                      return rawM === momBaseMonth;
-                    });
-
-                    let targetItems: RawTransaction[] = [];
-                    if (item.label === "Apple Devices") {
-                      targetItems = currentMonthTrx.filter((t: any) => {
-                        const pUpper = (t.productName || "").toUpperCase();
-                        const isHardware = pUpper.includes("IPHONE") || pUpper.includes("IPAD") || pUpper.includes("AIRPOD") || pUpper.includes("MACBOOK") || pUpper.includes("WATCH");
-                        const isCaseOrAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE") || pUpper.includes("POWER");
-                        return (t.brand === "APPLE" && (t.groupCategory === "DEVICES" || isHardware)) && !isCaseOrAcc;
-                      });
-                    } else if (item.label === "Android Devices") {
-                      targetItems = currentMonthTrx.filter((t: any) => {
-                        const pUpper = (t.productName || "").toUpperCase();
-                        const isCaseOrAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE");
-                        return t.groupCategory === "DEVICES" && t.brand !== "APPLE" && !isCaseOrAcc;
-                      });
-                    } else if (item.label === "Accessories") {
-                      targetItems = currentMonthTrx.filter((t: any) => {
-                        return t.groupCategory === "ACCESSORIES";
-                      });
-                    } else if (item.label.includes("VAS")) {
-                      targetItems = currentMonthTrx.filter((t: any) => {
-                        const pUpper = (t.productName || "").toUpperCase();
-                        return t.groupCategory === "VAS" || t.brand === "QOALA" || pUpper.includes("PROTEKSI") || t.brand === "TELKOMSEL" || t.brand === "XL" || t.brand === "INDOSAT";
-                      });
-                    }
-
-                    openLobDetailSheet(`${item.label} (${momBaseMonth})`, targetItems);
-                  };
-
-                  return (
-                    <div
-                      key={idx}
-                      onClick={handleCardClick}
-                      className={`${cardBg} p-4 rounded-xl border flex flex-col justify-between transition-all ${
-                        isClickable ? "cursor-pointer hover:border-sky-400/60 hover:scale-[1.01]" : ""
-                      }`}
-                    >
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-1.5">
-                          <span className={`text-xs font-black ${textMuted}`}>{item.label}</span>
-                          {isClickable && <span className="text-[10px] text-sky-600 dark:text-sky-400 font-black bg-sky-500/10 px-1.5 py-0.5 rounded border border-sky-400/20">Tap Rincian 🔍</span>}
-                        </div>
-                        <span className={`text-[11px] font-black px-2 py-0.5 rounded-md ${
-                          item.growth >= 0 ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20" : "bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20"
-                        }`}>
-                          {item.growth >= 0 ? `▲ +${item.growth.toFixed(1)}%` : `▼ ${item.growth.toFixed(1)}%`}
-                        </span>
-                      </div>
-
-                      <div className="mt-3">
-                        <div className={`text-lg font-black font-mono ${textMain}`}>
-                          {item.isCurrency ? `Rp ${item.base.toLocaleString("id-ID")}` : item.base.toFixed(2)}
-                        </div>
-                        <div className={`text-[11px] font-bold ${textMuted} mt-1 flex justify-between`}>
-                          <span>{momCompareMonth}: {item.isCurrency ? `Rp ${item.compare.toLocaleString("id-ID")}` : item.compare.toFixed(2)}</span>
-                          <span className={`font-mono font-black ${item.diff >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500"}`}>
-                            {item.diff >= 0 ? "+" : ""}{item.isCurrency ? `Rp ${item.diff.toLocaleString("id-ID")}` : item.diff.toFixed(2)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Tabel Performa Sales Person */}
-              <div className={`${cardBg} rounded-2xl border overflow-hidden`}>
-                <div className={`px-5 py-4 border-b border-inherit flex justify-between items-center`}>
-                  <div>
-                    <h3 className={`text-sm font-black ${textMain}`}>Perbandingan Penjualan Staff Sales Person</h3>
-                    <p className={`text-[11px] ${accentText} mt-0.5`}>💡 Klik pada nama sales untuk melihat rincian barang yang dijual</p>
-                  </div>
-                  <span className={`text-xs ${textMuted}`}>Total {momAnalytics.staffComparison.length} Staff</span>
-                </div>
-
-                <div className="overflow-x-auto w-full">
-                  <table className="w-full text-left text-xs min-w-[600px]">
-                    <thead className={`${innerBg} ${textMuted} uppercase text-[10px] tracking-wider border-b border-inherit font-black`}>
-                      <tr>
-                        <th className="px-4 py-3 font-black">Nama Sales</th>
-                        <th className="px-4 py-3 text-right font-black">{momBaseMonth} (Aktual)</th>
-                        <th className="px-4 py-3 text-right font-black">{momCompareMonth} (Lalu)</th>
-                        <th className="px-4 py-3 text-right font-black">Selisih (Gap)</th>
-                        <th className="px-4 py-3 text-right font-black">Growth (%)</th>
-                        <th className="px-4 py-3 text-center font-black">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-inherit font-bold">
-                      {momAnalytics.staffComparison.map((st: any, i: number) => (
-                        <tr key={i} className="hover:opacity-90 transition">
-                          <td 
-                            className="px-4 py-3 font-black text-sky-600 dark:text-sky-400 hover:underline cursor-pointer flex items-center gap-1.5"
-                            onClick={() => openLobDetailSheet(`Penjualan ${st.name} (${momBaseMonth})`, st.baseItems || [])}
-                          >
-                            <span>👤</span>
-                            <span>{st.name}</span>
-                            <span className="text-[9px] font-black bg-sky-500/10 text-sky-600 dark:text-sky-400 px-1.5 py-0.5 rounded border border-sky-400/20">Lihat Item</span>
-                          </td>
-                          <td className="px-4 py-3 text-right font-black text-amber-600 dark:text-amber-300 font-mono">
-                            Rp {st.base.toLocaleString("id-ID")}
-                          </td>
-                          <td className={`px-4 py-3 text-right font-bold ${textMuted} font-mono`}>
-                            Rp {st.compare.toLocaleString("id-ID")}
-                          </td>
-                          <td className={`px-4 py-3 text-right font-black font-mono ${st.diff >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500"}`}>
-                            {st.diff >= 0 ? "+" : ""}Rp {st.diff.toLocaleString("id-ID")}
-                          </td>
-                          <td className={`px-4 py-3 text-right font-black font-mono ${st.growth >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500"}`}>
-                            {st.growth >= 0 ? `+${st.growth.toFixed(1)}%` : `${st.growth.toFixed(1)}%`}
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-black ${
-                              st.growth >= 0 ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400" : "bg-rose-500/20 text-rose-700 dark:text-rose-400"
-                            }`}>
-                              {st.growth >= 0 ? "Growth" : "Disgrowth"}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Tabel Khusus: Devices Disgrowth */}
-              <div className={`${cardBg} rounded-2xl border border-rose-900/40 overflow-hidden shadow-xl mt-6`}>
-                <div className="px-5 py-4 border-b border-rose-900/30 flex justify-between items-center bg-rose-500/5">
-                  <div>
-                    <h3 className="text-sm font-black text-rose-600 dark:text-rose-400 flex items-center gap-2">
-                      <span>⚠️</span>
-                      <span>Daftar Produk Devices yang Turun (Defisit Terbesar)</span>
-                    </h3>
-                    <p className={`text-xs ${textMuted} mt-0.5 font-semibold`}>
-                      Produk smartphone & tablet yang penjualannya merosot dibanding {momCompareMonth}
-                    </p>
-                  </div>
-                  <span className="text-xs text-rose-600 dark:text-rose-400 font-black bg-rose-500/10 px-2.5 py-1 rounded-full border border-rose-500/20">
-                    {(momAnalytics.droppedDevices || []).length} Produk Defisit
-                  </span>
-                </div>
-
-                <div className="overflow-x-auto w-full">
-                  <table className="w-full text-left text-xs min-w-[650px]">
-                    <thead className={`${innerBg} ${textMuted} uppercase text-[10px] tracking-wider border-b border-inherit font-black`}>
-                      <tr>
-                        <th className="px-4 py-3 font-black">Nama Produk Device</th>
-                        <th className="px-4 py-3 font-black">Brand</th>
-                        <th className="px-4 py-3 text-center font-black">{momBaseMonth} (Qty)</th>
-                        <th className="px-4 py-3 text-right font-black">{momBaseMonth} (Omset)</th>
-                        <th className="px-4 py-3 text-center font-black">{momCompareMonth} (Qty)</th>
-                        <th className="px-4 py-3 text-right font-black">{momCompareMonth} (Omset)</th>
-                        <th className="px-4 py-3 text-right font-black">Defisit Penurunan</th>
-                        <th className="px-4 py-3 text-right font-black">Growth (%)</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-inherit font-bold">
-                      {(!momAnalytics.droppedDevices || momAnalytics.droppedDevices.length === 0) ? (
-                        <tr>
-                          <td colSpan={8} className="text-center py-6 opacity-70 font-black">
-                            Tidak ada produk device yang mengalami penurunan omset.
-                          </td>
-                        </tr>
-                      ) : (
-                        momAnalytics.droppedDevices.slice(0, 20).map((d: any, i: number) => (
-                          <tr key={i} className="hover:opacity-90 transition">
-                            <td className={`px-4 py-3 font-black ${textMain} max-w-xs`}>{d.name}</td>
-                            <td className="px-4 py-3">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-black ${
-                                d.brand === "Apple" ? "bg-sky-500/15 text-sky-700 dark:text-sky-400 border border-sky-400/20" : "bg-indigo-500/15 text-indigo-700 dark:text-indigo-400 border border-indigo-400/20"
-                              }`}>
-                                {d.brand}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-center font-black text-amber-600 dark:text-amber-300">{d.baseQty}</td>
-                            <td className="px-4 py-3 text-right font-black text-amber-600 dark:text-amber-300 font-mono">
-                              Rp {d.base.toLocaleString("id-ID")}
-                            </td>
-                            <td className={`px-4 py-3 text-center font-bold ${textMuted}`}>{d.compareQty}</td>
-                            <td className={`px-4 py-3 text-right font-bold ${textMuted} font-mono`}>
-                              Rp {d.compare.toLocaleString("id-ID")}
-                            </td>
-                            <td className="px-4 py-3 text-right font-black text-rose-500 font-mono">
-                              Rp {d.diff.toLocaleString("id-ID")}
-                            </td>
-                            <td className="px-4 py-3 text-right font-black text-rose-500 font-mono">
-                              {d.growth.toFixed(1)}%
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
+              )}
+            </>
           )}
         </main>
       </div>
 
-      {/* 4. BOTTOM BAR KHUSUS HANDPHONE (JEMPOL FRIENDLY) */}
+      {/* 4. BOTTOM BAR KHUSUS HANDPHONE */}
       <div className={`lg:hidden fixed bottom-0 left-0 right-0 border-t backdrop-blur-2xl z-40 px-3 py-2 flex justify-around items-center shadow-2xl print:hidden ${glassBottomBar}`}>
         {[
           { id: "store-overview", label: "Overview", icon: "📊" },
@@ -3520,11 +3352,11 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               key={item.id}
               onClick={() => setActiveTab(item.id as MenuTab)}
               className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all ${
-                active ? "text-sky-600 dark:text-sky-400 scale-105" : "opacity-75"
+                active ? "text-sky-700 dark:text-sky-400 scale-105" : "text-slate-700 dark:text-slate-300"
               }`}
             >
               <span className="text-base">{item.icon}</span>
-              <span className={`text-[10px] font-black mt-0.5 ${active ? "text-sky-600 dark:text-sky-400" : ""}`}>
+              <span className={`text-[10px] font-black mt-0.5 ${active ? "text-sky-700 dark:text-sky-400" : ""}`}>
                 {item.label}
               </span>
             </button>
@@ -3532,7 +3364,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
         })}
         <button
           onClick={() => setMobileDrawerOpen(true)}
-          className="flex flex-col items-center justify-center py-1 px-2.5 rounded-xl opacity-75"
+          className="flex flex-col items-center justify-center py-1 px-2.5 rounded-xl text-slate-700 dark:text-slate-300"
         >
           <span className="text-base">📑</span>
           <span className="text-[10px] font-black mt-0.5">Lainnya</span>
@@ -3551,7 +3383,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
               <button
                 onClick={() => setBottomSheetOpen(false)}
-                className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700/40 hover:bg-slate-300 dark:hover:bg-slate-700/60 flex items-center justify-center text-sm font-black text-slate-800 dark:text-slate-300 shrink-0"
+                className="w-8 h-8 rounded-full bg-slate-300 dark:bg-slate-700/40 hover:bg-slate-400 dark:hover:bg-slate-700/60 flex items-center justify-center text-sm font-black text-slate-900 dark:text-slate-300 shrink-0"
               >
                 ✕
               </button>
