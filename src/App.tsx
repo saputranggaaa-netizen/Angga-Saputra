@@ -324,7 +324,18 @@ export default function DigiplusOperationalEngine() {
 
   // Period Filters
   const [periodType, setPeriodType] = useState<PeriodType>("monthly");
-  const [selectedMonth, setSelectedMonth] = useState<string>("ALL");
+  const [selectedMonth, setSelectedMonth] = useState<string>("Oktober2026");
+  // Ekstrak semua bulan unik dari data transaksi secara otomatis
+const availableMonths = useMemo(() => {
+  const months = new Set<string>();
+  transactions.forEach((t: any) => {
+    if (t.month && String(t.month).trim() !== "") {
+      months.add(String(t.month).trim());
+    }
+  });
+  // Urutkan atau jadikan array
+  return Array.from(months);
+}, [transactions]);
   const [selectedWeek, setSelectedWeek] = useState<string>("ALL");
   const [selectedDate, setSelectedDate] = useState<string>("ALL");
 
@@ -708,7 +719,7 @@ const fetchOnlineActivityLogs = async () => {
   // Filter Data Transaksi Aktif
   const activeTransactions = useMemo(() => {
     return transactions.filter((t) => {
-      if (selectedMonth !== "ALL" && t.monthKey !== selectedMonth) {
+      if (selectedMonth !== "ALL" && selectedMonth !== "Semua Bulan" && t.monthKey !== selectedMonth && t.month !== selectedMonth) {
         return false;
       }
       if (periodType === "daily") {
