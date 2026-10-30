@@ -3588,6 +3588,8 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                           </td>
                           <td className="px-4 py-3 text-right font-black text-rose-400 font-mono">
                             {d.growth.toFixed(1)}%
+                          <td className="px-4 py-3 text-right font-black text-rose-400 font-mono">
+                            {d.growth.toFixed(1)}%
                           </td>
                         </tr>
                       ))
@@ -3596,6 +3598,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                 </table>
               </div>
             </div>
+          </div>
         )}
       </main>
 
