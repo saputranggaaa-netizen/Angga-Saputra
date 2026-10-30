@@ -324,9 +324,9 @@ export default function DigiplusOperationalEngine() {
 
   // Period Filters
   const [periodType, setPeriodType] = useState<PeriodType>("monthly");
-  const [selectedMonth, setSelectedMonth] = useState<string>("Oktober2026");
+  const [selectedMonth, setSelectedMonth] = useState<string>("ALL");
   const [selectedWeek, setSelectedWeek] = useState<string>("ALL");
-  const [selectedDate, setSelectedDate] = useState<string>("2026-10-24");
+  const [selectedDate, setSelectedDate] = useState<string>("ALL");
 
   // Bottom Sheet Drawer State
   const [bottomSheetOpen, setBottomSheetOpen] = useState<boolean>(false);
