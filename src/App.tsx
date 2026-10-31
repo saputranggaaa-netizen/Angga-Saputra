@@ -866,7 +866,7 @@ export default function DigiplusOperationalEngine() {
       accItems,
       vasItems
    };
-  }, [activeTransactions, periodType, selectedDate, transactions]);
+}, [activeTransactions, periodType, selectedDate, transactions]);
   
   const momAnalytics = useMemo(() => {
     const initMetrics = () => ({
