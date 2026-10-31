@@ -525,28 +525,34 @@ export default function DigiplusOperationalEngine() {
         }
       });
 
-      // 3. Parsing Sheet Pembagian Target (gid: 685849310)
+      // Parsing Sheet Pembagian Target (gid: 685849310)
+      const textTarget = await resTarget.text();
       const jsonTarget = JSON.parse(
         textTarget.substring(textTarget.indexOf("{"), textTarget.lastIndexOf("}") + 1)
       );
+
       const targetMap: Record<string, number> = {};
       (jsonTarget.table.rows || []).forEach((r: any) => {
         const c = r.c;
         if (!c) return;
-        const identifier = String(c[0]?.v || c[0]?.f || "").trim().toLowerCase();
-        const rawTarget = c[1]?.v;
+
+        // Kolom B = Nama Staf (index 1), Kolom F = Amount Target (index 5)
+        const staffName = String(c[1]?.v || c[1]?.f || "").trim().toLowerCase();
+        const rawTarget = c[5]?.v;
         const targetVal = typeof rawTarget === "number"
           ? rawTarget
           : Number(String(rawTarget || 0).replace(/[^0-9]/g, ""));
 
-        if (identifier && targetVal > 0) {
-          targetMap[identifier] = targetVal;
+        if (staffName && !staffName.includes("staff name") && !staffName.includes("grand total") && targetVal > 0) {
+          targetMap[staffName] = targetVal;
         }
       });
 
+      setStaffTargets(targetMap);
+
       setTransactions(parsedTrx);
       setBnplRecords(parsedBnpl);
-      setStaffTargets(targetMap);
+      
 
       if (currentSalesId && !currentSalesName) {
         if (currentSalesId === ADMIN_ID) {
@@ -704,10 +710,10 @@ export default function DigiplusOperationalEngine() {
 
     const actual = activeTx.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
     const target = periodType === "daily" 
-      ? Math.round(6728667173 / 31) 
+      ? Math.round(8728667173 / 31) 
       : periodType === "weekly" 
-      ? Math.round((6728667173 / 31) * 7) 
-      : 6728667173;
+      ? Math.round((8728667173 / 31) * 7) 
+      : 8728667173;
 
     const achv = calcAchv(actual, target);
     const variance = actual - target;
@@ -1046,7 +1052,12 @@ export default function DigiplusOperationalEngine() {
     return sorted.map((s, idx) => {
       const invCount = s.invoices.size;
       const upt = calcUpt(s.qty, invCount);
-      const targetQuota = 1658446763;
+      const nameKey = s.name.trim().toLowerCase();
+      const targetQuota =
+        staffTargets[nameKey] ||
+        staffTargets[nameKey.split(" ")[0]] ||
+        staffTargets[s.salesId] ||
+        1658446763;
       const achv = calcAchv(s.total, targetQuota);
       const variance = s.total - targetQuota;
 
@@ -1107,7 +1118,7 @@ export default function DigiplusOperationalEngine() {
         rawItems: s.rawItems,
       };
     });
-  }, [activeTransactions]);
+  }, [activeTransactions, staffTargets]);
   // LOGIKA DINAMIS TIME GONE: Tanggal data terupdate ÷ Jumlah hari bulan ini
   const timeGoneStats = useMemo(() => {
     let dateStr = "";
