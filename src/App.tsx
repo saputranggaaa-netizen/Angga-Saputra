@@ -437,7 +437,7 @@ export default function DigiplusOperationalEngine() {
 
       const textDb = await resDb.text();
       const textBnpl = await resBnpl.text();
-      const textTarget = await resTarget.text();
+      
 
       // 1. Parsing Sheet DATABASE Transaksi (gid: 602901290)
       const jsonDb = JSON.parse(
