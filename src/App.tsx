@@ -1079,6 +1079,31 @@ export default function DigiplusOperationalEngine() {
       };
     });
   }, [activeTransactions]);
+  // LOGIKA DINAMIS TIME GONE: Tanggal data terupdate ÷ Jumlah hari bulan ini
+  const timeGoneStats = useMemo(() => {
+    const latestDateStr = selectedDate !== "ALL" 
+      ? selectedDate 
+      : (transactions.length > 0 ? transactions[transactions.length - 1].isoDate : "");
+
+    const dateObj = latestDateStr ? new Date(latestDateStr) : new Date();
+    const year = dateObj.getFullYear();
+    const month = dateObj.getMonth();
+    const activeDay = dateObj.getDate() || 1; // Tanggal data terupdate
+
+    // Jumlah hari pada bulan ini
+    const totalDaysInMonth = new Date(year, month + 1, 0).getDate() || 31;
+
+    // Formula: Tanggal data terupdate ÷ Jumlah hari bulan ini
+    const timeGonePercent = Number(((activeDay / totalDaysInMonth) * 100).toFixed(1));
+    const daysRemaining = Math.max(0, totalDaysInMonth - activeDay);
+
+    return {
+      activeDay,
+      totalDaysInMonth,
+      timeGonePercent,
+      daysRemaining,
+    };
+  }, [selectedDate, transactions]);
 
   const dailyTargetCalculated = useMemo(() => {
     const totalMonthTarget = 8728667173;
