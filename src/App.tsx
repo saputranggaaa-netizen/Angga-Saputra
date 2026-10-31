@@ -1081,20 +1081,46 @@ export default function DigiplusOperationalEngine() {
   }, [activeTransactions]);
   // LOGIKA DINAMIS TIME GONE: Tanggal data terupdate ÷ Jumlah hari bulan ini
   const timeGoneStats = useMemo(() => {
-    const latestDateStr = selectedDate !== "ALL" 
-      ? selectedDate 
-      : (transactions.length > 0 ? transactions[transactions.length - 1].isoDate : "");
+    let dateStr = "";
+    if (selectedDate && selectedDate !== "ALL") {
+      dateStr = selectedDate;
+    } else if (transactions && transactions.length > 0) {
+      dateStr = transactions[transactions.length - 1].isoDate || transactions[transactions.length - 1].date || "";
+    }
 
-    const dateObj = latestDateStr ? new Date(latestDateStr) : new Date();
-    const year = dateObj.getFullYear();
-    const month = dateObj.getMonth();
-    const activeDay = dateObj.getDate() || 1; // Tanggal data terupdate
+    let activeDay = 1;
+    let totalDaysInMonth = 31;
 
-    // Jumlah hari pada bulan ini
-    const totalDaysInMonth = new Date(year, month + 1, 0).getDate() || 31;
+    if (dateStr) {
+      const clean = dateStr.trim().replace(/\//g, "-");
+      const parts = clean.split("-");
+      
+      if (parts.length === 3) {
+        let y = 2026, m = 10, d = 1;
+        if (parts[0].length === 4) {
+          y = parseInt(parts[0], 10);
+          m = parseInt(parts[1], 10);
+          d = parseInt(parts[2], 10);
+        } else {
+          d = parseInt(parts[0], 10);
+          m = parseInt(parts[1], 10);
+          y = parseInt(parts[2], 10);
+        }
+        if (!isNaN(d) && d > 0) activeDay = d;
+        if (!isNaN(y) && !isNaN(m)) {
+          totalDaysInMonth = new Date(y, m, 0).getDate();
+        }
+      }
+    } else {
+      const now = new Date();
+      activeDay = now.getDate();
+      totalDaysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    }
 
     // Formula: Tanggal data terupdate ÷ Jumlah hari bulan ini
-    const timeGonePercent = Number(((activeDay / totalDaysInMonth) * 100).toFixed(1));
+    const timeGonePercent = totalDaysInMonth > 0 
+      ? Number(((activeDay / totalDaysInMonth) * 100).toFixed(1)) 
+      : 0;
     const daysRemaining = Math.max(0, totalDaysInMonth - activeDay);
 
     return {
