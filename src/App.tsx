@@ -60,30 +60,30 @@ export const UploadRawSalesModal = ({ isOpen, onClose, selectedInvoice, defaultS
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="w-full max-w-md rounded-3xl bg-white dark:bg-[#09122A] border border-slate-300 dark:border-white/15 p-6 space-y-4 shadow-2xl">
-        <div className="flex justify-between items-center border-b border-slate-200 dark:border-white/10 pb-3">
-          <h3 className="text-sm font-black text-slate-950 dark:text-white">Upload Bukti Transaksi (RAW SalesPerson)</h3>
-          <button type="button" onClick={onClose} className="text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white text-xs font-bold p-1">✕</button>
+      <div className="w-full max-w-md rounded-3xl bg-[#09122A] border border-white/15 p-6 space-y-4 shadow-2xl">
+        <div className="flex justify-between items-center border-b border-white/10 pb-3">
+          <h3 className="text-sm font-black text-white">Upload Bukti Transaksi (RAW SalesPerson)</h3>
+          <button type="button" onClick={onClose} className="text-slate-400 hover:text-white text-xs font-bold p-1">✕</button>
         </div>
 
         <form onSubmit={handleUpload} className="space-y-4">
           <div>
-            <label className="text-[11px] font-bold text-slate-800 dark:text-slate-200 block mb-1">Pilih File / Foto Bukti:</label>
+            <label className="text-[11px] font-bold text-slate-200 block mb-1">Pilih File / Foto Bukti:</label>
             <input
               type="file"
               onChange={(e) => setSelectedFile(e.target.files ? e.target.files[0] : null)}
-              className="w-full text-xs text-slate-900 dark:text-slate-200 font-semibold file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:bg-sky-600 file:text-white file:font-bold"
+              className="w-full text-xs text-slate-200 font-semibold file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:bg-sky-600 file:text-white file:font-bold"
             />
           </div>
 
           <div>
-            <label className="text-[11px] font-bold text-slate-800 dark:text-slate-200 block mb-1">Catatan Tambahan (Kolom O):</label>
+            <label className="text-[11px] font-bold text-slate-200 block mb-1">Catatan Tambahan (Kolom O):</label>
             <input
               type="text"
               value={catatan}
               onChange={(e) => setCatatan(e.target.value)}
               placeholder="Catatan / keterangan..."
-              className="w-full px-3 py-2 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-black/40 border border-slate-300 dark:border-white/10 text-slate-950 dark:text-white focus:outline-none"
+              className="w-full px-3 py-2 text-xs font-semibold rounded-xl bg-black/40 border border-white/10 text-white focus:outline-none"
             />
           </div>
 
@@ -352,7 +352,7 @@ export default function DigiplusOperationalEngine() {
   // BNPL Tab Filter
   const [selectedBnplTender, setSelectedBnplTender] = useState<string>("ALL");
 
-  // Feedback State (Dipastikan Tidak Pernah Kosong)
+  // Feedback State
   const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>(DEFAULT_FEEDBACKS);
   const [selectedFeedbackStaff, setSelectedFeedbackStaff] = useState<string>("ALL");
   const [feedbackModalOpen, setFeedbackModalOpen] = useState<boolean>(false);
@@ -612,969 +612,43 @@ export default function DigiplusOperationalEngine() {
     setCurrentSalesName("");
   };
 
-  const availableMonths = useMemo(() => {
-    const months = new Set<string>();
-    transactions.forEach((t: any) => {
-      if (t.month && String(t.month).trim() !== "") {
-        months.add(String(t.month).trim());
-      } else if (t.monthKey && String(t.monthKey).trim() !== "") {
-        months.add(String(t.monthKey).trim());
-      }
-    });
-    return Array.from(months);
-  }, [transactions]);
-
-  const AUTO_WEEKS = useMemo(() => {
-    const map = new Map<string, { label: string; minDate: string; maxDate: string; count: number }>();
-
-    transactions.forEach((t) => {
-      const wLabel = t.weekLabel ? t.weekLabel.trim() : "";
-      if (!wLabel) return;
-
-      if (!map.has(wLabel)) {
-        map.set(wLabel, { label: wLabel, minDate: t.isoDate, maxDate: t.isoDate, count: 0 });
-      }
-
-      const item = map.get(wLabel)!;
-      item.count++;
-      if (t.isoDate && t.isoDate < item.minDate) item.minDate = t.isoDate;
-      if (t.isoDate && t.isoDate > item.maxDate) item.maxDate = t.isoDate;
-    });
-
-    const sorted = Array.from(map.values()).sort((a, b) => a.minDate.localeCompare(b.minDate));
-
-    return sorted.map((w, idx) => {
-      const key = `W${idx + 1}`;
-      const formatNice = (iso: string) => {
-        if (!iso) return "";
-        const p = iso.split("-");
-        return p.length === 3 ? `${p[2]}/${p[1]}` : iso;
-      };
-      const range = w.minDate ? `${formatNice(w.minDate)} s.d. ${formatNice(w.maxDate)}` : "Periode Berjalan";
-      return { key, label: w.label, range, days: 7 };
-    });
-  }, [transactions]);
-
-  const activeTransactions = useMemo(() => {
-    return transactions.filter((t) => {
-      if (selectedMonth !== "ALL" && selectedMonth !== "Semua Bulan" && t.monthKey !== selectedMonth && t.month !== selectedMonth) {
-        return false;
-      }
-      if (periodType === "daily") {
-        return t.isoDate === selectedDate;
-      }
-      if (periodType === "weekly" && selectedWeek !== "ALL") {
-        return t.weekLabel.toLowerCase().includes(selectedWeek.toLowerCase());
-      }
-      return true;
-    });
-  }, [transactions, selectedMonth, periodType, selectedDate, selectedWeek]);
-
-  const overviewStats = useMemo(() => {
-    const activeTx = activeTransactions || [];
-
-    const actual = activeTx.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
-    const target = periodType === "daily" 
-      ? Math.round(6728667173 / 31) 
-      : periodType === "weekly" 
-      ? Math.round((6728667173 / 31) * 7) 
-      : 6728667173;
-
-    const achv = calcAchv(actual, target);
-    const variance = actual - target;
-    const estimate = Math.round(actual * 1.29);
-    const qtyTotal = activeTx.reduce((acc: number, t: any) => acc + (Number(t.qty) || 1), 0);
-    const invoiceCount = new Set(activeTx.map((t: any) => t.invoice)).size;
-    const storeUPT = calcUpt(qtyTotal, invoiceCount);
-
-    const appleItems = activeTx.filter((t: any) => {
-      const pUpper = (t.productName || "").toUpperCase();
-      const isHardware = pUpper.includes("IPHONE") || pUpper.includes("IPAD") || pUpper.includes("AIRPOD") || pUpper.includes("MACBOOK") || pUpper.includes("WATCH");
-      const isCaseOrAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE") || pUpper.includes("POWER");
-      return (t.brand === "APPLE" && (t.groupCategory === "DEVICES" || isHardware)) && !isCaseOrAcc;
-    });
-    const appleActual = appleItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
-    const appleTarget = Math.round(target * 0.794);
-
-    const androidItems = activeTx.filter((t: any) => {
-      const pUpper = (t.productName || "").toUpperCase();
-      const isCaseOrAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE");
-      return t.groupCategory === "DEVICES" && t.brand !== "APPLE" && !isCaseOrAcc;
-    });
-    const androidActual = androidItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
-    const androidTarget = Math.round(target * 0.108);
-
-    const accItems = activeTx.filter((t: any) => t.groupCategory === "ACCESSORIES");
-    const accActual = accItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
-    const accTarget = Math.round(target * 0.053);
-
-    const vasItems = activeTx.filter((t: any) => t.groupCategory === "VAS");
-    const vasActual = vasItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
-    const vasTarget = Math.round(target * 0.045);
-
-    const todayItems = (transactions || []).filter((t: any) => t.isoDate === selectedDate);
-    const todayActual = todayItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
-
-    return {
-      actual,
-      target,
-      achv,
-      variance,
-      estimate,
-      qtyTotal,
-      invoiceCount,
-      storeUPT,
-      todayActual,
-      lobs: [
-        { name: "Apple Devices (Hardware)", icon: "🍎", actual: appleActual, target: appleTarget, achv: calcAchv(appleActual, appleTarget), variance: appleActual - appleTarget, estimate: Math.round(appleActual * 1.29), color: "text-sky-600 dark:text-sky-400" },
-        { name: "Android Devices (Samsung, Xiaomi, dll)", icon: "🤖", actual: androidActual, target: androidTarget, achv: calcAchv(androidActual, androidTarget), variance: androidActual - androidTarget, estimate: Math.round(androidActual * 1.29), color: "text-indigo-600 dark:text-indigo-400" },
-        { name: "Accessories (Cases & Acc)", icon: "🔌", actual: accActual, target: accTarget, achv: calcAchv(accActual, accTarget), variance: accActual - accTarget, estimate: Math.round(accActual * 1.29), color: "text-amber-600 dark:text-amber-400" },
-        { name: "VAS (Qoala, Telkomsel, XL, Indosat)", icon: "🛡️", actual: vasActual, target: vasTarget, achv: calcAchv(vasActual, vasTarget), variance: vasActual - vasTarget, estimate: Math.round(vasActual * 1.29), color: "text-purple-600 dark:text-purple-400" }
-      ],
-      appleItems,
-      androidItems,
-      accItems,
-      vasItems
-    };
-  }, [activeTransactions, periodType, selectedDate, transactions]);
-  
-  const momAnalytics = useMemo(() => {
-    const initMetrics = () => ({
-      totalSales: 0,
-      appleSales: 0,
-      androidSales: 0,
-      accessoriesSales: 0,
-      vasSales: 0,
-      totalQty: 0,
-      invoices: new Set<string>(),
-    });
-
-    const baseMetrics = initMetrics();
-    const compareMetrics = initMetrics();
-
-    const staffMap: Record<string, { base: number; compare: number; baseItems: any[]; compareItems: any[] }> = {};
-    const productDeviceMap: Record<string, { name: string; brand: string; base: number; compare: number; baseQty: number; compareQty: number }> = {};
-
-    transactions.forEach((t: any) => {
-      const rawMonth = (t.monthKey || t.month || "").toString().trim();
-      const isBase = rawMonth === momBaseMonth;
-      const isCompare = rawMonth === momCompareMonth;
-
-      if (!isBase && !isCompare) return;
-
-      const amt = Number(t.amount) || 0;
-      const qty = Number(t.qty) || 1;
-      const cat = (t.productType || t.groupCategory || "").toString().toUpperCase();
-      const brand = (t.brandName || t.brand || "").toString().toUpperCase();
-      const inv = (t.invoice || "").toString().trim();
-      const sales = (t.salesName || "Unknown").toString().trim();
-      const pName = (t.productName || "Unknown").trim();
-
-      const targetObj = isBase ? baseMetrics : compareMetrics;
-      targetObj.totalSales += amt;
-      targetObj.totalQty += qty;
-      if (inv) targetObj.invoices.add(inv);
-
-      const isAppleDev = brand.includes("APPLE") && (cat.includes("DEVICES") || pName.toUpperCase().includes("IPHONE") || pName.toUpperCase().includes("IPAD") || pName.toUpperCase().includes("MAC"));
-      const isAndroidDev = cat.includes("DEVICES") && !brand.includes("APPLE");
-
-      if (isAppleDev) {
-        targetObj.appleSales += amt;
-      } else if (isAndroidDev) {
-        targetObj.androidSales += amt;
-      } else if (cat.includes("VAS") || cat.includes("PROTEKSI") || cat.includes("TELKOMSEL")) {
-        targetObj.vasSales += amt;
-      } else if (cat.includes("ACCESSORIES")) {
-        targetObj.accessoriesSales += amt;
-      }
-
-      if (isAppleDev || isAndroidDev) {
-        if (!productDeviceMap[pName]) {
-          productDeviceMap[pName] = { name: pName, brand: isAppleDev ? "Apple" : "Android", base: 0, compare: 0, baseQty: 0, compareQty: 0 };
-        }
-        if (isBase) {
-          productDeviceMap[pName].base += amt;
-          productDeviceMap[pName].baseQty += qty;
-        }
-        if (isCompare) {
-          productDeviceMap[pName].compare += amt;
-          productDeviceMap[pName].compareQty += qty;
-        }
-      }
-
-      if (!staffMap[sales]) {
-        staffMap[sales] = { base: 0, compare: 0, baseItems: [], compareItems: [] };
-      }
-      if (isBase) {
-        staffMap[sales].base += amt;
-        staffMap[sales].baseItems.push(t);
-      }
-      if (isCompare) {
-        staffMap[sales].compare += amt;
-        staffMap[sales].compareItems.push(t);
-      }
-    });
-
-    const uptBase = baseMetrics.invoices.size > 0 ? (baseMetrics.totalQty / baseMetrics.invoices.size) : 0;
-    const uptCompare = compareMetrics.invoices.size > 0 ? (compareMetrics.totalQty / compareMetrics.invoices.size) : 0;
-
-    const calcGrowth = (curr: number, prev: number) => {
-      if (prev === 0) return curr > 0 ? 100 : 0;
-      return ((curr - prev) / prev) * 100;
-    };
-
-    const summary = [
-      { label: "Total MTD Sales", base: baseMetrics.totalSales, compare: compareMetrics.totalSales, isCurrency: true },
-      { label: "Apple Devices", base: baseMetrics.appleSales, compare: compareMetrics.appleSales, isCurrency: true },
-      { label: "Android Devices", base: baseMetrics.androidSales, compare: compareMetrics.androidSales, isCurrency: true },
-      { label: "Accessories", base: baseMetrics.accessoriesSales, compare: compareMetrics.accessoriesSales, isCurrency: true },
-      { label: "VAS & Services", base: baseMetrics.vasSales, compare: compareMetrics.vasSales, isCurrency: true },
-      { label: "UPT (Units Per Trx)", base: uptBase, compare: uptCompare, isCurrency: false },
-    ].map((item) => {
-      const diff = item.base - item.compare;
-      const growth = calcGrowth(item.base, item.compare);
-      return { ...item, diff, growth };
-    });
-
-    const staffComparison = Object.entries(staffMap).map(([name, val]) => {
-      const diff = val.base - val.compare;
-      const growth = calcGrowth(val.base, val.compare);
-      return { name, base: val.base, compare: val.compare, diff, growth, baseItems: val.baseItems, compareItems: val.compareItems };
-    }).sort((a, b) => b.base - a.base);
-
-    const droppedDevices = Object.values(productDeviceMap)
-      .map((p) => {
-        const diff = p.base - p.compare;
-        const growth = calcGrowth(p.base, p.compare);
-        return { ...p, diff, growth };
-      })
-      .filter((p) => p.diff < 0)
-      .sort((a, b) => a.diff - b.diff);
-
-    return { summary, staffComparison, droppedDevices };
-  }, [transactions, momBaseMonth, momCompareMonth]);
-    
-  const dailyTrendStats = useMemo(() => {
-    const dailyMap = new Map<string, number>();
-    transactions.forEach((t) => {
-      if (t.isoDate && t.isoDate.startsWith("2026-10")) {
-        dailyMap.set(t.isoDate, (dailyMap.get(t.isoDate) || 0) + t.amount);
-      }
-    });
-
-    const dates = Array.from(dailyMap.keys()).sort();
-    const idealDailyTarget = Math.round(8728667173 / 31);
-
-    return dates.map((date) => {
-      const actual = dailyMap.get(date) || 0;
-      return {
-        date,
-        dayLabel: date.split("-")[2] + " Okt",
-        actual,
-        target: idealDailyTarget,
-        gap: actual - idealDailyTarget,
-      };
-    });
-  }, [transactions]);
-
-  const weeklyReport = useMemo(() => {
-    return AUTO_WEEKS.map((wDef, idx) => {
-      const match = transactions.filter((t) => t.weekLabel.toLowerCase().includes(wDef.label.toLowerCase()));
-      const sales = match.reduce((acc, t) => acc + t.amount, 0);
-      const qty = match.reduce((acc, t) => acc + t.qty, 0);
-      const invCount = new Set(match.map((t) => t.invoice)).size;
-      const target = Math.round((8728667173 / 31) * wDef.days);
-
-      const prevMatch = idx > 0 ? transactions.filter((t) => t.weekLabel.toLowerCase().includes(AUTO_WEEKS[idx - 1].label.toLowerCase())) : [];
-      const prevSales = prevMatch.reduce((acc, t) => acc + t.amount, 0);
-      const wowGrowth = idx > 0 && prevSales > 0 ? Number((((sales - prevSales) / prevSales) * 100).toFixed(1)) : 0;
-
-      const apple = match.filter((t) => t.brand === "APPLE" && t.groupCategory === "DEVICES").reduce((acc, c) => acc + c.amount, 0);
-      const android = match.filter((t) => t.groupCategory === "DEVICES" && t.brand !== "APPLE").reduce((acc, c) => acc + c.amount, 0);
-      const acc = match.filter((t) => t.groupCategory === "ACCESSORIES").reduce((acc, c) => acc + c.amount, 0);
-      const vas = match.filter((t) => t.groupCategory === "VAS").reduce((acc, c) => acc + c.amount, 0);
-
-      return {
-        ...wDef,
-        sales,
-        qty,
-        invCount,
-        target,
-        achv: calcAchv(sales, target),
-        wowGrowth,
-        apple,
-        android,
-        acc,
-        vas,
-        matchTrx: match,
-      };
-    });
-  }, [transactions, AUTO_WEEKS]);
-
-  const staffList = useMemo(() => {
-    const map: Record<string, {
-      salesId: string;
-      name: string;
-      total: number;
-      qty: number;
-      invoices: Set<string>;
-      appleMap: Record<string, { actual: number; qty: number; icon: string }>;
-      androidMap: Record<string, { actual: number; qty: number; icon: string }>;
-      accMap: Record<string, { actual: number; qty: number; icon: string }>;
-      vasMap: Record<string, { actual: number; qty: number; icon: string }>;
-      weekSales: Record<string, number>;
-      rawItems: RawTransaction[];
-    }> = {};
-
-    activeTransactions.forEach((t) => {
-      const id = t.salesId || "OTHER";
-      if (!map[id]) {
-        map[id] = {
-          salesId: id,
-          name: t.salesName || `Sales ${id}`,
-          total: 0,
-          qty: 0,
-          invoices: new Set(),
-          appleMap: {
-            "iPhone": { actual: 0, qty: 0, icon: "📱" },
-            "iPad": { actual: 0, qty: 0, icon: "📟" },
-            "MacBook": { actual: 0, qty: 0, icon: "💻" },
-            "Apple Watch": { actual: 0, qty: 0, icon: "⌚" },
-            "AirPods": { actual: 0, qty: 0, icon: "🎧" },
-          },
-          androidMap: {
-            "Samsung Devices": { actual: 0, qty: 0, icon: "📱" },
-            "Xiaomi / Redmi Devices": { actual: 0, qty: 0, icon: "🟠" },
-            "Oppo Devices": { actual: 0, qty: 0, icon: "🟢" },
-            "Motorola Devices": { actual: 0, qty: 0, icon: "Ⓜ️" },
-            "Huawei Devices": { actual: 0, qty: 0, icon: "🔴" },
-            "Infinix Devices": { actual: 0, qty: 0, icon: "⚡" },
-          },
-          accMap: {},
-          vasMap: {
-            "Qoala Proteksi Gadget": { actual: 0, qty: 0, icon: "🛡️" },
-            "Telkomsel Halo/Data": { actual: 0, qty: 0, icon: "🔴" },
-            "XL Prioritas": { actual: 0, qty: 0, icon: "🔵" },
-            "Indosat IM3": { actual: 0, qty: 0, icon: "🟡" },
-          },
-          weekSales: {},
-          rawItems: [],
-        };
-      }
-
-      map[id].total += t.amount;
-      map[id].qty += t.qty;
-      map[id].rawItems.push(t);
-      if (t.invoice) map[id].invoices.add(t.invoice);
-
-      const wLabel = t.weekLabel || "W_Other";
-      map[id].weekSales[wLabel] = (map[id].weekSales[wLabel] || 0) + t.amount;
-
-      const pUpper = t.productName.toUpperCase();
-      const isCaseAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE") || pUpper.includes("BAND");
-
-      if (t.brand === "APPLE" && !isCaseAcc && (t.groupCategory === "DEVICES" || pUpper.includes("IPHONE") || pUpper.includes("IPAD") || pUpper.includes("MAC") || pUpper.includes("WATCH") || pUpper.includes("AIRPOD"))) {
-        if (pUpper.includes("IPHONE")) { map[id].appleMap["iPhone"].actual += t.amount; map[id].appleMap["iPhone"].qty += t.qty; }
-        else if (pUpper.includes("IPAD")) { map[id].appleMap["iPad"].actual += t.amount; map[id].appleMap["iPad"].qty += t.qty; }
-        else if (pUpper.includes("MAC") || pUpper.includes("BOOK")) { map[id].appleMap["MacBook"].actual += t.amount; map[id].appleMap["MacBook"].qty += t.qty; }
-        else if (pUpper.includes("WATCH")) { map[id].appleMap["Apple Watch"].actual += t.amount; map[id].appleMap["Apple Watch"].qty += t.qty; }
-        else if (pUpper.includes("AIRPOD")) { map[id].appleMap["AirPods"].actual += t.amount; map[id].appleMap["AirPods"].qty += t.qty; }
-      }
-
-      if (t.groupCategory === "DEVICES" && t.brand !== "APPLE" && !isCaseAcc) {
-        if (t.brand === "SAMSUNG" || pUpper.includes("GALAXY")) { map[id].androidMap["Samsung Devices"].actual += t.amount; map[id].androidMap["Samsung Devices"].qty += t.qty; }
-        else if (t.brand === "XIAOMI" || pUpper.includes("REDMI")) { map[id].androidMap["Xiaomi / Redmi Devices"].actual += t.amount; map[id].androidMap["Xiaomi / Redmi Devices"].qty += t.qty; }
-        else if (t.brand === "OPPO") { map[id].androidMap["Oppo Devices"].actual += t.amount; map[id].androidMap["Oppo Devices"].qty += t.qty; }
-        else if (t.brand === "MOTOROLA") { map[id].androidMap["Motorola Devices"].actual += t.amount; map[id].androidMap["Motorola Devices"].qty += t.qty; }
-        else if (t.brand === "HUAWEI") { map[id].androidMap["Huawei Devices"].actual += t.amount; map[id].androidMap["Huawei Devices"].qty += t.qty; }
-        else if (t.brand === "INFINIX") { map[id].androidMap["Infinix Devices"].actual += t.amount; map[id].androidMap["Infinix Devices"].qty += t.qty; }
-      }
-
-      if (t.groupCategory === "ACCESSORIES") {
-        const item = t.productName.trim() || "Aksesoris";
-        if (!map[id].accMap[item]) map[id].accMap[item] = { actual: 0, qty: 0, icon: "🔌" };
-        map[id].accMap[item].actual += t.amount;
-        map[id].accMap[item].qty += t.qty;
-      }
-
-      if (t.brand === "QOALA" || pUpper.includes("QOALA") || pUpper.includes("PROTEKSI")) {
-        map[id].vasMap["Qoala Proteksi Gadget"].actual += t.amount;
-        map[id].vasMap["Qoala Proteksi Gadget"].qty += t.qty;
-      } else if (t.brand === "TELKOMSEL" || pUpper.includes("TELKOMSEL")) {
-        map[id].vasMap["Telkomsel Halo/Data"].actual += t.amount;
-        map[id].vasMap["Telkomsel Halo/Data"].qty += t.qty;
-      } else if (t.brand === "XL" || pUpper.includes("MYPRIO")) {
-        map[id].vasMap["XL Prioritas"].actual += t.amount;
-        map[id].vasMap["XL Prioritas"].qty += t.qty;
-      } else if (t.brand === "INDOSAT") {
-        map[id].vasMap["Indosat IM3"].actual += t.amount;
-        map[id].vasMap["Indosat IM3"].qty += t.qty;
-      }
-    });
-
-    const sorted = Object.values(map).sort((a, b) => b.total - a.total);
-
-    return sorted.map((s, idx) => {
-      const invCount = s.invoices.size;
-      const upt = calcUpt(s.qty, invCount);
-      const targetQuota = 1658446763;
-      const achv = calcAchv(s.total, targetQuota);
-      const variance = s.total - targetQuota;
-
-      const words = s.name.split(" ");
-      const initials = words.length > 1 ? (words[0][0] + words[1][0]).toUpperCase() : words[0].slice(0, 2).toUpperCase();
-
-      const sortedAcc = Object.entries(s.accMap)
-        .map(([name, d]) => ({ name, ...d }))
-        .sort((a, b) => b.actual - a.actual);
-
-      const totalAccActual = sortedAcc.reduce((acc, c) => acc + c.actual, 0);
-      const totalVasActual = Object.values(s.vasMap).reduce((acc, c) => acc + c.actual, 0);
-
-      const targetAcc = 80000000;
-      const targetVas = 60000000;
-
-      let status: "Tercapai" | "Perlu Perhatian Khusus" | "Dalam Pantauan" = "Dalam Pantauan";
-      let ringkasan = `Pencapaian ${achv}% terhadap target kuota.`;
-      let rekomendasi = "Tingkatkan penawaran bundling aksesoris dan layanan proteksi pada setiap nota penjualan.";
-
-      if (achv >= 100) {
-        status = "Tercapai";
-        ringkasan = `Performa sangat prima! Target tercapai ${achv}% dengan total ${invCount} struk nota.`;
-        rekomendasi = "Pertahankan konsistensi penjualan unit dan maksimalkan attachment rate aksesoris premium.";
-      } else if (achv < 20) {
-        status = "Perlu Perhatian Khusus";
-        ringkasan = `Pencapaian sangat tertinggal (${achv}%), defisit omset mencapai ${formatIDR(variance)}.`;
-        rekomendasi = "Evaluasi interaksi prospek customer harian dan manfaatkan program cicilan/BNPL 0%.";
-      }
-
-      return {
-        rank: idx + 1,
-        salesId: s.salesId,
-        name: s.name,
-        initials,
-        actual: s.total,
-        target: targetQuota,
-        achievement: achv,
-        variance,
-        estimate: Math.round(s.total * 1.29),
-        invoicesCount: invCount,
-        qty: s.qty,
-        upt,
-        totalAccActual,
-        targetAcc,
-        achvAcc: calcAchv(totalAccActual, targetAcc),
-        totalVasActual,
-        targetVas,
-        achvVas: calcAchv(totalVasActual, targetVas),
-        status,
-        ringkasan,
-        rekomendasi,
-        appleSub: Object.entries(s.appleMap).map(([name, d]) => ({ name, ...d })),
-        androidSub: Object.entries(s.androidMap).map(([name, d]) => ({ name, ...d })),
-        accessoriesSub: sortedAcc,
-        vasSub: Object.entries(s.vasMap).map(([name, d]) => ({ name, ...d })),
-        weekSales: s.weekSales,
-        rawItems: s.rawItems,
-      };
-    });
-  }, [activeTransactions]);
-
-  const dailyTargetCalculated = useMemo(() => {
-    const totalMonthTarget = 8728667173;
-    const totalDays = 31;
-    const daysPassed = 24;
-    const daysLeft = totalDays - daysPassed;
-
-    const actualAchievedSoFar = transactions.reduce((acc, t) => acc + t.amount, 0);
-    const remainingTarget = Math.max(0, totalMonthTarget - actualAchievedSoFar);
-    const requiredDailyRunRate = daysLeft > 0 ? Math.round(remainingTarget / daysLeft) : 0;
-
-    const todayShiftKey = "sat";
-    const staffOnDuty = scheduleData.filter((s) => s[todayShiftKey] !== "OFF" && s[todayShiftKey] !== "CUTI");
-    const staffCount = staffOnDuty.length || 7;
-
-    const targetStoreToday = requiredDailyRunRate;
-    const targetPerStaffToday = Math.round(targetStoreToday / staffCount);
-
-    const actualToday = overviewStats.todayActual;
-    const achvToday = calcAchv(actualToday, targetStoreToday);
-
-    return {
-      totalMonthTarget,
-      totalDays,
-      daysPassed,
-      daysLeft,
-      actualAchievedSoFar,
-      remainingTarget,
-      requiredDailyRunRate,
-      staffOnDuty,
-      staffCount,
-      targetStoreToday,
-      targetPerStaffToday,
-      actualToday,
-      achvToday,
-    };
-  }, [transactions, scheduleData, overviewStats.todayActual]);
-
-  const bnplSummary = useMemo(() => {
-    const totalAmount = bnplRecords.reduce((acc, b) => acc + b.amount, 0);
-    const totalQty = bnplRecords.reduce((acc, b) => acc + b.qty, 0);
-    const storeActual = overviewStats.actual;
-
-    const map: Record<string, { amount: number; qty: number }> = {};
-    bnplRecords.forEach((b) => {
-      const tKey = b.tender || "Other";
-      if (!map[tKey]) map[tKey] = { amount: 0, qty: 0 };
-      map[tKey].amount += b.amount;
-      map[tKey].qty += b.qty;
-    });
-
-    const tenders = Object.entries(map).map(([tender, d]) => {
-      const share = storeActual > 0 ? Number(((d.amount / storeActual) * 100).toFixed(1)) : 0;
-      const estimate = Math.round((d.amount / 24) * 31);
-      return { tender, amount: d.amount, qty: d.qty, share, estimate };
-    }).sort((a, b) => b.amount - a.amount);
-
-    const filteredRecords = selectedBnplTender === "ALL"
-      ? bnplRecords
-      : bnplRecords.filter((b) => b.tender.toLowerCase() === selectedBnplTender.toLowerCase());
-
-    return { totalAmount, totalQty, tenders, list: filteredRecords };
-  }, [bnplRecords, overviewStats.actual, selectedBnplTender]);
-
-  const scheduleDaySummary = useMemo(() => {
-    const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
-    return days.map((day) => {
-      let morning = 0;
-      let evening = 0;
-      let off = 0;
-      scheduleData.forEach((s) => {
-        const val = s[day];
-        if (val === "D047") morning++;
-        else if (val === "D103") evening++;
-        else if (val === "OFF") off++;
-      });
-      return { day, morning, evening, off, totalStaff: morning + evening };
-    });
-  }, [scheduleData]);
-
-  const updateScheduleShift = (id: string, day: keyof StaffScheduleItem, shift: string) => {
-    if (currentSalesId !== ADMIN_ID) {
-      alert("Akses Ditolak: Hanya Admin dengan Sales ID 22008089 yang berhak mengubah jadwal shift.");
-      return;
-    }
-    setScheduleData((prev) => {
-      const updated = prev.map((item) => (item.id === id ? { ...item, [day]: shift } : item));
-      if (typeof window !== "undefined") {
-        localStorage.setItem("digi_ops_schedule", JSON.stringify(updated));
-      }
-      return updated;
-    });
-  };
-
-  const handleToggleReaction = (feedbackId: string, reactionKey: keyof FeedbackItem["reactions"]) => {
-    setFeedbacks((prev) => {
-      const updated = prev.map((fb) => {
-        if (fb.id !== feedbackId) return fb;
-        const already = fb.userReactions.includes(reactionKey);
-        const newReactions = { ...fb.reactions };
-        let newUserReactions = [...fb.userReactions];
-
-        if (already) {
-          newReactions[reactionKey] = Math.max(0, newReactions[reactionKey] - 1);
-          newUserReactions = newUserReactions.filter((r) => r !== reactionKey);
-        } else {
-          newReactions[reactionKey] = newReactions[reactionKey] + 1;
-          newUserReactions.push(reactionKey);
-        }
-
-        return { ...fb, reactions: newReactions, userReactions: newUserReactions };
-      });
-
-      if (typeof window !== "undefined") {
-        localStorage.setItem("digi_ops_feedbacks", JSON.stringify(updated));
-      }
-      return updated;
-    });
-  };
-
-  const handleCreateFeedback = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newFeedbackText.trim()) return;
-
-    const matchedStaff = staffList.find((s) => s.name === newFeedbackStaff);
-    const initials = matchedStaff ? matchedStaff.initials : newFeedbackStaff.slice(0, 2).toUpperCase();
-
-    const newFb: FeedbackItem = {
-      id: `fb-${Date.now()}`,
-      salesName: newFeedbackStaff,
-      salesRole: "Sales Specialist",
-      initials,
-      sentiment: newFeedbackSentiment,
-      timestamp: "Hari ini, baru saja",
-      text: newFeedbackText.trim(),
-      reactions: { thumbsUp: 1, heart: 0, fire: 1, thumbsDown: 0, sad: 0 },
-      userReactions: ["thumbsUp", "fire"],
-    };
-    const updated = [newFb, ...feedbacks];
-    setFeedbacks(updated);
-    
-    if (typeof window !== "undefined") {
-      localStorage.setItem("digi_ops_feedbacks", JSON.stringify(updated));
-    }
-
-    setNewFeedbackText("");
-    setFeedbackModalOpen(false);
-  };
-
-  const handleShareDaily = () => {
-    const appleVal = overviewStats.lobs.find((l) => l.name.includes("Apple"))?.actual || 0;
-    const androidVal = overviewStats.lobs.find((l) => l.name.includes("Android"))?.actual || 0;
-    const accVal = overviewStats.lobs.find((l) => l.name.includes("Accessories"))?.actual || 0;
-    const vasVal = overviewStats.lobs.find((l) => l.name.includes("VAS"))?.actual || 0;
-
-    const text = 
-`*DAILY RETAIL SALES REPORT - DIGIPLUS GRAND INDONESIA*
-Tanggal: ${selectedDate} (Filter: ${periodType.toUpperCase()})
-
-📊 *Pencapaian Store:*
-- Sales: ${formatIDR(overviewStats.actual)}
-- Target: ${formatIDR(overviewStats.target)}
-- Achievement: ${overviewStats.achv}%
-- Gap / Sisa: ${formatIDR(overviewStats.variance)}
-
-📦 *Breakdown Kategori:*
-- Apple Devices: ${formatIDR(appleVal)}
-- Android Devices: ${formatIDR(androidVal)}
-- Accessories: ${formatIDR(accVal)}
-- VAS: ${formatIDR(vasVal)}
-
-📈 *Metrik Operasional:*
-- UPT: ${overviewStats.storeUPT}
-- Invoice: ${overviewStats.invoiceCount} Struk
-- Qty: ${overviewStats.qtyTotal} Unit
-
-_Diperbarui otomatis via Store Performance Engine._`;
-
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
-  };
-
-  const handleShareTargetWA = () => {
-    const staffListMsg = dailyTargetCalculated.staffOnDuty
-      .map((s) => `• ${s.name} : ${formatIDR(dailyTargetCalculated.targetPerStaffToday)}`)
-      .join("\n");
-
-    const text = 
-`Target ${selectedDate}
-
-Nama Staff:
-${staffListMsg}
-
-Total Target: ${formatIDR(dailyTargetCalculated.targetStoreToday)}
-━━━━━━━━━━━━━━━━━━
-Sisa Target Bulan: ${formatIDR(dailyTargetCalculated.remainingTarget)}
-Sisa Waktu: ${dailyTargetCalculated.daysLeft} Hari Tersisa
-
-Semangat closing team! Fokus capai target hari ini! 🔥💪`;
-
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
-  };
-
-  const handleShareWeekly = (wLabel: string, sales: number, target: number, achv: number) => {
-    const text = 
-`*WEEKLY SALES REPORT - DIGIPLUS GRAND INDONESIA*
-Periode: ${wLabel}
-
-📈 *Pencapaian Mingguan Store:*
-- Sales: ${formatIDR(sales)}
-- Target: ${formatIDR(target)}
-- Achievement: ${achv}%
-
-🏆 *Top 3 Staff Mingguan:*
-${staffList.slice(0, 3).map((s) => `• #${s.rank} ${s.name}: ${formatIDR(s.weekSales[wLabel] || 0)}`).join("\n")}
-
-_Generated via Store Performance Engine._`;
-
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
-  };
-
-  const handleShareScheduleWA = () => {
-    const dayNames = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
-    const text = 
-`*JADWAL SHIFT OPERASIONAL TOKO QF01 GRAND INDONESIA*
-Periode: 1 Minggu (Senin s.d. Minggu)
-
-👥 *Personil Standby per Hari:*
-${scheduleDaySummary.map((d, i) => `• ${dayNames[i]}: ${d.totalStaff} Orang (Pagi D047: ${d.morning} | Siang D103: ${d.evening})`).join("\n")}
-
-_Diperbarui via Digiplus Store Operations Engine._`;
-
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
-  };
-
-  const handlePrintSchedule = () => {
-    if (typeof window !== "undefined") {
-      window.print();
-    }
-  };
-
-  const handleExportToPptx = async () => {
-    setIsExportingPptx(true);
-    try {
-      if (typeof window !== "undefined" && !(window as any).PptxGenJS) {
-        const script = document.createElement("script");
-        script.src = "https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js";
-        script.async = true;
-        document.body.appendChild(script);
-        await new Promise((resolve) => { script.onload = resolve; });
-      }
-
-      const pptx = new (window as any).PptxGenJS();
-      pptx.layout = "LAYOUT_16x9";
-
-      const slide1 = pptx.addSlide();
-      slide1.background = { color: "0A1128" };
-      slide1.addText("STORE SALES PERFORMANCE & STAFF OPERATIONS REPORT", { x: 0.8, y: 1.8, fontSize: 24, bold: true, color: "38BDF8" });
-      slide1.addText("Evaluasi Mingguan (WoW), Kategori Produk, & Suara Lapangan\nKode Toko: QF01 | Periode: Oktober 2026 | Cut-off: " + selectedDate, { x: 0.8, y: 3.2, fontSize: 14, color: "F8FAFC" });
-
-      const slide2 = pptx.addSlide();
-      slide2.addText("CORE KPI METRICS (TARGET VS PENCAPAIAN)", { x: 0.5, y: 0.5, fontSize: 20, bold: true, color: "0F172A" });
-      slide2.addTable([
-        ["METRIK RETAIL", "TARGET", "AKTUAL (REALISASI)", "ACHIEVEMENT (%)", "VARIANCE (GAP)"],
-        ["Total Penjualan Toko MTD", formatIDR(overviewStats.target), formatIDR(overviewStats.actual), `${overviewStats.achv}%`, formatIDR(overviewStats.variance)],
-        ["Target Harian Toko", formatIDR(dailyTargetCalculated.targetStoreToday), formatIDR(dailyTargetCalculated.actualToday), `${dailyTargetCalculated.achvToday}%`, formatIDR(dailyTargetCalculated.actualToday - dailyTargetCalculated.targetStoreToday)],
-        ["Target Kuota Rata-rata per Staf", formatIDR(dailyTargetCalculated.targetPerStaffToday), formatIDR(Math.round(dailyTargetCalculated.actualToday / dailyTargetCalculated.staffCount)), "-", "-"],
-      ], { x: 0.5, y: 1.5, w: 9.0, fill: "F1F5F9", fontSize: 11, border: { pt: 1, color: "CBD5E1" } });
-
-      pptx.writeFile({ fileName: `Laporan_Operasional_QF01_${selectedDate}.pptx` });
-    } catch (err) {
-      alert("Gagal mengekspor slide PowerPoint: " + err);
-    } finally {
-      setIsExportingPptx(false);
-    }
-  };
-
-  const openCustomBottomSheet = (title: string, content: React.ReactNode) => {
-    setSheetTitle(title);
-    setSheetContent(content);
-    setBottomSheetOpen(true);
-  };
-
-  const openLobDetailSheet = (lobName: string, items: RawTransaction[]) => {
-    openCustomBottomSheet(`Rincian Produk: ${lobName} (${items.length} Item)`, (
-      <div className="space-y-4 text-xs font-semibold">
-        <div className="flex justify-between items-center p-3.5 rounded-2xl bg-black/10 dark:bg-black/25 border border-inherit shadow-inner">
-          <span className="font-bold text-slate-800 dark:text-slate-300">Total Nilai Kategori:</span>
-          <strong className="text-emerald-700 dark:text-emerald-400 font-black text-sm sm:text-base">
-            {formatIDR(items.reduce((acc, c) => acc + c.amount, 0))}
-          </strong>
-        </div>
-        <div className="overflow-x-auto rounded-2xl border border-inherit w-full">
-          <table className="w-full text-left text-xs min-w-[500px]">
-            <thead className="bg-slate-200/70 dark:bg-black/40 uppercase text-[10px] font-black tracking-wider border-b border-inherit text-slate-950 dark:text-slate-300">
-              <tr>
-                <th className="py-3 px-4 font-black">Nama Produk</th>
-                <th className="py-3 px-4 font-black">SAP Article</th>
-                <th className="py-3 px-4 font-black">Brand</th>
-                <th className="py-3 px-4 text-center font-black">Qty</th>
-                <th className="py-3 px-4 text-right font-black">Nilai (Rp)</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-inherit font-semibold">
-              {items.map((it, idx) => (
-                <tr key={idx} className="hover:opacity-90">
-                  <td className="py-3 px-4 font-black text-slate-950 dark:text-white">{it.productName}</td>
-                  <td className="py-3 px-4 font-mono font-bold opacity-80 text-[11px] text-slate-900 dark:text-slate-300">{it.sapArticle || "-"}</td>
-                  <td className="py-3 px-4">
-                    <span className="px-2 py-0.5 rounded text-[10px] bg-slate-200 dark:bg-slate-700/50 text-slate-950 dark:text-slate-200 font-black border border-slate-300 dark:border-slate-600/40">
-                      {it.brand}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-center font-black text-amber-700 dark:text-amber-300">{it.qty}</td>
-                  <td className="py-3 px-4 text-right font-black text-emerald-700 dark:text-emerald-400 font-mono">{formatIDR(it.amount)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    ));
-  };
-
-  const openStaffDetailSheet = (staff: StaffPerformanceData) => {
-    openCustomBottomSheet(`Rincian Lengkap Salesperson: ${staff.name}`, (
-      <div className="space-y-5 text-xs font-semibold">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
-          <div className="p-3 rounded-2xl border bg-black/5 dark:bg-black/25 border-inherit shadow-sm">
-            <span className="text-slate-600 dark:text-slate-400 font-black text-[10px] uppercase block tracking-wider">Actual</span>
-            <strong className="text-emerald-700 dark:text-emerald-400 font-black text-sm block mt-0.5">{formatIDR(staff.actual)}</strong>
-          </div>
-          <div className="p-3 rounded-2xl border bg-black/5 dark:bg-black/25 border-inherit shadow-sm">
-            <span className="text-slate-600 dark:text-slate-400 font-black text-[10px] uppercase block tracking-wider">Target</span>
-            <strong className="text-slate-950 dark:text-slate-200 font-black text-sm block mt-0.5">{formatIDR(staff.target)}</strong>
-          </div>
-          <div className="p-3 rounded-2xl border bg-black/5 dark:bg-black/25 border-inherit shadow-sm">
-            <span className="text-slate-600 dark:text-slate-400 font-black text-[10px] uppercase block tracking-wider">Achv</span>
-            <strong className={`font-black text-sm block mt-0.5 ${staff.achievement >= 100 ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400"}`}>
-              {staff.achievement}%
-            </strong>
-          </div>
-          <div className="p-3 rounded-2xl border bg-black/5 dark:bg-black/25 border-inherit shadow-sm">
-            <span className="text-slate-600 dark:text-slate-400 font-black text-[10px] uppercase block tracking-wider">UPT</span>
-            <strong className="text-sky-700 dark:text-sky-400 font-black text-sm block mt-0.5">{staff.upt}</strong>
-          </div>
-        </div>
-
-        <div>
-          <h4 className="text-xs font-black text-sky-700 dark:text-sky-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <span>🍎</span>
-            <span>Rincian Apple Devices</span>
-          </h4>
-          <div className="overflow-x-auto rounded-2xl border border-inherit w-full">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-200/70 dark:bg-black/30 uppercase text-[10px] font-black border-b border-inherit text-slate-950 dark:text-slate-300">
-                <tr>
-                  <th className="py-2.5 px-3 font-black">Produk</th>
-                  <th className="py-2.5 px-3 text-center font-black">Qty</th>
-                  <th className="py-2.5 px-3 text-right font-black">Nilai Omset</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-inherit font-semibold">
-                {staff.appleSub.map((p, idx) => (
-                  <tr key={idx}>
-                    <td className="py-2.5 px-3 font-black flex items-center gap-1.5 text-slate-950 dark:text-white">
-                      <span>{p.icon}</span>
-                      <span>{p.name}</span>
-                    </td>
-                    <td className="py-2.5 px-3 text-center font-black text-amber-700 dark:text-amber-300">{p.qty}</td>
-                    <td className="py-2.5 px-3 text-right font-black text-emerald-700 dark:text-emerald-400 font-mono">{formatIDR(p.actual)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div>
-          <h4 className="text-xs font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <span>🤖</span>
-            <span>Rincian Android Devices</span>
-          </h4>
-          <div className="overflow-x-auto rounded-2xl border border-inherit w-full">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-200/70 dark:bg-black/30 uppercase text-[10px] font-black border-b border-inherit text-slate-950 dark:text-slate-300">
-                <tr>
-                  <th className="py-2.5 px-3 font-black">Brand</th>
-                  <th className="py-2.5 px-3 text-center font-black">Qty</th>
-                  <th className="py-2.5 px-3 text-right font-black">Nilai Omset</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-inherit font-semibold">
-                {staff.androidSub.map((p, idx) => (
-                  <tr key={idx}>
-                    <td className="py-2.5 px-3 font-black flex items-center gap-1.5 text-slate-950 dark:text-white">
-                      <span>{p.icon}</span>
-                      <span>{p.name}</span>
-                    </td>
-                    <td className="py-2.5 px-3 text-center font-black text-amber-700 dark:text-amber-300">{p.qty}</td>
-                    <td className="py-2.5 px-3 text-right font-black text-emerald-700 dark:text-emerald-400 font-mono">{formatIDR(p.actual)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    ));
-  };
-
-  const openWeeklyStaffSheet = (wLabel: string, weekTransactions: RawTransaction[]) => {
-    const staffMap: Record<string, { name: string; apple: number; android: number; acc: number; vas: number; total: number; qty: number }> = {};
-    weekTransactions.forEach((t) => {
-      const sName = t.salesName || "Unknown";
-      if (!staffMap[sName]) staffMap[sName] = { name: sName, apple: 0, android: 0, acc: 0, vas: 0, total: 0, qty: 0 };
-      staffMap[sName].total += t.amount;
-      staffMap[sName].qty += t.qty;
-      if (t.brand === "APPLE" && t.groupCategory === "DEVICES") staffMap[sName].apple += t.amount;
-      else if (t.groupCategory === "DEVICES") staffMap[sName].android += t.amount;
-      else if (t.groupCategory === "ACCESSORIES") staffMap[sName].acc += t.amount;
-      else if (t.groupCategory === "VAS") staffMap[sName].vas += t.amount;
-    });
-
-    const staffRows = Object.values(staffMap).sort((a, b) => b.total - a.total);
-
-    openCustomBottomSheet(`Pencapaian Staf: ${wLabel}`, (
-      <div className="space-y-4 text-xs font-semibold">
-        <div className="flex justify-between items-center p-3.5 rounded-2xl bg-black/10 dark:bg-black/25 border border-inherit shadow-inner">
-          <span className="font-bold text-slate-800 dark:text-slate-300">Total Penjualan Minggu Ini:</span>
-          <strong className="text-emerald-700 dark:text-emerald-400 font-black text-sm sm:text-base">
-            {formatIDR(weekTransactions.reduce((acc, c) => acc + c.amount, 0))}
-          </strong>
-        </div>
-        <div className="overflow-x-auto rounded-2xl border border-inherit w-full">
-          <table className="w-full text-left text-xs min-w-[600px]">
-            <thead className="bg-slate-200/70 dark:bg-black/40 uppercase text-[10px] font-black border-b border-inherit tracking-wider text-slate-950 dark:text-slate-300">
-              <tr>
-                <th className="py-3 px-3 font-black">Salesperson</th>
-                <th className="py-3 px-3 text-center font-black">Unit</th>
-                <th className="py-3 px-3 text-right font-black text-sky-700 dark:text-sky-400">Apple</th>
-                <th className="py-3 px-3 text-right font-black text-indigo-700 dark:text-indigo-400">Android</th>
-                <th className="py-3 px-3 text-right font-black text-amber-700 dark:text-amber-400">Acc</th>
-                <th className="py-3 px-3 text-right font-black text-purple-700 dark:text-purple-400">VAS</th>
-                <th className="py-3 px-3 text-right font-black">Total</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-inherit font-semibold">
-              {staffRows.map((s, idx) => (
-                <tr key={idx} className="hover:opacity-90">
-                  <td className="py-3 px-3 font-black text-slate-950 dark:text-white">{s.name}</td>
-                  <td className="py-3 px-3 text-center font-black text-amber-700 dark:text-amber-300">{s.qty}</td>
-                  <td className="py-3 px-3 text-right font-mono font-bold text-sky-700 dark:text-sky-400">{formatIDR(s.apple)}</td>
-                  <td className="py-3 px-3 text-right font-mono font-bold text-indigo-700 dark:text-indigo-400">{formatIDR(s.android)}</td>
-                  <td className="py-3 px-3 text-right font-mono font-bold text-amber-700 dark:text-amber-400">{formatIDR(s.acc)}</td>
-                  <td className="py-3 px-3 text-right font-mono font-bold text-purple-700 dark:text-purple-400">{formatIDR(s.vas)}</td>
-                  <td className="py-3 px-3 text-right font-black text-emerald-700 dark:text-emerald-400 font-mono">{formatIDR(s.total)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    ));
-  };
-
-  if (!isMounted) return null;
-
-  // Tema Clean: Teks Hitam Pekat di Light Mode, Navy Cerah di Dark Mode
+  // =========================================================================
+  // KONFIGURASI TEMA: SIDEBAR TETAP GELAP / NAVY, BODY PUTIH BERSIH DI LIGHT MODE
+  // =========================================================================
   const isDark = theme === "dark";
+
+  // Background Body Utama: Putih Murni di Light Mode, Deep Navy di Dark Mode
   const bgMain = isDark 
     ? "bg-[#0A1128] bg-gradient-to-br from-[#070D1E] via-[#0A1128] to-[#0F1B3D]" 
-    : "bg-[#F3F4F6] bg-gradient-to-br from-[#F8FAFC] via-[#F1F5F9] to-[#E2E8F0]";
+    : "bg-white";
 
+  // Tipografi: Hitam Pekat di Light Mode, Terang di Dark Mode
   const textMain = isDark ? "text-slate-100 font-bold" : "text-black font-black";
   const textMuted = isDark ? "text-slate-300 font-semibold" : "text-slate-800 font-bold";
 
+  // Kartu Konten
   const cardBg = isDark 
     ? "bg-[#0E1A38]/75 backdrop-blur-xl border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.35)]" 
-    : "bg-white/95 backdrop-blur-xl border border-slate-300/90 shadow-[0_8px_30px_rgb(0,0,0,0.06)]";
+    : "bg-white border border-slate-200 shadow-sm";
 
+  // Sub-card / Container Dalam
   const innerBg = isDark 
     ? "bg-[#14234B]/60 backdrop-blur-md border border-white/10" 
-    : "bg-slate-100/95 backdrop-blur-md border border-slate-300/90";
+    : "bg-slate-50 border border-slate-200";
 
   const accentText = isDark ? "text-sky-400 font-black" : "text-blue-700 font-black";
   const activeTabBtn = isDark 
     ? "bg-sky-500 text-white font-black shadow-lg shadow-sky-500/30 border border-sky-400/40" 
-    : "bg-blue-600 text-white font-black shadow-lg shadow-blue-600/25";
+    : "bg-blue-600 text-white font-black shadow-md shadow-blue-600/20";
 
+  // Sidebar Kiri & Bottom Bar HP: Selalu Gelap Eksklusif di Kedua Mode
   const glassSidebar = isDark
-    ? "bg-[#09122A]/90 border-white/10 text-slate-100"
-    : "bg-white/95 border-slate-300/90 text-slate-950";
+    ? "bg-[#09122A]/95 border-white/10 text-slate-100"
+    : "bg-[#0F172A] border-slate-800 text-slate-100";
 
   const glassBottomBar = isDark
     ? "bg-[#0A1128]/95 border-white/10 text-slate-100"
-    : "bg-white/95 border-slate-300 text-slate-950";
+    : "bg-[#0F172A]/95 border-slate-800 text-slate-100";
 
   const mainNavItems = [
     { id: "store-overview", label: "Overview Store", icon: "📊" },
@@ -1650,26 +724,26 @@ _Diperbarui via Digiplus Store Operations Engine._`;
   return (
     <div className={`min-h-screen flex ${bgMain} ${textMain} font-sans antialiased overflow-x-hidden w-full max-w-full relative`}>
       
-      {/* 1. SIDEBAR DESKTOP */}
+      {/* 1. SIDEBAR DESKTOP (TETAP GELAP / NAVY EXCLUSIVE) */}
       <aside
-        className={`hidden lg:flex flex-col justify-between w-64 xl:w-72 h-screen sticky top-0 shrink-0 border-r backdrop-blur-2xl z-30 transition-all ${glassSidebar}`}
+        className={`hidden lg:flex flex-col justify-between w-64 xl:w-72 h-screen sticky top-0 shrink-0 border-r z-30 transition-all ${glassSidebar}`}
       >
         <div className="p-5 flex flex-col h-full overflow-hidden">
-          <div className="flex items-center gap-3 pb-5 border-b border-inherit">
+          <div className="flex items-center gap-3 pb-5 border-b border-white/10">
             <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-sky-600 to-sky-400 text-white font-black text-base flex items-center justify-center shadow-lg shadow-sky-500/20">
               QF01
             </div>
             <div>
-              <h1 className="font-black text-sm tracking-wider leading-none text-slate-950 dark:text-white">DIGIPLUS</h1>
-              <p className="text-[11px] text-sky-600 dark:text-sky-400 font-black mt-1">GRAND INDONESIA</p>
+              <h1 className="font-black text-sm tracking-wider leading-none text-white">DIGIPLUS</h1>
+              <p className="text-[11px] text-sky-400 font-black mt-1">GRAND INDONESIA</p>
             </div>
           </div>
 
-          <div className={`mt-4 p-3 rounded-2xl border ${innerBg} flex items-center justify-between shadow-sm`}>
+          <div className="mt-4 p-3 rounded-2xl border bg-white/5 border-white/10 flex items-center justify-between shadow-sm">
             <div className="overflow-hidden">
-              <span className="text-[10px] text-slate-600 dark:text-slate-400 block font-bold uppercase tracking-wider truncate">Masuk sebagai</span>
-              <span className="text-xs font-black block truncate text-slate-950 dark:text-white">{currentSalesName}</span>
-              <span className="text-[10px] font-mono font-bold text-sky-600 dark:text-sky-400">ID: {currentSalesId}</span>
+              <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider truncate">Masuk sebagai</span>
+              <span className="text-xs font-black block truncate text-white">{currentSalesName}</span>
+              <span className="text-[10px] font-mono font-bold text-sky-400">ID: {currentSalesId}</span>
             </div>
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20 shrink-0 ml-2"></span>
           </div>
@@ -1684,7 +758,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                   className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs transition-all ${
                     active
                       ? activeTabBtn
-                      : "font-bold text-slate-800 dark:text-slate-200 hover:bg-black/5 dark:hover:bg-white/5"
+                      : "font-bold text-slate-300 hover:text-white hover:bg-white/10"
                   }`}
                 >
                   <span className="text-sm">{item.icon}</span>
@@ -1697,7 +771,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               <button
                 onClick={handleExportToPptx}
                 disabled={isExportingPptx}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-gradient-to-r from-sky-500/20 to-blue-500/20 hover:from-sky-500/30 hover:to-blue-500/30 border border-sky-500/40 text-sky-700 dark:text-sky-400 font-black text-xs shadow-md transition active:scale-95"
+                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-gradient-to-r from-sky-500/20 to-blue-500/20 hover:from-sky-500/30 hover:to-blue-500/30 border border-sky-500/40 text-sky-400 font-black text-xs shadow-md transition active:scale-95"
               >
                 <span>📽️</span>
                 <span className="truncate font-black">{isExportingPptx ? "Membuat Slide..." : "Export ke Slide PPTX"}</span>
@@ -1706,25 +780,23 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
             <button
               onClick={() => setUploadModalOpen(true)}
-              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition text-slate-800 dark:text-slate-200 hover:bg-black/5 dark:hover:bg-white/5"
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition text-slate-300 hover:text-white hover:bg-white/10"
             >
               <span>📤</span>
               <span>Upload Bukti RAW</span>
             </button>
           </nav>
 
-          <div className="pt-4 border-t border-inherit space-y-2 shrink-0">
+          <div className="pt-4 border-t border-white/10 space-y-2 shrink-0">
             <button
               onClick={toggleTheme}
-              className={`w-full py-2 px-3 rounded-xl border text-xs font-black flex items-center justify-center gap-2 transition ${
-                isDark ? "bg-white/5 border-white/10 hover:bg-white/10" : "bg-slate-200/80 border-slate-300 hover:bg-slate-300/80 text-slate-950"
-              }`}
+              className="w-full py-2 px-3 rounded-xl border bg-white/5 border-white/10 hover:bg-white/10 text-white text-xs font-black flex items-center justify-center gap-2 transition"
             >
               <span>{isDark ? "☀️ Light Mode" : "🌙 Dark Mode"}</span>
             </button>
             <button
               onClick={handleLogout}
-              className="w-full py-2 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 border border-rose-500/20 text-xs font-black flex items-center justify-center gap-2 transition"
+              className="w-full py-2 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs font-black flex items-center justify-center gap-2 transition"
             >
               <span>🚪 Keluar</span>
             </button>
@@ -1741,21 +813,21 @@ _Diperbarui via Digiplus Store Operations Engine._`;
       )}
 
       <div
-        className={`lg:hidden fixed top-0 bottom-0 left-0 w-72 max-w-[80vw] z-50 transform transition-transform duration-300 ease-in-out border-r backdrop-blur-2xl p-5 flex flex-col justify-between print:hidden ${glassSidebar} ${
+        className={`lg:hidden fixed top-0 bottom-0 left-0 w-72 max-w-[80vw] z-50 transform transition-transform duration-300 ease-in-out border-r p-5 flex flex-col justify-between print:hidden ${glassSidebar} ${
           mobileDrawerOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <div>
-          <div className="flex items-center justify-between pb-4 border-b border-inherit">
+          <div className="flex items-center justify-between pb-4 border-b border-white/10">
             <div className="flex items-center gap-2.5">
               <div className="w-9 h-9 rounded-xl bg-sky-500 text-white font-black text-sm flex items-center justify-center">
                 QF01
               </div>
-              <span className="font-black text-sm text-slate-950 dark:text-white">DIGIPLUS GI</span>
+              <span className="font-black text-sm text-white">DIGIPLUS GI</span>
             </div>
             <button
               onClick={() => setMobileDrawerOpen(false)}
-              className="w-8 h-8 rounded-full bg-slate-700/20 dark:bg-slate-700/30 flex items-center justify-center text-xs font-bold text-slate-950 dark:text-white"
+              className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold text-white"
             >
               ✕
             </button>
@@ -1772,7 +844,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                 className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold ${
                   activeTab === item.id
                     ? activeTabBtn
-                    : "text-slate-800 dark:text-slate-200 hover:opacity-100"
+                    : "text-slate-300 hover:text-white"
                 }`}
               >
                 <span>{item.icon}</span>
@@ -1782,7 +854,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
             <button
               onClick={() => { setUploadModalOpen(true); setMobileDrawerOpen(false); }}
-              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200"
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white"
             >
               <span>📤</span>
               <span>Upload Bukti RAW</span>
@@ -1790,47 +862,46 @@ _Diperbarui via Digiplus Store Operations Engine._`;
           </nav>
         </div>
 
-        <div className="pt-4 border-t border-inherit space-y-2">
+        <div className="pt-4 border-t border-white/10 space-y-2">
           <button
             onClick={toggleTheme}
-            className={`w-full py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 ${
-              isDark ? "bg-white/5 border-white/10" : "bg-slate-200/80 border-slate-300 text-slate-950"
-            }`}
+            className="w-full py-2 px-3 rounded-xl border bg-white/5 border-white/10 text-white text-xs font-bold flex items-center justify-center gap-2"
           >
             <span>{isDark ? "☀️ Light Mode" : "🌙 Dark Mode"}</span>
           </button>
           <button
             onClick={handleLogout}
-            className="w-full py-2 px-3 rounded-xl bg-rose-500/10 text-rose-600 border border-rose-500/20 text-xs font-black flex items-center justify-center gap-2"
+            className="w-full py-2 px-3 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20 text-xs font-black flex items-center justify-center gap-2"
           >
             <span>🚪 Keluar</span>
           </button>
         </div>
       </div>
 
-      {/* 3. AREA KONTEN UTAMA (LEBAR PENUH & TULISAN HITAM PEKAT DI LIGHT MODE) */}
+      {/* 3. AREA KONTEN UTAMA (BODY LEBAR PENUH & FIT DENGAN PERANGKAT) */}
       <div className="flex-1 flex flex-col min-w-0 w-full max-w-full overflow-x-hidden pb-24 lg:pb-8">
         
         {/* Top Header Mobile */}
-        <div className={`lg:hidden flex items-center justify-between px-4 py-3 border-b backdrop-blur-xl sticky top-0 z-20 print:hidden ${glassSidebar}`}>
+        <div className={`lg:hidden flex items-center justify-between px-4 py-3 border-b sticky top-0 z-20 print:hidden ${glassSidebar}`}>
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-sky-500 text-white font-black text-xs flex items-center justify-center">
               QF01
             </div>
             <div>
-              <h2 className="text-xs font-black leading-none text-slate-950 dark:text-white">DIGIPLUS GI</h2>
-              <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold">{currentSalesName}</span>
+              <h2 className="text-xs font-black leading-none text-white">DIGIPLUS GI</h2>
+              <span className="text-[10px] text-sky-400 font-bold">{currentSalesName}</span>
             </div>
           </div>
           <button
             onClick={() => setMobileDrawerOpen(true)}
-            className="px-3 py-1.5 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-400/20 text-xs font-black flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-xl bg-white/10 text-sky-400 border border-sky-400/30 text-xs font-black flex items-center gap-1.5"
           >
             <span>☰</span>
             <span>Menu</span>
           </button>
         </div>
 
+        {/* Main Content Body */}
         <main className="p-3 sm:p-6 lg:p-8 w-full max-w-[1700px] mx-auto flex-1 overflow-x-hidden">
           <header className="mb-6 border-b border-inherit pb-5 print:hidden">
             <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
@@ -1862,7 +933,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                 </button>
 
                 <span className={`px-3 py-1.5 rounded-lg border text-xs font-black ${
-                  isDark ? "bg-emerald-500/15 text-emerald-300 border-emerald-400/30" : "bg-emerald-100 text-emerald-950 border-emerald-300"
+                  isDark ? "bg-emerald-500/15 text-emerald-300 border-emerald-400/30" : "bg-emerald-50 text-emerald-950 border-emerald-300"
                 }`}>
                   Actual: {formatIDR(overviewStats.actual)}
                 </span>
@@ -1871,7 +942,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
             <div className={`p-3 ${cardBg} border rounded-2xl flex flex-wrap items-center gap-3 justify-between text-xs font-bold`}>
               <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-1 bg-black/10 dark:bg-black/20 p-1 rounded-xl">
+                <div className="flex items-center gap-1 bg-slate-100 dark:bg-black/20 p-1 rounded-xl">
                   {(["daily", "weekly", "monthly"] as const).map((mode) => (
                     <button
                       key={mode}
@@ -2641,7 +1712,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                 </div>
               )}
 
-              {/* TAB 6: FEEDBACK RITEL TIM (DIPASTIKAN MUNCUL & TIDAK KOSONG) */}
+              {/* TAB 6: FEEDBACK RITEL TIM */}
               {activeTab === "feedback" && (
                 <div className="space-y-6">
                   <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-5 overflow-hidden`}>
@@ -2840,7 +1911,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                 </div>
               )}
 
-              {/* TAB 7: BNPL (KARTU & TEKS HITAM PEKAT DI LIGHT MODE) */}
+              {/* TAB 7: BNPL */}
               {activeTab === "bnpl" && (
                 <div className="space-y-6">
                   <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-4 overflow-hidden`}>
@@ -2851,7 +1922,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                           <span>TRANSAKSI PEMBIAYAAN KONSUMEN (BNPL DATABASE)</span>
                         </h2>
                         <p className={`text-xs ${textMuted} mt-1 font-semibold`}>
-                          Sumber Data Live: Sheet <code>BNPL DATABASE</code> (gid: 2697970). Metrik dihitung otomatis.[cite: 9]
+                          Sumber Data Live: Sheet <code>BNPL DATABASE</code> (gid: 2697970). Metrik dihitung otomatis.
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -2864,7 +1935,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                       </div>
                     </div>
 
-                    {/* KARTU BNPL: TEKS NOMINAL HITAM PEKAT DI LIGHT MODE */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
                       {bnplSummary.tenders.map((t, idx) => (
                         <div key={idx} className={`p-4 ${innerBg} border rounded-2xl space-y-1.5 shadow-sm`}>
@@ -3048,7 +2118,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                                 <th className="py-3 px-4 text-right font-black">Amount (Rp)</th>
                               </tr>
                             </thead>
-                            <tbody className="divide-y divide-inherit font-bold">
+                            <tbody className="divide-y divide-white/5 font-bold">
                               {filtered.length > 0 ? (
                                 filtered.map((item: any, idx: number) => (
                                   <tr key={idx} className="hover:opacity-90">
@@ -3338,8 +2408,8 @@ _Diperbarui via Digiplus Store Operations Engine._`;
         </main>
       </div>
 
-      {/* 4. BOTTOM BAR KHUSUS HANDPHONE */}
-      <div className={`lg:hidden fixed bottom-0 left-0 right-0 border-t backdrop-blur-2xl z-40 px-3 py-2 flex justify-around items-center shadow-2xl print:hidden ${glassBottomBar}`}>
+      {/* 4. BOTTOM BAR KHUSUS HANDPHONE (JEMPOL FRIENDLY) */}
+      <div className={`lg:hidden fixed bottom-0 left-0 right-0 border-t z-40 px-3 py-2 flex justify-around items-center shadow-2xl print:hidden ${glassBottomBar}`}>
         {[
           { id: "store-overview", label: "Overview", icon: "📊" },
           { id: "mom-comparison", label: "MoM", icon: "⚖️" },
@@ -3352,11 +2422,11 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               key={item.id}
               onClick={() => setActiveTab(item.id as MenuTab)}
               className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all ${
-                active ? "text-sky-700 dark:text-sky-400 scale-105" : "text-slate-700 dark:text-slate-300"
+                active ? "text-sky-400 scale-105" : "text-slate-300"
               }`}
             >
               <span className="text-base">{item.icon}</span>
-              <span className={`text-[10px] font-black mt-0.5 ${active ? "text-sky-700 dark:text-sky-400" : ""}`}>
+              <span className={`text-[10px] font-black mt-0.5 ${active ? "text-sky-400" : ""}`}>
                 {item.label}
               </span>
             </button>
@@ -3364,7 +2434,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
         })}
         <button
           onClick={() => setMobileDrawerOpen(true)}
-          className="flex flex-col items-center justify-center py-1 px-2.5 rounded-xl text-slate-700 dark:text-slate-300"
+          className="flex flex-col items-center justify-center py-1 px-2.5 rounded-xl text-slate-300"
         >
           <span className="text-base">📑</span>
           <span className="text-[10px] font-black mt-0.5">Lainnya</span>
