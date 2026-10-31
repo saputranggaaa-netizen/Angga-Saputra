@@ -604,7 +604,11 @@ export default function DigiplusOperationalEngine() {
       const savedSchedule = localStorage.getItem("digi_ops_schedule");
       const savedFeedbacks = localStorage.getItem("digi_ops_feedbacks");
 
-      if (savedTheme) setTheme(savedTheme);
+      if (savedTheme) {
+        applyTheme(savedTheme);
+      } else {
+        applyTheme("dark");
+      }
       if (savedSchedule) {
         try { setScheduleData(JSON.parse(savedSchedule)); } catch (e) {}
       }
@@ -1687,6 +1691,8 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
   const textMain = isDark ? "text-slate-100 font-bold" : "text-black font-black";
   const textMuted = isDark ? "text-slate-300 font-semibold" : "text-slate-800 font-bold";
+  const textMain = isDark ? "text-slate-100 font-bold" : "text-black font-black";
+  const textMuted = isDark ? "text-slate-300 font-semibold" : "text-slate-800 font-bold";
 
   const cardBg = isDark 
     ? "bg-[#0E1A38]/75 backdrop-blur-xl border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.35)]" 
@@ -1781,7 +1787,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
   }
 
   return (
-    <div className={`min-h-screen flex ${bgMain} ${textMain} font-sans antialiased overflow-x-hidden w-full max-w-full relative`}>
+    <div className={`min-h-screen flex ${bgMain} ${isDark ? "text-slate-100" : "text-slate-900"} font-sans antialiased overflow-x-hidden w-full max-w-full relative`}>
       
       {/* 1. SIDEBAR DESKTOP */}
       <aside
