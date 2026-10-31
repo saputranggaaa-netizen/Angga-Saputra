@@ -425,44 +425,26 @@ export default function DigiplusOperationalEngine() {
   const fetchLiveGoogleSheets = async () => {
     setIsLoading(true);
     try {
-      google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=602901290`;
+      const dbUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=602901290`;
       const bnplUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=2697970`;
       const targetUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=685849310`;
 
       const [resDb, resBnpl, resTarget] = await Promise.all([
+        fetch(dbUrl),
+        fetch(bnplUrl),
+        fetch(targetUrl),
+      ]);
 
-      const [resDb, resBnpl] = await Promise.all([fetch(dbUrl), fetch(bnplUrl)]);
       const textDb = await resDb.text();
       const textBnpl = await resBnpl.text();
       const textTarget = await resTarget.text();
-      const jsonTarget = JSON.parse(
-        textTarget.substring(textTarget.indexOf("{"), textTarget.lastIndexOf("}") + 1)
+
+      // 1. Parsing Sheet DATABASE Transaksi (gid: 602901290)
+      const jsonDb = JSON.parse(
+        textDb.substring(textDb.indexOf("{"), textDb.lastIndexOf("}") + 1)
       );
-
-      const targetMap: Record<string, number> = {};
-      (jsonTarget.table.rows || []).forEach((r: any) => {
-        const c = r.c;
-        if (!c) return;
-        // Kolom A = Nama Staf / Sales ID, Kolom B = Nominal Target
-        const identifier = String(c[0]?.v || c[0]?.f || "").trim().toLowerCase();
-        const rawTarget = c[1]?.v;
-        const targetVal = typeof rawTarget === "number"
-          ? rawTarget
-          : Number(String(rawTarget || 0).replace(/[^0-9]/g, ""));
-
-        if (identifier && targetVal > 0) {
-          targetMap[identifier] = targetVal;
-        }
-      });
-      setStaffTargets(targetMap);
-
-      const sDb = textDb.indexOf("{");
-      const eDb = textDb.lastIndexOf("}") + 1;
-      const jsonDb = JSON.parse(textDb.substring(sDb, eDb));
-      const rowsDb = jsonDb.table.rows;
-
       const parsedTrx: RawTransaction[] = [];
-      rowsDb.forEach((r: any) => {
+      (jsonDb.table.rows || []).forEach((r: any) => {
         const c = r.c;
         if (!c) return;
 
@@ -520,13 +502,12 @@ export default function DigiplusOperationalEngine() {
         }
       });
 
-      const sBnpl = textBnpl.indexOf("{");
-      const eBnpl = textBnpl.lastIndexOf("}") + 1;
-      const jsonBnpl = JSON.parse(textBnpl.substring(sBnpl, eBnpl));
-      const rowsBnpl = jsonBnpl.table.rows;
-
+      // 2. Parsing Sheet BNPL DATABASE (gid: 2697970)
+      const jsonBnpl = JSON.parse(
+        textBnpl.substring(textBnpl.indexOf("{"), textBnpl.lastIndexOf("}") + 1)
+      );
       const parsedBnpl: BnplRecord[] = [];
-      rowsBnpl.forEach((r: any) => {
+      (jsonBnpl.table.rows || []).forEach((r: any) => {
         const c = r.c;
         if (!c) return;
 
@@ -544,9 +525,28 @@ export default function DigiplusOperationalEngine() {
         }
       });
 
+      // 3. Parsing Sheet Pembagian Target (gid: 685849310)
+      const jsonTarget = JSON.parse(
+        textTarget.substring(textTarget.indexOf("{"), textTarget.lastIndexOf("}") + 1)
+      );
+      const targetMap: Record<string, number> = {};
+      (jsonTarget.table.rows || []).forEach((r: any) => {
+        const c = r.c;
+        if (!c) return;
+        const identifier = String(c[0]?.v || c[0]?.f || "").trim().toLowerCase();
+        const rawTarget = c[1]?.v;
+        const targetVal = typeof rawTarget === "number"
+          ? rawTarget
+          : Number(String(rawTarget || 0).replace(/[^0-9]/g, ""));
+
+        if (identifier && targetVal > 0) {
+          targetMap[identifier] = targetVal;
+        }
+      });
+
       setTransactions(parsedTrx);
       setBnplRecords(parsedBnpl);
-      setLastSyncTime(new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }));
+      setStaffTargets(targetMap);
 
       if (currentSalesId && !currentSalesName) {
         if (currentSalesId === ADMIN_ID) {
@@ -562,7 +562,6 @@ export default function DigiplusOperationalEngine() {
       setIsLoading(false);
     }
   };
-
   useEffect(() => {
     setIsMounted(true);
     fetchLiveGoogleSheets();
