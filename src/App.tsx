@@ -30,7 +30,7 @@ export const UploadRawSalesModal = ({ isOpen, onClose, selectedInvoice, defaultS
         fileBase64: base64Data,
         searchKey: selectedInvoice || "", 
         colN_Value: defaultSalesName || "Staf Grand Indonesia", 
-        colO_Value: catatan || "Bukti Transaksi",               
+        colO_Value: catatan || "Bukti Transaksi",                
       };
 
       try {
@@ -147,11 +147,6 @@ interface BnplRecord {
   product: string;
   qty: number;
   month: string;
-}
-interface StaffTargetRecord {
-  salesId: string;
-  name: string;
-  targetAmount: number;
 }
 
 interface ActivityLog {
@@ -334,13 +329,19 @@ export default function DigiplusOperationalEngine() {
   const [currentSalesId, setCurrentSalesId] = useState<string>("");
   const [currentSalesName, setCurrentSalesName] = useState<string>("");
 
-  // Live Spreadsheet Data
+  // Live Spreadsheet Data & Dynamic Targets
   const [transactions, setTransactions] = useState<RawTransaction[]>([]);
   const [bnplRecords, setBnplRecords] = useState<BnplRecord[]>([]);
+  const [storeTotalTarget, setStoreTotalTarget] = useState<number>(8728667173);
   const [staffTargets, setStaffTargets] = useState<Record<string, number>>({});
+  const [categoryTargets, setCategoryTargets] = useState<Record<string, number>>({
+    apple: 6932151006,
+    android: 943691666,
+    accessories: 650000000,
+    vas: 200000000,
+  });
   const [scheduleData, setScheduleData] = useState<StaffScheduleItem[]>(INITIAL_SCHEDULE);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [lastSyncTime, setLastSyncTime] = useState<string>("");
 
   // Period Filters
   const [periodType, setPeriodType] = useState<PeriodType>("monthly");
@@ -358,7 +359,7 @@ export default function DigiplusOperationalEngine() {
   // BNPL Tab Filter
   const [selectedBnplTender, setSelectedBnplTender] = useState<string>("ALL");
 
-  // Feedback State (Dipastikan Tidak Pernah Kosong)
+  // Feedback State
   const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>(DEFAULT_FEEDBACKS);
   const [selectedFeedbackStaff, setSelectedFeedbackStaff] = useState<string>("ALL");
   const [feedbackModalOpen, setFeedbackModalOpen] = useState<boolean>(false);
@@ -368,9 +369,6 @@ export default function DigiplusOperationalEngine() {
 
   // PPTX Exporting State
   const [isExportingPptx, setIsExportingPptx] = useState<boolean>(false);
-
-  // Admin Logs State
-  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
 
   const SPREADSHEET_ID = "1v_QCLTDKORjVnByrzo9qRiivdU8CGO99nJri9jBETWM";
   const ADMIN_ID = "22008089";
@@ -437,7 +435,7 @@ export default function DigiplusOperationalEngine() {
 
       const textDb = await resDb.text();
       const textBnpl = await resBnpl.text();
-      
+      const textTarget = await resTarget.text();
 
       // 1. Parsing Sheet DATABASE Transaksi (gid: 602901290)
       const jsonDb = JSON.parse(
@@ -525,8 +523,7 @@ export default function DigiplusOperationalEngine() {
         }
       });
 
-      // Parsing Sheet Pembagian Target (gid: 685849310)
-      const textTarget = await resTarget.text();
+      // 3. Parsing Sheet Pembagian Target (gid: 685849310)
       const jsonTarget = JSON.parse(
         textTarget.substring(textTarget.indexOf("{"), textTarget.lastIndexOf("}") + 1)
       );
@@ -547,12 +544,12 @@ export default function DigiplusOperationalEngine() {
           ? rawAmountF
           : Number(String(rawAmountF || 0).replace(/[^0-9]/g, ""));
 
-        // 1. Tangkap Total Toko (Grand Total di baris 16 kolom F)
+        // Tangkap Total Toko (Grand Total di baris 16 kolom F)
         if (labelB.includes("grand total") && amountF > 5000000000 && parsedGrandTotal === 0) {
           parsedGrandTotal = amountF;
         }
 
-        // 2. Tangkap Target Per Staf (Liesbeth, Yunita, M. Adli, Andrian, Surya, Siti)
+        // Tangkap Target Per Staf
         if (
           labelB &&
           !labelB.includes("staff name") &&
@@ -563,7 +560,7 @@ export default function DigiplusOperationalEngine() {
           targetMap[labelB] = amountF;
         }
 
-        // 3. Tangkap Target Kategori (Apple Device & Android Device Grand Total)
+        // Tangkap Target Kategori
         if (labelB.includes("grand total") && amountF > 0) {
           if (amountF > 6000000000) targetApple = amountF;
           else if (amountF > 900000000 && amountF < 1000000000) targetAndroid = amountF;
@@ -577,11 +574,9 @@ export default function DigiplusOperationalEngine() {
         apple: targetApple || prev.apple,
         android: targetAndroid || prev.android,
       }));
-      setStaffTargets(targetMap);
 
       setTransactions(parsedTrx);
       setBnplRecords(parsedBnpl);
-      
 
       if (currentSalesId && !currentSalesName) {
         if (currentSalesId === ADMIN_ID) {
@@ -597,6 +592,7 @@ export default function DigiplusOperationalEngine() {
       setIsLoading(false);
     }
   };
+
   useEffect(() => {
     setIsMounted(true);
     fetchLiveGoogleSheets();
@@ -739,7 +735,7 @@ export default function DigiplusOperationalEngine() {
 
     const actual = activeTx.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
     
-    // TARGET MENGIKUTI GRAND TOTAL DARI GOOGLE SHEET
+    // TARGET MENGIKUTI GRAND TOTAL LIVE DARI GOOGLE SHEET
     const baseTarget = storeTotalTarget || 8728667173;
     const target = periodType === "daily"
       ? Math.round(baseTarget / 31)
@@ -763,7 +759,6 @@ export default function DigiplusOperationalEngine() {
       return (t.brand === "APPLE" && (t.groupCategory === "DEVICES" || isHardware)) && !isCaseOrAcc;
     });
     const appleActual = appleItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
-    // Target Apple mengikuti Sheet atau proporsi target resmi
     const appleTarget = categoryTargets.apple || Math.round(target * 0.794);
 
     const androidItems = activeTx.filter((t: any) => {
@@ -794,80 +789,20 @@ export default function DigiplusOperationalEngine() {
       qtyTotal,
       invoiceCount,
       storeUPT,
-      appleActual,
-      appleTarget,
-      appleAchv: calcAchv(appleActual, appleTarget),
-      androidActual,
-      androidTarget,
-      androidAchv: calcAchv(androidActual, androidTarget),
-      accActual,
-      accTarget,
-      accAchv: calcAchv(accActual, accTarget),
-      vasActual,
-      vasTarget,
-      vasAchv: calcAchv(vasActual, vasTarget),
-      todayActual,
-    };
-  }, [activeTransactions, periodType, storeTotalTarget, categoryTargets, selectedDate, transactions]);
-
-    const achv = calcAchv(actual, target);
-    const variance = actual - target;
-    const estimate = Math.round(actual * 1.29);
-    const qtyTotal = activeTx.reduce((acc: number, t: any) => acc + (Number(t.qty) || 1), 0);
-    const invoiceCount = new Set(activeTx.map((t: any) => t.invoice)).size;
-    const storeUPT = calcUpt(qtyTotal, invoiceCount);
-
-    const appleItems = activeTx.filter((t: any) => {
-      const pUpper = (t.productName || "").toUpperCase();
-      const isHardware = pUpper.includes("IPHONE") || pUpper.includes("IPAD") || pUpper.includes("AIRPOD") || pUpper.includes("MACBOOK") || pUpper.includes("WATCH");
-      const isCaseOrAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE") || pUpper.includes("POWER");
-      return (t.brand === "APPLE" && (t.groupCategory === "DEVICES" || isHardware)) && !isCaseOrAcc;
-    });
-    const appleActual = appleItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
-    const appleTarget = Math.round(target * 0.794);
-
-    const androidItems = activeTx.filter((t: any) => {
-      const pUpper = (t.productName || "").toUpperCase();
-      const isCaseOrAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE");
-      return t.groupCategory === "DEVICES" && t.brand !== "APPLE" && !isCaseOrAcc;
-    });
-    const androidActual = androidItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
-    const androidTarget = Math.round(target * 0.108);
-
-    const accItems = activeTx.filter((t: any) => t.groupCategory === "ACCESSORIES");
-    const accActual = accItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
-    const accTarget = Math.round(target * 0.053);
-
-    const vasItems = activeTx.filter((t: any) => t.groupCategory === "VAS");
-    const vasActual = vasItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
-    const vasTarget = Math.round(target * 0.045);
-
-    const todayItems = (transactions || []).filter((t: any) => t.isoDate === selectedDate);
-    const todayActual = todayItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
-
-    return {
-      actual,
-      target,
-      achv,
-      variance,
-      estimate,
-      qtyTotal,
-      invoiceCount,
-      storeUPT,
       todayActual,
       lobs: [
-        { name: "Apple Devices (Hardware)", icon: "🍎", actual: appleActual, target: appleTarget, achv: calcAchv(appleActual, appleTarget), variance: appleActual - appleTarget, estimate: Math.round(appleActual * 1.29), color: "text-sky-600 dark:text-sky-400" },
-        { name: "Android Devices (Samsung, Xiaomi, dll)", icon: "🤖", actual: androidActual, target: androidTarget, achv: calcAchv(androidActual, androidTarget), variance: androidActual - androidTarget, estimate: Math.round(androidActual * 1.29), color: "text-indigo-600 dark:text-indigo-400" },
-        { name: "Accessories (Cases & Acc)", icon: "🔌", actual: accActual, target: accTarget, achv: calcAchv(accActual, accTarget), variance: accActual - accTarget, estimate: Math.round(accActual * 1.29), color: "text-amber-600 dark:text-amber-400" },
-        { name: "VAS (Qoala, Telkomsel, XL, Indosat)", icon: "🛡️", actual: vasActual, target: vasTarget, achv: calcAchv(vasActual, vasTarget), variance: vasActual - vasTarget, estimate: Math.round(vasActual * 1.29), color: "text-purple-600 dark:text-purple-400" }
+        { name: "Apple Devices (Hardware)", icon: "🍎", actual: appleActual, target: appleTarget, achv: calcAchv(appleActual, appleTarget), variance: appleActual - appleTarget, estimate: Math.round(appleActual * 1.25), color: "text-sky-600 dark:text-sky-400" },
+        { name: "Android Devices (Samsung, Xiaomi, dll)", icon: "🤖", actual: androidActual, target: androidTarget, achv: calcAchv(androidActual, androidTarget), variance: androidActual - androidTarget, estimate: Math.round(androidActual * 1.25), color: "text-indigo-600 dark:text-indigo-400" },
+        { name: "Accessories (Cases & Acc)", icon: "🔌", actual: accActual, target: accTarget, achv: calcAchv(accActual, accTarget), variance: accActual - accTarget, estimate: Math.round(accActual * 1.25), color: "text-amber-600 dark:text-amber-400" },
+        { name: "VAS (Qoala, Telkomsel, XL, Indosat)", icon: "🛡️", actual: vasActual, target: vasTarget, achv: calcAchv(vasActual, vasTarget), variance: vasActual - vasTarget, estimate: Math.round(vasActual * 1.25), color: "text-purple-600 dark:text-purple-400" }
       ],
       appleItems,
       androidItems,
       accItems,
       vasItems
-   };
-}, [activeTransactions, periodType, selectedDate, transactions]);
-  
+    };
+  }, [activeTransactions, periodType, storeTotalTarget, categoryTargets, selectedDate, transactions]);
+
   const momAnalytics = useMemo(() => {
     const initMetrics = () => ({
       totalSales: 0,
@@ -983,7 +918,7 @@ export default function DigiplusOperationalEngine() {
 
     return { summary, staffComparison, droppedDevices };
   }, [transactions, momBaseMonth, momCompareMonth]);
-    
+
   const dailyTrendStats = useMemo(() => {
     const dailyMap = new Map<string, number>();
     transactions.forEach((t) => {
@@ -993,7 +928,7 @@ export default function DigiplusOperationalEngine() {
     });
 
     const dates = Array.from(dailyMap.keys()).sort();
-    const idealDailyTarget = Math.round(8728667173 / 31);
+    const idealDailyTarget = Math.round((storeTotalTarget || 8728667173) / 31);
 
     return dates.map((date) => {
       const actual = dailyMap.get(date) || 0;
@@ -1005,7 +940,7 @@ export default function DigiplusOperationalEngine() {
         gap: actual - idealDailyTarget,
       };
     });
-  }, [transactions]);
+  }, [transactions, storeTotalTarget]);
 
   const weeklyReport = useMemo(() => {
     return AUTO_WEEKS.map((wDef, idx) => {
@@ -1013,7 +948,7 @@ export default function DigiplusOperationalEngine() {
       const sales = match.reduce((acc, t) => acc + t.amount, 0);
       const qty = match.reduce((acc, t) => acc + t.qty, 0);
       const invCount = new Set(match.map((t) => t.invoice)).size;
-      const target = Math.round((8728667173 / 31) * wDef.days);
+      const target = Math.round(((storeTotalTarget || 8728667173) / 31) * wDef.days);
 
       const prevMatch = idx > 0 ? transactions.filter((t) => t.weekLabel.toLowerCase().includes(AUTO_WEEKS[idx - 1].label.toLowerCase())) : [];
       const prevSales = prevMatch.reduce((acc, t) => acc + t.amount, 0);
@@ -1039,7 +974,7 @@ export default function DigiplusOperationalEngine() {
         matchTrx: match,
       };
     });
-  }, [transactions, AUTO_WEEKS]);
+  }, [transactions, AUTO_WEEKS, storeTotalTarget]);
 
   const staffList = useMemo(() => {
     const map: Record<string, {
@@ -1147,14 +1082,16 @@ export default function DigiplusOperationalEngine() {
     return sorted.map((s, idx) => {
       const invCount = s.invoices.size;
       const upt = calcUpt(s.qty, invCount);
-      const nameKey = s.name.trim().toLowerCase();
+
+      // Pencocokan target langsung dari nama staf di Google Sheet
       const nameKey = s.name.trim().toLowerCase();
       const matchedTarget = 
         staffTargets[nameKey] ||
         staffTargets[nameKey.split(" ")[0]] ||
         staffTargets[s.salesId];
 
-      const targetQuota = matchedTarget || 1658446763;
+      const targetQuota = matchedTarget || Math.round((storeTotalTarget || 8728667173) / 6);
+      const achv = calcAchv(s.total, targetQuota);
       const variance = s.total - targetQuota;
 
       const words = s.name.split(" ");
@@ -1193,7 +1130,7 @@ export default function DigiplusOperationalEngine() {
         target: targetQuota,
         achievement: achv,
         variance,
-        estimate: Math.round(s.total * 1.29),
+        estimate: Math.round(s.total * 1.25),
         invoicesCount: invCount,
         qty: s.qty,
         upt,
@@ -1214,8 +1151,9 @@ export default function DigiplusOperationalEngine() {
         rawItems: s.rawItems,
       };
     });
-  }, [activeTransactions, staffTargets]);
-  // LOGIKA DINAMIS TIME GONE: Tanggal data terupdate ÷ Jumlah hari bulan ini
+  }, [activeTransactions, staffTargets, storeTotalTarget]);
+
+  // LOGIKA DINAMIS TIME GONE
   const timeGoneStats = useMemo(() => {
     let dateStr = "";
     if (selectedDate && selectedDate !== "ALL") {
@@ -1253,7 +1191,6 @@ export default function DigiplusOperationalEngine() {
       totalDaysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     }
 
-    // Formula: Tanggal data terupdate ÷ Jumlah hari bulan ini
     const timeGonePercent = totalDaysInMonth > 0 
       ? Number(((activeDay / totalDaysInMonth) * 100).toFixed(1)) 
       : 0;
@@ -1268,7 +1205,7 @@ export default function DigiplusOperationalEngine() {
   }, [selectedDate, transactions]);
 
   const dailyTargetCalculated = useMemo(() => {
-    const totalMonthTarget = 8728667173;
+    const totalMonthTarget = storeTotalTarget || 8728667173;
     const totalDays = 31;
     const daysPassed = 24;
     const daysLeft = totalDays - daysPassed;
@@ -1302,7 +1239,7 @@ export default function DigiplusOperationalEngine() {
       actualToday,
       achvToday,
     };
-  }, [transactions, scheduleData, overviewStats.todayActual]);
+  }, [transactions, scheduleData, overviewStats.todayActual, storeTotalTarget]);
 
   const bnplSummary = useMemo(() => {
     const totalAmount = bnplRecords.reduce((acc, b) => acc + b.amount, 0);
@@ -1733,7 +1670,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
   if (!isMounted) return null;
 
-  // Tema Clean: Teks Hitam Pekat di Light Mode, Navy Cerah di Dark Mode
   const isDark = theme === "dark";
   const bgMain = isDark 
     ? "bg-[#0A1128] bg-gradient-to-br from-[#070D1E] via-[#0A1128] to-[#0F1B3D]" 
@@ -1995,7 +1931,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
         </div>
       </div>
 
-      {/* 3. AREA KONTEN UTAMA (LEBAR PENUH & TULISAN HITAM PEKAT DI LIGHT MODE) */}
+      {/* 3. AREA KONTEN UTAMA */}
       <div className="flex-1 flex flex-col min-w-0 w-full max-w-full overflow-x-hidden pb-24 lg:pb-8">
         
         {/* Top Header Mobile */}
@@ -2206,7 +2142,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     <div className="flex justify-between items-center">
                       <div>
                         <h3 className="text-sm font-black uppercase tracking-wider text-slate-950 dark:text-white">Trend Daily Sales vs Target Ideal Harian</h3>
-                        <p className={`text-xs ${textMuted} mt-0.5`}>Perbandingan omset harian terhadap target flat {formatIDR(Math.round(8728667173 / 31))}/hari</p>
+                        <p className={`text-xs ${textMuted} mt-0.5`}>Perbandingan omset harian terhadap target flat {formatIDR(Math.round((storeTotalTarget || 8728667173) / 31))}/hari</p>
                       </div>
                     </div>
                     <div className="overflow-x-auto w-full">
@@ -2828,7 +2764,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                 </div>
               )}
 
-              {/* TAB 6: FEEDBACK RITEL TIM (DIPASTIKAN MUNCUL & TIDAK KOSONG) */}
+              {/* TAB 6: FEEDBACK TIM */}
               {activeTab === "feedback" && (
                 <div className="space-y-6">
                   <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-5 overflow-hidden`}>
@@ -3027,7 +2963,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                 </div>
               )}
 
-              {/* TAB 7: BNPL (KARTU & TEKS HITAM PEKAT DI LIGHT MODE) */}
+              {/* TAB 7: BNPL */}
               {activeTab === "bnpl" && (
                 <div className="space-y-6">
                   <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-4 overflow-hidden`}>
@@ -3038,7 +2974,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                           <span>TRANSAKSI PEMBIAYAAN KONSUMEN (BNPL DATABASE)</span>
                         </h2>
                         <p className={`text-xs ${textMuted} mt-1 font-semibold`}>
-                          Sumber Data Live: Sheet <code>BNPL DATABASE</code> (gid: 2697970). Metrik dihitung otomatis.[cite: 9]
+                          Sumber Data Live: Sheet <code>BNPL DATABASE</code> (gid: 2697970). Metrik dihitung otomatis.
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -3051,7 +2987,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                       </div>
                     </div>
 
-                    {/* KARTU BNPL: TEKS NOMINAL HITAM PEKAT DI LIGHT MODE */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
                       {bnplSummary.tenders.map((t, idx) => (
                         <div key={idx} className={`p-4 ${innerBg} border rounded-2xl space-y-1.5 shadow-sm`}>
@@ -3312,7 +3247,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     </div>
                   </div>
 
-                  {/* Kartu Grid Metrik LOB & UPT */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {momAnalytics.summary.map((item, idx) => {
                       const isClickable = ["Apple Devices", "Android Devices", "Accessories", "VAS & Services"].includes(item.label);
@@ -3389,7 +3323,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     })}
                   </div>
 
-                  {/* Tabel Performa Sales Person */}
                   <div className={`${cardBg} rounded-2xl border overflow-hidden`}>
                     <div className={`px-5 py-4 border-b border-inherit flex justify-between items-center`}>
                       <div>
@@ -3448,7 +3381,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     </div>
                   </div>
 
-                  {/* Tabel Khusus: Devices Disgrowth */}
                   <div className={`${cardBg} rounded-2xl border border-rose-900/40 overflow-hidden shadow-xl mt-6`}>
                     <div className="px-5 py-4 border-b border-rose-900/30 flex justify-between items-center bg-rose-500/5">
                       <div>
