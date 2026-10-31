@@ -151,6 +151,8 @@ interface StaffScheduleItem {
 interface FeedbackItem {
   id: string;
   salesName: string;
+  staffName?: string;
+  name?: string;
   salesRole: string;
   initials: string;
   sentiment: "Luar Biasa" | "Cukup Baik" | "Kecewa";
@@ -286,33 +288,6 @@ export default function DigiplusOperationalEngine() {
 
   const SPREADSHEET_ID = "1v_QCLTDKORjVnByrzo9qRiivdU8CGO99nJri9jBETWM";
   const ADMIN_ID = "22008089";
-
-  // DEFINISI FUNGSI PPTX DITULIS LENGKAP SEBELUM PEMANGGILAN APAPUN
-  const handleExportToPptx = async () => {
-    setIsExportingPptx(true);
-    try {
-      if (typeof window !== "undefined" && !(window as any).PptxGenJS) {
-        const script = document.createElement("script");
-        script.src = "https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js";
-        script.async = true;
-        document.body.appendChild(script);
-        await new Promise((resolve) => { script.onload = resolve; });
-      }
-
-      const pptx = new (window as any).PptxGenJS();
-      pptx.layout = "LAYOUT_16x9";
-      const slide1 = pptx.addSlide();
-      slide1.background = { color: "0A1128" };
-      slide1.addText("STORE SALES PERFORMANCE REPORT", { x: 0.8, y: 1.8, fontSize: 24, bold: true, color: "38BDF8" });
-      slide1.addText("Digiplus Grand Indonesia | " + (selectedDate || "Oktober 2026"), { x: 0.8, y: 3.2, fontSize: 14, color: "F8FAFC" });
-
-      pptx.writeFile({ fileName: `Laporan_Digiplus_${Date.now()}.pptx` });
-    } catch (err) {
-      alert("Gagal membuat slide PPTX.");
-    } finally {
-      setIsExportingPptx(false);
-    }
-  };
 
   const parseNormalizedDate = (rawDateStr: string, rawMonthStr: string) => {
     let isoDate = "";
@@ -617,6 +592,31 @@ export default function DigiplusOperationalEngine() {
     };
   }, [activeTransactions, periodType, selectedDate, transactions]);
 
+  const weeklyReport = useMemo(() => {
+    return AUTO_WEEKS.map((wDef, idx) => {
+      const match = transactions.filter((t) => t.weekLabel.toLowerCase().includes(wDef.label.toLowerCase()));
+      const sales = match.reduce((acc, t) => acc + t.amount, 0);
+      const qty = match.reduce((acc, t) => acc + t.qty, 0);
+      const invCount = new Set(match.map((t) => t.invoice)).size;
+      const target = Math.round((8728667173 / 31) * wDef.days);
+
+      const prevMatch = idx > 0 ? transactions.filter((t) => t.weekLabel.toLowerCase().includes(AUTO_WEEKS[idx - 1].label.toLowerCase())) : [];
+      const prevSales = prevMatch.reduce((acc, t) => acc + t.amount, 0);
+      const wowGrowth = idx > 0 && prevSales > 0 ? Number((((sales - prevSales) / prevSales) * 100).toFixed(1)) : 0;
+
+      return {
+        ...wDef,
+        sales,
+        qty,
+        invCount,
+        target,
+        achv: calcAchv(sales, target),
+        wowGrowth,
+        matchTrx: match,
+      };
+    });
+  }, [transactions, AUTO_WEEKS]);
+
   const momAnalytics = useMemo(() => {
     let baseTotal = 0, compareTotal = 0;
     const staffMap: Record<string, { base: number; compare: number; baseItems: any[] }> = {};
@@ -774,49 +774,9 @@ export default function DigiplusOperationalEngine() {
     ));
   };
 
-  if (!isMounted) return null;
-
-  if (!isLoggedIn) {
-    return (
-      <div className={`min-h-screen ${bgMain} flex items-center justify-center p-4 ${textMain} font-sans w-full`}>
-        <div className={`max-w-md w-full ${cardBg} border-2 rounded-3xl p-6 md:p-8 shadow-2xl`}>
-          <div className="text-center mb-6">
-            <h2 className="font-black text-3xl tracking-wider mb-1 text-slate-950 dark:text-white">QF01</h2>
-            <h1 className="text-xl font-black text-slate-950 dark:text-white">DIGIPLUS GRAND INDONESIA</h1>
-            <p className={`text-xs ${accentText} mt-1 uppercase tracking-widest`}>PORTAL DASHBOARD SALES</p>
-          </div>
-          <form onSubmit={handleLogin} className="space-y-4 font-bold">
-            <div>
-              <label className="text-xs font-black uppercase tracking-wider block text-slate-900 dark:text-slate-100">Sales ID / NIK</label>
-              <input
-                type="text"
-                required
-                placeholder="24004971 / 22008089"
-                value={salesIdInput}
-                onChange={(e) => setSalesIdInput(e.target.value)}
-                className={`w-full mt-1.5 px-4 py-3 rounded-xl ${innerBg} border text-sm font-semibold focus:outline-none text-slate-950 dark:text-white`}
-              />
-            </div>
-            <div>
-              <label className="text-xs font-black uppercase tracking-wider block text-slate-900 dark:text-slate-100">Kata Sandi</label>
-              <input
-                type="password"
-                required
-                placeholder="Welcome@123"
-                value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                className={`w-full mt-1.5 px-4 py-3 rounded-xl ${innerBg} border text-sm font-semibold focus:outline-none text-slate-950 dark:text-white`}
-              />
-            </div>
-            {loginErr && <p className="text-xs text-rose-600 font-black">{loginErr}</p>}
-            <button type="submit" className={`w-full py-3.5 ${isDark ? "bg-sky-500 text-white" : "bg-blue-600 text-white"} font-black rounded-xl text-xs uppercase tracking-wider transition mt-2 shadow-lg`}>
-              Masuk Dashboard
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
+  const handlePrintSchedule = () => {
+    if (typeof window !== "undefined") window.print();
+  };
 
   return (
     <div className={`min-h-screen flex ${bgMain} ${textMain} font-sans antialiased overflow-x-hidden w-full max-w-full relative`}>
@@ -945,38 +905,40 @@ export default function DigiplusOperationalEngine() {
             </div>
 
             <div className={`p-3 ${cardBg} border rounded-2xl flex flex-wrap items-center gap-3 justify-between text-xs font-bold`}>
-              <div className="flex items-center gap-1 bg-slate-100 dark:bg-black/20 p-1 rounded-xl">
-                {(["daily", "weekly", "monthly"] as const).map((mode) => (
-                  <button key={mode} onClick={() => setPeriodType(mode)} className={`px-3 py-1 rounded-lg text-xs font-black capitalize ${periodType === mode ? activeTabBtn : "text-slate-800 dark:text-slate-200"}`}>
-                    {mode}
-                  </button>
-                ))}
-              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-1 bg-slate-100 dark:bg-black/20 p-1 rounded-xl">
+                  {(["daily", "weekly", "monthly"] as const).map((mode) => (
+                    <button key={mode} onClick={() => setPeriodType(mode)} className={`px-3 py-1 rounded-lg text-xs font-black capitalize ${periodType === mode ? activeTabBtn : "text-slate-800 dark:text-slate-200"}`}>
+                      {mode}
+                    </button>
+                  ))}
+                </div>
 
-              {periodType === "monthly" && (
-                <div className="flex items-center gap-2">
-                  <span className="font-black text-slate-900 dark:text-slate-200">Bulan:</span>
-                  <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className={`${innerBg} border rounded-xl px-2.5 py-1 font-black text-slate-950 dark:text-white`}>
-                    <option value="ALL">Semua Bulan</option>
-                    {availableMonths.map((m) => (<option key={m} value={m}>{m}</option>))}
-                  </select>
-                </div>
-              )}
-              {periodType === "weekly" && (
-                <div className="flex items-center gap-2">
-                  <span className="font-black text-slate-900 dark:text-slate-200">Week:</span>
-                  <select value={selectedWeek} onChange={(e) => setSelectedWeek(e.target.value)} className={`${innerBg} border rounded-xl px-2.5 py-1 font-black text-slate-950 dark:text-white`}>
-                    <option value="ALL">Semua Minggu</option>
-                    {AUTO_WEEKS.map((w) => (<option key={w.key} value={w.label}>{w.label}</option>))}
-                  </select>
-                </div>
-              )}
-              {periodType === "daily" && (
-                <div className="flex items-center gap-2">
-                  <span className="font-black text-slate-900 dark:text-slate-200">Tanggal:</span>
-                  <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className={`${innerBg} border rounded-xl px-2.5 py-1 font-black text-slate-950 dark:text-white`} />
-                </div>
-              )}
+                {periodType === "monthly" && (
+                  <div className="flex items-center gap-2">
+                    <span className="font-black text-slate-900 dark:text-slate-200">Bulan:</span>
+                    <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className={`${innerBg} border rounded-xl px-2.5 py-1 font-black text-slate-950 dark:text-white`}>
+                      <option value="ALL">Semua Bulan</option>
+                      {availableMonths.map((m) => (<option key={m} value={m}>{m}</option>))}
+                    </select>
+                  </div>
+                )}
+                {periodType === "weekly" && (
+                  <div className="flex items-center gap-2">
+                    <span className="font-black text-slate-900 dark:text-slate-200">Week:</span>
+                    <select value={selectedWeek} onChange={(e) => setSelectedWeek(e.target.value)} className={`${innerBg} border rounded-xl px-2.5 py-1 font-black text-slate-950 dark:text-white`}>
+                      <option value="ALL">Semua Minggu</option>
+                      {AUTO_WEEKS.map((w) => (<option key={w.key} value={w.label}>{w.label}</option>))}
+                    </select>
+                  </div>
+                )}
+                {periodType === "daily" && (
+                  <div className="flex items-center gap-2">
+                    <span className="font-black text-slate-900 dark:text-slate-200">Tanggal:</span>
+                    <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className={`${innerBg} border rounded-xl px-2.5 py-1 font-black text-slate-950 dark:text-white`} />
+                  </div>
+                )}
+              </div>
             </div>
           </header>
 
