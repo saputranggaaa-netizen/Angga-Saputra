@@ -628,12 +628,22 @@ export default function DigiplusOperationalEngine() {
     }
   }, []);
 
+  // Pasang atau cabut class 'dark' di root HTML agar styling Tailwind akurat
+  const applyTheme = (mode: ThemeMode) => {
+    setTheme(mode);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("digi_ops_theme", mode);
+      if (mode === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    }
+  };
+
   const toggleTheme = () => {
     const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("digi_ops_theme", next);
-    }
+    applyTheme(next);
   };
 
   const handleLogin = (e: React.FormEvent) => {
@@ -1920,7 +1930,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               isDark ? "bg-white/5 border-white/10" : "bg-slate-200/80 border-slate-300 text-slate-950"
             }`}
           >
-            <span>{isDark ? "☀️ Light Mode" : "🌙 Dark Mode"}</span>
+            <span>{isDark ? "☀️ Mode Terang" : "🌙 Mode Gelap"}</span>
           </button>
           <button
             onClick={handleLogout}
