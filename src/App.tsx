@@ -532,22 +532,51 @@ export default function DigiplusOperationalEngine() {
       );
 
       const targetMap: Record<string, number> = {};
+      let parsedGrandTotal = 0;
+      let targetApple = 0;
+      let targetAndroid = 0;
+
       (jsonTarget.table.rows || []).forEach((r: any) => {
         const c = r.c;
         if (!c) return;
 
-        // Kolom B = Nama Staf (index 1), Kolom F = Amount Target (index 5)
-        const staffName = String(c[1]?.v || c[1]?.f || "").trim().toLowerCase();
-        const rawTarget = c[5]?.v;
-        const targetVal = typeof rawTarget === "number"
-          ? rawTarget
-          : Number(String(rawTarget || 0).replace(/[^0-9]/g, ""));
+        // Baca Kolom B (Nama Staf / Label) dan Kolom F (Amount Target)
+        const labelB = String(c[1]?.v || c[1]?.f || "").trim().toLowerCase();
+        const rawAmountF = c[5]?.v;
+        const amountF = typeof rawAmountF === "number"
+          ? rawAmountF
+          : Number(String(rawAmountF || 0).replace(/[^0-9]/g, ""));
 
-        if (staffName && !staffName.includes("staff name") && !staffName.includes("grand total") && targetVal > 0) {
-          targetMap[staffName] = targetVal;
+        // 1. Tangkap Total Toko (Grand Total di baris 16 kolom F)
+        if (labelB.includes("grand total") && amountF > 5000000000 && parsedGrandTotal === 0) {
+          parsedGrandTotal = amountF;
+        }
+
+        // 2. Tangkap Target Per Staf (Liesbeth, Yunita, M. Adli, Andrian, Surya, Siti)
+        if (
+          labelB &&
+          !labelB.includes("staff name") &&
+          !labelB.includes("grand total") &&
+          !labelB.includes("target") &&
+          amountF > 0
+        ) {
+          targetMap[labelB] = amountF;
+        }
+
+        // 3. Tangkap Target Kategori (Apple Device & Android Device Grand Total)
+        if (labelB.includes("grand total") && amountF > 0) {
+          if (amountF > 6000000000) targetApple = amountF;
+          else if (amountF > 900000000 && amountF < 1000000000) targetAndroid = amountF;
         }
       });
 
+      if (parsedGrandTotal > 0) setStoreTotalTarget(parsedGrandTotal);
+      setStaffTargets(targetMap);
+      setCategoryTargets((prev) => ({
+        ...prev,
+        apple: targetApple || prev.apple,
+        android: targetAndroid || prev.android,
+      }));
       setStaffTargets(targetMap);
 
       setTransactions(parsedTrx);
@@ -708,12 +737,78 @@ export default function DigiplusOperationalEngine() {
   const overviewStats = useMemo(() => {
     const activeTx = activeTransactions || [];
 
-    const actual = activeTx.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
-    const target = periodType === "daily" 
-      ? Math.round(8728667173 / 31) 
-      : periodType === "weekly" 
-      ? Math.round((8728667173 / 31) * 7) 
-      : 8728667173;
+    t actual = activeTx.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
+    
+    // TARGET MENGIKUTI GRAND TOTAL DARI GOOGLE SHEET
+    const baseTarget = storeTotalTarget || 8728667173;
+    const target = periodType === "daily"
+      ? Math.round(baseTarget / 31)
+      : periodType === "weekly"
+      ? Math.round((baseTarget / 31) * 7)
+      : baseTarget;
+
+    const achv = calcAchv(actual, target);
+    const variance = actual - target;
+    const estimate = Math.round(actual * 1.25);
+
+    const qtyTotal = activeTx.reduce((acc: number, t: any) => acc + (Number(t.qty) || 1), 0);
+    const invoiceCount = new Set(activeTx.map((t: any) => t.invoice)).size;
+    const storeUPT = calcUpt(qtyTotal, invoiceCount);
+
+    // Filter Kategori
+    const appleItems = activeTx.filter((t: any) => {
+      const pUpper = (t.productName || "").toUpperCase();
+      const isHardware = pUpper.includes("IPHONE") || pUpper.includes("IPAD") || pUpper.includes("AIRPOD") || pUpper.includes("MACBOOK") || pUpper.includes("WATCH");
+      const isCaseOrAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE") || pUpper.includes("POWER");
+      return (t.brand === "APPLE" && (t.groupCategory === "DEVICES" || isHardware)) && !isCaseOrAcc;
+    });
+    const appleActual = appleItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
+    // Target Apple mengikuti Sheet atau proporsi target resmi
+    const appleTarget = categoryTargets.apple || Math.round(target * 0.794);
+
+    const androidItems = activeTx.filter((t: any) => {
+      const pUpper = (t.productName || "").toUpperCase();
+      const isCaseOrAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE");
+      return t.groupCategory === "DEVICES" && t.brand !== "APPLE" && !isCaseOrAcc;
+    });
+    const androidActual = androidItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
+    const androidTarget = categoryTargets.android || Math.round(target * 0.108);
+
+    const accItems = activeTx.filter((t: any) => t.groupCategory === "ACCESSORIES");
+    const accActual = accItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
+    const accTarget = categoryTargets.accessories || Math.round(target * 0.05);
+
+    const vasItems = activeTx.filter((t: any) => t.groupCategory === "VAS");
+    const vasActual = vasItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
+    const vasTarget = categoryTargets.vas || Math.round(target * 0.045);
+
+    const todayItems = transactions.filter((t: any) => t.isoDate === selectedDate);
+    const todayActual = todayItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
+
+    return {
+      actual,
+      target,
+      achv,
+      variance,
+      estimate,
+      qtyTotal,
+      invoiceCount,
+      storeUPT,
+      appleActual,
+      appleTarget,
+      appleAchv: calcAchv(appleActual, appleTarget),
+      androidActual,
+      androidTarget,
+      androidAchv: calcAchv(androidActual, androidTarget),
+      accActual,
+      accTarget,
+      accAchv: calcAchv(accActual, accTarget),
+      vasActual,
+      vasTarget,
+      vasAchv: calcAchv(vasActual, vasTarget),
+      todayActual,
+    };
+  }, [activeTransactions, periodType, storeTotalTarget, categoryTargets, selectedDate, transactions]);
 
     const achv = calcAchv(actual, target);
     const variance = actual - target;
@@ -1053,12 +1148,13 @@ export default function DigiplusOperationalEngine() {
       const invCount = s.invoices.size;
       const upt = calcUpt(s.qty, invCount);
       const nameKey = s.name.trim().toLowerCase();
-      const targetQuota =
+      const nameKey = s.name.trim().toLowerCase();
+      const matchedTarget = 
         staffTargets[nameKey] ||
         staffTargets[nameKey.split(" ")[0]] ||
-        staffTargets[s.salesId] ||
-        1658446763;
-      const achv = calcAchv(s.total, targetQuota);
+        staffTargets[s.salesId];
+
+      const targetQuota = matchedTarget || 1658446763;
       const variance = s.total - targetQuota;
 
       const words = s.name.split(" ");
