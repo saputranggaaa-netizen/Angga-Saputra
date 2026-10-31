@@ -151,8 +151,6 @@ interface StaffScheduleItem {
 interface FeedbackItem {
   id: string;
   salesName: string;
-  staffName?: string;
-  name?: string;
   salesRole: string;
   initials: string;
   sentiment: "Luar Biasa" | "Cukup Baik" | "Kecewa";
@@ -592,6 +590,7 @@ export default function DigiplusOperationalEngine() {
     };
   }, [activeTransactions, periodType, selectedDate, transactions]);
 
+  // DEKLARASI weeklyReport SEBELUM handleExportToPptx
   const weeklyReport = useMemo(() => {
     return AUTO_WEEKS.map((wDef, idx) => {
       const match = transactions.filter((t) => t.weekLabel.toLowerCase().includes(wDef.label.toLowerCase()));
@@ -735,6 +734,51 @@ export default function DigiplusOperationalEngine() {
     return { totalAmount, totalQty, tenders, list: selectedBnplTender === "ALL" ? bnplRecords : bnplRecords.filter((b) => b.tender.toLowerCase() === selectedBnplTender.toLowerCase()) };
   }, [bnplRecords, overviewStats.actual, selectedBnplTender]);
 
+  // FUNGSI PPTX DITULIS SETELAH weeklyReport & overviewStats DI-INISIALISASI
+  const handleExportToPptx = async () => {
+    setIsExportingPptx(true);
+    try {
+      if (typeof window !== "undefined" && !(window as any).PptxGenJS) {
+        const script = document.createElement("script");
+        script.src = "https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js";
+        script.async = true;
+        document.body.appendChild(script);
+        await new Promise((resolve) => { script.onload = resolve; });
+      }
+
+      const pptx = new (window as any).PptxGenJS();
+      pptx.layout = "LAYOUT_16x9";
+      const slide1 = pptx.addSlide();
+      slide1.background = { color: "0A1128" };
+      slide1.addText("STORE SALES PERFORMANCE REPORT", { x: 0.8, y: 1.8, fontSize: 24, bold: true, color: "38BDF8" });
+      slide1.addText("Digiplus Grand Indonesia | " + (selectedDate || "Oktober 2026"), { x: 0.8, y: 3.2, fontSize: 14, color: "F8FAFC" });
+
+      const slide2 = pptx.addSlide();
+      slide2.addText("CORE KPI METRICS", { x: 0.5, y: 0.5, fontSize: 20, bold: true, color: "0F172A" });
+      slide2.addTable([
+        ["METRIK RETAIL", "TARGET", "AKTUAL", "ACHV (%)"],
+        ["Total Penjualan", formatIDR(overviewStats.target), formatIDR(overviewStats.actual), `${overviewStats.achv}%`],
+        ["Target Harian", formatIDR(dailyTargetCalculated.targetStoreToday), formatIDR(dailyTargetCalculated.actualToday), `${dailyTargetCalculated.achvToday}%`],
+      ], { x: 0.5, y: 1.5, w: 9.0, fill: "F1F5F9", fontSize: 11 });
+
+      if (Array.isArray(weeklyReport) && weeklyReport.length > 0) {
+        const slide3 = pptx.addSlide();
+        slide3.addText("WEEKLY PERFORMANCE", { x: 0.5, y: 0.5, fontSize: 20, bold: true, color: "0F172A" });
+        const weeklyRows = [["LABEL MINGGU", "RENTANG", "PENJUALAN", "GROWTH"]];
+        weeklyReport.forEach((w) => {
+          weeklyRows.push([w.label, w.range, formatIDR(w.sales), `${w.wowGrowth}%`]);
+        });
+        slide3.addTable(weeklyRows, { x: 0.5, y: 1.5, w: 9.0, fill: "F8FAFC", fontSize: 10 });
+      }
+
+      pptx.writeFile({ fileName: `Laporan_Digiplus_${Date.now()}.pptx` });
+    } catch (err) {
+      alert("Ekspor slide sedang disiapkan.");
+    } finally {
+      setIsExportingPptx(false);
+    }
+  };
+
   const openCustomBottomSheet = (title: string, content: React.ReactNode) => {
     setSheetTitle(title);
     setSheetContent(content);
@@ -777,6 +821,50 @@ export default function DigiplusOperationalEngine() {
   const handlePrintSchedule = () => {
     if (typeof window !== "undefined") window.print();
   };
+
+  if (!isMounted) return null;
+
+  if (!isLoggedIn) {
+    return (
+      <div className={`min-h-screen ${bgMain} flex items-center justify-center p-4 ${textMain} font-sans w-full`}>
+        <div className={`max-w-md w-full ${cardBg} border-2 rounded-3xl p-6 md:p-8 shadow-2xl`}>
+          <div className="text-center mb-6">
+            <h2 className="font-black text-3xl tracking-wider mb-1 text-slate-950 dark:text-white">QF01</h2>
+            <h1 className="text-xl font-black text-slate-950 dark:text-white">DIGIPLUS GRAND INDONESIA</h1>
+            <p className={`text-xs ${accentText} mt-1 uppercase tracking-widest`}>PORTAL DASHBOARD SALES</p>
+          </div>
+          <form onSubmit={handleLogin} className="space-y-4 font-bold">
+            <div>
+              <label className="text-xs font-black uppercase tracking-wider block text-slate-900 dark:text-slate-100">Sales ID / NIK</label>
+              <input
+                type="text"
+                required
+                placeholder="24004971 / 22008089"
+                value={salesIdInput}
+                onChange={(e) => setSalesIdInput(e.target.value)}
+                className={`w-full mt-1.5 px-4 py-3 rounded-xl ${innerBg} border text-sm font-semibold focus:outline-none text-slate-950 dark:text-white`}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-black uppercase tracking-wider block text-slate-900 dark:text-slate-100">Kata Sandi</label>
+              <input
+                type="password"
+                required
+                placeholder="Welcome@123"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                className={`w-full mt-1.5 px-4 py-3 rounded-xl ${innerBg} border text-sm font-semibold focus:outline-none text-slate-950 dark:text-white`}
+              />
+            </div>
+            {loginErr && <p className="text-xs text-rose-600 font-black">{loginErr}</p>}
+            <button type="submit" className={`w-full py-3.5 ${isDark ? "bg-sky-500 text-white" : "bg-blue-600 text-white"} font-black rounded-xl text-xs uppercase tracking-wider transition mt-2 shadow-lg`}>
+              Masuk Dashboard
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen flex ${bgMain} ${textMain} font-sans antialiased overflow-x-hidden w-full max-w-full relative`}>
