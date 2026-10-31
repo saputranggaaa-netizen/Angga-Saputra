@@ -2262,7 +2262,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                       <div>
                         <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
                           <span>📈</span>
-                          <span>WEEKLY SALES & WEEK-OVER-WEEK (WOW) DARI DATABASE KOLOM O</span>
+                          <span>WEEKLY SALES & WEEK-OVER-WEEK (WOW)</span>
                         </h2>
                         <p className={`text-xs ${textMuted} mt-1 font-semibold`}>
                           Mendeteksi seluruh minggu otomatis dari Kolom O sheet <code>DATABASE</code>.
