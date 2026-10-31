@@ -737,7 +737,7 @@ export default function DigiplusOperationalEngine() {
   const overviewStats = useMemo(() => {
     const activeTx = activeTransactions || [];
 
-    t actual = activeTx.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
+    const actual = activeTx.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
     
     // TARGET MENGIKUTI GRAND TOTAL DARI GOOGLE SHEET
     const baseTarget = storeTotalTarget || 8728667173;
