@@ -2349,32 +2349,55 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                         </thead>
                         <tbody className="divide-y divide-inherit font-bold">
                           {weeklyReport.map((w, i) => (
-                            <tr key={i} className="hover:opacity-90 transition">
-                              <td className="py-4 px-4 font-black text-slate-950 dark:text-white">{w.label}</td>
-                              <td className="py-4 px-4 text-slate-800 dark:text-slate-300 font-bold">{w.range}</td>
-                              <td className="py-4 px-4 text-center font-black text-amber-700 dark:text-amber-300">{w.qty}</td>
-                              <td className="py-4 px-4 text-center text-slate-800 dark:text-slate-300 font-bold">{w.invCount}</td>
-                              <td className="py-4 px-4 text-right font-mono font-bold text-slate-800 dark:text-slate-300">{formatIDR(w.target)}</td>
-                              <td className="py-4 px-4 text-right font-black text-emerald-700 dark:text-emerald-400 text-sm font-mono">{formatIDR(w.sales)}</td>
-                              <td className="py-4 px-4 text-center font-black text-sky-700 dark:text-sky-400">{w.achv}%</td>
-                              <td className="py-4 px-4 text-center font-black">
-                                {i === 0 ? (
-                                  <span className="opacity-60 text-slate-600 dark:text-slate-400">Baseline</span>
-                                ) : (
-                                  <span className={w.wowGrowth >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600"}>
-                                    {w.wowGrowth > 0 ? `+${w.wowGrowth}%` : `${w.wowGrowth}%`}
-                                  </span>
-                                )}
-                              </td>
-                              <td className="py-4 px-4 text-center">
-                                <button
-                                  onClick={() => openWeeklyStaffSheet(w.label, w.matchTrx)}
-                                  className={`px-2.5 py-1 rounded-xl text-xs font-black transition ${activeTabBtn}`}
-                                >
-                                  Detail Staff
-                                </button>
-                              </td>
-                            </tr>
+                            <tr key={i} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors border-b border-slate-200 dark:border-slate-800">
+  <td className="py-3.5 px-4 font-black text-slate-950 dark:text-white">
+    {w.label}
+  </td>
+  
+  <td className="py-3.5 px-4 font-bold text-slate-700 dark:text-slate-300">
+    {w.range}
+  </td>
+  
+  <td className="py-3.5 px-4 text-center font-black text-slate-900 dark:text-amber-400">
+    {w.qty}
+  </td>
+  
+  <td className="py-3.5 px-4 text-center font-bold text-slate-800 dark:text-slate-300">
+    {w.invCount}
+  </td>
+  
+  <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-700 dark:text-slate-300">
+    {formatIDR(w.target)}
+  </td>
+  
+  {/* Total Penjualan dengan warna hijau tebal & kontras */}
+  <td className="py-3.5 px-4 text-right font-black text-emerald-700 dark:text-emerald-400 text-sm font-mono">
+    {formatIDR(w.sales)}
+  </td>
+  
+  <td className="py-3.5 px-4 text-center font-black text-blue-700 dark:text-sky-400">
+    {w.achv}%
+  </td>
+  
+  <td className="py-3.5 px-4 text-center font-black">
+    {i === 0 ? (
+      <span className="text-slate-400 dark:text-slate-500 font-semibold text-xs">Baseline</span>
+    ) : (
+      <span className={w.wowGrowth >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
+        {w.wowGrowth > 0 ? `+${w.wowGrowth}%` : `${w.wowGrowth}%`}
+      </span>
+    )}
+  </td>
+  
+  <td className="py-3.5 px-4 text-center">
+    <button
+      onClick={() => openWeeklyStaffSheet(w.label, w.matchTrx)}
+      className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-sm transition active:scale-95"
+    >
+      Detail Staff
+    </button>
+  </td>
+</tr>
                           ))}
                         </tbody>
                       </table>
