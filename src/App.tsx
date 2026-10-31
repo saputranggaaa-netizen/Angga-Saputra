@@ -349,6 +349,9 @@ export default function DigiplusOperationalEngine() {
   const [momBaseMonth, setMomBaseMonth] = useState<string>("Oktober2026");
   const [momCompareMonth, setMomCompareMonth] = useState<string>("Agustus2026");
   const [selectedWeek, setSelectedWeek] = useState<string>("ALL");
+  // Filter Perbandingan Week to Week
+  const [w1Filter, setW1Filter] = useState<string>("W1");
+  const [w2Filter, setW2Filter] = useState<string>("W2");
   const [selectedDate, setSelectedDate] = useState<string>("ALL");
 
   // Bottom Sheet Drawer State
@@ -1681,6 +1684,158 @@ _Diperbarui via Digiplus Store Operations Engine._`;
       </div>
     ));
   };
+  const weeklyComparisonData = useMemo(() => {
+    const getTrxForWeek = (wKey: string) => {
+      const wObj = AUTO_WEEKS.find((w) => w.key === wKey || w.label === wKey);
+      const labelMatch = wObj ? wObj.label.toLowerCase() : wKey.toLowerCase();
+      return transactions.filter((t) => t.weekLabel && t.weekLabel.toLowerCase().includes(labelMatch));
+    };
+
+    const trxW1 = getTrxForWeek(w1Filter);
+    const trxW2 = getTrxForWeek(w2Filter);
+
+    const calcGrowth = (w2Val: number, w1Val: number) => {
+      if (w1Val === 0) return w2Val > 0 ? 100 : 0;
+      return Number((((w2Val - w1Val) / w1Val) * 100).toFixed(1));
+    };
+
+    // 1. Total Toko
+    const totalW1 = trxW1.reduce((acc, t) => acc + t.amount, 0);
+    const totalW2 = trxW2.reduce((acc, t) => acc + t.amount, 0);
+    const storeGrowth = calcGrowth(totalW2, totalW1);
+
+    // 2. Total Sales Per Staf
+    const staffNames = Array.from(new Set([...trxW1.map((t) => t.salesName), ...trxW2.map((t) => t.salesName)])).filter(Boolean);
+    const staffSales = staffNames.map((name) => {
+      const sW1 = trxW1.filter((t) => t.salesName === name).reduce((acc, t) => acc + t.amount, 0);
+      const sW2 = trxW2.filter((t) => t.salesName === name).reduce((acc, t) => acc + t.amount, 0);
+      return {
+        name,
+        w1: sW1,
+        w2: sW2,
+        growth: calcGrowth(sW2, sW1),
+      };
+    }).sort((a, b) => b.w2 - a.w2);
+
+    // Helper Klasifikasi Kategori
+    const getSubCategory = (t: RawTransaction) => {
+      const p = (t.productName || "").toUpperCase();
+      const b = (t.brand || "").toUpperCase();
+      const g = (t.groupCategory || "").toUpperCase();
+
+      if (b === "APPLE") {
+        if (p.includes("IPHONE")) return "iPhone";
+        if (p.includes("IPAD")) return "iPad";
+        if (p.includes("MAC") || p.includes("BOOK")) return "MacBook";
+        if (p.includes("WATCH")) return "Apple Watch";
+        if (p.includes("AIRPOD")) return "AirPods";
+        return "Other Apple";
+      }
+
+      if (g === "DEVICES") {
+        if (p.includes("PHONE") || p.includes("GALAXY S") || p.includes("GALAXY Z") || p.includes("REDMI") || p.includes("NOTE")) return `${t.brand} Phone`;
+        if (p.includes("TAB") || p.includes("PAD")) return `${t.brand} Tablet`;
+        if (p.includes("WATCH") || p.includes("BAND")) return `${t.brand} Watch`;
+        return `${t.brand} Other`;
+      }
+
+      if (g === "ACCESSORIES") {
+        if (p.includes("CASE") || p.includes("COVER")) return "Casing & Protection";
+        if (p.includes("GLASS") || p.includes("TEMPERED")) return "Screen Guard";
+        if (p.includes("ADAPTER") || p.includes("CHARGER") || p.includes("POWER")) return "Power & Adapter";
+        if (p.includes("CABLE")) return "Cable & Connector";
+        return "Audio & Other Acc";
+      }
+
+      if (g === "VAS" || b === "QOALA") {
+        if (p.includes("QOALA") || p.includes("PROTEKSI")) return "Qoala Proteksi Gadget";
+        if (b.includes("TELKOMSEL") || p.includes("TELKOMSEL")) return "Telkomsel Halo/Data";
+        if (b.includes("XL") || p.includes("MYPRIO")) return "XL Prioritas";
+        return "VAS / Other Service";
+      }
+
+      return "Lain-lain";
+    };
+
+    // Helper Agregasi Per LOB
+    const buildLobData = (filterFn: (t: RawTransaction) => boolean) => {
+      const itemsW1 = trxW1.filter(filterFn);
+      const itemsW2 = trxW2.filter(filterFn);
+
+      const totalAmtW1 = itemsW1.reduce((acc, t) => acc + t.amount, 0);
+      const totalAmtW2 = itemsW2.reduce((acc, t) => acc + t.amount, 0);
+      const totalQtyW1 = itemsW1.reduce((acc, t) => acc + t.qty, 0);
+      const totalQtyW2 = itemsW2.reduce((acc, t) => acc + t.qty, 0);
+
+      // Ekstrak Daftar Subkategori
+      const subCats = Array.from(new Set([...itemsW1.map(getSubCategory), ...itemsW2.map(getSubCategory)])).filter(Boolean);
+
+      const breakdown = subCats.map((subName) => {
+        const subW1 = itemsW1.filter((t) => getSubCategory(t) === subName);
+        const subW2 = itemsW2.filter((t) => getSubCategory(t) === subName);
+
+        const subStaffNames = Array.from(new Set([...subW1.map((t) => t.salesName), ...subW2.map((t) => t.salesName)])).filter(Boolean);
+
+        const staffData = subStaffNames.map((sName) => {
+          const stW1 = subW1.filter((t) => t.salesName === sName);
+          const stW2 = subW2.filter((t) => t.salesName === sName);
+
+          const q1 = stW1.reduce((acc, t) => acc + t.qty, 0);
+          const a1 = stW1.reduce((acc, t) => acc + t.amount, 0);
+          const q2 = stW2.reduce((acc, t) => acc + t.qty, 0);
+          const a2 = stW2.reduce((acc, t) => acc + t.amount, 0);
+
+          return {
+            name: sName,
+            w1Qty: q1,
+            w1Amount: a1,
+            w2Qty: q2,
+            w2Amount: a2,
+            growthAmt: calcGrowth(a2, a1),
+            growthQty: calcGrowth(q2, q1),
+          };
+        }).sort((a, b) => b.w2Amount - a.w2Amount);
+
+        const subAmt1 = subW1.reduce((acc, t) => acc + t.amount, 0);
+        const subAmt2 = subW2.reduce((acc, t) => acc + t.amount, 0);
+        const subQty1 = subW1.reduce((acc, t) => acc + t.qty, 0);
+        const subQty2 = subW2.reduce((acc, t) => acc + t.qty, 0);
+
+        return {
+          subCategory: subName,
+          w1Qty: subQty1,
+          w1Amount: subAmt1,
+          w2Qty: subQty2,
+          w2Amount: subAmt2,
+          growthAmt: calcGrowth(subAmt2, subAmt1),
+          staffData,
+        };
+      });
+
+      return {
+        totalAmtW1,
+        totalAmtW2,
+        totalQtyW1,
+        totalQtyW2,
+        growthAmt: calcGrowth(totalAmtW2, totalAmtW1),
+        growthQty: calcGrowth(totalQtyW2, totalQtyW1),
+        breakdown,
+      };
+    };
+
+    return {
+      totalW1,
+      totalW2,
+      storeGrowth,
+      staffSales,
+      apple: buildLobData((t) => t.brand === "APPLE" && t.groupCategory === "DEVICES"),
+      samsung: buildLobData((t) => t.brand === "SAMSUNG" && t.groupCategory === "DEVICES"),
+      huawei: buildLobData((t) => t.brand === "HUAWEI" && t.groupCategory === "DEVICES"),
+      androidOther: buildLobData((t) => !["APPLE", "SAMSUNG", "HUAWEI"].includes(t.brand) && t.groupCategory === "DEVICES"),
+      accessories: buildLobData((t) => t.groupCategory === "ACCESSORIES"),
+      vas: buildLobData((t) => t.groupCategory === "VAS" || t.brand === "QOALA"),
+    };
+  }, [transactions, w1Filter, w2Filter, AUTO_WEEKS]);
 
   if (!isMounted) return null;
 
@@ -2254,158 +2409,198 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                 </div>
               )}
 
-              {/* TAB 2: WEEKLY SALES */}
+              {/* TAB 2: WEEKLY SALES - WEEK TO WEEK DRILLDOWN */}
               {activeTab === "weekly-sales" && (
                 <div className="space-y-6 sm:space-y-8">
-                  <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-4 overflow-hidden`}>
-                    <div className="flex flex-wrap justify-between items-center gap-4">
-                      <div>
-                        <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
-                          <span>📈</span>
-                          <span>WEEKLY SALES & WEEK-OVER-WEEK (WOW)</span>
-                        </h2>
-                        <p className={`text-xs ${textMuted} mt-1 font-semibold`}>
-                          Mendeteksi seluruh minggu otomatis dari Kolom O sheet <code>DATABASE</code>.
-                        </p>
+                  {/* HEADER & FILTER SELEKSI DUA MINGGU */}
+                  <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl flex flex-wrap items-center justify-between gap-4`}>
+                    <div>
+                      <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
+                        <span>⚖️</span>
+                        <span>PERBANDINGAN PENJUALAN MINGGUAN (WEEK TO WEEK)</span>
+                      </h2>
+                      <p className={`text-xs ${textMuted} mt-0.5`}>
+                        Bandingkan pertumbuhan omset, unit (Qty), dan kontribusi sales per produk
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
+                        <span className="text-[11px] font-black text-slate-600 dark:text-slate-400">Minggu 1:</span>
+                        <select
+                          value={w1Filter}
+                          onChange={(e) => setW1Filter(e.target.value)}
+                          className="bg-transparent font-black text-xs text-slate-950 dark:text-white focus:outline-none cursor-pointer"
+                        >
+                          {AUTO_WEEKS.map((w) => (
+                            <option key={`w1-${w.key}`} value={w.key} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
+                              {w.label} ({w.range})
+                            </option>
+                          ))}
+                        </select>
                       </div>
 
-                      <button
-                        onClick={handleShareDaily}
-                        className="px-3.5 py-1.5 rounded-xl bg-emerald-500 text-white text-xs font-black transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20"
-                      >
-                        <span>📲</span>
-                        <span>Share Rekap Mingguan</span>
-                      </button>
-                    </div>
+                      <span className="text-xs font-black text-slate-500">VS</span>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                      {weeklyReport.map((w, idx) => (
-                        <div 
-  key={idx} 
-  className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131e3a] flex flex-col justify-between shadow-sm transition-all hover:border-sky-500/40"
->
-  <div>
-    <div className="flex justify-between items-center mb-1.5">
-      <span className="text-xs font-black text-slate-900 dark:text-sky-400">
-        {w.label}
-      </span>
-      {idx > 0 && (
-        <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
-          w.wowGrowth >= 0 
-            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-400" 
-            : "bg-rose-100 text-rose-800 dark:bg-rose-500/20 dark:text-rose-400"
-        }`}>
-          {w.wowGrowth > 0 ? `+${w.wowGrowth}%` : `${w.wowGrowth}%`}
-        </span>
-      )}
-    </div>
-    
-    {/* Rentang tanggal kontras tinggi */}
-    <p className="text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-2">
-      {w.range}
-    </p>
-    
-    {/* Nominal omset hitam pekat di light mode, emerald cerah di dark mode */}
-    <div className="text-base sm:text-lg font-black font-mono text-slate-950 dark:text-white tracking-tight">
-      {formatIDR(w.sales)}
-    </div>
-  </div>
-
-  <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
-    <button
-      onClick={() => openWeeklyStaffSheet(w.label, w.matchTrx)}
-      className="text-xs font-black text-blue-700 dark:text-sky-400 hover:underline flex items-center gap-1"
-    >
-      <span>Lihat Per Staff</span>
-      <span>&gt;</span>
-    </button>
-    
-    <button
-      onClick={() => handleShareWeekly(w.label, w.sales, w.target, w.achv)}
-      title="Share Week ini ke WA"
-      className="w-7 h-7 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center text-xs shadow-sm transition active:scale-95"
-    >
-      📲
-    </button>
-  </div>
-</div>
-                      ))}
-                    </div>
-
-                    <div className={`overflow-x-auto w-full rounded-2xl border ${innerBg}`}>
-                      <table className="w-full text-left text-xs min-w-[650px]">
-                        <thead className={`${innerBg} uppercase text-[11px] font-black border-b border-inherit text-slate-900 dark:text-slate-300`}>
-                          <tr>
-                            <th className="py-4 px-4 font-black">Label Kolom O</th>
-                            <th className="py-4 px-4 font-black">Rentang Tanggal</th>
-                            <th className="py-4 px-4 text-center font-black">Unit</th>
-                            <th className="py-4 px-4 text-center font-black">Struk</th>
-                            <th className="py-4 px-4 text-right font-black">Target</th>
-                            <th className="py-4 px-4 text-right font-black">Total Penjualan</th>
-                            <th className="py-4 px-4 text-center font-black">Achv %</th>
-                            <th className="py-4 px-4 text-center font-black">WoW Growth</th>
-                            <th className="py-4 px-4 text-center font-black">Aksi</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-inherit font-bold">
-                          {weeklyReport.map((w, i) => (
-                            <tr key={i} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors border-b border-slate-200 dark:border-slate-800">
-  <td className="py-3.5 px-4 font-black text-slate-950 dark:text-white">
-    {w.label}
-  </td>
-  
-  <td className="py-3.5 px-4 font-bold text-slate-700 dark:text-slate-300">
-    {w.range}
-  </td>
-  
-  <td className="py-3.5 px-4 text-center font-black text-slate-900 dark:text-amber-400">
-    {w.qty}
-  </td>
-  
-  <td className="py-3.5 px-4 text-center font-bold text-slate-800 dark:text-slate-300">
-    {w.invCount}
-  </td>
-  
-  <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-700 dark:text-slate-300">
-    {formatIDR(w.target)}
-  </td>
-  
-  {/* Total Penjualan dengan warna hijau tebal & kontras */}
-  <td className="py-3.5 px-4 text-right font-black text-emerald-700 dark:text-emerald-400 text-sm font-mono">
-    {formatIDR(w.sales)}
-  </td>
-  
-  <td className="py-3.5 px-4 text-center font-black text-blue-700 dark:text-sky-400">
-    {w.achv}%
-  </td>
-  
-  <td className="py-3.5 px-4 text-center font-black">
-    {i === 0 ? (
-      <span className="text-slate-400 dark:text-slate-500 font-semibold text-xs">Baseline</span>
-    ) : (
-      <span className={w.wowGrowth >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
-        {w.wowGrowth > 0 ? `+${w.wowGrowth}%` : `${w.wowGrowth}%`}
-      </span>
-    )}
-  </td>
-  
-  <td className="py-3.5 px-4 text-center">
-    <button
-      onClick={() => openWeeklyStaffSheet(w.label, w.matchTrx)}
-      className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-sm transition active:scale-95"
-    >
-      Detail Staff
-    </button>
-  </td>
-</tr>
+                      <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
+                        <span className="text-[11px] font-black text-slate-600 dark:text-slate-400">Minggu 2:</span>
+                        <select
+                          value={w2Filter}
+                          onChange={(e) => setW2Filter(e.target.value)}
+                          className="bg-transparent font-black text-xs text-sky-700 dark:text-sky-400 focus:outline-none cursor-pointer"
+                        >
+                          {AUTO_WEEKS.map((w) => (
+                            <option key={`w2-${w.key}`} value={w.key} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
+                              {w.label} ({w.range})
+                            </option>
                           ))}
-                        </tbody>
-                      </table>
+                        </select>
+                      </div>
                     </div>
                   </div>
+
+                  {/* 1. KARTU TOTAL SALES STORE & PER STAF */}
+                  <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-5`}>
+                    <div className="flex flex-wrap justify-between items-center pb-3 border-b border-inherit gap-3">
+                      <div>
+                        <span className="text-xs font-black uppercase tracking-wider text-slate-500">TOTAL SALES STORE</span>
+                        <div className="flex items-center gap-3 mt-1">
+                          <span className="text-xl sm:text-2xl font-black font-mono text-slate-950 dark:text-white">
+                            {formatIDR(weeklyComparisonData.totalW2)}
+                          </span>
+                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-black flex items-center gap-1 ${
+                            weeklyComparisonData.storeGrowth >= 0 
+                              ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border border-emerald-400/30" 
+                              : "bg-rose-500/15 text-rose-800 dark:text-rose-400 border border-rose-400/30"
+                          }`}>
+                            <span>{weeklyComparisonData.storeGrowth >= 0 ? "▲ +" : "▼ "}</span>
+                            <span>{weeklyComparisonData.storeGrowth}%</span>
+                          </span>
+                        </div>
+                        <span className="text-[11px] font-bold text-slate-500">
+                          Baseline ({w1Filter}): {formatIDR(weeklyComparisonData.totalW1)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-3">
+                        PENCAPAIAN OMSET PER STAF ({w1Filter} vs {w2Filter}):
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {weeklyComparisonData.staffSales.map((st, idx) => (
+                          <div key={idx} className={`p-3.5 rounded-2xl border ${innerBg} flex justify-between items-center shadow-sm`}>
+                            <div>
+                              <span className="text-xs font-black text-slate-950 dark:text-white block">{st.name}</span>
+                              <div className="text-[11px] font-bold text-slate-500 mt-0.5">
+                                <span>{w1Filter}: {formatIDR(st.w1)}</span>
+                                <span className="mx-1">•</span>
+                                <span className="text-slate-950 dark:text-slate-200">{w2Filter}: {formatIDR(st.w2)}</span>
+                              </div>
+                            </div>
+                            <span className={`px-2 py-0.5 rounded-lg text-xs font-black ${
+                              st.growth >= 0 
+                                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" 
+                                : "bg-rose-500/15 text-rose-700 dark:text-rose-400"
+                            }`}>
+                              {st.growth >= 0 ? `▲ +${st.growth}%` : `▼ ${st.growth}%`}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* HELPER SECTION UNTUK MENAMPILKAN PER LOB */}
+                  {[
+                    { title: "🍎 APPLE DEVICES", data: weeklyComparisonData.apple, color: "text-sky-600 dark:text-sky-400" },
+                    { title: "📱 SAMSUNG DEVICES", data: weeklyComparisonData.samsung, color: "text-blue-600 dark:text-blue-400" },
+                    { title: "🔴 HUAWEI DEVICES", data: weeklyComparisonData.huawei, color: "text-rose-600 dark:text-rose-400" },
+                    { title: "🤖 ANDROID DEVICES LAINNYA (Xiaomi, Oppo, dll)", data: weeklyComparisonData.androidOther, color: "text-indigo-600 dark:text-indigo-400" },
+                    { title: "🔌 ACCESSORIES", data: weeklyComparisonData.accessories, color: "text-amber-600 dark:text-amber-400" },
+                    { title: "🛡️ VAS & SERVICES (Qoala, Telkomsel, XL, dll)", data: weeklyComparisonData.vas, color: "text-purple-600 dark:text-purple-400" },
+                  ].map((lob, lIdx) => (
+                    <div key={lIdx} className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-4`}>
+                      {/* HEADER LOB TOTAL */}
+                      <div className="flex flex-wrap justify-between items-center pb-3 border-b border-inherit gap-3">
+                        <div className="flex items-center gap-3">
+                          <h3 className={`text-sm sm:text-base font-black ${lob.color}`}>{lob.title}</h3>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-black ${
+                            lob.data.growthAmt >= 0 
+                              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-400/30" 
+                              : "bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-400/30"
+                          }`}>
+                            {lob.data.growthAmt >= 0 ? `▲ +${lob.data.growthAmt}%` : `▼ ${lob.data.growthAmt}%`}
+                          </span>
+                        </div>
+                        <div className="text-right text-xs font-bold text-slate-500">
+                          <span>{w1Filter}: {lob.data.totalQtyW1} Unit ({formatIDR(lob.data.totalAmtW1)})</span>
+                          <span className="mx-2">➔</span>
+                          <span className="text-slate-950 dark:text-white font-black">{w2Filter}: {lob.data.totalQtyW2} Unit ({formatIDR(lob.data.totalAmtW2)})</span>
+                        </div>
+                      </div>
+
+                      {/* SUBKATEGORI & RINCIAN PER STAF */}
+                      <div className="space-y-4">
+                        {lob.data.breakdown.map((sub, sIdx) => (
+                          <div key={sIdx} className={`p-4 rounded-2xl border ${innerBg} space-y-3`}>
+                            {/* Judul Subkategori */}
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs font-black text-slate-950 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-sky-500"></span>
+                                {sub.subCategory}
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] font-bold text-slate-500">
+                                  {w1Filter}: {sub.w1Qty} Unit ({formatIDR(sub.w1Amount)}) | {w2Filter}: {sub.w2Qty} Unit ({formatIDR(sub.w2Amount)})
+                                </span>
+                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                                  sub.growthAmt >= 0 ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400" : "bg-rose-500/20 text-rose-700 dark:text-rose-400"
+                                }`}>
+                                  {sub.growthAmt >= 0 ? `+${sub.growthAmt}%` : `${sub.growthAmt}%`}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Breakdown Staf */}
+                            <div className="overflow-x-auto w-full">
+                              <table className="w-full text-left text-xs min-w-[500px]">
+                                <thead className="text-[10px] uppercase font-black text-slate-500 border-b border-inherit">
+                                  <tr>
+                                    <th className="py-1.5 px-3">Nama Staff</th>
+                                    <th className="py-1.5 px-3 text-center">{w1Filter} (Qty / Amount)</th>
+                                    <th className="py-1.5 px-3 text-center">{w2Filter} (Qty / Amount)</th>
+                                    <th className="py-1.5 px-3 text-right">Growth (%)</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-inherit font-bold">
+                                  {sub.staffData.map((st, stIdx) => (
+                                    <tr key={stIdx} className="hover:opacity-90">
+                                      <td className="py-2 px-3 font-black text-slate-900 dark:text-slate-100">{st.name}</td>
+                                      <td className="py-2 px-3 text-center font-mono text-slate-600 dark:text-slate-400">
+                                        {st.w1Qty} Unit / {formatIDR(st.w1Amount)}
+                                      </td>
+                                      <td className="py-2 px-3 text-center font-mono font-black text-slate-950 dark:text-white">
+                                        {st.w2Qty} Unit / {formatIDR(st.w2Amount)}
+                                      </td>
+                                      <td className="py-2 px-3 text-right font-black">
+                                        <span className={st.growthAmt >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
+                                          {st.growthAmt >= 0 ? `▲ +${st.growthAmt}%` : `▼ ${st.growthAmt}%`}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
-
+              
               {/* TAB 3: STAFF PERFORMANCE DETAIL */}
               {activeTab === "staff-performance" && (
                 <div className="space-y-6">
