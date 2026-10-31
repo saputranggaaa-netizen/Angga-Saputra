@@ -865,7 +865,7 @@ export default function DigiplusOperationalEngine() {
       androidItems,
       accItems,
       vasItems
-    };
+   };
   }, [activeTransactions, periodType, selectedDate, transactions]);
   
   const momAnalytics = useMemo(() => {
