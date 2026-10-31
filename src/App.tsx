@@ -2238,6 +2238,28 @@ _Diperbarui via Digiplus Store Operations Engine._`;
             <span>Menu</span>
           </button>
         </div>
+        {/* Profil & Logo Toko di samping tombol menu */}
+    <div className="flex items-center gap-2">
+      <div className="w-8 h-8 rounded-xl bg-sky-600 flex items-center justify-center font-black text-xs text-white">
+        QF01
+      </div>
+      <div>
+        <h1 className="text-xs font-black tracking-tight text-white">DIGIPLUS GI</h1>
+        <p className="text-[10px] text-slate-400 font-semibold">Store Leader Admin</p>
+      </div>
+    </div>
+  </div>
+
+  {/* Sisi kanan cukup tombol Sync / Refresh saja */}
+  <div className="flex items-center gap-2">
+    <button
+      onClick={handleRefresh}
+      className="p-2 rounded-xl bg-slate-800 text-slate-300 border border-slate-700 active:scale-95 transition text-xs flex items-center gap-1 font-bold"
+    >
+      <span>🔄</span>
+    </button>
+  </div>
+</header>
 
         <main className="p-3 sm:p-6 lg:p-8 w-full max-w-[1700px] mx-auto flex-1 overflow-x-hidden">
           <header className="mb-6 border-b border-inherit pb-5 print:hidden">
@@ -3976,39 +3998,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
     </main>
   </div>
       
-      {/* 4. BOTTOM BAR KHUSUS HANDPHONE */}
-      <div className={`lg:hidden fixed bottom-0 left-0 right-0 border-t backdrop-blur-2xl z-40 px-3 py-2 flex justify-around items-center shadow-2xl print:hidden ${glassBottomBar}`}>
-        {[
-          { id: "store-overview", label: "Overview", icon: "📊" },
-          { id: "mom-comparison", label: "MoM", icon: "⚖️" },
-          { id: "staff-performance", label: "Staff", icon: "🏆" },
-          { id: "daily-target", label: "Target", icon: "🎯" },
-        ].map((item) => {
-          const active = activeTab === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id as MenuTab)}
-              className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all ${
-                active ? "text-sky-700 dark:text-sky-400 scale-105" : "text-slate-700 dark:text-slate-300"
-              }`}
-            >
-              <span className="text-base">{item.icon}</span>
-              <span className={`text-[10px] font-black mt-0.5 ${active ? "text-sky-700 dark:text-sky-400" : ""}`}>
-                {item.label}
-              </span>
-            </button>
-          );
-        })}
-        <button
-          onClick={() => setMobileDrawerOpen(true)}
-          className="flex flex-col items-center justify-center py-1 px-2.5 rounded-xl text-slate-700 dark:text-slate-300"
-        >
-          <span className="text-base">📑</span>
-          <span className="text-[10px] font-black mt-0.5">Lainnya</span>
-        </button>
-      </div>
-
+      
       {/* BOTTOM SHEET MODAL DRILLDOWN */}
       {bottomSheetOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm transition-opacity animate-in fade-in overflow-hidden p-0 sm:p-4">
