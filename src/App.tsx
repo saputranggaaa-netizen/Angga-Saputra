@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 
-// Modal Upload Bukti ke RAW SalesPerson (Kolom M-O)
+// Modal Upload Bukti ke RAW SalesPerson
 export const UploadRawSalesModal = ({ isOpen, onClose, selectedInvoice, defaultSalesName }: any) => {
-  const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
-  const [catatan, setCatatan] = React.useState("");
-  const [isUploading, setIsUploading] = React.useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [catatan, setCatatan] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
 
   if (!isOpen) return null;
 
@@ -99,10 +99,6 @@ export const UploadRawSalesModal = ({ isOpen, onClose, selectedInvoice, defaultS
   );
 };
 
-// =========================================================================
-// 1. DATA CONTRACTS & INTERFACES
-// =========================================================================
-
 type MenuTab =
   | "store-overview"
   | "weekly-sales"
@@ -145,43 +141,6 @@ interface BnplRecord {
   product: string;
   qty: number;
   month: string;
-}
-
-interface SubCategoryMetric {
-  name: string;
-  icon: string;
-  qty: number;
-  actual: number;
-}
-
-interface StaffPerformanceData {
-  rank: number;
-  salesId: string;
-  name: string;
-  initials: string;
-  actual: number;
-  target: number;
-  achievement: number;
-  variance: number;
-  estimate: number;
-  invoicesCount: number;
-  qty: number;
-  upt: number;
-  totalAccActual: number;
-  targetAcc: number;
-  achvAcc: number;
-  totalVasActual: number;
-  targetVas: number;
-  achvVas: number;
-  status: "Tercapai" | "Perlu Perhatian Khusus" | "Dalam Pantauan";
-  ringkasan: string;
-  rekomendasi: string;
-  appleSub: SubCategoryMetric[];
-  androidSub: SubCategoryMetric[];
-  accessoriesSub: SubCategoryMetric[];
-  vasSub: SubCategoryMetric[];
-  weekSales: Record<string, number>;
-  rawItems: RawTransaction[];
 }
 
 interface StaffScheduleItem {
@@ -345,11 +304,38 @@ export default function DigiplusOperationalEngine() {
   const [newFeedbackSentiment, setNewFeedbackSentiment] = useState<"Luar Biasa" | "Cukup Baik" | "Kecewa">("Luar Biasa");
   const [newFeedbackText, setNewFeedbackText] = useState<string>("");
 
-  // PPTX Exporting State
+  // PPTX State & Handler (Dideklarasikan di awal agar tidak undefined)
   const [isExportingPptx, setIsExportingPptx] = useState<boolean>(false);
 
   const SPREADSHEET_ID = "1v_QCLTDKORjVnByrzo9qRiivdU8CGO99nJri9jBETWM";
   const ADMIN_ID = "22008089";
+
+  const handleExportToPptx = async () => {
+    setIsExportingPptx(true);
+    try {
+      if (typeof window !== "undefined" && !(window as any).PptxGenJS) {
+        const script = document.createElement("script");
+        script.src = "https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js";
+        script.async = true;
+        document.body.appendChild(script);
+        await new Promise((resolve) => { script.onload = resolve; });
+      }
+
+      const pptx = new (window as any).PptxGenJS();
+      pptx.layout = "LAYOUT_16x9";
+
+      const slide1 = pptx.addSlide();
+      slide1.background = { color: "0A1128" };
+      slide1.addText("STORE SALES PERFORMANCE REPORT", { x: 0.8, y: 1.8, fontSize: 24, bold: true, color: "38BDF8" });
+      slide1.addText("Digiplus Grand Indonesia | " + (selectedDate || "Oktober 2026"), { x: 0.8, y: 3.2, fontSize: 14, color: "F8FAFC" });
+
+      pptx.writeFile({ fileName: `Laporan_Digiplus_${Date.now()}.pptx` });
+    } catch (err) {
+      alert("Ekspor slide sedang dipersiapkan atau gagal dimuat.");
+    } finally {
+      setIsExportingPptx(false);
+    }
+  };
 
   const parseNormalizedDate = (rawDateStr: string, rawMonthStr: string) => {
     let isoDate = "";
@@ -369,182 +355,8 @@ export default function DigiplusOperationalEngine() {
           y = parseInt(parts[2], 10);
         }
         if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
-          isoDate = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-        }
-      }
-    }
-
-    const cleanRawM = String(rawMonthStr || "").trim();
-    const mLower = cleanRawM.toLowerCase();
-    let monthKey = "";
-
-    if (mLower.includes("agu") || mLower.includes("aug") || mLower.includes("08-2026") || mLower.includes("2026-08")) {
-      monthKey = "Agustus2026";
-    } else if (mLower.includes("sep") || mLower.includes("09-2026") || mLower.includes("2026-09")) {
-      monthKey = "September2026";
-    } else if (mLower.includes("okt") || mLower.includes("oct") || mLower.includes("10-2026") || mLower.includes("2026-10")) {
-      monthKey = "Oktober2026";
-    } else if (cleanRawM !== "") {
-      monthKey = cleanRawM;
-    } else if (isoDate) {
-      if (isoDate.startsWith("2026-08")) monthKey = "Agustus2026";
-      else if (isoDate.startsWith("2026-09")) monthKey = "September2026";
-      else if (isoDate.startsWith("2026-10")) monthKey = "Oktober2026";
-      else monthKey = "Oktober2026";
-    } else {
-      monthKey = "Oktober2026";
-    }
-
-    return { isoDate, monthKey };
-  };
-
-  const fetchLiveGoogleSheets = async () => {
-    setIsLoading(true);
-    try {
-      const dbUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=602901290`;
-      const bnplUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=2697970`;
-
-      const [resDb, resBnpl] = await Promise.all([fetch(dbUrl), fetch(bnplUrl)]);
-      const textDb = await resDb.text();
-      const textBnpl = await resBnpl.text();
-
-      const sDb = textDb.indexOf("{");
-      const eDb = textDb.lastIndexOf("}") + 1;
-      const jsonDb = JSON.parse(textDb.substring(sDb, eDb));
-      const rowsDb = jsonDb.table.rows;
-
-      const parsedTrx: RawTransaction[] = [];
-      rowsDb.forEach((r: any) => {
-        const c = r.c;
-        if (!c) return;
-
-        const rawDate = c[0]?.f || c[0]?.v || "";
-        const rawMonth = c[12]?.f || c[12]?.v || "";
-        const { isoDate, monthKey } = parseNormalizedDate(String(rawDate), String(rawMonth));
-
-        const salesId = String(c[1]?.v || "").trim();
-        const salesName = String(c[2]?.v || "").trim();
-        const invoice = String(c[3]?.v || "").trim();
-        const sapArticle = String(c[4]?.v || "").trim();
-        const productName = String(c[5]?.v || "").trim();
-        const qty = Number(c[7]?.v) || 1;
-        const rawAmount = c[8]?.v;
-        const amount = typeof rawAmount === "number" ? rawAmount : Number(String(rawAmount || 0).replace(/[^0-9]/g, ""));
-        const productType = String(c[9]?.v || "").trim();
-        const brand = String(c[10]?.v || "").trim().toUpperCase();
-        let groupCategory = String(c[11]?.v || "").trim().toUpperCase();
-        const weekLabel = String(c[14]?.v || "").trim();
-
-        const pUpper = productName.toUpperCase();
-
-        if (groupCategory === "DEVICES") {
-          // Tetap DEVICES
-        } else if (groupCategory === "VAS" || brand === "QOALA" || brand === "TELKOMSEL" || brand === "XL" || brand === "INDOSAT" || pUpper.includes("PROTEKSI") || pUpper.includes("MYPRIO")) {
-          groupCategory = "VAS";
-        } else if (groupCategory === "ACCESSORIES") {
-          groupCategory = "ACCESSORIES";
-        } else if (brand === "APPLE" && (pUpper.includes("IPHONE") || pUpper.includes("IPAD") || pUpper.includes("MAC") || pUpper.includes("WATCH") || pUpper.includes("AIRPOD"))) {
-          groupCategory = "DEVICES";
-        } else if (["SAMSUNG", "XIAOMI", "OPPO", "MOTOROLA", "HUAWEI", "INFINIX"].includes(brand) && (pUpper.includes("PHONE") || pUpper.includes("GALAXY") || pUpper.includes("REDMI"))) {
-          groupCategory = "DEVICES";
-        } else {
-          groupCategory = "OTHER";
-        }
-
-        if (invoice && amount > 0 && salesName) {
-          parsedTrx.push({
-            date: String(rawDate),
-            isoDate,
-            monthKey,
-            month: monthKey,
-            salesId,
-            salesName,
-            invoice,
-            sapArticle,
-            productName,
-            qty,
-            amount,
-            productType,
-            brand,
-            groupCategory,
-            weekLabel,
-          });
-        }
-      });
-
-      const sBnpl = textBnpl.indexOf("{");
-      const eBnpl = textBnpl.lastIndexOf("}") + 1;
-      const jsonBnpl = JSON.parse(textBnpl.substring(sBnpl, eBnpl));
-      const rowsBnpl = jsonBnpl.table.rows;
-
-      const parsedBnpl: BnplRecord[] = [];
-      rowsBnpl.forEach((r: any) => {
-        const c = r.c;
-        if (!c) return;
-
-        const date = c[0]?.f || c[0]?.v || "";
-        const invoice = String(c[1]?.v || "").trim();
-        const rawAmount = c[2]?.v;
-        const amount = typeof rawAmount === "number" ? rawAmount : Number(String(rawAmount || 0).replace(/[^0-9]/g, ""));
-        const tender = String(c[3]?.v || "Other").trim();
-        const product = String(c[4]?.v || "").trim();
-        const qty = Number(c[5]?.v) || 1;
-        const month = String(c[6]?.v || "").trim();
-
-        if (invoice && amount > 0) {
-          parsedBnpl.push({ date: String(date), invoice, amount, tender, product, qty, month });
-        }
-      });
-
-      setTransactions(parsedTrx);
-      setBnplRecords(parsedBnpl);
-
-      if (currentSalesId && !currentSalesName) {
-        if (currentSalesId === ADMIN_ID) {
-          setCurrentSalesName("Store Leader Admin");
-        } else {
-          const match = parsedTrx.find((t) => t.salesId === currentSalesId);
-          if (match) setCurrentSalesName(match.salesName);
-        }
-      }
-    } catch (err) {
-      console.error("Gagal live fetch:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    setIsMounted(true);
-    fetchLiveGoogleSheets();
-
-    if (typeof window !== "undefined") {
-      const savedUser = localStorage.getItem("digi_ops_user");
-      const savedName = localStorage.getItem("digi_ops_name");
-      const savedTheme = localStorage.getItem("digi_ops_theme") as ThemeMode;
-      const savedSchedule = localStorage.getItem("digi_ops_schedule");
-      const savedFeedbacks = localStorage.getItem("digi_ops_feedbacks");
-
-      if (savedTheme) setTheme(savedTheme);
-      if (savedSchedule) {
-        try { setScheduleData(JSON.parse(savedSchedule)); } catch (e) {}
-      }
-      if (savedFeedbacks) {
-        try { 
-          const parsed = JSON.parse(savedFeedbacks);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setFeedbacks(parsed);
-          } else {
-            setFeedbacks(DEFAULT_FEEDBACKS);
-          }
-        } catch (e) {
-          setFeedbacks(DEFAULT_FEEDBACKS);
-        }
-      }
-      if (savedUser) {
-        setIsLoggedIn(true);
-        setCurrentSalesId(savedUser);
-        setCurrentSalesName(savedName || `Sales ${savedUser}`);
+          isoDate = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`; } } }  const cleanRawM = String(rawMonthStr \vert{}\vert{} "").trim(); const mLower = cleanRawM.toLowerCase(); let monthKey = "";  if (mLower.includes("agu") \vert{}\vert{} mLower.includes("aug") \vert{}\vert{} mLower.includes("08-2026") \vert{}\vert{} mLower.includes("2026-08")) { monthKey = "Agustus2026"; } else if (mLower.includes("sep") \vert{}\vert{} mLower.includes("09-2026") \vert{}\vert{} mLower.includes("2026-09")) { monthKey = "September2026"; } else if (mLower.includes("okt") \vert{}\vert{} mLower.includes("oct") \vert{}\vert{} mLower.includes("10-2026") \vert{}\vert{} mLower.includes("2026-10")) { monthKey = "Oktober2026"; } else if (cleanRawM !== "") { monthKey = cleanRawM; } else { monthKey = "Oktober2026"; }  return { isoDate, monthKey }; };  const fetchLiveGoogleSheets = async () => { setIsLoading(true); try { const dbUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=602901290`;
+      const bnplUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=2697970`;  const [resDb, resBnpl] = await Promise.all([fetch(dbUrl), fetch(bnplUrl)]); const textDb = await resDb.text(); const textBnpl = await resBnpl.text();  const sDb = textDb.indexOf("{"); const eDb = textDb.lastIndexOf("}") + 1; const jsonDb = JSON.parse(textDb.substring(sDb, eDb)); const rowsDb = jsonDb.table.rows;  const parsedTrx: RawTransaction[] = []; rowsDb.forEach((r: any) => { const c = r.c; if (!c) return;  const rawDate = c[0]?.f \vert{}\vert{} c[0]?.v \vert{}\vert{} ""; const rawMonth = c[12]?.f \vert{}\vert{} c[12]?.v \vert{}\vert{} ""; const { isoDate, monthKey } = parseNormalizedDate(String(rawDate), String(rawMonth));  const salesId = String(c[1]?.v \vert{}\vert{} "").trim(); const salesName = String(c[2]?.v \vert{}\vert{} "").trim(); const invoice = String(c[3]?.v \vert{}\vert{} "").trim(); const sapArticle = String(c[4]?.v \vert{}\vert{} "").trim(); const productName = String(c[5]?.v \vert{}\vert{} "").trim(); const qty = Number(c[7]?.v) \vert{}\vert{} 1; const rawAmount = c[8]?.v; const amount = typeof rawAmount === "number" ? rawAmount : Number(String(rawAmount \vert{}\vert{} 0).replace(/[^0-9]/g, "")); const productType = String(c[9]?.v \vert{}\vert{} "").trim(); const brand = String(c[10]?.v \vert{}\vert{} "").trim().toUpperCase(); let groupCategory = String(c[11]?.v \vert{}\vert{} "").trim().toUpperCase(); const weekLabel = String(c[14]?.v \vert{}\vert{} "").trim();  const pUpper = productName.toUpperCase();  if (groupCategory === "DEVICES") { // Tetap DEVICES } else if (groupCategory === "VAS" \vert{}\vert{} brand === "QOALA" \vert{}\vert{} brand === "TELKOMSEL" \vert{}\vert{} brand === "XL" \vert{}\vert{} brand === "INDOSAT" \vert{}\vert{} pUpper.includes("PROTEKSI") \vert{}\vert{} pUpper.includes("MYPRIO")) { groupCategory = "VAS"; } else if (groupCategory === "ACCESSORIES") { groupCategory = "ACCESSORIES"; } else if (brand === "APPLE" && (pUpper.includes("IPHONE") \vert{}\vert{} pUpper.includes("IPAD") \vert{}\vert{} pUpper.includes("MAC") \vert{}\vert{} pUpper.includes("WATCH") \vert{}\vert{} pUpper.includes("AIRPOD"))) { groupCategory = "DEVICES"; } else if (["SAMSUNG", "XIAOMI", "OPPO", "MOTOROLA", "HUAWEI", "INFINIX"].includes(brand) && (pUpper.includes("PHONE") \vert{}\vert{} pUpper.includes("GALAXY") \vert{}\vert{} pUpper.includes("REDMI"))) { groupCategory = "DEVICES"; } else { groupCategory = "OTHER"; }  if (invoice && amount > 0 && salesName) { parsedTrx.push({ date: String(rawDate), isoDate, monthKey, month: monthKey, salesId, salesName, invoice, sapArticle, productName, qty, amount, productType, brand, groupCategory, weekLabel, }); } });  const sBnpl = textBnpl.indexOf("{"); const eBnpl = textBnpl.lastIndexOf("}") + 1; const jsonBnpl = JSON.parse(textBnpl.substring(sBnpl, eBnpl)); const rowsBnpl = jsonBnpl.table.rows;  const parsedBnpl: BnplRecord[] = []; rowsBnpl.forEach((r: any) => { const c = r.c; if (!c) return;  const date = c[0]?.f \vert{}\vert{} c[0]?.v \vert{}\vert{} ""; const invoice = String(c[1]?.v \vert{}\vert{} "").trim(); const rawAmount = c[2]?.v; const amount = typeof rawAmount === "number" ? rawAmount : Number(String(rawAmount \vert{}\vert{} 0).replace(/[^0-9]/g, "")); const tender = String(c[3]?.v \vert{}\vert{} "Other").trim(); const product = String(c[4]?.v \vert{}\vert{} "").trim(); const qty = Number(c[5]?.v) \vert{}\vert{} 1; const month = String(c[6]?.v \vert{}\vert{} "").trim();  if (invoice && amount > 0) { parsedBnpl.push({ date: String(date), invoice, amount, tender, product, qty, month }); } });  setTransactions(parsedTrx); setBnplRecords(parsedBnpl);  if (currentSalesId && !currentSalesName) { if (currentSalesId === ADMIN_ID) { setCurrentSalesName("Store Leader Admin"); } else { const match = parsedTrx.find((t) => t.salesId === currentSalesId); if (match) setCurrentSalesName(match.salesName); } } } catch (err) { console.error("Gagal live fetch:", err); } finally { setIsLoading(false); } };  useEffect(() => { setIsMounted(true); fetchLiveGoogleSheets();  if (typeof window !== "undefined") { const savedUser = localStorage.getItem("digi_ops_user"); const savedName = localStorage.getItem("digi_ops_name"); const savedTheme = localStorage.getItem("digi_ops_theme") as ThemeMode; const savedSchedule = localStorage.getItem("digi_ops_schedule"); const savedFeedbacks = localStorage.getItem("digi_ops_feedbacks");  if (savedTheme) setTheme(savedTheme); if (savedSchedule) { try { setScheduleData(JSON.parse(savedSchedule)); } catch (e) {} } if (savedFeedbacks) { try { const parsed = JSON.parse(savedFeedbacks); if (Array.isArray(parsed) && parsed.length > 0) { setFeedbacks(parsed); } } catch (e) {} } if (savedUser) { setIsLoggedIn(true); setCurrentSalesId(savedUser); setCurrentSalesName(savedName \vert{}\vert{} `Sales ${savedUser}`);
       }
     }
   }, []);
@@ -569,123 +381,15 @@ export default function DigiplusOperationalEngine() {
       return;
     }
 
-    let detectedName = `Sales ${cleanId}`;
-    if (cleanId === ADMIN_ID) {
-      detectedName = "Store Leader Admin";
-    } else {
-      const match = transactions.find((t) => t.salesId === cleanId);
-      if (match) detectedName = match.salesName;
-    }
-
-    localStorage.setItem("digi_ops_user", cleanId);
-    localStorage.setItem("digi_ops_name", detectedName);
-    setCurrentSalesId(cleanId);
-    setCurrentSalesName(detectedName);
-    setIsLoggedIn(true);
-    setLoginErr("");
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("digi_ops_user");
-    localStorage.removeItem("digi_ops_name");
-    setIsLoggedIn(false);
-    setCurrentSalesId("");
-    setCurrentSalesName("");
-  };
-
-  // =========================================================================
-  // DEFINISI FUNGSI EXPORT SLIDE PPTX (FIX ERROR: handleExportToPptx is not defined)
-  // =========================================================================
-  const handleExportToPptx = async () => {
-    setIsExportingPptx(true);
-    try {
-      if (typeof window !== "undefined" && !(window as any).PptxGenJS) {
-        const script = document.createElement("script");
-        script.src = "https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js";
-        script.async = true;
-        document.body.appendChild(script);
-        await new Promise((resolve) => { script.onload = resolve; });
-      }
-
-      const pptx = new (window as any).PptxGenJS();
-      pptx.layout = "LAYOUT_16x9";
-
-      const slide1 = pptx.addSlide();
-      slide1.background = { color: "0A1128" };
-      slide1.addText("STORE SALES PERFORMANCE & STAFF OPERATIONS REPORT", { x: 0.8, y: 1.8, fontSize: 24, bold: true, color: "38BDF8" });
-      slide1.addText("Evaluasi Mingguan (WoW), Kategori Produk, & Suara Lapangan\nKode Toko: QF01 | Periode: Oktober 2026 | Cut-off: " + selectedDate, { x: 0.8, y: 3.2, fontSize: 14, color: "F8FAFC" });
-
-      const slide2 = pptx.addSlide();
-      slide2.addText("CORE KPI METRICS (TARGET VS PENCAPAIAN)", { x: 0.5, y: 0.5, fontSize: 20, bold: true, color: "0F172A" });
-      slide2.addTable([
-        ["METRIK RETAIL", "TARGET", "AKTUAL (REALISASI)", "ACHIEVEMENT (%)", "VARIANCE (GAP)"],
-        ["Total Penjualan Toko MTD", formatIDR(overviewStats.target), formatIDR(overviewStats.actual), `${overviewStats.achv}%`, formatIDR(overviewStats.variance)],
-        ["Target Harian Toko", formatIDR(dailyTargetCalculated.targetStoreToday), formatIDR(dailyTargetCalculated.actualToday), `${dailyTargetCalculated.achvToday}%`, formatIDR(dailyTargetCalculated.actualToday - dailyTargetCalculated.targetStoreToday)],
-        ["Target Kuota Rata-rata per Staf", formatIDR(dailyTargetCalculated.targetPerStaffToday), formatIDR(Math.round(dailyTargetCalculated.actualToday / dailyTargetCalculated.staffCount)), "-", "-"],
-      ], { x: 0.5, y: 1.5, w: 9.0, fill: "F1F5F9", fontSize: 11, border: { pt: 1, color: "CBD5E1" } });
-
-      const slide3 = pptx.addSlide();
-      slide3.addText("ANALISIS PENJUALAN MINGGUAN (WEEKLY TREND WOW)", { x: 0.5, y: 0.5, fontSize: 20, bold: true, color: "0F172A" });
-      const weeklyRows = [["LABEL MINGGU", "RENTANG TANGGAL", "TOTAL PENJUALAN", "UNIT", "STRUK", "GROWTH WOW"]];
-      weeklyReport.forEach((w) => {
-        weeklyRows.push([w.label, w.range, formatIDR(w.sales), String(w.qty), String(w.invCount), `${w.wowGrowth}%`]);
-      });
-      slide3.addTable(weeklyRows, { x: 0.5, y: 1.5, w: 9.0, fill: "F8FAFC", fontSize: 10, border: { pt: 1, color: "CBD5E1" } });
-
-      pptx.writeFile({ fileName: `Laporan_Operasional_QF01_${selectedDate}.pptx` });
-    } catch (err) {
-      alert("Gagal mengekspor slide PowerPoint: " + err);
-    } finally {
-      setIsExportingPptx(false);
-    }
-  };
-
-  // Konfigurasi Tema
-  const isDark = theme === "dark";
-
-  // Body: Putih Murni di Light Mode, Deep Navy di Dark Mode
-  const bgMain = isDark 
-    ? "bg-[#0A1128] bg-gradient-to-br from-[#070D1E] via-[#0A1128] to-[#0F1B3D]" 
-    : "bg-white";
-
-  // Tipografi: Hitam Pekat di Light Mode, Terang di Dark Mode
-  const textMain = isDark ? "text-slate-100 font-bold" : "text-black font-black";
-  const textMuted = isDark ? "text-slate-300 font-semibold" : "text-slate-800 font-bold";
-
-  // Kartu Konten
-  const cardBg = isDark 
-    ? "bg-[#0E1A38]/75 backdrop-blur-xl border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.35)]" 
-    : "bg-white border border-slate-200 shadow-sm";
-
-  // Sub-card
-  const innerBg = isDark 
-    ? "bg-[#14234B]/60 backdrop-blur-md border border-white/10" 
-    : "bg-slate-50 border border-slate-200";
-
-  const accentText = isDark ? "text-sky-400 font-black" : "text-blue-700 font-black";
-  const activeTabBtn = isDark 
-    ? "bg-sky-500 text-white font-black shadow-lg shadow-sky-500/30 border border-sky-400/40" 
-    : "bg-blue-600 text-white font-black shadow-md shadow-blue-600/20";
-
-  // Sidebar & Bottom Bar: Selalu Gelap Eksklusif
-  const glassSidebar = isDark
-    ? "bg-[#09122A]/95 border-white/10 text-slate-100"
-    : "bg-[#0F172A] border-slate-800 text-slate-100";
-
-  const glassBottomBar = isDark
-    ? "bg-[#0A1128]/95 border-white/10 text-slate-100"
-    : "bg-[#0F172A]/95 border-slate-800 text-slate-100";
-
-  const availableMonths = useMemo(() => {
-    const months = new Set<string>();
-    transactions.forEach((t: any) => {
-      if (t.month && String(t.month).trim() !== "") {
-        months.add(String(t.month).trim());
-      } else if (t.monthKey && String(t.monthKey).trim() !== "") {
-        months.add(String(t.monthKey).trim());
-      }
+    let detectedName = `Sales ${cleanId}`; if (cleanId === ADMIN_ID) { detectedName = "Store Leader Admin"; } else { const match = transactions.find((t) => t.salesId === cleanId); if (match) detectedName = match.salesName; }  localStorage.setItem("digi_ops_user", cleanId); localStorage.setItem("digi_ops_name", detectedName); setCurrentSalesId(cleanId); setCurrentSalesName(detectedName); setIsLoggedIn(true); setLoginErr(""); };  const handleLogout = () => { localStorage.removeItem("digi_ops_user"); localStorage.removeItem("digi_ops_name"); setIsLoggedIn(false); setCurrentSalesId(""); setCurrentSalesName(""); };  // Konfigurasi Tema const isDark = theme === "dark"; const bgMain = isDark ? "bg-[#0A1128] bg-gradient-to-br from-[#070D1E] via-[#0A1128] to-[#0F1B3D]" : "bg-white";  const textMain = isDark ? "text-slate-100 font-bold" : "text-black font-black"; const textMuted = isDark ? "text-slate-300 font-semibold" : "text-slate-800 font-bold";  const cardBg = isDark ? "bg-[#0E1A38]/75 backdrop-blur-xl border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.35)]" : "bg-white border border-slate-200 shadow-sm";  const innerBg = isDark ? "bg-[#14234B]/60 backdrop-blur-md border border-white/10" : "bg-slate-50 border border-slate-200";  const accentText = isDark ? "text-sky-400 font-black" : "text-blue-700 font-black"; const activeTabBtn = isDark ? "bg-sky-500 text-white font-black shadow-lg shadow-sky-500/30 border border-sky-400/40" : "bg-blue-600 text-white font-black shadow-md shadow-blue-600/20";  const glassSidebar = isDark ? "bg-[#09122A]/95 border-white/10 text-slate-100" : "bg-[#0F172A] border-slate-800 text-slate-100";  const glassBottomBar = isDark ? "bg-[#0A1128]/95 border-white/10 text-slate-100" : "bg-[#0F172A]/95 border-slate-800 text-slate-100";  const mainNavItems = [ { id: "store-overview", label: "Overview Store", icon: "📊" }, { id: "weekly-sales", label: "Weekly Sales (WoW)", icon: "📈" }, { id: "mom-comparison", label: "MoM Growth Analysis", icon: "⚖️" }, { id: "staff-performance", label: "Staff Performance", icon: "🏆" }, { id: "daily-target", label: "Daily Target & Run Rate", icon: "🎯" }, { id: "schedule", label: "Jadwal Shift 1 Minggu", icon: "📅" }, { id: "feedback", label: "Feedback Ritel Tim", icon: "💬" }, { id: "bnpl", label: "BNPL Transactions", icon: "💳" }, { id: "product-search", label: "Cari Produk Terjual", icon: "🔍" }, { id: "sales-detail", label: "Rincian Transaksi Log", icon: "📋" }, ];  const availableMonths = useMemo(() => { const months = new Set<string>(); transactions.forEach((t: any) => { if (t.month && String(t.month).trim() !== "") { months.add(String(t.month).trim()); } else if (t.monthKey && String(t.monthKey).trim() !== "") { months.add(String(t.monthKey).trim()); } }); return Array.from(months); }, [transactions]);  const AUTO_WEEKS = useMemo(() => { const map = new Map<string, { label: string; minDate: string; maxDate: string; count: number }>();  transactions.forEach((t) => { const wLabel = t.weekLabel ? t.weekLabel.trim() : ""; if (!wLabel) return;  if (!map.has(wLabel)) { map.set(wLabel, { label: wLabel, minDate: t.isoDate, maxDate: t.isoDate, count: 0 }); }  const item = map.get(wLabel)!; item.count++; if (t.isoDate && t.isoDate < item.minDate) item.minDate = t.isoDate; if (t.isoDate && t.isoDate > item.maxDate) item.maxDate = t.isoDate; });  const sorted = Array.from(map.values()).sort((a, b) => a.minDate.localeCompare(b.minDate));  return sorted.map((w, idx) => { const key = `W${idx + 1}`;
+      const formatNice = (iso: string) => {
+        if (!iso) return "";
+        const p = iso.split("-");
+        return p.length === 3 ? `${p[2]}/${p[1]}` : iso;
+      };
+      const range = w.minDate ? `${formatNice(w.minDate)} s.d.${formatNice(w.maxDate)}` : "Periode Berjalan";
+      return { key, label: w.label, range, days: 7 };
     });
-    return Array.from(months);
   }, [transactions]);
 
   const activeTransactions = useMemo(() => {
@@ -770,7 +474,7 @@ export default function DigiplusOperationalEngine() {
       vasItems
     };
   }, [activeTransactions, periodType, selectedDate, transactions]);
-  
+
   const momAnalytics = useMemo(() => {
     const initMetrics = () => ({
       totalSales: 0,
@@ -886,7 +590,7 @@ export default function DigiplusOperationalEngine() {
 
     return { summary, staffComparison, droppedDevices };
   }, [transactions, momBaseMonth, momCompareMonth]);
-    
+
   const dailyTrendStats = useMemo(() => {
     const dailyMap = new Map<string, number>();
     transactions.forEach((t) => {
@@ -964,283 +668,16 @@ export default function DigiplusOperationalEngine() {
       if (!map[id]) {
         map[id] = {
           salesId: id,
-          name: t.salesName || `Sales ${id}`,
-          total: 0,
-          qty: 0,
-          invoices: new Set(),
-          appleMap: {
-            "iPhone": { actual: 0, qty: 0, icon: "📱" },
-            "iPad": { actual: 0, qty: 0, icon: "📟" },
-            "MacBook": { actual: 0, qty: 0, icon: "💻" },
-            "Apple Watch": { actual: 0, qty: 0, icon: "⌚" },
-            "AirPods": { actual: 0, qty: 0, icon: "🎧" },
-          },
-          androidMap: {
-            "Samsung Devices": { actual: 0, qty: 0, icon: "📱" },
-            "Xiaomi / Redmi Devices": { actual: 0, qty: 0, icon: "🟠" },
-            "Oppo Devices": { actual: 0, qty: 0, icon: "🟢" },
-            "Motorola Devices": { actual: 0, qty: 0, icon: "Ⓜ️" },
-            "Huawei Devices": { actual: 0, qty: 0, icon: "🔴" },
-            "Infinix Devices": { actual: 0, qty: 0, icon: "⚡" },
-          },
-          accMap: {},
-          vasMap: {
-            "Qoala Proteksi Gadget": { actual: 0, qty: 0, icon: "🛡️" },
-            "Telkomsel Halo/Data": { actual: 0, qty: 0, icon: "🔴" },
-            "XL Prioritas": { actual: 0, qty: 0, icon: "🔵" },
-            "Indosat IM3": { actual: 0, qty: 0, icon: "🟡" },
-          },
-          weekSales: {},
-          rawItems: [],
-        };
-      }
-
-      map[id].total += t.amount;
-      map[id].qty += t.qty;
-      map[id].rawItems.push(t);
-      if (t.invoice) map[id].invoices.add(t.invoice);
-
-      const wLabel = t.weekLabel || "W_Other";
-      map[id].weekSales[wLabel] = (map[id].weekSales[wLabel] || 0) + t.amount;
-
-      const pUpper = t.productName.toUpperCase();
-      const isCaseAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE") || pUpper.includes("BAND");
-
-      if (t.brand === "APPLE" && !isCaseAcc && (t.groupCategory === "DEVICES" || pUpper.includes("IPHONE") || pUpper.includes("IPAD") || pUpper.includes("MAC") || pUpper.includes("WATCH") || pUpper.includes("AIRPOD"))) {
-        if (pUpper.includes("IPHONE")) { map[id].appleMap["iPhone"].actual += t.amount; map[id].appleMap["iPhone"].qty += t.qty; }
-        else if (pUpper.includes("IPAD")) { map[id].appleMap["iPad"].actual += t.amount; map[id].appleMap["iPad"].qty += t.qty; }
-        else if (pUpper.includes("MAC") || pUpper.includes("BOOK")) { map[id].appleMap["MacBook"].actual += t.amount; map[id].appleMap["MacBook"].qty += t.qty; }
-        else if (pUpper.includes("WATCH")) { map[id].appleMap["Apple Watch"].actual += t.amount; map[id].appleMap["Apple Watch"].qty += t.qty; }
-        else if (pUpper.includes("AIRPOD")) { map[id].appleMap["AirPods"].actual += t.amount; map[id].appleMap["AirPods"].qty += t.qty; }
-      }
-
-      if (t.groupCategory === "DEVICES" && t.brand !== "APPLE" && !isCaseAcc) {
-        if (t.brand === "SAMSUNG" || pUpper.includes("GALAXY")) { map[id].androidMap["Samsung Devices"].actual += t.amount; map[id].androidMap["Samsung Devices"].qty += t.qty; }
-        else if (t.brand === "XIAOMI" || pUpper.includes("REDMI")) { map[id].androidMap["Xiaomi / Redmi Devices"].actual += t.amount; map[id].androidMap["Xiaomi / Redmi Devices"].qty += t.qty; }
-        else if (t.brand === "OPPO") { map[id].androidMap["Oppo Devices"].actual += t.amount; map[id].androidMap["Oppo Devices"].qty += t.qty; }
-        else if (t.brand === "MOTOROLA") { map[id].androidMap["Motorola Devices"].actual += t.amount; map[id].androidMap["Motorola Devices"].qty += t.qty; }
-        else if (t.brand === "HUAWEI") { map[id].androidMap["Huawei Devices"].actual += t.amount; map[id].androidMap["Huawei Devices"].qty += t.qty; }
-        else if (t.brand === "INFINIX") { map[id].androidMap["Infinix Devices"].actual += t.amount; map[id].androidMap["Infinix Devices"].qty += t.qty; }
-      }
-
-      if (t.groupCategory === "ACCESSORIES") {
-        const item = t.productName.trim() || "Aksesoris";
-        if (!map[id].accMap[item]) map[id].accMap[item] = { actual: 0, qty: 0, icon: "🔌" };
-        map[id].accMap[item].actual += t.amount;
-        map[id].accMap[item].qty += t.qty;
-      }
-
-      if (t.brand === "QOALA" || pUpper.includes("QOALA") || pUpper.includes("PROTEKSI")) {
-        map[id].vasMap["Qoala Proteksi Gadget"].actual += t.amount;
-        map[id].vasMap["Qoala Proteksi Gadget"].qty += t.qty;
-      } else if (t.brand === "TELKOMSEL" || pUpper.includes("TELKOMSEL")) {
-        map[id].vasMap["Telkomsel Halo/Data"].actual += t.amount;
-        map[id].vasMap["Telkomsel Halo/Data"].qty += t.qty;
-      } else if (t.brand === "XL" || pUpper.includes("MYPRIO")) {
-        map[id].vasMap["XL Prioritas"].actual += t.amount;
-        map[id].vasMap["XL Prioritas"].qty += t.qty;
-      } else if (t.brand === "INDOSAT") {
-        map[id].vasMap["Indosat IM3"].actual += t.amount;
-        map[id].vasMap["Indosat IM3"].qty += t.qty;
-      }
-    });
-
-    const sorted = Object.values(map).sort((a, b) => b.total - a.total);
-
-    return sorted.map((s, idx) => {
-      const invCount = s.invoices.size;
-      const upt = calcUpt(s.qty, invCount);
-      const targetQuota = 1658446763;
-      const achv = calcAchv(s.total, targetQuota);
-      const variance = s.total - targetQuota;
-
-      const words = s.name.split(" ");
-      const initials = words.length > 1 ? (words[0][0] + words[1][0]).toUpperCase() : words[0].slice(0, 2).toUpperCase();
-
-      const sortedAcc = Object.entries(s.accMap)
-        .map(([name, d]) => ({ name, ...d }))
-        .sort((a, b) => b.actual - a.actual);
-
-      const totalAccActual = sortedAcc.reduce((acc, c) => acc + c.actual, 0);
-      const totalVasActual = Object.values(s.vasMap).reduce((acc, c) => acc + c.actual, 0);
-
-      const targetAcc = 80000000;
-      const targetVas = 60000000;
-
-      let status: "Tercapai" | "Perlu Perhatian Khusus" | "Dalam Pantauan" = "Dalam Pantauan";
-      let ringkasan = `Pencapaian ${achv}% terhadap target kuota.`;
+          name: t.salesName || `Sales ${id}`, total: 0, qty: 0, invoices: new Set(), appleMap: { "iPhone": { actual: 0, qty: 0, icon: "📱" }, "iPad": { actual: 0, qty: 0, icon: "📟" }, "MacBook": { actual: 0, qty: 0, icon: "💻" }, "Apple Watch": { actual: 0, qty: 0, icon: "⌚" }, "AirPods": { actual: 0, qty: 0, icon: "🎧" }, }, androidMap: { "Samsung Devices": { actual: 0, qty: 0, icon: "📱" }, "Xiaomi / Redmi Devices": { actual: 0, qty: 0, icon: "🟠" }, "Oppo Devices": { actual: 0, qty: 0, icon: "🟢" }, "Motorola Devices": { actual: 0, qty: 0, icon: "Ⓜ️" }, "Huawei Devices": { actual: 0, qty: 0, icon: "🔴" }, "Infinix Devices": { actual: 0, qty: 0, icon: "⚡" }, }, accMap: {}, vasMap: { "Qoala Proteksi Gadget": { actual: 0, qty: 0, icon: "🛡️" }, "Telkomsel Halo/Data": { actual: 0, qty: 0, icon: "🔴" }, "XL Prioritas": { actual: 0, qty: 0, icon: "🔵" }, "Indosat IM3": { actual: 0, qty: 0, icon: "🟡" }, }, weekSales: {}, rawItems: [], }; }  map[id].total += t.amount; map[id].qty += t.qty; map[id].rawItems.push(t); if (t.invoice) map[id].invoices.add(t.invoice);  const wLabel = t.weekLabel \vert{}\vert{} "W_Other"; map[id].weekSales[wLabel] = (map[id].weekSales[wLabel] \vert{}\vert{} 0) + t.amount;  const pUpper = t.productName.toUpperCase(); const isCaseAcc = pUpper.includes("CASE") \vert{}\vert{} pUpper.includes("GLASS") \vert{}\vert{} pUpper.includes("ADAPTER") \vert{}\vert{} pUpper.includes("CABLE") \vert{}\vert{} pUpper.includes("BAND");  if (t.brand === "APPLE" && !isCaseAcc && (t.groupCategory === "DEVICES" \vert{}\vert{} pUpper.includes("IPHONE") \vert{}\vert{} pUpper.includes("IPAD") \vert{}\vert{} pUpper.includes("MAC") \vert{}\vert{} pUpper.includes("WATCH") \vert{}\vert{} pUpper.includes("AIRPOD"))) { if (pUpper.includes("IPHONE")) { map[id].appleMap["iPhone"].actual += t.amount; map[id].appleMap["iPhone"].qty += t.qty; } else if (pUpper.includes("IPAD")) { map[id].appleMap["iPad"].actual += t.amount; map[id].appleMap["iPad"].qty += t.qty; } else if (pUpper.includes("MAC") \vert{}\vert{} pUpper.includes("BOOK")) { map[id].appleMap["MacBook"].actual += t.amount; map[id].appleMap["MacBook"].qty += t.qty; } else if (pUpper.includes("WATCH")) { map[id].appleMap["Apple Watch"].actual += t.amount; map[id].appleMap["Apple Watch"].qty += t.qty; } else if (pUpper.includes("AIRPOD")) { map[id].appleMap["AirPods"].actual += t.amount; map[id].appleMap["AirPods"].qty += t.qty; } }  if (t.groupCategory === "DEVICES" && t.brand !== "APPLE" && !isCaseAcc) { if (t.brand === "SAMSUNG" \vert{}\vert{} pUpper.includes("GALAXY")) { map[id].androidMap["Samsung Devices"].actual += t.amount; map[id].androidMap["Samsung Devices"].qty += t.qty; } else if (t.brand === "XIAOMI" \vert{}\vert{} pUpper.includes("REDMI")) { map[id].androidMap["Xiaomi / Redmi Devices"].actual += t.amount; map[id].androidMap["Xiaomi / Redmi Devices"].qty += t.qty; } else if (t.brand === "OPPO") { map[id].androidMap["Oppo Devices"].actual += t.amount; map[id].androidMap["Oppo Devices"].qty += t.qty; } else if (t.brand === "MOTOROLA") { map[id].androidMap["Motorola Devices"].actual += t.amount; map[id].androidMap["Motorola Devices"].qty += t.qty; } else if (t.brand === "HUAWEI") { map[id].androidMap["Huawei Devices"].actual += t.amount; map[id].androidMap["Huawei Devices"].qty += t.qty; } else if (t.brand === "INFINIX") { map[id].androidMap["Infinix Devices"].actual += t.amount; map[id].androidMap["Infinix Devices"].qty += t.qty; } }  if (t.groupCategory === "ACCESSORIES") { const item = t.productName.trim() \vert{}\vert{} "Aksesoris"; if (!map[id].accMap[item]) map[id].accMap[item] = { actual: 0, qty: 0, icon: "🔌" }; map[id].accMap[item].actual += t.amount; map[id].accMap[item].qty += t.qty; }  if (t.brand === "QOALA" \vert{}\vert{} pUpper.includes("QOALA") \vert{}\vert{} pUpper.includes("PROTEKSI")) { map[id].vasMap["Qoala Proteksi Gadget"].actual += t.amount; map[id].vasMap["Qoala Proteksi Gadget"].qty += t.qty; } else if (t.brand === "TELKOMSEL" \vert{}\vert{} pUpper.includes("TELKOMSEL")) { map[id].vasMap["Telkomsel Halo/Data"].actual += t.amount; map[id].vasMap["Telkomsel Halo/Data"].qty += t.qty; } else if (t.brand === "XL" \vert{}\vert{} pUpper.includes("MYPRIO")) { map[id].vasMap["XL Prioritas"].actual += t.amount; map[id].vasMap["XL Prioritas"].qty += t.qty; } else if (t.brand === "INDOSAT") { map[id].vasMap["Indosat IM3"].actual += t.amount; map[id].vasMap["Indosat IM3"].qty += t.qty; } });  const sorted = Object.values(map).sort((a, b) => b.total - a.total);  return sorted.map((s, idx) => { const invCount = s.invoices.size; const upt = calcUpt(s.qty, invCount); const targetQuota = 1658446763; const achv = calcAchv(s.total, targetQuota); const variance = s.total - targetQuota;  const words = s.name.split(" "); const initials = words.length > 1 ? (words[0][0] + words[1][0]).toUpperCase() : words[0].slice(0, 2).toUpperCase();  const sortedAcc = Object.entries(s.accMap) .map(([name, d]) => ({ name, ...d })) .sort((a, b) => b.actual - a.actual);  const totalAccActual = sortedAcc.reduce((acc, c) => acc + c.actual, 0); const totalVasActual = Object.values(s.vasMap).reduce((acc, c) => acc + c.actual, 0);  const targetAcc = 80000000; const targetVas = 60000000;  let status: "Tercapai" \vert{} "Perlu Perhatian Khusus" \vert{} "Dalam Pantauan" = "Dalam Pantauan"; let ringkasan = `Pencapaian ${achv}% terhadap target kuota.`;
       let rekomendasi = "Tingkatkan penawaran bundling aksesoris dan layanan proteksi pada setiap nota penjualan.";
 
       if (achv >= 100) {
         status = "Tercapai";
-        ringkasan = `Performa sangat prima! Target tercapai ${achv}% dengan total ${invCount} struk nota.`;
+        ringkasan = `Performa sangat prima! Target tercapai ${achv}\% dengan total${invCount} struk nota.`;
         rekomendasi = "Pertahankan konsistensi penjualan unit dan maksimalkan attachment rate aksesoris premium.";
       } else if (achv < 20) {
         status = "Perlu Perhatian Khusus";
-        ringkasan = `Pencapaian sangat tertinggal (${achv}%), defisit omset mencapai ${formatIDR(variance)}.`;
-        rekomendasi = "Evaluasi interaksi prospek customer harian dan manfaatkan program cicilan/BNPL 0%.";
-      }
-
-      return {
-        rank: idx + 1,
-        salesId: s.salesId,
-        name: s.name,
-        initials,
-        actual: s.total,
-        target: targetQuota,
-        achievement: achv,
-        variance,
-        estimate: Math.round(s.total * 1.29),
-        invoicesCount: invCount,
-        qty: s.qty,
-        upt,
-        totalAccActual,
-        targetAcc,
-        achvAcc: calcAchv(totalAccActual, targetAcc),
-        totalVasActual,
-        targetVas,
-        achvVas: calcAchv(totalVasActual, targetVas),
-        status,
-        ringkasan,
-        rekomendasi,
-        appleSub: Object.entries(s.appleMap).map(([name, d]) => ({ name, ...d })),
-        androidSub: Object.entries(s.androidMap).map(([name, d]) => ({ name, ...d })),
-        accessoriesSub: sortedAcc,
-        vasSub: Object.entries(s.vasMap).map(([name, d]) => ({ name, ...d })),
-        weekSales: s.weekSales,
-        rawItems: s.rawItems,
-      };
-    });
-  }, [activeTransactions]);
-
-  const dailyTargetCalculated = useMemo(() => {
-    const totalMonthTarget = 8728667173;
-    const totalDays = 31;
-    const daysPassed = 24;
-    const daysLeft = totalDays - daysPassed;
-
-    const actualAchievedSoFar = transactions.reduce((acc, t) => acc + t.amount, 0);
-    const remainingTarget = Math.max(0, totalMonthTarget - actualAchievedSoFar);
-    const requiredDailyRunRate = daysLeft > 0 ? Math.round(remainingTarget / daysLeft) : 0;
-
-    const todayShiftKey = "sat";
-    const staffOnDuty = scheduleData.filter((s) => s[todayShiftKey] !== "OFF" && s[todayShiftKey] !== "CUTI");
-    const staffCount = staffOnDuty.length || 7;
-
-    const targetStoreToday = requiredDailyRunRate;
-    const targetPerStaffToday = Math.round(targetStoreToday / staffCount);
-
-    const actualToday = overviewStats.todayActual;
-    const achvToday = calcAchv(actualToday, targetStoreToday);
-
-    return {
-      totalMonthTarget,
-      totalDays,
-      daysPassed,
-      daysLeft,
-      actualAchievedSoFar,
-      remainingTarget,
-      requiredDailyRunRate,
-      staffOnDuty,
-      staffCount,
-      targetStoreToday,
-      targetPerStaffToday,
-      actualToday,
-      achvToday,
-    };
-  }, [transactions, scheduleData, overviewStats.todayActual]);
-
-  const bnplSummary = useMemo(() => {
-    const totalAmount = bnplRecords.reduce((acc, b) => acc + b.amount, 0);
-    const totalQty = bnplRecords.reduce((acc, b) => acc + b.qty, 0);
-    const storeActual = overviewStats.actual;
-
-    const map: Record<string, { amount: number; qty: number }> = {};
-    bnplRecords.forEach((b) => {
-      const tKey = b.tender || "Other";
-      if (!map[tKey]) map[tKey] = { amount: 0, qty: 0 };
-      map[tKey].amount += b.amount;
-      map[tKey].qty += b.qty;
-    });
-
-    const tenders = Object.entries(map).map(([tender, d]) => {
-      const share = storeActual > 0 ? Number(((d.amount / storeActual) * 100).toFixed(1)) : 0;
-      const estimate = Math.round((d.amount / 24) * 31);
-      return { tender, amount: d.amount, qty: d.qty, share, estimate };
-    }).sort((a, b) => b.amount - a.amount);
-
-    const filteredRecords = selectedBnplTender === "ALL"
-      ? bnplRecords
-      : bnplRecords.filter((b) => b.tender.toLowerCase() === selectedBnplTender.toLowerCase());
-
-    return { totalAmount, totalQty, tenders, list: filteredRecords };
-  }, [bnplRecords, overviewStats.actual, selectedBnplTender]);
-
-  const scheduleDaySummary = useMemo(() => {
-    const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
-    return days.map((day) => {
-      let morning = 0;
-      let evening = 0;
-      let off = 0;
-      scheduleData.forEach((s) => {
-        const val = s[day];
-        if (val === "D047") morning++;
-        else if (val === "D103") evening++;
-        else if (val === "OFF") off++;
-      });
-      return { day, morning, evening, off, totalStaff: morning + evening };
-    });
-  }, [scheduleData]);
-
-  const updateScheduleShift = (id: string, day: keyof StaffScheduleItem, shift: string) => {
-    if (currentSalesId !== ADMIN_ID) {
-      alert("Akses Ditolak: Hanya Admin dengan Sales ID 22008089 yang berhak mengubah jadwal shift.");
-      return;
-    }
-    setScheduleData((prev) => {
-      const updated = prev.map((item) => (item.id === id ? { ...item, [day]: shift } : item));
-      if (typeof window !== "undefined") {
-        localStorage.setItem("digi_ops_schedule", JSON.stringify(updated));
-      }
-      return updated;
-    });
-  };
-
-  const handleToggleReaction = (feedbackId: string, reactionKey: keyof FeedbackItem["reactions"]) => {
-    setFeedbacks((prev) => {
-      const updated = prev.map((fb) => {
-        if (fb.id !== feedbackId) return fb;
-        const already = fb.userReactions.includes(reactionKey);
-        const newReactions = { ...fb.reactions };
-        let newUserReactions = [...fb.userReactions];
-
-        if (already) {
-          newReactions[reactionKey] = Math.max(0, newReactions[reactionKey] - 1);
-          newUserReactions = newUserReactions.filter((r) => r !== reactionKey);
-        } else {
-          newReactions[reactionKey] = newReactions[reactionKey] + 1;
-          newUserReactions.push(reactionKey);
-        }
-
-        return { ...fb, reactions: newReactions, userReactions: newUserReactions };
-      });
-
-      if (typeof window !== "undefined") {
-        localStorage.setItem("digi_ops_feedbacks", JSON.stringify(updated));
-      }
-      return updated;
-    });
-  };
-
-  const handleCreateFeedback = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newFeedbackText.trim()) return;
-
-    const matchedStaff = staffList.find((s) => s.name === newFeedbackStaff);
-    const initials = matchedStaff ? matchedStaff.initials : newFeedbackStaff.slice(0, 2).toUpperCase();
-
-    const newFb: FeedbackItem = {
-      id: `fb-${Date.now()}`,
+        ringkasan = `Pencapaian sangat tertinggal (${achv}%), defisit omset mencapai ${formatIDR(variance)}.`; rekomendasi = "Evaluasi interaksi prospek customer harian dan manfaatkan program cicilan/BNPL 0\%."; }  return { rank: idx + 1, salesId: s.salesId, name: s.name, initials, actual: s.total, target: targetQuota, achievement: achv, variance, estimate: Math.round(s.total * 1.29), invoicesCount: invCount, qty: s.qty, upt, totalAccActual, targetAcc, achvAcc: calcAchv(totalAccActual, targetAcc), totalVasActual, targetVas, achvVas: calcAchv(totalVasActual, targetVas), status, ringkasan, rekomendasi, appleSub: Object.entries(s.appleMap).map(([name, d]) => ({ name, ...d })), androidSub: Object.entries(s.androidMap).map(([name, d]) => ({ name, ...d })), accessoriesSub: sortedAcc, vasSub: Object.entries(s.vasMap).map(([name, d]) => ({ name, ...d })), weekSales: s.weekSales, rawItems: s.rawItems, }; }); }, [activeTransactions]);  const dailyTargetCalculated = useMemo(() => { const totalMonthTarget = 8728667173; const totalDays = 31; const daysPassed = 24; const daysLeft = totalDays - daysPassed;  const actualAchievedSoFar = transactions.reduce((acc, t) => acc + t.amount, 0); const remainingTarget = Math.max(0, totalMonthTarget - actualAchievedSoFar); const requiredDailyRunRate = daysLeft > 0 ? Math.round(remainingTarget / daysLeft) : 0;  const todayShiftKey = "sat"; const staffOnDuty = scheduleData.filter((s) => s[todayShiftKey] !== "OFF" && s[todayShiftKey] !== "CUTI"); const staffCount = staffOnDuty.length \vert{}\vert{} 7;  const targetStoreToday = requiredDailyRunRate; const targetPerStaffToday = Math.round(targetStoreToday / staffCount);  const actualToday = overviewStats.todayActual; const achvToday = calcAchv(actualToday, targetStoreToday);  return { totalMonthTarget, totalDays, daysPassed, daysLeft, actualAchievedSoFar, remainingTarget, requiredDailyRunRate, staffOnDuty, staffCount, targetStoreToday, targetPerStaffToday, actualToday, achvToday, }; }, [transactions, scheduleData, overviewStats.todayActual]);  const bnplSummary = useMemo(() => { const totalAmount = bnplRecords.reduce((acc, b) => acc + b.amount, 0); const totalQty = bnplRecords.reduce((acc, b) => acc + b.qty, 0); const storeActual = overviewStats.actual;  const map: Record<string, { amount: number; qty: number }> = {}; bnplRecords.forEach((b) => { const tKey = b.tender \vert{}\vert{} "Other"; if (!map[tKey]) map[tKey] = { amount: 0, qty: 0 }; map[tKey].amount += b.amount; map[tKey].qty += b.qty; });  const tenders = Object.entries(map).map(([tender, d]) => { const share = storeActual > 0 ? Number(((d.amount / storeActual) * 100).toFixed(1)) : 0; const estimate = Math.round((d.amount / 24) * 31); return { tender, amount: d.amount, qty: d.qty, share, estimate }; }).sort((a, b) => b.amount - a.amount);  const filteredRecords = selectedBnplTender === "ALL" ? bnplRecords : bnplRecords.filter((b) => b.tender.toLowerCase() === selectedBnplTender.toLowerCase());  return { totalAmount, totalQty, tenders, list: filteredRecords }; }, [bnplRecords, overviewStats.actual, selectedBnplTender]);  const scheduleDaySummary = useMemo(() => { const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const; return days.map((day) => { let morning = 0; let evening = 0; let off = 0; scheduleData.forEach((s) => { const val = s[day]; if (val === "D047") morning++; else if (val === "D103") evening++; else if (val === "OFF") off++; }); return { day, morning, evening, off, totalStaff: morning + evening }; }); }, [scheduleData]);  const updateScheduleShift = (id: string, day: keyof StaffScheduleItem, shift: string) => { if (currentSalesId !== ADMIN_ID) { alert("Akses Ditolak: Hanya Admin dengan Sales ID 22008089 yang berhak mengubah jadwal shift."); return; } setScheduleData((prev) => { const updated = prev.map((item) => (item.id === id ? { ...item, [day]: shift } : item)); if (typeof window !== "undefined") { localStorage.setItem("digi_ops_schedule", JSON.stringify(updated)); } return updated; }); };  const handleToggleReaction = (feedbackId: string, reactionKey: keyof FeedbackItem["reactions"]) => { setFeedbacks((prev) => { const updated = prev.map((fb) => { if (fb.id !== feedbackId) return fb; const already = fb.userReactions.includes(reactionKey); const newReactions = { ...fb.reactions }; let newUserReactions = [...fb.userReactions];  if (already) { newReactions[reactionKey] = Math.max(0, newReactions[reactionKey] - 1); newUserReactions = newUserReactions.filter((r) => r !== reactionKey); } else { newReactions[reactionKey] = newReactions[reactionKey] + 1; newUserReactions.push(reactionKey); }  return { ...fb, reactions: newReactions, userReactions: newUserReactions }; });  if (typeof window !== "undefined") { localStorage.setItem("digi_ops_feedbacks", JSON.stringify(updated)); } return updated; }); };  const handleCreateFeedback = (e: React.FormEvent) => { e.preventDefault(); if (!newFeedbackText.trim()) return;  const matchedStaff = staffList.find((s) => s.name === newFeedbackStaff); const initials = matchedStaff ? matchedStaff.initials : newFeedbackStaff.slice(0, 2).toUpperCase();  const newFb: FeedbackItem = { id: `fb-${Date.now()}`,
       salesName: newFeedbackStaff,
       salesRole: "Sales Specialist",
       initials,
@@ -1269,7 +706,7 @@ export default function DigiplusOperationalEngine() {
 
     const text = 
 `*DAILY RETAIL SALES REPORT - DIGIPLUS GRAND INDONESIA*
-Tanggal: ${selectedDate} (Filter: ${periodType.toUpperCase()})
+Tanggal: ${selectedDate} (Filter:${periodType.toUpperCase()})
 
 📊 *Pencapaian Store:*
 - Sales: ${formatIDR(overviewStats.actual)}
@@ -1290,16 +727,7 @@ Tanggal: ${selectedDate} (Filter: ${periodType.toUpperCase()})
 
 _Diperbarui otomatis via Store Performance Engine._`;
 
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
-  };
-
-  const handleShareTargetWA = () => {
-    const staffListMsg = dailyTargetCalculated.staffOnDuty
-      .map((s) => `• ${s.name} : ${formatIDR(dailyTargetCalculated.targetPerStaffToday)}`)
-      .join("\n");
-
-    const text = 
-`Target ${selectedDate}
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank"); };  const handleShareTargetWA = () => { const staffListMsg = dailyTargetCalculated.staffOnDuty .map((s) => `• ${s.name} : ${formatIDR(dailyTargetCalculated.targetPerStaffToday)}`) .join("\n");  const text = `Target ${selectedDate}
 
 Nama Staff:
 ${staffListMsg}
@@ -1413,106 +841,4 @@ _Diperbarui via Digiplus Store Operations Engine._`;
           </div>
           <div className="p-3 rounded-2xl border bg-black/5 dark:bg-black/25 border-inherit shadow-sm">
             <span className="text-slate-600 dark:text-slate-400 font-black text-[10px] uppercase block tracking-wider">Achv</span>
-            <strong className={`font-black text-sm block mt-0.5 ${staff.achievement >= 100 ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400"}`}>
-              {staff.achievement}%
-            </strong>
-          </div>
-          <div className="p-3 rounded-2xl border bg-black/5 dark:bg-black/25 border-inherit shadow-sm">
-            <span className="text-slate-600 dark:text-slate-400 font-black text-[10px] uppercase block tracking-wider">UPT</span>
-            <strong className="text-sky-700 dark:text-sky-400 font-black text-sm block mt-0.5">{staff.upt}</strong>
-          </div>
-        </div>
-
-        <div>
-          <h4 className="text-xs font-black text-sky-700 dark:text-sky-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <span>🍎</span>
-            <span>Rincian Apple Devices</span>
-          </h4>
-          <div className="overflow-x-auto rounded-2xl border border-inherit w-full">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-200/70 dark:bg-black/30 uppercase text-[10px] font-black border-b border-inherit text-slate-950 dark:text-slate-300">
-                <tr>
-                  <th className="py-2.5 px-3 font-black">Produk</th>
-                  <th className="py-2.5 px-3 text-center font-black">Qty</th>
-                  <th className="py-2.5 px-3 text-right font-black">Nilai Omset</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-inherit font-semibold">
-                {staff.appleSub.map((p, idx) => (
-                  <tr key={idx}>
-                    <td className="py-2.5 px-3 font-black flex items-center gap-1.5 text-slate-950 dark:text-white">
-                      <span>{p.icon}</span>
-                      <span>{p.name}</span>
-                    </td>
-                    <td className="py-2.5 px-3 text-center font-black text-amber-700 dark:text-amber-300">{p.qty}</td>
-                    <td className="py-2.5 px-3 text-right font-black text-emerald-700 dark:text-emerald-400 font-mono">{formatIDR(p.actual)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div>
-          <h4 className="text-xs font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <span>🤖</span>
-            <span>Rincian Android Devices</span>
-          </h4>
-          <div className="overflow-x-auto rounded-2xl border border-inherit w-full">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-200/70 dark:bg-black/30 uppercase text-[10px] font-black border-b border-inherit text-slate-950 dark:text-slate-300">
-                <tr>
-                  <th className="py-2.5 px-3 font-black">Brand</th>
-                  <th className="py-2.5 px-3 text-center font-black">Qty</th>
-                  <th className="py-2.5 px-3 text-right font-black">Nilai Omset</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-inherit font-semibold">
-                {staff.androidSub.map((p, idx) => (
-                  <tr key={idx}>
-                    <td className="py-2.5 px-3 font-black flex items-center gap-1.5 text-slate-950 dark:text-white">
-                      <span>{p.icon}</span>
-                      <span>{p.name}</span>
-                    </td>
-                    <td className="py-2.5 px-3 text-center font-black text-amber-700 dark:text-amber-300">{p.qty}</td>
-                    <td className="py-2.5 px-3 text-right font-black text-emerald-700 dark:text-emerald-400 font-mono">{formatIDR(p.actual)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    ));
-  };
-
-  const openWeeklyStaffSheet = (wLabel: string, weekTransactions: RawTransaction[]) => {
-    const staffMap: Record<string, { name: string; apple: number; android: number; acc: number; vas: number; total: number; qty: number }> = {};
-    weekTransactions.forEach((t) => {
-      const sName = t.salesName || "Unknown";
-      if (!staffMap[sName]) staffMap[sName] = { name: sName, apple: 0, android: 0, acc: 0, vas: 0, total: 0, qty: 0 };
-      staffMap[sName].total += t.amount;
-      staffMap[sName].qty += t.qty;
-      if (t.brand === "APPLE" && t.groupCategory === "DEVICES") staffMap[sName].apple += t.amount;
-      else if (t.groupCategory === "DEVICES") staffMap[sName].android += t.amount;
-      else if (t.groupCategory === "ACCESSORIES") staffMap[sName].acc += t.amount;
-      else if (t.groupCategory === "VAS") staffMap[sName].vas += t.amount;
-    });
-
-    const staffRows = Object.values(staffMap).sort((a, b) => b.total - a.total);
-
-    openCustomBottomSheet(`Pencapaian Staf: ${wLabel}`, (
-      <div className="space-y-4 text-xs font-semibold">
-        <div className="flex justify-between items-center p-3.5 rounded-2xl bg-black/10 dark:bg-black/25 border border-inherit shadow-inner">
-          <span className="font-bold text-slate-800 dark:text-slate-300">Total Penjualan Minggu Ini:</span>
-          <strong className="text-emerald-700 dark:text-emerald-400 font-black text-sm sm:text-base">
-            {formatIDR(weekTransactions.reduce((acc, c) => acc + c.amount, 0))}
-          </strong>
-        </div>
-        <div className="overflow-x-auto rounded-2xl border border-inherit w-full">
-          <table className="w-full text-left text-xs min-w-[600px]">
-            <thead className="bg-slate-200/70 dark:bg-black/40 uppercase text-[10px] font-black border-b border-inherit tracking-wider text-slate-950 dark:text-slate-300">
-              <tr>
-                <th className="py-3 px-3 font-black">Salesperson</th>
-                <th className="py-3 px-3 text-center font-black">Unit</th>
-                <th className="py-3 px-3 text-right font
+            <strong className={`font-black text-sm block mt-0
