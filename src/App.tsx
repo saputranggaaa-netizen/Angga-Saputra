@@ -1691,9 +1691,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
   const textMain = isDark ? "text-slate-100 font-bold" : "text-black font-black";
   const textMuted = isDark ? "text-slate-300 font-semibold" : "text-slate-800 font-bold";
-  const textMain = isDark ? "text-slate-100 font-bold" : "text-black font-black";
-  const textMuted = isDark ? "text-slate-300 font-semibold" : "text-slate-800 font-bold";
-
+  
   const cardBg = isDark 
     ? "bg-[#0E1A38]/75 backdrop-blur-xl border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.35)]" 
     : "bg-white/95 backdrop-blur-xl border border-slate-300/90 shadow-[0_8px_30px_rgb(0,0,0,0.06)]";
