@@ -148,6 +148,11 @@ interface BnplRecord {
   qty: number;
   month: string;
 }
+interface StaffTargetRecord {
+  salesId: string;
+  name: string;
+  targetAmount: number;
+}
 
 interface ActivityLog {
   id: string;
@@ -332,6 +337,7 @@ export default function DigiplusOperationalEngine() {
   // Live Spreadsheet Data
   const [transactions, setTransactions] = useState<RawTransaction[]>([]);
   const [bnplRecords, setBnplRecords] = useState<BnplRecord[]>([]);
+  const [staffTargets, setStaffTargets] = useState<Record<string, number>>({});
   const [scheduleData, setScheduleData] = useState<StaffScheduleItem[]>(INITIAL_SCHEDULE);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [lastSyncTime, setLastSyncTime] = useState<string>("");
@@ -419,12 +425,36 @@ export default function DigiplusOperationalEngine() {
   const fetchLiveGoogleSheets = async () => {
     setIsLoading(true);
     try {
-      const dbUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=602901290`;
+      google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=602901290`;
       const bnplUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=2697970`;
+      const targetUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=685849310`;
+
+      const [resDb, resBnpl, resTarget] = await Promise.all([
 
       const [resDb, resBnpl] = await Promise.all([fetch(dbUrl), fetch(bnplUrl)]);
       const textDb = await resDb.text();
       const textBnpl = await resBnpl.text();
+      const textTarget = await resTarget.text();
+      const jsonTarget = JSON.parse(
+        textTarget.substring(textTarget.indexOf("{"), textTarget.lastIndexOf("}") + 1)
+      );
+
+      const targetMap: Record<string, number> = {};
+      (jsonTarget.table.rows || []).forEach((r: any) => {
+        const c = r.c;
+        if (!c) return;
+        // Kolom A = Nama Staf / Sales ID, Kolom B = Nominal Target
+        const identifier = String(c[0]?.v || c[0]?.f || "").trim().toLowerCase();
+        const rawTarget = c[1]?.v;
+        const targetVal = typeof rawTarget === "number"
+          ? rawTarget
+          : Number(String(rawTarget || 0).replace(/[^0-9]/g, ""));
+
+        if (identifier && targetVal > 0) {
+          targetMap[identifier] = targetVal;
+        }
+      });
+      setStaffTargets(targetMap);
 
       const sDb = textDb.indexOf("{");
       const eDb = textDb.lastIndexOf("}") + 1;
@@ -1634,7 +1664,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
     { id: "staff-performance", label: "Staff Performance", icon: "🏆" },
     { id: "daily-target", label: "Daily Target & Run Rate", icon: "🎯" },
     { id: "schedule", label: "Jadwal Shift 1 Minggu", icon: "📅" },
-    { id: "feedback", label: "Feedback Ritel Tim", icon: "💬" },
+    { id: "feedback", label: "Feedback Tim", icon: "💬" },
     { id: "bnpl", label: "BNPL Transactions", icon: "💳" },
     { id: "product-search", label: "Cari Produk Terjual", icon: "🔍" },
     { id: "sales-detail", label: "Rincian Transaksi Log", icon: "📋" },
