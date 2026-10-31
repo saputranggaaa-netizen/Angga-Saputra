@@ -115,6 +115,7 @@ type MenuTab =
   | "sales-detail"
   | "admin-audit"
   | "product-search"
+  | "qoala-ar"
   | "mom-comparison";
 
 type ThemeMode = "dark" | "light";
@@ -1836,6 +1837,72 @@ _Diperbarui via Digiplus Store Operations Engine._`;
       vas: buildLobData((t) => t.groupCategory === "VAS" || t.brand === "QOALA"),
     };
   }, [transactions, w1Filter, w2Filter, AUTO_WEEKS]);
+  // Agregasi Lengkap Qoala Protection & Attachment Rate
+  const qoalaAnalytics = useMemo(() => {
+    const activeTx = activeTransactions || [];
+
+    // 1. Filter Transaksi Device & Qoala
+    const deviceItems = activeTx.filter((t) => t.groupCategory === "DEVICES");
+    const qoalaItems = activeTx.filter((t) => {
+      const pUpper = (t.productName || "").toUpperCase();
+      return t.brand === "QOALA" || pUpper.includes("QOALA") || pUpper.includes("PROTEKSI");
+    });
+
+    const totalDeviceQty = deviceItems.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
+    const totalQoalaQty = qoalaItems.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
+    const totalQoalaAmount = qoalaItems.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+
+    const storeAR = totalDeviceQty > 0 ? Number(((totalQoalaQty / totalDeviceQty) * 100).toFixed(1)) : 0;
+
+    // 2. Breakdown AR Per Staf
+    const staffMap: Record<string, { name: string; salesId: string; deviceQty: number; qoalaQty: number; qoalaAmount: number; trxItems: RawTransaction[] }> = {};
+
+    activeTx.forEach((t) => {
+      const sName = t.salesName || "Unknown";
+      if (!staffMap[sName]) {
+        staffMap[sName] = { name: sName, salesId: t.salesId, deviceQty: 0, qoalaQty: 0, qoalaAmount: 0, trxItems: [] };
+      }
+
+      const pUpper = (t.productName || "").toUpperCase();
+      const isDevice = t.groupCategory === "DEVICES";
+      const isQoala = t.brand === "QOALA" || pUpper.includes("QOALA") || pUpper.includes("PROTEKSI");
+
+      if (isDevice) {
+        staffMap[sName].deviceQty += (Number(t.qty) || 1);
+      }
+      if (isQoala) {
+        staffMap[sName].qoalaQty += (Number(t.qty) || 1);
+        staffMap[sName].qoalaAmount += (Number(t.amount) || 0);
+        staffMap[sName].trxItems.push(t);
+      }
+    });
+
+    const staffLeaderboard = Object.values(staffMap).map((s) => {
+      const ar = s.deviceQty > 0 ? Number(((s.qoalaQty / s.deviceQty) * 100).toFixed(1)) : 0;
+      return { ...s, ar };
+    }).sort((a, b) => b.ar - a.ar);
+
+    // 3. Breakdown Berdasarkan Paket Polis Proteksi
+    const planMap: Record<string, { planName: string; qty: number; amount: number }> = {};
+    qoalaItems.forEach((t) => {
+      const pName = t.productName.trim();
+      if (!planMap[pName]) planMap[pName] = { planName: pName, qty: 0, amount: 0 };
+      planMap[pName].qty += (Number(t.qty) || 1);
+      planMap[pName].amount += (Number(t.amount) || 0);
+    });
+
+    const planBreakdown = Object.values(planMap).sort((a, b) => b.qty - a.qty);
+
+    return {
+      totalDeviceQty,
+      totalQoalaQty,
+      totalQoalaAmount,
+      storeAR,
+      staffLeaderboard,
+      planBreakdown,
+      allQoalaTransactions: qoalaItems,
+    };
+  }, [activeTransactions]);
 
   if (!isMounted) return null;
 
@@ -1871,6 +1938,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
   const mainNavItems = [
     { id: "store-overview", label: "Overview Store", icon: "📊" },
     { id: "weekly-sales", label: "Weekly Sales (WoW)", icon: "📈" },
+    { id: "qoala-ar", label: "Qoala Protection (AR %)", icon: "🛡️" },
     { id: "mom-comparison", label: "MoM Growth Analysis", icon: "⚖️" },
     { id: "staff-performance", label: "Staff Performance", icon: "🏆" },
     { id: "daily-target", label: "Daily Target & Run Rate", icon: "🎯" },
@@ -2598,6 +2666,153 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+              {/* TAB KHUSUS: QOALA PROTECTION & ATTACHMENT RATE */}
+              {activeTab === "qoala-ar" && (
+                <div className="space-y-6 sm:space-y-8">
+                  {/* BANNER KPI UTAMA */}
+                  <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-4`}>
+                    <div className="flex flex-wrap justify-between items-center gap-4">
+                      <div>
+                        <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
+                          <span>🛡️</span>
+                          <span>QOALA PROTECTION & ATTACHMENT RATE (AR %)</span>
+                        </h2>
+                        <p className={`text-xs ${textMuted} mt-0.5`}>
+                          Periode: {periodType.toUpperCase()} ({periodType === "daily" ? selectedDate : periodType === "weekly" ? selectedWeek : selectedMonth})
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className={`px-3 py-1 rounded-full text-xs font-black border ${
+                          qoalaAnalytics.storeAR >= 25 
+                            ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border-emerald-400/30" 
+                            : qoalaAnalytics.storeAR >= 15 
+                            ? "bg-amber-500/15 text-amber-800 dark:text-amber-400 border-amber-400/30" 
+                            : "bg-rose-500/15 text-rose-800 dark:text-rose-400 border-rose-400/30"
+                        }`}>
+                          Benchmark Toko: {qoalaAnalytics.storeAR >= 25 ? "Target Tercapai 🔥" : qoalaAnalytics.storeAR >= 15 ? "Perlu Ditingkatkan ⚠️" : "Under Target ❗"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* KARTU GRID KPI */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 pt-2">
+                      <div className={`p-4 rounded-2xl border ${innerBg}`}>
+                        <span className={`text-[10px] font-black uppercase tracking-wider ${textMuted} block`}>Store Attachment Rate</span>
+                        <div className={`text-2xl sm:text-3xl font-black mt-1 font-mono ${
+                          qoalaAnalytics.storeAR >= 25 ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400"
+                        }`}>
+                          {qoalaAnalytics.storeAR}%
+                        </div>
+                        <span className="text-[11px] font-bold text-slate-500 mt-1 block">Rasio Polis vs Device</span>
+                      </div>
+
+                      <div className={`p-4 rounded-2xl border ${innerBg}`}>
+                        <span className={`text-[10px] font-black uppercase tracking-wider ${textMuted} block`}>Total Polis Qoala Terjual</span>
+                        <div className="text-2xl sm:text-3xl font-black mt-1 text-sky-700 dark:text-sky-400 font-mono">
+                          {qoalaAnalytics.totalQoalaQty} Unit
+                        </div>
+                        <span className="text-[11px] font-bold text-slate-500 mt-1 block">Polis Perlindungan Aktif</span>
+                      </div>
+
+                      <div className={`p-4 rounded-2xl border ${innerBg}`}>
+                        <span className={`text-[10px] font-black uppercase tracking-wider ${textMuted} block`}>Total Perangkat Terjual (Device)</span>
+                        <div className="text-2xl sm:text-3xl font-black mt-1 text-slate-950 dark:text-white font-mono">
+                          {qoalaAnalytics.totalDeviceQty} Unit
+                        </div>
+                        <span className="text-[11px] font-bold text-slate-500 mt-1 block">Smartphone, Tablet & Laptop</span>
+                      </div>
+
+                      <div className={`p-4 rounded-2xl border ${innerBg}`}>
+                        <span className={`text-[10px] font-black uppercase tracking-wider ${textMuted} block`}>Total Omset Premi Qoala</span>
+                        <div className="text-2xl sm:text-3xl font-black mt-1 text-emerald-700 dark:text-emerald-400 font-mono">
+                          {formatIDR(qoalaAnalytics.totalQoalaAmount)}
+                        </div>
+                        <span className="text-[11px] font-bold text-slate-500 mt-1 block">Kontribusi Penjualan Proteksi</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* TABEL LEADERBOARD AR PER STAF */}
+                  <div className={`${cardBg} rounded-3xl border-2 shadow-xl overflow-hidden`}>
+                    <div className="px-5 py-4 border-b border-inherit flex justify-between items-center">
+                      <div>
+                        <h3 className="text-sm font-black text-slate-950 dark:text-white">Peringkat Attachment Rate (AR %) Sales Tim</h3>
+                        <p className={`text-xs ${textMuted} mt-0.5`}>Evaluasi efektivitas offering proteksi setiap unit device yang terjual</p>
+                      </div>
+                      <span className="text-xs text-slate-500 font-black">{qoalaAnalytics.staffLeaderboard.length} Staf Terdata</span>
+                    </div>
+
+                    <div className="overflow-x-auto w-full">
+                      <table className="w-full text-left text-xs min-w-[650px]">
+                        <thead className={`${innerBg} uppercase text-[10px] font-black border-b border-inherit tracking-wider text-slate-900 dark:text-slate-300`}>
+                          <tr>
+                            <th className="py-3 px-4">Rank</th>
+                            <th className="py-3 px-4">Nama Sales</th>
+                            <th className="py-3 px-3 text-center">Device (Unit)</th>
+                            <th className="py-3 px-3 text-center">Qoala (Polis)</th>
+                            <th className="py-3 px-4 text-right">Nilai Omset (Rp)</th>
+                            <th className="py-3 px-4 text-center">Attachment Rate (AR %)</th>
+                            <th className="py-3 px-3 text-center">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-inherit font-bold">
+                          {qoalaAnalytics.staffLeaderboard.map((st, idx) => (
+                            <tr key={idx} className="hover:opacity-90 transition">
+                              <td className="py-3 px-4 font-black text-slate-500">#{idx + 1}</td>
+                              <td className="py-3 px-4 font-black text-slate-950 dark:text-white">
+                                {st.name}
+                                <span className="block text-[10px] font-normal text-slate-500">{st.salesId}</span>
+                              </td>
+                              <td className="py-3 px-3 text-center font-black text-slate-950 dark:text-white">{st.deviceQty}</td>
+                              <td className="py-3 px-3 text-center font-black text-sky-700 dark:text-sky-400">{st.qoalaQty}</td>
+                              <td className="py-3 px-4 text-right font-black font-mono text-emerald-700 dark:text-emerald-400">
+                                {formatIDR(st.qoalaAmount)}
+                              </td>
+                              <td className="py-3 px-4 text-center">
+                                <span className={`px-2.5 py-1 rounded-full text-xs font-black font-mono ${
+                                  st.ar >= 25 
+                                    ? "bg-emerald-500/20 text-emerald-800 dark:text-emerald-400" 
+                                    : st.ar >= 15 
+                                    ? "bg-amber-500/20 text-amber-800 dark:text-amber-400" 
+                                    : "bg-rose-500/20 text-rose-800 dark:text-rose-400"
+                                }`}>
+                                  {st.ar}%
+                                </span>
+                              </td>
+                              <td className="py-3 px-3 text-center">
+                                <span className={`text-[10px] font-black ${st.ar >= 25 ? "text-emerald-700" : st.ar >= 15 ? "text-amber-700" : "text-rose-600"}`}>
+                                  {st.ar >= 25 ? "Excellent" : st.ar >= 15 ? "Average" : "Under"}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* RINCIAN PRODUK POLIS QOALA YANG TERJUAL */}
+                  <div className={`${cardBg} rounded-3xl border-2 shadow-xl p-5 sm:p-6 space-y-4`}>
+                    <h3 className="text-sm font-black text-slate-950 dark:text-white">Distribusi Polis Proteksi yang Terjual</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {qoalaAnalytics.planBreakdown.map((plan, idx) => (
+                        <div key={idx} className={`p-4 rounded-2xl border ${innerBg} flex justify-between items-center shadow-sm`}>
+                          <div>
+                            <span className="text-xs font-black text-slate-950 dark:text-white block">{plan.planName}</span>
+                            <span className="text-[11px] font-mono text-emerald-700 dark:text-emerald-400 font-bold block mt-0.5">
+                              {formatIDR(plan.amount)}
+                            </span>
+                          </div>
+                          <span className="px-2.5 py-1 rounded-xl bg-sky-500/15 text-sky-800 dark:text-sky-400 font-black text-xs font-mono">
+                            {plan.qty} Polis
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
               
