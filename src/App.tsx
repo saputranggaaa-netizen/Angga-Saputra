@@ -2280,36 +2280,55 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                       {weeklyReport.map((w, idx) => (
-                        <div key={idx} className={`p-3.5 ${innerBg} border rounded-2xl flex flex-col justify-between shadow-sm`}>
-                          <div>
-                            <div className="flex justify-between items-center mb-1">
-                              <span className={`text-xs font-black ${accentText}`}>{w.label}</span>
-                              {idx > 0 && (
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${w.wowGrowth >= 0 ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-500" : "bg-rose-500/20 text-rose-700"}`}>
-                                  {w.wowGrowth > 0 ? `+${w.wowGrowth}%` : `${w.wowGrowth}%`}
-                                </span>
-                              )}
-                            </div>
-                            <p className={`text-[10px] ${textMuted} mb-1.5 font-bold`}>{w.range}</p>
-                            <div className="text-base font-black mt-1 font-mono text-slate-950 dark:text-white">{formatIDR(w.sales)}</div>
-                          </div>
+                        <div 
+  key={idx} 
+  className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131e3a] flex flex-col justify-between shadow-sm transition-all hover:border-sky-500/40"
+>
+  <div>
+    <div className="flex justify-between items-center mb-1.5">
+      <span className="text-xs font-black text-slate-900 dark:text-sky-400">
+        {w.label}
+      </span>
+      {idx > 0 && (
+        <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
+          w.wowGrowth >= 0 
+            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-400" 
+            : "bg-rose-100 text-rose-800 dark:bg-rose-500/20 dark:text-rose-400"
+        }`}>
+          {w.wowGrowth > 0 ? `+${w.wowGrowth}%` : `${w.wowGrowth}%`}
+        </span>
+      )}
+    </div>
+    
+    {/* Rentang tanggal kontras tinggi */}
+    <p className="text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-2">
+      {w.range}
+    </p>
+    
+    {/* Nominal omset hitam pekat di light mode, emerald cerah di dark mode */}
+    <div className="text-base sm:text-lg font-black font-mono text-slate-950 dark:text-white tracking-tight">
+      {formatIDR(w.sales)}
+    </div>
+  </div>
 
-                          <div className="mt-3 pt-2 border-t border-inherit flex items-center justify-between">
-                            <button
-                              onClick={() => openWeeklyStaffSheet(w.label, w.matchTrx)}
-                              className="text-[11px] font-black text-sky-700 dark:text-sky-400 hover:underline"
-                            >
-                              Lihat Per Staff &gt;
-                            </button>
-                            <button
-                              onClick={() => handleShareWeekly(w.label, w.sales, w.target, w.achv)}
-                              title="Share Week ini ke WA"
-                              className="p-1 rounded bg-emerald-500 text-white text-[10px]"
-                            >
-                              📲
-                            </button>
-                          </div>
-                        </div>
+  <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+    <button
+      onClick={() => openWeeklyStaffSheet(w.label, w.matchTrx)}
+      className="text-xs font-black text-blue-700 dark:text-sky-400 hover:underline flex items-center gap-1"
+    >
+      <span>Lihat Per Staff</span>
+      <span>&gt;</span>
+    </button>
+    
+    <button
+      onClick={() => handleShareWeekly(w.label, w.sales, w.target, w.achv)}
+      title="Share Week ini ke WA"
+      className="w-7 h-7 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center text-xs shadow-sm transition active:scale-95"
+    >
+      📲
+    </button>
+  </div>
+</div>
                       ))}
                     </div>
 
