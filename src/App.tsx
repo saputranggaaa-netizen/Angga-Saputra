@@ -2893,24 +2893,34 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
-                    <div
+                 <div
   key={st.name}
-  className={`p-5 rounded-3xl border-2 transition-all duration-300 hover:scale-[1.01] hover:border-sky-500/50 ${
+  className={`p-5 rounded-3xl border transition-all duration-200 hover:shadow-xl ${
     isDark
       ? "bg-gradient-to-b from-[#0F1E36] to-[#0A1324] border-slate-700/70 shadow-2xl shadow-black/50"
-      : "bg-white border-slate-200 shadow-xl shadow-slate-200/60"
+      : "bg-white border-slate-200 shadow-md shadow-slate-200/80 hover:border-sky-300"
   }`}
 >
-  {/* Header Kartu: Avatar, Nama, Badge Pencapaian */}
-  <div className="flex items-center justify-between pb-3.5 border-b border-slate-700/50">
+  {/* Header Kartu: Avatar, Nama, Role, Badge */}
+  <div className={`flex items-center justify-between pb-3.5 border-b ${isDark ? "border-slate-700/60" : "border-slate-100"}`}>
     <div className="flex items-center gap-3">
-      <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center font-black text-sm text-white shadow-md shadow-sky-500/25">
+      {/* Avatar Inisial */}
+      <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-black text-sm text-white shadow-sm ${
+        isDark 
+          ? "bg-gradient-to-br from-sky-500 to-indigo-600 shadow-sky-500/25" 
+          : "bg-gradient-to-br from-sky-600 to-blue-700 shadow-sky-600/20"
+      }`}>
         {st.name.split(" ").map((n: string) => n[0]).slice(0, 2).join("")}
       </div>
       <div>
-        <h4 className="text-sm font-black text-white tracking-tight">{st.name}</h4>
-        <span className="text-[11px] font-semibold text-slate-400 block">{st.role || "Sales Specialist"}</span>
+        {/* Nama Staf Kontras Tinggi */}
+        <h4 className={`text-sm font-black tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}>
+          {st.name}
+        </h4>
+        {/* Role Staf Jelas */}
+        <span className={`text-[11px] font-bold block ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+          {st.role || "Senior Sales Specialist"}
+        </span>
       </div>
     </div>
 
@@ -2918,32 +2928,44 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
     <span
       className={`px-3 py-1 rounded-full text-[11px] font-black border shadow-sm ${
         st.achvPct >= 100
-          ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/40"
+          ? isDark 
+            ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/40" 
+            : "bg-emerald-50 text-emerald-700 border-emerald-300"
           : st.achvPct >= 70
-          ? "bg-amber-500/20 text-amber-300 border-amber-400/40"
-          : "bg-rose-500/20 text-rose-300 border-rose-400/40"
+          ? isDark 
+            ? "bg-amber-500/20 text-amber-300 border-amber-400/40" 
+            : "bg-amber-50 text-amber-700 border-amber-300"
+          : isDark 
+            ? "bg-rose-500/20 text-rose-300 border-rose-400/40" 
+            : "bg-rose-50 text-rose-700 border-rose-200"
       }`}
     >
       {st.achvPct >= 100 ? "Productive 🔥" : st.achvPct >= 70 ? "On Track ⚡" : "Need Focus ⚠️"}
     </span>
   </div>
 
-  {/* Ringkasan Angka Penjualan & Persentase */}
+  {/* Ringkasan Angka Penjualan & Target */}
   <div className="py-4 flex justify-between items-end">
     <div>
-      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Total Penjualan</span>
-      <div className="text-xl sm:text-2xl font-black font-mono text-white mt-0.5 tracking-tight">
+      <span className={`text-[10px] font-black uppercase tracking-wider block ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+        Total Penjualan
+      </span>
+      <div className={`text-xl sm:text-2xl font-black font-mono mt-0.5 tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}>
         {formatIDR(st.totalAmount)}
       </div>
-      <span className="text-[10px] font-bold text-slate-400 block mt-1">
-        Target: <span className="font-mono">{formatIDR(st.targetAmount)}</span>
+      <span className={`text-[10px] font-semibold block mt-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+        Target: <span className={`font-mono font-bold ${isDark ? "text-slate-300" : "text-slate-700"}`}>{formatIDR(st.targetAmount)}</span>
       </span>
     </div>
 
     <div className="text-right">
       <span
         className={`text-2xl sm:text-3xl font-black font-mono tracking-tight ${
-          st.achvPct >= 100 ? "text-emerald-400" : st.achvPct >= 70 ? "text-amber-400" : "text-rose-400"
+          st.achvPct >= 100 
+            ? isDark ? "text-emerald-400" : "text-emerald-600"
+            : st.achvPct >= 70 
+            ? isDark ? "text-amber-400" : "text-amber-600"
+            : isDark ? "text-rose-400" : "text-rose-600"
         }`}
       >
         {st.achvPct.toFixed(1)}%
@@ -2952,71 +2974,85 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
   </div>
 
   {/* Progress Bar Pencapaian */}
-  <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden mb-4 border border-slate-700/50">
+  <div className={`w-full h-2 rounded-full overflow-hidden mb-4 border ${isDark ? "bg-slate-800 border-slate-700/50" : "bg-slate-100 border-slate-200"}`}>
     <div
       className={`h-full rounded-full transition-all duration-500 ${
         st.achvPct >= 100
-          ? "bg-gradient-to-r from-emerald-500 to-teal-400"
+          ? "bg-emerald-500"
           : st.achvPct >= 70
-          ? "bg-gradient-to-r from-amber-500 to-yellow-400"
-          : "bg-gradient-to-r from-rose-500 to-pink-500"
+          ? "bg-amber-500"
+          : "bg-rose-500"
       }`}
       style={{ width: `${Math.min(st.achvPct, 100)}%` }}
     />
   </div>
 
-  {/* 3 Metrik Utama: UPT, ATV, TRX */}
-  <div className="grid grid-cols-3 gap-2 py-3 border-y border-slate-700/50 bg-black/20 rounded-2xl px-2">
+  {/* 3 Box Metrik: UPT, ATV, TRX */}
+  <div className={`grid grid-cols-3 gap-2 py-2.5 px-2 rounded-2xl border ${
+    isDark ? "bg-black/25 border-slate-700/60" : "bg-slate-50/80 border-slate-200/80"
+  }`}>
     <div className="text-center">
-      <span className="text-[9px] font-black uppercase text-slate-400 block tracking-wider">UPT</span>
-      <strong className="text-xs sm:text-sm font-black text-sky-400 font-mono block mt-0.5">{st.upt || "0.0"}</strong>
+      <span className={`text-[9px] font-black uppercase block tracking-wider ${isDark ? "text-slate-400" : "text-slate-500"}`}>UPT</span>
+      <strong className={`text-xs sm:text-sm font-black font-mono block mt-0.5 ${isDark ? "text-sky-400" : "text-sky-700"}`}>
+        {st.upt || "0.0"}
+      </strong>
     </div>
-    <div className="text-center border-x border-slate-700/60">
-      <span className="text-[9px] font-black uppercase text-slate-400 block tracking-wider">ATV</span>
-      <strong className="text-xs sm:text-sm font-black text-indigo-300 font-mono block mt-0.5">
+    <div className={`text-center border-x ${isDark ? "border-slate-700/60" : "border-slate-200"}`}>
+      <span className={`text-[9px] font-black uppercase block tracking-wider ${isDark ? "text-slate-400" : "text-slate-500"}`}>ATV</span>
+      <strong className={`text-xs sm:text-sm font-black font-mono block mt-0.5 ${isDark ? "text-indigo-300" : "text-indigo-700"}`}>
         {formatCompactIDR ? formatCompactIDR(st.atv) : formatIDR(st.atv)}
       </strong>
     </div>
     <div className="text-center">
-      <span className="text-[9px] font-black uppercase text-slate-400 block tracking-wider">TRX</span>
-      <strong className="text-xs sm:text-sm font-black text-white font-mono block mt-0.5">{st.trxCount || 0}</strong>
+      <span className={`text-[9px] font-black uppercase block tracking-wider ${isDark ? "text-slate-400" : "text-slate-500"}`}>TRX</span>
+      <strong className={`text-xs sm:text-sm font-black font-mono block mt-0.5 ${isDark ? "text-white" : "text-slate-900"}`}>
+        {st.trxCount || 0}
+      </strong>
     </div>
   </div>
 
-  {/* Breakdown Kategori Produk */}
+  {/* Breakdown Kategori LOB dengan Dot Warna Kontras */}
   <div className="pt-3.5 space-y-1.5 text-xs font-semibold">
     <div className="flex justify-between items-center py-0.5">
-      <span className="text-slate-400 flex items-center gap-1.5 text-[11px]">
-        <span className="w-1.5 h-1.5 rounded-full bg-sky-400"></span> Apple:
+      <span className={`flex items-center gap-1.5 text-[11px] ${isDark ? "text-slate-400" : "text-slate-600 font-bold"}`}>
+        <span className="w-2 h-2 rounded-full bg-sky-500"></span> Apple:
       </span>
-      <span className="font-mono font-bold text-slate-200">{formatIDR(st.appleAmount || 0)}</span>
+      <span className={`font-mono font-bold ${isDark ? "text-slate-200" : "text-slate-800"}`}>
+        {formatIDR(st.appleAmount || 0)}
+      </span>
     </div>
     <div className="flex justify-between items-center py-0.5">
-      <span className="text-slate-400 flex items-center gap-1.5 text-[11px]">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Android:
+      <span className={`flex items-center gap-1.5 text-[11px] ${isDark ? "text-slate-400" : "text-slate-600 font-bold"}`}>
+        <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Android:
       </span>
-      <span className="font-mono font-bold text-slate-200">{formatIDR(st.androidAmount || 0)}</span>
+      <span className={`font-mono font-bold ${isDark ? "text-slate-200" : "text-slate-800"}`}>
+        {formatIDR(st.androidAmount || 0)}
+      </span>
     </div>
     <div className="flex justify-between items-center py-0.5">
-      <span className="text-slate-400 flex items-center gap-1.5 text-[11px]">
-        <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Aksesoris:
+      <span className={`flex items-center gap-1.5 text-[11px] ${isDark ? "text-slate-400" : "text-slate-600 font-bold"}`}>
+        <span className="w-2 h-2 rounded-full bg-amber-500"></span> Aksesoris:
       </span>
-      <span className="font-mono font-bold text-slate-200">{formatIDR(st.accAmount || 0)}</span>
+      <span className={`font-mono font-bold ${isDark ? "text-slate-200" : "text-slate-800"}`}>
+        {formatIDR(st.accAmount || 0)}
+      </span>
     </div>
     <div className="flex justify-between items-center py-0.5">
-      <span className="text-slate-400 flex items-center gap-1.5 text-[11px]">
-        <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span> VAS / Warranty:
+      <span className={`flex items-center gap-1.5 text-[11px] ${isDark ? "text-slate-400" : "text-slate-600 font-bold"}`}>
+        <span className="w-2 h-2 rounded-full bg-purple-500"></span> VAS / Warranty:
       </span>
-      <span className="font-mono font-bold text-slate-200">{formatIDR(st.vasAmount || 0)}</span>
+      <span className={`font-mono font-bold ${isDark ? "text-slate-200" : "text-slate-800"}`}>
+        {formatIDR(st.vasAmount || 0)}
+      </span>
     </div>
   </div>
 
   {/* Footer: Poin Reward */}
-  <div className="mt-4 pt-3 border-t border-slate-700/50 flex justify-between items-center text-xs">
-    <span className="text-amber-400 font-black flex items-center gap-1 text-[11px]">
+  <div className={`mt-4 pt-3 border-t flex justify-between items-center text-xs ${isDark ? "border-slate-700/60" : "border-slate-100"}`}>
+    <span className={`font-black flex items-center gap-1 text-[11px] ${isDark ? "text-amber-400" : "text-amber-700"}`}>
       <span>⭐</span> Poin Reward
     </span>
-    <span className="font-mono font-black text-amber-300 text-sm">
+    <span className={`font-mono font-black text-sm ${isDark ? "text-amber-300" : "text-amber-700"}`}>
       {(st.points || 0).toFixed(1)} pts
     </span>
   </div>
