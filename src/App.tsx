@@ -2226,7 +2226,6 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
       <span>🔄</span>
     </button>
     </div>
-  </div>
 </header>
 
         <main className="p-3 sm:p-6 lg:p-8 w-full max-w-[1700px] mx-auto flex-1 overflow-x-hidden">
