@@ -2183,51 +2183,45 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
         </div>
       </div>
 
-      {/* 3. AREA KONTEN UTAMA */}
-      <div className="flex-1 flex flex-col min-w-0 w-full max-w-full overflow-x-hidden pb-24 lg:pb-8">
+     {/* Top Header Mobile */}
+        <header className={`lg:hidden flex items-center justify-between px-4 py-3 border-b backdrop-blur-xl sticky top-0 z-20 print:hidden ${glassSidebar}`}>
+          {/* Sisi Kiri: Tombol Menu & Profil Toko (Satu Kali Saja) */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setMobileDrawerOpen(true)}
+              className="px-3 py-1.5 rounded-xl bg-sky-500/10 text-sky-400 dark:text-sky-400 border border-sky-400/20 text-xs font-black flex items-center gap-1.5 active:scale-95 transition"
+              aria-label="Buka Menu"
+            >
+              <span>☰</span>
+              <span>Menu</span>
+            </button>
+
+            <div className="flex items-center gap-2 pl-2 border-l border-slate-700/40">
+              <div className="w-8 h-8 rounded-xl bg-sky-500 flex items-center justify-center font-black text-xs text-white shadow-sm">
+                QF01
+              </div>
+              <div>
+                <h2 className="text-xs font-black leading-none text-slate-900 dark:text-white">DIGIPLUS GI</h2>
+                <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold block mt-0.5">
+                  {currentSalesName || "Store Leader Admin"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Sisi Kanan: Tombol Sync / Refresh */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleRefresh}
+              className="p-2 rounded-xl bg-slate-800 text-slate-300 border border-slate-700 active:scale-95 transition text-xs flex items-center gap-1 font-bold"
+              title="Sync Live Data"
+            >
+              <span>🔄</span>
+            </button>
+          </div>
+        </header>
         
-        {/* Top Header Mobile */}
-        <div className={`lg:hidden flex items-center justify-between px-4 py-3 border-b backdrop-blur-xl sticky top-0 z-20 print:hidden ${glassSidebar}`}>
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-sky-500 text-white font-black text-xs flex items-center justify-center">
-              QF01
-            </div>
-            <div>
-              <h2 className="text-xs font-black leading-none text-slate-950 dark:text-white">DIGIPLUS GI</h2>
-              <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold">{currentSalesName}</span>
-            </div>
-          </div>
-          <button
-            onClick={() => setMobileDrawerOpen(true)}
-            className="px-3 py-1.5 rounded-xl bg-sky-500/10 text-sky-400 dark:text-sky-400 border border-sky-400/20 text-xs font-black flex items-center gap-1.5"
-          >
-            <span>☰</span>
-            <span>Menu</span>
-          </button>
-        </div>
-
-        {/* Profil & Logo Toko di samping tombol menu */}
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-sky-500 flex items-center justify-center font-black text-xs text-white">
-            QF01
-          </div>
-          <div>
-            <h1 className="text-xs font-black tracking-tight text-white">DIGIPLUS GI</h1>
-            <p className="text-[10px] text-slate-400 font-semibold">Store Leader Admin</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Sisi kanan cukup tombol Sync / Refresh saja */}
-      <div className="flex items-center gap-2">
-        <button
-          onClick={handleRefresh}
-          className="p-2 rounded-xl bg-slate-800 text-slate-300 border border-slate-700 active:scale-95 transition text-xs flex items-center gap-1 font-bold"
-        >
-          <span>🔄</span>
-        </button>
-      </div>
-    </header>
+            </header>
         <main className="p-3 sm:p-6 lg:p-8 w-full max-w-[1700px] mx-auto flex-1 overflow-x-hidden">
           <header className="mb-6 border-b border-inherit pb-5 print:hidden">
             <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
