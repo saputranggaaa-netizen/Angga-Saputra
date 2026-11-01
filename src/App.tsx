@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+
 const LOG_API_URL = "https://script.google.com/macros/s/AKfycbymMye32fTgxNg4rKtLn5iqVWq4xenaZSJ2bxGW4yfZdMYoYKRbXYYCKrx1n_Uul_JNdw/exec";
 
 // Modal Upload Bukti ke RAW SalesPerson (Kolom M-O)
@@ -1204,7 +1205,7 @@ export default function DigiplusOperationalEngine() {
     });
   }, [activeTransactions, staffTargets, storeTotalTarget]);
 
-  // Kalkulasi Dinamis Time Gone Berdasarkan Tanggal yang Dipilih
+  // Kalkulasi Dinamis Time Gone
   const timeGoneStats = useMemo(() => {
     const targetDateStr = selectedDate || new Date().toISOString().split("T")[0];
     const [yearStr, monthStr, dayStr] = targetDateStr.split("-");
@@ -1230,7 +1231,7 @@ export default function DigiplusOperationalEngine() {
     };
   }, [selectedDate]);
 
-  // Daily Trend 31 Hari Flat vs Actual
+  // Daily Trend Flat Target vs Actual
   const dailyTrendStats = useMemo(() => {
     const daysInMonth = timeGoneStats.totalDays || 31;
     const idealDaily = Math.round((storeTotalTarget || 8728667173) / daysInMonth);
@@ -1950,7 +1951,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
         </div>
       </aside>
 
-      {/* 2. DRAWER MOBILE */}
+      {/* 2. DRAWER MOBILE (SIDEBAR SLIDE-IN) */}
       {mobileDrawerOpen && (
         <div
           onClick={() => setMobileDrawerOpen(false)}
@@ -2026,6 +2027,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
         </div>
       </div>
 
+      {/* 3. KONTEN UTAMA */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Header Mobile */}
         <header className={`lg:hidden flex items-center justify-between px-4 py-3 border-b backdrop-blur-xl sticky top-0 z-20 print:hidden ${glassSidebar}`}>
@@ -2063,7 +2065,8 @@ _Diperbarui via Digiplus Store Operations Engine._`;
           </div>
         </header>
         
-        <main className="p-3 sm:p-6 lg:p-8 w-full max-w-[1700px] mx-auto flex-1 overflow-x-hidden">
+        {/* Kontainer Halaman: Padding bottom diatur pb-6 agar tidak ada ruang kosong berlebih */}
+        <main className="p-3 sm:p-6 lg:p-8 w-full max-w-[1700px] mx-auto flex-1 overflow-x-hidden pb-6">
           <header className="mb-6 border-b border-inherit pb-5 print:hidden">
             <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
               <div>
