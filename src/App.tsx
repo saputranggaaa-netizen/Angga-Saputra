@@ -1218,22 +1218,23 @@ export default function DigiplusOperationalEngine() {
       };
     });
   }, [activeTransactions, staffTargets, storeTotalTarget]);
+  const timeGoneStats = useMemo(() => {
+    const targetDateStr = selectedDate || new Date().toISOString().split("T")[0];
+    const [yearStr, monthStr, dayStr] = targetDateStr.split("-");
+    const year = parseInt(yearStr, 10);
+    const monthIndex = parseInt(monthStr, 10) - 1;
+    const day = parseInt(dayStr, 10);
 
-  // Pastikan bulan dan tanggal diambil dinamis dari filter yang aktif atau tanggal hari ini
-const selectedDateObj = new Date(selectedDate); // format YYYY-MM-DD
-const currentYear = selectedDateObj.getFullYear();
-const currentMonth = selectedDateObj.getMonth(); // 0 = Jan, 10 = Nov
+    const totalDays = new Date(year, monthIndex + 1, 0).getDate();
+    const elapsedDays = Math.min(Math.max(day, 1), totalDays);
+    const remainingDays = Math.max(0, totalDays - elapsedDays);
+    const timeElapsedPct = Number(((elapsedDays / totalDays) * 100).toFixed(1));
 
-// Jumlah hari total dalam bulan terpilih (misal Nov = 30 hari, Okt = 31 hari)
-const totalDaysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const monthName = new Date(year, monthIndex, 1)
+      .toLocaleDateString("id-ID", { month: "long", year: "numeric" })
+      .toUpperCase();
 
-// Hari berjalan diambil dari tanggal yang sedang difilter (misal tanggal 1 = 1 hari)
-const elapsedDays = Math.min(selectedDateObj.getDate(), totalDaysInMonth);
-
-// Hitung persentase dinamis
-const timeElapsedPct = Number(((elapsedDays / totalDaysInMonth) * 100).toFixed(1));
-const remainingDays = totalDaysInMonth - elapsedDays;
-  return {
+    return {
       monthName,
       elapsedDays,
       totalDays,
@@ -1241,8 +1242,9 @@ const remainingDays = totalDaysInMonth - elapsedDays;
       timeElapsedPct,
     };
   }, [selectedDate, transactions]);
-  
 
+  
+  
   const dailyTargetCalculated = useMemo(() => {
     const totalMonthTarget = storeTotalTarget || 8728667173;
     const totalDays = 31;
