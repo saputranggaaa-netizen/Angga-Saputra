@@ -1234,10 +1234,12 @@ const elapsedDays = Math.min(selectedDateObj.getDate(), totalDaysInMonth);
 const timeElapsedPct = Number(((elapsedDays / totalDaysInMonth) * 100).toFixed(1));
 const remainingDays = totalDaysInMonth - elapsedDays;
     return {
-      activeDay,
-      totalDaysInMonth,
-      timeGonePercent,
-      daysRemaining,
+      monthName,
+      elapsedDays,
+      totalDays,
+      remainingDays,
+      timeElapsedPct,
+      // ...variabel return lainnya jika ada
     };
   }, [selectedDate, transactions]);
 
