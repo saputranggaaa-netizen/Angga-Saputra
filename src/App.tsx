@@ -151,24 +151,6 @@ interface BnplRecord {
   month: string;
 }
 
-interface ActivityLog {
-  id: string;
-  salesId: string;
-  salesName: string;
-  timestamp: string;
-  deviceType: string;
-  browser: string;
-  location: string;
-  coords: string;
-}
-
-interface SubCategoryMetric {
-  name: string;
-  icon: string;
-  qty: number;
-  actual: number;
-}
-
 interface StaffPerformanceData {
   rank: number;
   salesId: string;
@@ -202,10 +184,10 @@ interface StaffPerformanceData {
   status: "Tercapai" | "Perlu Perhatian Khusus" | "Dalam Pantauan";
   ringkasan: string;
   rekomendasi: string;
-  appleSub: SubCategoryMetric[];
-  androidSub: SubCategoryMetric[];
-  accessoriesSub: SubCategoryMetric[];
-  vasSub: SubCategoryMetric[];
+  appleSub: { name: string; icon: string; qty: number; actual: number }[];
+  androidSub: { name: string; icon: string; qty: number; actual: number }[];
+  accessoriesSub: { name: string; icon: string; qty: number; actual: number }[];
+  vasSub: { name: string; icon: string; qty: number; actual: number }[];
   weekSales: Record<string, number>;
   rawItems: RawTransaction[];
 }
@@ -1794,6 +1776,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
     ? "bg-[#070D1E]/90 border-slate-800" 
     : "bg-white/90 border-slate-200";
 
+  // 12 Warna Ikon Spesifik Sesuai Permintaan
   const mainNavItems = [
     { id: "store-overview", label: "Overview Store", icon: "📊", color: "bg-emerald-500", shadow: "shadow-emerald-500/30" },
     { id: "weekly-sales", label: "Weekly Sales (WoW)", icon: "📈", color: "bg-blue-600", shadow: "shadow-blue-600/30" },
@@ -1807,6 +1790,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
     { id: "product-search", label: "Cari Produk Terjual", icon: "🔍", color: "bg-pink-500", shadow: "shadow-pink-500/30" },
     { id: "sales-detail", label: "Rincian Transaksi Log", icon: "📋", color: "bg-slate-600", shadow: "shadow-slate-600/30" },
   ];
+
   if (!isLoggedIn) {
     return (
       <div className={`min-h-screen ${bgMain} flex items-center justify-center p-4 ${textMain} font-sans overflow-x-hidden w-full max-w-full`}>
@@ -1868,8 +1852,31 @@ _Diperbarui via Digiplus Store Operations Engine._`;
   return (
     <div className={`min-h-screen flex ${bgMain} ${isDark ? "text-slate-100" : "text-slate-900"} font-sans antialiased overflow-x-hidden w-full max-w-full relative`}>
       
-      {/* 1. SIDEBAR DESKTOP */}
-      <nav className="mt-5 space-y-1.5 overflow-y-auto flex-1 pr-1 custom-scrollbar">
+      {/* 1. SIDEBAR DESKTOP ASLI (HANYA MUNCUL DI LAYAR BESAR) */}
+      <aside
+        className={`hidden lg:flex flex-col justify-between w-64 xl:w-72 h-screen sticky top-0 shrink-0 border-r backdrop-blur-2xl z-30 transition-all ${glassSidebar}`}
+      >
+        <div className="p-5 flex flex-col h-full overflow-hidden">
+          <div className="flex items-center gap-3 pb-5 border-b border-inherit">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-sky-600 to-sky-400 text-white font-black text-base flex items-center justify-center shadow-lg shadow-sky-500/20">
+              QF01
+            </div>
+            <div>
+              <h1 className="font-black text-sm tracking-wider leading-none text-slate-950 dark:text-white">DIGIPLUS</h1>
+              <p className="text-[11px] text-sky-600 dark:text-sky-400 font-black mt-1">GRAND INDONESIA</p>
+            </div>
+          </div>
+
+          <div className={`mt-4 p-3 rounded-2xl border ${innerBg} flex items-center justify-between shadow-sm`}>
+            <div className="overflow-hidden">
+              <span className="text-[10px] text-slate-600 dark:text-slate-400 block font-bold uppercase tracking-wider truncate">Masuk sebagai</span>
+              <span className="text-xs font-black block truncate text-slate-950 dark:text-white">{currentSalesName}</span>
+              <span className="text-[10px] font-mono font-bold text-sky-600 dark:text-sky-400">ID: {currentSalesId}</span>
+            </div>
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20 shrink-0 ml-2"></span>
+          </div>
+
+          <nav className="mt-5 space-y-1.5 overflow-y-auto flex-1 pr-1 custom-scrollbar">
             {mainNavItems.map((item) => {
               const active = activeTab === item.id;
               return (
@@ -1892,7 +1899,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               );
             })}
 
-            {/* Tombol Export Slide PPTX */}
             <div className="pt-2">
               <button
                 onClick={handleExportToPptx}
@@ -1904,7 +1910,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               </button>
             </div>
 
-            {/* Tombol Upload Bukti RAW dengan Icon Badge Cyan */}
             <button
               onClick={() => setUploadModalOpen(true)}
               className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 border border-transparent active:scale-[0.98]"
@@ -1915,8 +1920,56 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               <span>Upload Bukti RAW</span>
             </button>
           </nav>
-      {/* 2. DRAWER MOBILE (SIDEBAR SLIDE-IN) */}
-      <nav className="mt-4 space-y-1.5 overflow-y-auto max-h-[60vh] pr-1 custom-scrollbar">
+
+          <div className="pt-4 border-t border-inherit space-y-2 shrink-0">
+            <button
+              onClick={toggleTheme}
+              className={`w-full py-2 px-3 rounded-xl border text-xs font-black flex items-center justify-center gap-2 transition ${
+                isDark ? "bg-white/5 border-white/10 hover:bg-white/10" : "bg-slate-200/80 border-slate-300 hover:bg-slate-300/80 text-slate-950"
+              }`}
+            >
+              <span>{isDark ? "☀️ Light Mode" : "🌙 Dark Mode"}</span>
+            </button>
+            <button
+              onClick={handleLogout}
+              className="w-full py-2 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 border border-rose-500/20 text-xs font-black flex items-center justify-center gap-2 transition"
+            >
+              <span>🚪 Keluar</span>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* 2. DRAWER MOBILE (TERKUNCI: FIXED + LG:HIDDEN AGAR TIDAK BOCOR KE DESKTOP) */}
+      {mobileDrawerOpen && (
+        <div
+          onClick={() => setMobileDrawerOpen(false)}
+          className="lg:hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 transition-opacity print:hidden"
+        />
+      )}
+
+      <div
+        className={`lg:hidden fixed top-0 bottom-0 left-0 w-72 max-w-[80vw] z-50 transform transition-transform duration-300 ease-in-out border-r backdrop-blur-2xl p-5 flex flex-col justify-between print:hidden ${glassSidebar} ${
+          mobileDrawerOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div>
+          <div className="flex items-center justify-between pb-4 border-b border-inherit">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-sky-500 text-white font-black text-sm flex items-center justify-center shadow-sm">
+                QF01
+              </div>
+              <span className="font-black text-sm text-slate-950 dark:text-white">DIGIPLUS GI</span>
+            </div>
+            <button
+              onClick={() => setMobileDrawerOpen(false)}
+              className="w-8 h-8 rounded-full bg-slate-700/20 dark:bg-slate-700/30 flex items-center justify-center text-xs font-bold text-slate-950 dark:text-white"
+            >
+              ✕
+            </button>
+          </div>
+
+          <nav className="mt-4 space-y-1.5 overflow-y-auto max-h-[60vh] pr-1 custom-scrollbar">
             {mainNavItems.map((item) => {
               const active = activeTab === item.id;
               return (
@@ -1942,7 +1995,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               );
             })}
 
-            {/* Tombol Upload Bukti RAW di Drawer Mobile */}
             <button
               onClick={() => { setUploadModalOpen(true); setMobileDrawerOpen(false); }}
               className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 border border-transparent active:scale-[0.98]"
@@ -1953,6 +2005,26 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               <span>Upload Bukti RAW</span>
             </button>
           </nav>
+        </div>
+
+        <div className="pt-4 border-t border-inherit space-y-2">
+          <button
+            onClick={toggleTheme}
+            className={`w-full py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 ${
+              isDark ? "bg-white/5 border-white/10" : "bg-slate-200/80 border-slate-300 text-slate-950"
+            }`}
+          >
+            <span>{isDark ? "☀️ Mode Terang" : "🌙 Mode Gelap"}</span>
+          </button>
+          <button
+            onClick={handleLogout}
+            className="w-full py-2 px-3 rounded-xl bg-rose-500/10 text-rose-600 border border-rose-500/20 text-xs font-black flex items-center justify-center gap-2"
+          >
+            <span>🚪 Keluar</span>
+          </button>
+        </div>
+      </div>
+
       {/* 3. KONTEN UTAMA */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Header Mobile */}
@@ -1991,7 +2063,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
           </div>
         </header>
         
-        {/* Kontainer Halaman: Padding bottom diatur pb-6 agar tidak ada ruang kosong berlebih */}
+        {/* Kontainer Halaman: Padding bottom pb-6 rapi dan proporsional */}
         <main className="p-3 sm:p-6 lg:p-8 w-full max-w-[1700px] mx-auto flex-1 overflow-x-hidden pb-6">
           <header className="mb-6 border-b border-inherit pb-5 print:hidden">
             <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
