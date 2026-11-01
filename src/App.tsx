@@ -1239,10 +1239,9 @@ const remainingDays = totalDaysInMonth - elapsedDays;
       totalDays,
       remainingDays,
       timeElapsedPct,
-      // properti return lainnya
     };
   }, [selectedDate, transactions]);
-    
+  
 
   const dailyTargetCalculated = useMemo(() => {
     const totalMonthTarget = storeTotalTarget || 8728667173;
