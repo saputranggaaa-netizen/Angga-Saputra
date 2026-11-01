@@ -3014,8 +3014,7 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
       </span>
     </div>
   </div>
-
- {/* Footer: Poin Reward */}
+                   {/* Footer: Poin Reward */}
           <div className={`mt-4 pt-3 border-t flex justify-between items-center text-xs ${isDark ? "border-slate-700/60" : "border-slate-100"}`}>
             <span className={`font-black flex items-center gap-1 text-[11px] ${isDark ? "text-amber-400" : "text-amber-700"}`}>
               <span>⭐</span> Poin Reward
@@ -3027,6 +3026,7 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
         </div>
       ))}
     </div>
+
 
               {/* TAB 4: DAILY TARGET */}
               {activeTab === "daily-target" && (
