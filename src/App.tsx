@@ -1233,15 +1233,16 @@ const elapsedDays = Math.min(selectedDateObj.getDate(), totalDaysInMonth);
 // Hitung persentase dinamis
 const timeElapsedPct = Number(((elapsedDays / totalDaysInMonth) * 100).toFixed(1));
 const remainingDays = totalDaysInMonth - elapsedDays;
-    return {
+  return {
       monthName,
       elapsedDays,
       totalDays,
       remainingDays,
       timeElapsedPct,
-      // ...variabel return lainnya jika ada
+      // properti return lainnya
     };
   }, [selectedDate, transactions]);
+    
 
   const dailyTargetCalculated = useMemo(() => {
     const totalMonthTarget = storeTotalTarget || 8728667173;
