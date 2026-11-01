@@ -1219,49 +1219,20 @@ export default function DigiplusOperationalEngine() {
     });
   }, [activeTransactions, staffTargets, storeTotalTarget]);
 
-  // LOGIKA DINAMIS TIME GONE
-  const timeGoneStats = useMemo(() => {
-    let dateStr = "";
-    if (selectedDate && selectedDate !== "ALL") {
-      dateStr = selectedDate;
-    } else if (transactions && transactions.length > 0) {
-      dateStr = transactions[transactions.length - 1].isoDate || transactions[transactions.length - 1].date || "";
-    }
+  // Pastikan bulan dan tanggal diambil dinamis dari filter yang aktif atau tanggal hari ini
+const selectedDateObj = new Date(selectedDate); // format YYYY-MM-DD
+const currentYear = selectedDateObj.getFullYear();
+const currentMonth = selectedDateObj.getMonth(); // 0 = Jan, 10 = Nov
 
-    let activeDay = 1;
-    let totalDaysInMonth = 31;
+// Jumlah hari total dalam bulan terpilih (misal Nov = 30 hari, Okt = 31 hari)
+const totalDaysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
-    if (dateStr) {
-      const clean = dateStr.trim().replace(/\//g, "-");
-      const parts = clean.split("-");
-      
-      if (parts.length === 3) {
-        let y = 2026, m = 10, d = 1;
-        if (parts[0].length === 4) {
-          y = parseInt(parts[0], 10);
-          m = parseInt(parts[1], 10);
-          d = parseInt(parts[2], 10);
-        } else {
-          d = parseInt(parts[0], 10);
-          m = parseInt(parts[1], 10);
-          y = parseInt(parts[2], 10);
-        }
-        if (!isNaN(d) && d > 0) activeDay = d;
-        if (!isNaN(y) && !isNaN(m)) {
-          totalDaysInMonth = new Date(y, m, 0).getDate();
-        }
-      }
-    } else {
-      const now = new Date();
-      activeDay = now.getDate();
-      totalDaysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    }
+// Hari berjalan diambil dari tanggal yang sedang difilter (misal tanggal 1 = 1 hari)
+const elapsedDays = Math.min(selectedDateObj.getDate(), totalDaysInMonth);
 
-    const timeGonePercent = totalDaysInMonth > 0 
-      ? Number(((activeDay / totalDaysInMonth) * 100).toFixed(1)) 
-      : 0;
-    const daysRemaining = Math.max(0, totalDaysInMonth - activeDay);
-
+// Hitung persentase dinamis
+const timeElapsedPct = Number(((elapsedDays / totalDaysInMonth) * 100).toFixed(1));
+const remainingDays = totalDaysInMonth - elapsedDays;
     return {
       activeDay,
       totalDaysInMonth,
