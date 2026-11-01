@@ -2225,6 +2225,7 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
     >
       <span>🔄</span>
     </button>
+    </div>
   </div>
 </header>
 
