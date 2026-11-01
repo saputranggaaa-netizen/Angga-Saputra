@@ -1962,27 +1962,19 @@ _Diperbarui via Digiplus Store Operations Engine._`;
   const textMain = isDark ? "text-slate-100 font-bold" : "text-black font-black";
   const textMuted = isDark ? "text-slate-300 font-semibold" : "text-slate-800 font-bold";
   
-  const cardBg = isDark 
-    ? "bg-[#0E1A38]/75 backdrop-blur-xl border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.35)]" 
-    : "bg-white/95 backdrop-blur-xl border border-slate-300/90 shadow-[0_8px_30px_rgb(0,0,0,0.06)]";
+  // Warna Card dan Container
+const cardBg = isDark 
+  ? "bg-[#0B1528] border-slate-700/60 shadow-xl shadow-black/40" 
+  : "bg-white border-slate-200 shadow-lg shadow-slate-200/50";
 
-  const innerBg = isDark 
-    ? "bg-[#14234B]/60 backdrop-blur-md border border-white/10" 
-    : "bg-slate-100/95 backdrop-blur-md border border-slate-300/90";
+const innerBg = isDark 
+  ? "bg-[#111F38] border-slate-700/50" 
+  : "bg-slate-50 border-slate-200";
 
-  const accentText = isDark ? "text-sky-400 font-black" : "text-blue-700 font-black";
-  const activeTabBtn = isDark 
-    ? "bg-sky-500 text-white font-black shadow-lg shadow-sky-500/30 border border-sky-400/40" 
-    : "bg-blue-600 text-white font-black shadow-lg shadow-blue-600/25";
-
-  const glassSidebar = isDark
-    ? "bg-[#09122A]/90 border-white/10 text-slate-100"
-    : "bg-white/95 border-slate-300/90 text-slate-950";
-
-  const glassBottomBar = isDark
-    ? "bg-[#0A1128]/95 border-white/10 text-slate-100"
-    : "bg-white/95 border-slate-300 text-slate-950";
-
+// Warna Teks
+const textMain = isDark ? "text-slate-50" : "text-slate-900";
+const textMuted = isDark ? "text-slate-400" : "text-slate-500";
+  
   const mainNavItems = [
     { id: "store-overview", label: "Overview Store", icon: "📊" },
     { id: "weekly-sales", label: "Weekly Sales (WoW)", icon: "📈" },
@@ -2902,146 +2894,133 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
-                    {staffList.map((staff: any) => {
-                      const appleTotal = staff.appleSub.reduce((acc: number, c: any) => acc + (Number(c.actual) || 0), 0);
-                      const androidTotal = staff.androidSub.reduce((acc: number, c: any) => acc + (Number(c.actual) || 0), 0);
-                      const accTotal = staff.totalAccActual || 0;
-                      const vasTotal = staff.totalVasActual || 0;
+                    <div
+  key={st.name}
+  className={`p-5 rounded-3xl border-2 transition-all duration-300 hover:scale-[1.01] hover:border-sky-500/50 ${
+    isDark
+      ? "bg-gradient-to-b from-[#0F1E36] to-[#0A1324] border-slate-700/70 shadow-2xl shadow-black/50"
+      : "bg-white border-slate-200 shadow-xl shadow-slate-200/60"
+  }`}
+>
+  {/* Header Kartu: Avatar, Nama, Badge Pencapaian */}
+  <div className="flex items-center justify-between pb-3.5 border-b border-slate-700/50">
+    <div className="flex items-center gap-3">
+      <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center font-black text-sm text-white shadow-md shadow-sky-500/25">
+        {st.name.split(" ").map((n: string) => n[0]).slice(0, 2).join("")}
+      </div>
+      <div>
+        <h4 className="text-sm font-black text-white tracking-tight">{st.name}</h4>
+        <span className="text-[11px] font-semibold text-slate-400 block">{st.role || "Sales Specialist"}</span>
+      </div>
+    </div>
 
-                      const atvVal = staff.invoicesCount > 0 ? Math.round(staff.actual / staff.invoicesCount) : 0;
-                      const formatCompactATV = (num: number) => {
-                        if (num >= 1000000) {
-                          return `Rp ${(num / 1000000).toFixed(1)}...`;
-                        }
-                        return formatIDR(num);
-                      };
+    {/* Badge Pencapaian Target */}
+    <span
+      className={`px-3 py-1 rounded-full text-[11px] font-black border shadow-sm ${
+        st.achvPct >= 100
+          ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/40"
+          : st.achvPct >= 70
+          ? "bg-amber-500/20 text-amber-300 border-amber-400/40"
+          : "bg-rose-500/20 text-rose-300 border-rose-400/40"
+      }`}
+    >
+      {st.achvPct >= 100 ? "Productive 🔥" : st.achvPct >= 70 ? "On Track ⚡" : "Need Focus ⚠️"}
+    </span>
+  </div>
 
-                      const rewardPoints = Math.min(100, Math.max(0, Number(((staff.achievement * 0.6) + (staff.upt * 10)).toFixed(1))));
+  {/* Ringkasan Angka Penjualan & Persentase */}
+  <div className="py-4 flex justify-between items-end">
+    <div>
+      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Total Penjualan</span>
+      <div className="text-xl sm:text-2xl font-black font-mono text-white mt-0.5 tracking-tight">
+        {formatIDR(st.totalAmount)}
+      </div>
+      <span className="text-[10px] font-bold text-slate-400 block mt-1">
+        Target: <span className="font-mono">{formatIDR(st.targetAmount)}</span>
+      </span>
+    </div>
 
-                      const isProductive = staff.achievement >= 90;
-                      const badgeText = isProductive ? "Productive" : staff.achievement >= 60 ? "On Track" : "Need Focus";
-                      const badgeColor = isProductive
-                        ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border border-emerald-500/40"
-                        : staff.achievement >= 60
-                        ? "bg-amber-500/15 text-amber-800 dark:text-amber-400 border border-amber-500/40"
-                        : "bg-rose-500/15 text-rose-800 dark:text-rose-400 border border-rose-500/40";
+    <div className="text-right">
+      <span
+        className={`text-2xl sm:text-3xl font-black font-mono tracking-tight ${
+          st.achvPct >= 100 ? "text-emerald-400" : st.achvPct >= 70 ? "text-amber-400" : "text-rose-400"
+        }`}
+      >
+        {st.achvPct.toFixed(1)}%
+      </span>
+    </div>
+  </div>
 
-                      return (
-                        <div
-                          key={staff.salesId}
-                          onClick={() => openStaffDetailSheet(staff)}
-                          className={`${cardBg} rounded-3xl transition-all duration-300 hover:-translate-y-1 hover:border-sky-400/50 overflow-hidden relative flex flex-col justify-between cursor-pointer w-full`}
-                        >
-                          <div className="h-2 w-full bg-[#10B981] shadow-sm shadow-emerald-500/30" />
+  {/* Progress Bar Pencapaian */}
+  <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden mb-4 border border-slate-700/50">
+    <div
+      className={`h-full rounded-full transition-all duration-500 ${
+        st.achvPct >= 100
+          ? "bg-gradient-to-r from-emerald-500 to-teal-400"
+          : st.achvPct >= 70
+          ? "bg-gradient-to-r from-amber-500 to-yellow-400"
+          : "bg-gradient-to-r from-rose-500 to-pink-500"
+      }`}
+      style={{ width: `${Math.min(st.achvPct, 100)}%` }}
+    />
+  </div>
 
-                          <div className="p-5 sm:p-6 space-y-4 sm:space-y-5">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex items-center gap-3">
-                                <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full ${isDark ? "bg-sky-500/20 text-sky-300 border border-sky-400/40" : "bg-blue-100 text-blue-900 border border-blue-300"} shadow-md flex items-center justify-center font-black text-lg sm:text-xl shrink-0 overflow-hidden`}>
-                                  {staff.initials}
-                                </div>
-                                <div className="min-w-0">
-                                  <h3 className={`text-sm sm:text-base font-black leading-tight truncate ${textMain}`}>
-                                    {staff.name}
-                                  </h3>
-                                  <p className={`text-[11px] sm:text-xs font-bold mt-0.5 truncate ${textMuted}`}>
-                                    Senior Sales Specialist
-                                  </p>
-                                </div>
-                              </div>
+  {/* 3 Metrik Utama: UPT, ATV, TRX */}
+  <div className="grid grid-cols-3 gap-2 py-3 border-y border-slate-700/50 bg-black/20 rounded-2xl px-2">
+    <div className="text-center">
+      <span className="text-[9px] font-black uppercase text-slate-400 block tracking-wider">UPT</span>
+      <strong className="text-xs sm:text-sm font-black text-sky-400 font-mono block mt-0.5">{st.upt || "0.0"}</strong>
+    </div>
+    <div className="text-center border-x border-slate-700/60">
+      <span className="text-[9px] font-black uppercase text-slate-400 block tracking-wider">ATV</span>
+      <strong className="text-xs sm:text-sm font-black text-indigo-300 font-mono block mt-0.5">
+        {formatCompactIDR ? formatCompactIDR(st.atv) : formatIDR(st.atv)}
+      </strong>
+    </div>
+    <div className="text-center">
+      <span className="text-[9px] font-black uppercase text-slate-400 block tracking-wider">TRX</span>
+      <strong className="text-xs sm:text-sm font-black text-white font-mono block mt-0.5">{st.trxCount || 0}</strong>
+    </div>
+  </div>
 
-                              <span className={`px-2.5 py-1 rounded-full text-[11px] font-black tracking-wide shrink-0 ${badgeColor}`}>
-                                {badgeText}
-                              </span>
-                            </div>
+  {/* Breakdown Kategori Produk */}
+  <div className="pt-3.5 space-y-1.5 text-xs font-semibold">
+    <div className="flex justify-between items-center py-0.5">
+      <span className="text-slate-400 flex items-center gap-1.5 text-[11px]">
+        <span className="w-1.5 h-1.5 rounded-full bg-sky-400"></span> Apple:
+      </span>
+      <span className="font-mono font-bold text-slate-200">{formatIDR(st.appleAmount || 0)}</span>
+    </div>
+    <div className="flex justify-between items-center py-0.5">
+      <span className="text-slate-400 flex items-center gap-1.5 text-[11px]">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Android:
+      </span>
+      <span className="font-mono font-bold text-slate-200">{formatIDR(st.androidAmount || 0)}</span>
+    </div>
+    <div className="flex justify-between items-center py-0.5">
+      <span className="text-slate-400 flex items-center gap-1.5 text-[11px]">
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Aksesoris:
+      </span>
+      <span className="font-mono font-bold text-slate-200">{formatIDR(st.accAmount || 0)}</span>
+    </div>
+    <div className="flex justify-between items-center py-0.5">
+      <span className="text-slate-400 flex items-center gap-1.5 text-[11px]">
+        <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span> VAS / Warranty:
+      </span>
+      <span className="font-mono font-bold text-slate-200">{formatIDR(st.vasAmount || 0)}</span>
+    </div>
+  </div>
 
-                            <div className={`border-t ${isDark ? "border-white/10" : "border-slate-300/80"}`} />
-
-                            <div className="space-y-2">
-                              <div className="flex justify-between items-baseline gap-2">
-                                <span className={`text-xs font-bold shrink-0 ${textMuted}`}>Total Penjualan:</span>
-                                <span className={`text-sm sm:text-lg font-black tracking-tight truncate ${textMain}`}>
-                                  {formatIDR(staff.actual)}
-                                </span>
-                              </div>
-
-                              <div className="flex justify-between items-baseline text-xs gap-2">
-                                <span className={`font-bold truncate ${textMuted}`}>
-                                  Target: {formatIDR(staff.target)}
-                                </span>
-                                <span className="font-black text-emerald-700 dark:text-[#10B981] text-xs sm:text-sm shrink-0">
-                                  {staff.achievement}%
-                                </span>
-                              </div>
-
-                              <div className={`w-full h-2.5 rounded-full overflow-hidden ${innerBg}`}>
-                                <div
-                                  className="h-full bg-[#10B981] rounded-full transition-all duration-500 shadow-sm shadow-emerald-500/50"
-                                  style={{ width: `${Math.min(staff.achievement, 100)}%` }}
-                                />
-                              </div>
-                            </div>
-
-                            <div className={`border-t ${isDark ? "border-white/10" : "border-slate-300/80"}`} />
-
-                            <div className="grid grid-cols-3 gap-2">
-                              <div className={`${innerBg} py-2.5 px-1.5 rounded-2xl text-center border border-inherit`}>
-                                <span className={`text-[10px] font-black block uppercase tracking-wider ${textMuted}`}>UPT</span>
-                                <span className={`text-sm sm:text-base font-black mt-0.5 block ${textMain}`}>{staff.upt}</span>
-                              </div>
-
-                              <div className={`${innerBg} py-2.5 px-1.5 rounded-2xl text-center border border-inherit`}>
-                                <span className={`text-[10px] font-black block uppercase tracking-wider ${textMuted}`}>ATV</span>
-                                <span className={`text-xs sm:text-sm font-black mt-0.5 block truncate ${textMain}`}>
-                                  {formatCompactATV(atvVal)}
-                                </span>
-                              </div>
-
-                              <div className={`${innerBg} py-2.5 px-1.5 rounded-2xl text-center border border-inherit`}>
-                                <span className={`text-[10px] font-black block uppercase tracking-wider ${textMuted}`}>Trx</span>
-                                <span className={`text-sm sm:text-base font-black mt-0.5 block ${textMain}`}>{staff.invoicesCount}</span>
-                              </div>
-                            </div>
-
-                            <div className="space-y-1.5 pt-1 text-xs">
-                              <div className="flex justify-between items-center gap-2">
-                                <span className={`font-bold ${textMuted}`}>Apple:</span>
-                                <span className={`font-black text-xs sm:text-sm truncate ${textMain}`}>{formatIDR(appleTotal)}</span>
-                              </div>
-
-                              <div className="flex justify-between items-center gap-2">
-                                <span className={`font-bold ${textMuted}`}>Android:</span>
-                                <span className={`font-black text-xs sm:text-sm truncate ${textMain}`}>{formatIDR(androidTotal)}</span>
-                              </div>
-
-                              <div className="flex justify-between items-center gap-2">
-                                <span className={`font-bold ${textMuted}`}>Aksesoris:</span>
-                                <span className={`font-black text-xs sm:text-sm truncate ${textMain}`}>{formatIDR(accTotal)}</span>
-                              </div>
-
-                              <div className="flex justify-between items-center gap-2">
-                                <span className={`font-bold ${textMuted}`}>VAS / Warranty:</span>
-                                <span className={`font-black text-xs sm:text-sm truncate ${textMain}`}>{formatIDR(vasTotal)}</span>
-                              </div>
-                            </div>
-
-                            <div className={`border-t ${isDark ? "border-white/10" : "border-slate-300/80"}`} />
-
-                            <div className="flex justify-between items-center pt-1">
-                              <div className={`flex items-center gap-1.5 text-xs font-bold ${textMuted}`}>
-                                <span>🎗️</span>
-                                <span>Poin Reward</span>
-                              </div>
-                              <span className="text-xs sm:text-sm font-black text-sky-700 dark:text-sky-400">
-                                {rewardPoints} pts
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+  {/* Footer: Poin Reward */}
+  <div className="mt-4 pt-3 border-t border-slate-700/50 flex justify-between items-center text-xs">
+    <span className="text-amber-400 font-black flex items-center gap-1 text-[11px]">
+      <span>⭐</span> Poin Reward
+    </span>
+    <span className="font-mono font-black text-amber-300 text-sm">
+      {(st.points || 0).toFixed(1)} pts
+    </span>
+  </div>
+</div>
               )}
 
               {/* TAB 4: DAILY TARGET */}
