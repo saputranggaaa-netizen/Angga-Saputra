@@ -2199,35 +2199,35 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
           </div>
           <button
             onClick={() => setMobileDrawerOpen(true)}
-            className="px-3 py-1.5 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-400/20 text-xs font-black flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-xl bg-sky-500/10 text-sky-400 dark:text-sky-400 border border-sky-400/20 text-xs font-black flex items-center gap-1.5"
           >
             <span>☰</span>
             <span>Menu</span>
           </button>
         </div>
+
         {/* Profil & Logo Toko di samping tombol menu */}
-    <div className="flex items-center gap-2">
-      <div className="w-8 h-8 rounded-xl bg-sky-600 flex items-center justify-center font-black text-xs text-white">
-        QF01
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-sky-500 flex items-center justify-center font-black text-xs text-white">
+            QF01
+          </div>
+          <div>
+            <h1 className="text-xs font-black tracking-tight text-white">DIGIPLUS GI</h1>
+            <p className="text-[10px] text-slate-400 font-semibold">Store Leader Admin</p>
+          </div>
+        </div>
       </div>
-      <div>
-        <h1 className="text-xs font-black tracking-tight text-white">DIGIPLUS GI</h1>
-        <p className="text-[10px] text-slate-400 font-semibold">Store Leader Admin</p>
+
+      {/* Sisi kanan cukup tombol Sync / Refresh saja */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={handleRefresh}
+          className="p-2 rounded-xl bg-slate-800 text-slate-300 border border-slate-700 active:scale-95 transition text-xs flex items-center gap-1 font-bold"
+        >
+          <span>🔄</span>
+        </button>
       </div>
-    </div>
-  </div>
-
-  {/* Sisi kanan cukup tombol Sync / Refresh saja */}
-  <div className="flex items-center gap-2">
-    <button
-      onClick={handleRefresh}
-      className="p-2 rounded-xl bg-slate-800 text-slate-300 border border-slate-700 active:scale-95 transition text-xs flex items-center gap-1 font-bold"
-    >
-      <span>🔄</span>
-    </button>
-    </div>
-</header>
-
+    </header>
         <main className="p-3 sm:p-6 lg:p-8 w-full max-w-[1700px] mx-auto flex-1 overflow-x-hidden">
           <header className="mb-6 border-b border-inherit pb-5 print:hidden">
             <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
