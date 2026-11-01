@@ -30,11 +30,11 @@ export const UploadRawSalesModal = ({ isOpen, onClose, selectedInvoice, defaultS
         fileBase64: base64Data,
         searchKey: selectedInvoice || "", 
         colN_Value: defaultSalesName || "Staf Grand Indonesia", 
-        colO_Value: catatan || "Bukti Transaksi",                
+        colO_Value: catatan || "Bukti Transaksi",                 
       };
 
       try {
-        const scriptUrl = "https://script.google.com/macros/s/AKfycbymMye32fTgxNg4rKtLn5iqVWq4xenaZSJ2bxGW4yfZdMYoYKRbXYYCKrx1n_Uul_JNdw/exec";
+        const scriptUrl = LOG_API_URL;
 
         await fetch(scriptUrl, {
           method: "POST",
@@ -172,15 +172,26 @@ interface StaffPerformanceData {
   rank: number;
   salesId: string;
   name: string;
+  role?: string;
   initials: string;
   actual: number;
   target: number;
   achievement: number;
+  achvPct: number;
   variance: number;
   estimate: number;
   invoicesCount: number;
+  trxCount: number;
+  atv: number;
   qty: number;
   upt: number;
+  points: number;
+  totalAmount: number;
+  targetAmount: number;
+  appleAmount: number;
+  androidAmount: number;
+  accAmount: number;
+  vasAmount: number;
   totalAccActual: number;
   targetAcc: number;
   achvAcc: number;
@@ -239,6 +250,13 @@ const formatIDR = (n: number): string => {
     currency: "IDR",
     maximumFractionDigits: 0,
   }).format(isNaN(n) ? 0 : n);
+};
+
+const formatCompactIDR = (n: number): string => {
+  if (n >= 1000000000) return `Rp ${(n / 1000000000).toFixed(1)}M`;
+  if (n >= 1000000) return `Rp ${(n / 1000000).toFixed(1)}jt`;
+  if (n >= 1000) return `Rp ${(n / 1000).toFixed(0)}rb`;
+  return formatIDR(n);
 };
 
 const calcAchv = (actual: number, target: number): number => {
@@ -350,10 +368,9 @@ export default function DigiplusOperationalEngine() {
   const [momBaseMonth, setMomBaseMonth] = useState<string>("Oktober2026");
   const [momCompareMonth, setMomCompareMonth] = useState<string>("Agustus2026");
   const [selectedWeek, setSelectedWeek] = useState<string>("ALL");
-  // Filter Perbandingan Week to Week
   const [w1Filter, setW1Filter] = useState<string>("W1");
   const [w2Filter, setW2Filter] = useState<string>("W2");
-  const [selectedDate, setSelectedDate] = useState<string>("ALL");
+  const [selectedDate, setSelectedDate] = useState<string>("2026-11-01");
 
   // Bottom Sheet Drawer State
   const [bottomSheetOpen, setBottomSheetOpen] = useState<boolean>(false);
@@ -441,7 +458,6 @@ export default function DigiplusOperationalEngine() {
       const textBnpl = await resBnpl.text();
       const textTarget = await resTarget.text();
 
-      // 1. Parsing Sheet DATABASE Transaksi (gid: 602901290)
       const jsonDb = JSON.parse(
         textDb.substring(textDb.indexOf("{"), textDb.lastIndexOf("}") + 1)
       );
@@ -504,7 +520,6 @@ export default function DigiplusOperationalEngine() {
         }
       });
 
-      // 2. Parsing Sheet BNPL DATABASE (gid: 2697970)
       const jsonBnpl = JSON.parse(
         textBnpl.substring(textBnpl.indexOf("{"), textBnpl.lastIndexOf("}") + 1)
       );
@@ -527,7 +542,6 @@ export default function DigiplusOperationalEngine() {
         }
       });
 
-      // 3. Parsing Sheet Pembagian Target (gid: 685849310)
       const jsonTarget = JSON.parse(
         textTarget.substring(textTarget.indexOf("{"), textTarget.lastIndexOf("}") + 1)
       );
@@ -541,19 +555,16 @@ export default function DigiplusOperationalEngine() {
         const c = r.c;
         if (!c) return;
 
-        // Baca Kolom B (Nama Staf / Label) dan Kolom F (Amount Target)
         const labelB = String(c[1]?.v || c[1]?.f || "").trim().toLowerCase();
         const rawAmountF = c[5]?.v;
         const amountF = typeof rawAmountF === "number"
           ? rawAmountF
           : Number(String(rawAmountF || 0).replace(/[^0-9]/g, ""));
 
-        // Tangkap Total Toko (Grand Total di baris 16 kolom F)
         if (labelB.includes("grand total") && amountF > 5000000000 && parsedGrandTotal === 0) {
           parsedGrandTotal = amountF;
         }
 
-        // Tangkap Target Per Staf
         if (
           labelB &&
           !labelB.includes("staff name") &&
@@ -564,7 +575,6 @@ export default function DigiplusOperationalEngine() {
           targetMap[labelB] = amountF;
         }
 
-        // Tangkap Target Kategori
         if (labelB.includes("grand total") && amountF > 0) {
           if (amountF > 6000000000) targetApple = amountF;
           else if (amountF > 900000000 && amountF < 1000000000) targetAndroid = amountF;
@@ -636,7 +646,6 @@ export default function DigiplusOperationalEngine() {
     }
   }, []);
 
-  // Pasang atau cabut class 'dark' di root HTML agar styling Tailwind akurat
   const applyTheme = (mode: ThemeMode) => {
     setTheme(mode);
     if (typeof window !== "undefined") {
@@ -652,6 +661,10 @@ export default function DigiplusOperationalEngine() {
   const toggleTheme = () => {
     const next = theme === "dark" ? "light" : "dark";
     applyTheme(next);
+  };
+
+  const handleRefresh = () => {
+    fetchLiveGoogleSheets();
   };
 
   const handleLogin = (e: React.FormEvent) => {
@@ -750,10 +763,8 @@ export default function DigiplusOperationalEngine() {
 
   const overviewStats = useMemo(() => {
     const activeTx = activeTransactions || [];
-
     const actual = activeTx.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
     
-    // TARGET MENGIKUTI GRAND TOTAL LIVE DARI GOOGLE SHEET
     const baseTarget = storeTotalTarget || 8728667173;
     const target = periodType === "daily"
       ? Math.round(baseTarget / 31)
@@ -769,7 +780,6 @@ export default function DigiplusOperationalEngine() {
     const invoiceCount = new Set(activeTx.map((t: any) => t.invoice)).size;
     const storeUPT = calcUpt(qtyTotal, invoiceCount);
 
-    // Filter Kategori
     const appleItems = activeTx.filter((t: any) => {
       const pUpper = (t.productName || "").toUpperCase();
       const isHardware = pUpper.includes("IPHONE") || pUpper.includes("IPAD") || pUpper.includes("AIRPOD") || pUpper.includes("MACBOOK") || pUpper.includes("WATCH");
@@ -837,12 +847,10 @@ export default function DigiplusOperationalEngine() {
       return Number((((curr - prev) / prev) * 100).toFixed(1));
     };
 
-    // 1. Total Toko
     const totalM1 = trxM1.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
     const totalM2 = trxM2.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
     const storeGrowth = calcGrowth(totalM1, totalM2);
 
-    // 2. Total Sales Per Staf
     const staffNames = Array.from(new Set([...trxM1.map((t) => t.salesName), ...trxM2.map((t) => t.salesName)])).filter(Boolean);
     const staffSales = staffNames.map((name) => {
       const sM1 = trxM1.filter((t) => t.salesName === name).reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
@@ -855,7 +863,6 @@ export default function DigiplusOperationalEngine() {
       };
     }).sort((a, b) => b.m1 - a.m1);
 
-    // Helper Klasifikasi Sub-Kategori Produk
     const getSubCategory = (t: RawTransaction) => {
       const p = (t.productName || "").toUpperCase();
       const b = (t.brand || "").toUpperCase();
@@ -895,7 +902,6 @@ export default function DigiplusOperationalEngine() {
       return "Lain-lain";
     };
 
-    // Helper Agregasi Per LOB
     const buildLobData = (filterFn: (t: RawTransaction) => boolean) => {
       const itemsM1 = trxM1.filter(filterFn);
       const itemsM2 = trxM2.filter(filterFn);
@@ -960,7 +966,6 @@ export default function DigiplusOperationalEngine() {
       };
     };
 
-    // Deteksi Produk Spesifik Penyebab Penurunan (Defisit Terbesar)
     const productDeficitMap: Record<string, { name: string; brand: string; m1Amt: number; m2Amt: number; m1Qty: number; m2Qty: number }> = {};
     
     [...trxM1, ...trxM2].forEach((t: any) => {
@@ -1007,40 +1012,6 @@ export default function DigiplusOperationalEngine() {
       droppedProducts,
     };
   }, [transactions, momBaseMonth, momCompareMonth]);
-
-  const weeklyReport = useMemo(() => {
-    return AUTO_WEEKS.map((wDef, idx) => {
-      const match = transactions.filter((t) => t.weekLabel.toLowerCase().includes(wDef.label.toLowerCase()));
-      const sales = match.reduce((acc, t) => acc + t.amount, 0);
-      const qty = match.reduce((acc, t) => acc + t.qty, 0);
-      const invCount = new Set(match.map((t) => t.invoice)).size;
-      const target = Math.round(((storeTotalTarget || 8728667173) / 31) * wDef.days);
-
-      const prevMatch = idx > 0 ? transactions.filter((t) => t.weekLabel.toLowerCase().includes(AUTO_WEEKS[idx - 1].label.toLowerCase())) : [];
-      const prevSales = prevMatch.reduce((acc, t) => acc + t.amount, 0);
-      const wowGrowth = idx > 0 && prevSales > 0 ? Number((((sales - prevSales) / prevSales) * 100).toFixed(1)) : 0;
-
-      const apple = match.filter((t) => t.brand === "APPLE" && t.groupCategory === "DEVICES").reduce((acc, c) => acc + c.amount, 0);
-      const android = match.filter((t) => t.groupCategory === "DEVICES" && t.brand !== "APPLE").reduce((acc, c) => acc + c.amount, 0);
-      const acc = match.filter((t) => t.groupCategory === "ACCESSORIES").reduce((acc, c) => acc + c.amount, 0);
-      const vas = match.filter((t) => t.groupCategory === "VAS").reduce((acc, c) => acc + c.amount, 0);
-
-      return {
-        ...wDef,
-        sales,
-        qty,
-        invCount,
-        target,
-        achv: calcAchv(sales, target),
-        wowGrowth,
-        apple,
-        android,
-        acc,
-        vas,
-        matchTrx: match,
-      };
-    });
-  }, [transactions, AUTO_WEEKS, storeTotalTarget]);
 
   const staffList = useMemo(() => {
     const map: Record<string, {
@@ -1148,8 +1119,8 @@ export default function DigiplusOperationalEngine() {
     return sorted.map((s, idx) => {
       const invCount = s.invoices.size;
       const upt = calcUpt(s.qty, invCount);
+      const atv = invCount > 0 ? Math.round(s.total / invCount) : 0;
 
-      // Pencocokan target langsung dari nama staf di Google Sheet
       const nameKey = s.name.trim().toLowerCase();
       const matchedTarget = 
         staffTargets[nameKey] ||
@@ -1169,6 +1140,9 @@ export default function DigiplusOperationalEngine() {
 
       const totalAccActual = sortedAcc.reduce((acc, c) => acc + c.actual, 0);
       const totalVasActual = Object.values(s.vasMap).reduce((acc, c) => acc + c.actual, 0);
+
+      const appleAmount = Object.values(s.appleMap).reduce((acc, c) => acc + c.actual, 0);
+      const androidAmount = Object.values(s.androidMap).reduce((acc, c) => acc + c.actual, 0);
 
       const targetAcc = 80000000;
       const targetVas = 60000000;
@@ -1191,15 +1165,26 @@ export default function DigiplusOperationalEngine() {
         rank: idx + 1,
         salesId: s.salesId,
         name: s.name,
+        role: "Sales Specialist",
         initials,
         actual: s.total,
         target: targetQuota,
         achievement: achv,
+        achvPct: achv,
         variance,
         estimate: Math.round(s.total * 1.25),
         invoicesCount: invCount,
+        trxCount: invCount,
+        atv,
         qty: s.qty,
         upt,
+        points: Number((achv * 0.15).toFixed(1)),
+        totalAmount: s.total,
+        targetAmount: targetQuota,
+        appleAmount,
+        androidAmount,
+        accAmount: totalAccActual,
+        vasAmount: totalVasActual,
         totalAccActual,
         targetAcc,
         achvAcc: calcAchv(totalAccActual, targetAcc),
@@ -1218,6 +1203,8 @@ export default function DigiplusOperationalEngine() {
       };
     });
   }, [activeTransactions, staffTargets, storeTotalTarget]);
+
+  // Kalkulasi Dinamis Time Gone Berdasarkan Tanggal yang Dipilih
   const timeGoneStats = useMemo(() => {
     const targetDateStr = selectedDate || new Date().toISOString().split("T")[0];
     const [yearStr, monthStr, dayStr] = targetDateStr.split("-");
@@ -1241,15 +1228,36 @@ export default function DigiplusOperationalEngine() {
       remainingDays,
       timeElapsedPct,
     };
-  }, [selectedDate, transactions]);
+  }, [selectedDate]);
 
-  
-  
+  // Daily Trend 31 Hari Flat vs Actual
+  const dailyTrendStats = useMemo(() => {
+    const daysInMonth = timeGoneStats.totalDays || 31;
+    const idealDaily = Math.round((storeTotalTarget || 8728667173) / daysInMonth);
+    const arr = [];
+
+    const datePrefix = selectedDate ? selectedDate.substring(0, 7) : "2026-10";
+
+    for (let i = 1; i <= daysInMonth; i++) {
+      const dStr = String(i).padStart(2, "0");
+      const fullIso = `${datePrefix}-${dStr}`;
+      const dayTrx = transactions.filter((t) => t.isoDate === fullIso);
+      const dayActual = dayTrx.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+      arr.push({
+        dayLabel: `${dStr} ${timeGoneStats.monthName.split(" ")[0].slice(0, 3)}`,
+        actual: dayActual,
+        target: idealDaily,
+        gap: dayActual - idealDaily,
+      });
+    }
+    return arr;
+  }, [transactions, storeTotalTarget, selectedDate, timeGoneStats]);
+
   const dailyTargetCalculated = useMemo(() => {
     const totalMonthTarget = storeTotalTarget || 8728667173;
-    const totalDays = 31;
-    const daysPassed = 24;
-    const daysLeft = totalDays - daysPassed;
+    const totalDays = timeGoneStats.totalDays;
+    const daysPassed = timeGoneStats.elapsedDays;
+    const daysLeft = timeGoneStats.remainingDays;
 
     const actualAchievedSoFar = transactions.reduce((acc, t) => acc + t.amount, 0);
     const remainingTarget = Math.max(0, totalMonthTarget - actualAchievedSoFar);
@@ -1280,7 +1288,7 @@ export default function DigiplusOperationalEngine() {
       actualToday,
       achvToday,
     };
-  }, [transactions, scheduleData, overviewStats.todayActual, storeTotalTarget]);
+  }, [transactions, scheduleData, overviewStats.todayActual, storeTotalTarget, timeGoneStats]);
 
   const bnplSummary = useMemo(() => {
     const totalAmount = bnplRecords.reduce((acc, b) => acc + b.amount, 0);
@@ -1446,24 +1454,6 @@ Semangat closing team! Fokus capai target hari ini! 🔥💪`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   };
 
-  const handleShareWeekly = (wLabel: string, sales: number, target: number, achv: number) => {
-    const text = 
-`*WEEKLY SALES REPORT - DIGIPLUS GRAND INDONESIA*
-Periode: ${wLabel}
-
-📈 *Pencapaian Mingguan Store:*
-- Sales: ${formatIDR(sales)}
-- Target: ${formatIDR(target)}
-- Achievement: ${achv}%
-
-🏆 *Top 3 Staff Mingguan:*
-${staffList.slice(0, 3).map((s) => `• #${s.rank} ${s.name}: ${formatIDR(s.weekSales[wLabel] || 0)}`).join("\n")}
-
-_Generated via Store Performance Engine._`;
-
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
-  };
-
   const handleShareScheduleWA = () => {
     const dayNames = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
     const text = 
@@ -1501,7 +1491,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
       const slide1 = pptx.addSlide();
       slide1.background = { color: "0A1128" };
       slide1.addText("STORE SALES PERFORMANCE & STAFF OPERATIONS REPORT", { x: 0.8, y: 1.8, fontSize: 24, bold: true, color: "38BDF8" });
-      slide1.addText("Evaluasi Mingguan (WoW), Kategori Produk, & Suara Lapangan\nKode Toko: QF01 | Periode: Oktober 2026 | Cut-off: " + selectedDate, { x: 0.8, y: 3.2, fontSize: 14, color: "F8FAFC" });
+      slide1.addText("Evaluasi Mingguan (WoW), Kategori Produk, & Suara Lapangan\nKode Toko: QF01 | Periode: " + timeGoneStats.monthName + " | Cut-off: " + selectedDate, { x: 0.8, y: 3.2, fontSize: 14, color: "F8FAFC" });
 
       const slide2 = pptx.addSlide();
       slide2.addText("CORE KPI METRICS (TARGET VS PENCAPAIAN)", { x: 0.5, y: 0.5, fontSize: 20, bold: true, color: "0F172A" });
@@ -1567,147 +1557,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
     ));
   };
 
-  const openStaffDetailSheet = (staff: StaffPerformanceData) => {
-    openCustomBottomSheet(`Rincian Lengkap Salesperson: ${staff.name}`, (
-      <div className="space-y-5 text-xs font-semibold">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
-          <div className="p-3 rounded-2xl border bg-black/5 dark:bg-black/25 border-inherit shadow-sm">
-            <span className="text-slate-600 dark:text-slate-400 font-black text-[10px] uppercase block tracking-wider">Actual</span>
-            <strong className="text-emerald-700 dark:text-emerald-400 font-black text-sm block mt-0.5">{formatIDR(staff.actual)}</strong>
-          </div>
-          <div className="p-3 rounded-2xl border bg-black/5 dark:bg-black/25 border-inherit shadow-sm">
-            <span className="text-slate-600 dark:text-slate-400 font-black text-[10px] uppercase block tracking-wider">Target</span>
-            <strong className="text-slate-950 dark:text-slate-200 font-black text-sm block mt-0.5">{formatIDR(staff.target)}</strong>
-          </div>
-          <div className="p-3 rounded-2xl border bg-black/5 dark:bg-black/25 border-inherit shadow-sm">
-            <span className="text-slate-600 dark:text-slate-400 font-black text-[10px] uppercase block tracking-wider">Achv</span>
-            <strong className={`font-black text-sm block mt-0.5 ${staff.achievement >= 100 ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400"}`}>
-              {staff.achievement}%
-            </strong>
-          </div>
-          <div className="p-3 rounded-2xl border bg-black/5 dark:bg-black/25 border-inherit shadow-sm">
-            <span className="text-slate-600 dark:text-slate-400 font-black text-[10px] uppercase block tracking-wider">UPT</span>
-            <strong className="text-sky-700 dark:text-sky-400 font-black text-sm block mt-0.5">{staff.upt}</strong>
-          </div>
-        </div>
-
-        <div>
-          <h4 className="text-xs font-black text-sky-700 dark:text-sky-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <span>🍎</span>
-            <span>Rincian Apple Devices</span>
-          </h4>
-          <div className="overflow-x-auto rounded-2xl border border-inherit w-full">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-200/70 dark:bg-black/30 uppercase text-[10px] font-black border-b border-inherit text-slate-950 dark:text-slate-300">
-                <tr>
-                  <th className="py-2.5 px-3 font-black">Produk</th>
-                  <th className="py-2.5 px-3 text-center font-black">Qty</th>
-                  <th className="py-2.5 px-3 text-right font-black">Nilai Omset</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-inherit font-semibold">
-                {staff.appleSub.map((p, idx) => (
-                  <tr key={idx}>
-                    <td className="py-2.5 px-3 font-black flex items-center gap-1.5 text-slate-950 dark:text-white">
-                      <span>{p.icon}</span>
-                      <span>{p.name}</span>
-                    </td>
-                    <td className="py-2.5 px-3 text-center font-black text-amber-700 dark:text-amber-300">{p.qty}</td>
-                    <td className="py-2.5 px-3 text-right font-black text-emerald-700 dark:text-emerald-400 font-mono">{formatIDR(p.actual)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div>
-          <h4 className="text-xs font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <span>🤖</span>
-            <span>Rincian Android Devices</span>
-          </h4>
-          <div className="overflow-x-auto rounded-2xl border border-inherit w-full">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-200/70 dark:bg-black/30 uppercase text-[10px] font-black border-b border-inherit text-slate-950 dark:text-slate-300">
-                <tr>
-                  <th className="py-2.5 px-3 font-black">Brand</th>
-                  <th className="py-2.5 px-3 text-center font-black">Qty</th>
-                  <th className="py-2.5 px-3 text-right font-black">Nilai Omset</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-inherit font-semibold">
-                {staff.androidSub.map((p, idx) => (
-                  <tr key={idx}>
-                    <td className="py-2.5 px-3 font-black flex items-center gap-1.5 text-slate-950 dark:text-white">
-                      <span>{p.icon}</span>
-                      <span>{p.name}</span>
-                    </td>
-                    <td className="py-2.5 px-3 text-center font-black text-amber-700 dark:text-amber-300">{p.qty}</td>
-                    <td className="py-2.5 px-3 text-right font-black text-emerald-700 dark:text-emerald-400 font-mono">{formatIDR(p.actual)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    ));
-  };
-
-  const openWeeklyStaffSheet = (wLabel: string, weekTransactions: RawTransaction[]) => {
-    const staffMap: Record<string, { name: string; apple: number; android: number; acc: number; vas: number; total: number; qty: number }> = {};
-    weekTransactions.forEach((t) => {
-      const sName = t.salesName || "Unknown";
-      if (!staffMap[sName]) staffMap[sName] = { name: sName, apple: 0, android: 0, acc: 0, vas: 0, total: 0, qty: 0 };
-      staffMap[sName].total += t.amount;
-      staffMap[sName].qty += t.qty;
-      if (t.brand === "APPLE" && t.groupCategory === "DEVICES") staffMap[sName].apple += t.amount;
-      else if (t.groupCategory === "DEVICES") staffMap[sName].android += t.amount;
-      else if (t.groupCategory === "ACCESSORIES") staffMap[sName].acc += t.amount;
-      else if (t.groupCategory === "VAS") staffMap[sName].vas += t.amount;
-    });
-
-    const staffRows = Object.values(staffMap).sort((a, b) => b.total - a.total);
-
-    openCustomBottomSheet(`Pencapaian Staf: ${wLabel}`, (
-      <div className="space-y-4 text-xs font-semibold">
-        <div className="flex justify-between items-center p-3.5 rounded-2xl bg-black/10 dark:bg-black/25 border border-inherit shadow-inner">
-          <span className="font-bold text-slate-800 dark:text-slate-300">Total Penjualan Minggu Ini:</span>
-          <strong className="text-emerald-700 dark:text-emerald-400 font-black text-sm sm:text-base">
-            {formatIDR(weekTransactions.reduce((acc, c) => acc + c.amount, 0))}
-          </strong>
-        </div>
-        <div className="overflow-x-auto rounded-2xl border border-inherit w-full">
-          <table className="w-full text-left text-xs min-w-[600px]">
-            <thead className="bg-slate-200/70 dark:bg-black/40 uppercase text-[10px] font-black border-b border-inherit tracking-wider text-slate-950 dark:text-slate-300">
-              <tr>
-                <th className="py-3 px-3 font-black">Salesperson</th>
-                <th className="py-3 px-3 text-center font-black">Unit</th>
-                <th className="py-3 px-3 text-right font-black text-sky-700 dark:text-sky-400">Apple</th>
-                <th className="py-3 px-3 text-right font-black text-indigo-700 dark:text-indigo-400">Android</th>
-                <th className="py-3 px-3 text-right font-black text-amber-700 dark:text-amber-400">Acc</th>
-                <th className="py-3 px-3 text-right font-black text-purple-700 dark:text-purple-400">VAS</th>
-                <th className="py-3 px-3 text-right font-black">Total</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-inherit font-semibold">
-              {staffRows.map((s, idx) => (
-                <tr key={idx} className="hover:opacity-90">
-                  <td className="py-3 px-3 font-black text-slate-950 dark:text-white">{s.name}</td>
-                  <td className="py-3 px-3 text-center font-black text-amber-700 dark:text-amber-300">{s.qty}</td>
-                  <td className="py-3 px-3 text-right font-mono font-bold text-sky-700 dark:text-sky-400">{formatIDR(s.apple)}</td>
-                  <td className="py-3 px-3 text-right font-mono font-bold text-indigo-700 dark:text-indigo-400">{formatIDR(s.android)}</td>
-                  <td className="py-3 px-3 text-right font-mono font-bold text-amber-700 dark:text-amber-400">{formatIDR(s.acc)}</td>
-                  <td className="py-3 px-3 text-right font-mono font-bold text-purple-700 dark:text-purple-400">{formatIDR(s.vas)}</td>
-                  <td className="py-3 px-3 text-right font-black text-emerald-700 dark:text-emerald-400 font-mono">{formatIDR(s.total)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    ));
-  };
   const weeklyComparisonData = useMemo(() => {
     const getTrxForWeek = (wKey: string) => {
       const wObj = AUTO_WEEKS.find((w) => w.key === wKey || w.label === wKey);
@@ -1723,12 +1572,10 @@ _Diperbarui via Digiplus Store Operations Engine._`;
       return Number((((w2Val - w1Val) / w1Val) * 100).toFixed(1));
     };
 
-    // 1. Total Toko
     const totalW1 = trxW1.reduce((acc, t) => acc + t.amount, 0);
     const totalW2 = trxW2.reduce((acc, t) => acc + t.amount, 0);
     const storeGrowth = calcGrowth(totalW2, totalW1);
 
-    // 2. Total Sales Per Staf
     const staffNames = Array.from(new Set([...trxW1.map((t) => t.salesName), ...trxW2.map((t) => t.salesName)])).filter(Boolean);
     const staffSales = staffNames.map((name) => {
       const sW1 = trxW1.filter((t) => t.salesName === name).reduce((acc, t) => acc + t.amount, 0);
@@ -1741,7 +1588,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
       };
     }).sort((a, b) => b.w2 - a.w2);
 
-    // Helper Klasifikasi Kategori
     const getSubCategory = (t: RawTransaction) => {
       const p = (t.productName || "").toUpperCase();
       const b = (t.brand || "").toUpperCase();
@@ -1781,7 +1627,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
       return "Lain-lain";
     };
 
-    // Helper Agregasi Per LOB
     const buildLobData = (filterFn: (t: RawTransaction) => boolean) => {
       const itemsW1 = trxW1.filter(filterFn);
       const itemsW2 = trxW2.filter(filterFn);
@@ -1791,7 +1636,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
       const totalQtyW1 = itemsW1.reduce((acc, t) => acc + t.qty, 0);
       const totalQtyW2 = itemsW2.reduce((acc, t) => acc + t.qty, 0);
 
-      // Ekstrak Daftar Subkategori
       const subCats = Array.from(new Set([...itemsW1.map(getSubCategory), ...itemsW2.map(getSubCategory)])).filter(Boolean);
 
       const breakdown = subCats.map((subName) => {
@@ -1860,11 +1704,10 @@ _Diperbarui via Digiplus Store Operations Engine._`;
       vas: buildLobData((t) => t.groupCategory === "VAS" || t.brand === "QOALA"),
     };
   }, [transactions, w1Filter, w2Filter, AUTO_WEEKS]);
-  // Agregasi Lengkap Qoala Protection & Attachment Rate
+
   const qoalaAnalytics = useMemo(() => {
     const activeTx = activeTransactions || [];
 
-    // 1. Filter Transaksi Device & Qoala
     const deviceItems = activeTx.filter((t) => t.groupCategory === "DEVICES");
     const qoalaItems = activeTx.filter((t) => {
       const pUpper = (t.productName || "").toUpperCase();
@@ -1877,7 +1720,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
     const storeAR = totalDeviceQty > 0 ? Number(((totalQoalaQty / totalDeviceQty) * 100).toFixed(1)) : 0;
 
-    // 2. Breakdown AR Per Staf
     const staffMap: Record<string, { name: string; salesId: string; deviceQty: number; qoalaQty: number; qoalaAmount: number; trxItems: RawTransaction[] }> = {};
 
     activeTx.forEach((t) => {
@@ -1905,7 +1747,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
       return { ...s, ar };
     }).sort((a, b) => b.ar - a.ar);
 
-    // 3. Breakdown Berdasarkan Paket Polis Proteksi
     const planMap: Record<string, { planName: string; qty: number; amount: number }> = {};
     qoalaItems.forEach((t) => {
       const pName = t.productName.trim();
@@ -1934,22 +1775,24 @@ _Diperbarui via Digiplus Store Operations Engine._`;
     ? "bg-[#0A1128] bg-gradient-to-br from-[#070D1E] via-[#0A1128] to-[#0F1B3D]" 
     : "bg-[#F3F4F6] bg-gradient-to-br from-[#F8FAFC] via-[#F1F5F9] to-[#E2E8F0]";
 
-  const textMain = isDark ? "text-slate-100 font-bold" : "text-black font-black";
-  const textMuted = isDark ? "text-slate-300 font-semibold" : "text-slate-800 font-bold";
-  
-  // Warna Card dan Container
-const cardBg = isDark 
-  ? "bg-[#0B1528] border-slate-700/60 shadow-xl shadow-black/40" 
-  : "bg-white border-slate-200 shadow-lg shadow-slate-200/50";
+  const cardBg = isDark 
+    ? "bg-[#0B1528] border-slate-700/60 shadow-xl shadow-black/40" 
+    : "bg-white border-slate-200 shadow-lg shadow-slate-200/50";
 
-const innerBg = isDark 
-  ? "bg-[#111F38] border-slate-700/50" 
-  : "bg-slate-50 border-slate-200";
+  const innerBg = isDark 
+    ? "bg-[#111F38] border-slate-700/50" 
+    : "bg-slate-50 border-slate-200";
 
-// Warna Teks
-const textMain = isDark ? "text-slate-50" : "text-slate-900";
-const textMuted = isDark ? "text-slate-400" : "text-slate-500";
-  
+  const textMain = isDark ? "text-slate-50" : "text-slate-900";
+  const textMuted = isDark ? "text-slate-400" : "text-slate-500";
+  const accentText = isDark ? "text-sky-400" : "text-sky-600";
+  const activeTabBtn = isDark 
+    ? "bg-sky-500/20 text-sky-400 border border-sky-400/40 shadow-sm" 
+    : "bg-sky-50 text-sky-700 border border-sky-300 shadow-sm";
+  const glassSidebar = isDark 
+    ? "bg-[#070D1E]/90 border-slate-800" 
+    : "bg-white/90 border-slate-200";
+
   const mainNavItems = [
     { id: "store-overview", label: "Overview Store", icon: "📊" },
     { id: "weekly-sales", label: "Weekly Sales (WoW)", icon: "📈" },
@@ -2183,9 +2026,9 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
         </div>
       </div>
 
-     {/* Top Header Mobile */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Top Header Mobile */}
         <header className={`lg:hidden flex items-center justify-between px-4 py-3 border-b backdrop-blur-xl sticky top-0 z-20 print:hidden ${glassSidebar}`}>
-          {/* Sisi Kiri: Tombol Menu & Profil Toko (Satu Kali Saja) */}
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileDrawerOpen(true)}
@@ -2209,7 +2052,6 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
             </div>
           </div>
 
-          {/* Sisi Kanan: Tombol Sync / Refresh */}
           <div className="flex items-center gap-2">
             <button
               onClick={handleRefresh}
@@ -2343,9 +2185,11 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
                           ⏳
                         </div>
                         <div>
-                          <h2 className="text-base font-black tracking-wide text-slate-950 dark:text-white">TIME GONE ANALYTICS (OKTOBER 2026)</h2>
+                          <h2 className="text-base font-black tracking-wide text-slate-950 dark:text-white">
+                            TIME GONE ANALYTICS ({timeGoneStats.monthName})
+                          </h2>
                           <p className={`text-xs ${textMuted}`}>
-                            Hari Berjalan: <strong className={textMain}>24 hari</strong> dari 31 hari (7 hari tersisa)
+                            Hari Berjalan: <strong className={textMain}>{timeGoneStats.elapsedDays} hari</strong> dari {timeGoneStats.totalDays} hari ({timeGoneStats.remainingDays} hari tersisa)
                           </p>
                         </div>
                       </div>
@@ -2353,7 +2197,7 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
                       <div className="flex items-center gap-3">
                         <div className="text-right">
                           <span className="text-[10px] uppercase font-black text-slate-600 dark:text-slate-400 block">Time Elapsed</span>
-                          <span className={`text-2xl font-black ${accentText}`}>77.4%</span>
+                          <span className={`text-2xl font-black ${accentText}`}>{timeGoneStats.timeElapsedPct}%</span>
                         </div>
                         <div className="h-8 w-px bg-inherit mx-1 opacity-25"></div>
                         <div className="text-right">
@@ -2367,10 +2211,10 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
                       <div>
                         <div className="flex justify-between text-[11px] font-bold mb-1">
                           <span className={textMuted}>Waktu Berjalan (Time Gone):</span>
-                          <span className={`font-black ${accentText}`}>77.4%</span>
+                          <span className={`font-black ${accentText}`}>{timeGoneStats.timeElapsedPct}%</span>
                         </div>
                         <div className={`w-full ${innerBg} h-2.5 rounded-full overflow-hidden`}>
-                          <div className="bg-sky-500 h-full rounded-full" style={{ width: "77.4%" }}></div>
+                          <div className="bg-sky-500 h-full rounded-full transition-all duration-300" style={{ width: `${Math.min(timeGoneStats.timeElapsedPct, 100)}%` }}></div>
                         </div>
                       </div>
 
@@ -2380,7 +2224,7 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
                           <span className="font-black text-emerald-700 dark:text-emerald-500">{overviewStats.achv}% ({formatIDR(overviewStats.actual)})</span>
                         </div>
                         <div className={`w-full ${innerBg} h-2.5 rounded-full overflow-hidden`}>
-                          <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${Math.min(overviewStats.achv, 100)}%` }}></div>
+                          <div className="bg-emerald-500 h-full rounded-full transition-all duration-300" style={{ width: `${Math.min(overviewStats.achv, 100)}%` }}></div>
                         </div>
                       </div>
                     </div>
@@ -2388,11 +2232,11 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-4 border-t border-inherit text-xs">
                       <div className={`p-3 ${innerBg} rounded-xl border`}>
                         <span className="text-slate-700 dark:text-slate-300 text-[11px] font-bold">Kesenjangan Pace:</span>
-                        <div className="text-sm font-black text-rose-600 mt-0.5">-{(77.4 - overviewStats.achv).toFixed(1)}%</div>
+                        <div className="text-sm font-black text-rose-600 mt-0.5">-{(timeGoneStats.timeElapsedPct - overviewStats.achv).toFixed(1)}%</div>
                       </div>
                       <div className={`p-3 ${innerBg} rounded-xl border`}>
                         <span className="text-slate-700 dark:text-slate-300 text-[11px] font-bold">Daily Run Rate Aktual:</span>
-                        <div className="text-sm font-black text-sky-700 dark:text-sky-400 mt-0.5">{formatIDR(Math.round(overviewStats.actual / 24))} / hari</div>
+                        <div className="text-sm font-black text-sky-700 dark:text-sky-400 mt-0.5">{formatIDR(Math.round(overviewStats.actual / Math.max(timeGoneStats.elapsedDays, 1)))} / hari</div>
                       </div>
                       <div className={`p-3 ${innerBg} rounded-xl border`}>
                         <span className="text-slate-700 dark:text-slate-300 text-[11px] font-bold">Target Periode:</span>
@@ -2409,7 +2253,7 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
                     <div className="flex justify-between items-center">
                       <div>
                         <h3 className="text-sm font-black uppercase tracking-wider text-slate-950 dark:text-white">Trend Daily Sales vs Target Ideal Harian</h3>
-                        <p className={`text-xs ${textMuted} mt-0.5`}>Perbandingan omset harian terhadap target flat {formatIDR(Math.round((storeTotalTarget || 8728667173) / 31))}/hari</p>
+                        <p className={`text-xs ${textMuted} mt-0.5`}>Perbandingan omset harian terhadap target flat {formatIDR(Math.round((storeTotalTarget || 8728667173) / timeGoneStats.totalDays))}/hari</p>
                       </div>
                     </div>
                     <div className="overflow-x-auto w-full">
@@ -2507,10 +2351,9 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
                 </div>
               )}
 
-              {/* TAB 2: WEEKLY SALES - WEEK TO WEEK DRILLDOWN */}
+              {/* TAB 2: WEEKLY SALES */}
               {activeTab === "weekly-sales" && (
                 <div className="space-y-6 sm:space-y-8">
-                  {/* HEADER & FILTER SELEKSI DUA MINGGU */}
                   <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl flex flex-wrap items-center justify-between gap-4`}>
                     <div>
                       <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
@@ -2557,7 +2400,6 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
                     </div>
                   </div>
 
-                  {/* 1. KARTU TOTAL SALES STORE & PER STAF */}
                   <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-5`}>
                     <div className="flex flex-wrap justify-between items-center pb-3 border-b border-inherit gap-3">
                       <div>
@@ -2608,100 +2450,12 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
                       </div>
                     </div>
                   </div>
-
-                  {/* HELPER SECTION UNTUK MENAMPILKAN PER LOB */}
-                  {[
-                    { title: "🍎 APPLE DEVICES", data: weeklyComparisonData.apple, color: "text-sky-600 dark:text-sky-400" },
-                    { title: "📱 SAMSUNG DEVICES", data: weeklyComparisonData.samsung, color: "text-blue-600 dark:text-blue-400" },
-                    { title: "🔴 HUAWEI DEVICES", data: weeklyComparisonData.huawei, color: "text-rose-600 dark:text-rose-400" },
-                    { title: "🤖 ANDROID DEVICES LAINNYA (Xiaomi, Oppo, dll)", data: weeklyComparisonData.androidOther, color: "text-indigo-600 dark:text-indigo-400" },
-                    { title: "🔌 ACCESSORIES", data: weeklyComparisonData.accessories, color: "text-amber-600 dark:text-amber-400" },
-                    { title: "🛡️ VAS & SERVICES (Qoala, Telkomsel, XL, dll)", data: weeklyComparisonData.vas, color: "text-purple-600 dark:text-purple-400" },
-                  ].map((lob, lIdx) => (
-                    <div key={lIdx} className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-4`}>
-                      {/* HEADER LOB TOTAL */}
-                      <div className="flex flex-wrap justify-between items-center pb-3 border-b border-inherit gap-3">
-                        <div className="flex items-center gap-3">
-                          <h3 className={`text-sm sm:text-base font-black ${lob.color}`}>{lob.title}</h3>
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-black ${
-                            lob.data.growthAmt >= 0 
-                              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-400/30" 
-                              : "bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-400/30"
-                          }`}>
-                            {lob.data.growthAmt >= 0 ? `▲ +${lob.data.growthAmt}%` : `▼ ${lob.data.growthAmt}%`}
-                          </span>
-                        </div>
-                        <div className="text-right text-xs font-bold text-slate-500">
-                          <span>{w1Filter}: {lob.data.totalQtyW1} Unit ({formatIDR(lob.data.totalAmtW1)})</span>
-                          <span className="mx-2">➔</span>
-                          <span className="text-slate-950 dark:text-white font-black">{w2Filter}: {lob.data.totalQtyW2} Unit ({formatIDR(lob.data.totalAmtW2)})</span>
-                        </div>
-                      </div>
-
-                      {/* SUBKATEGORI & RINCIAN PER STAF */}
-                      <div className="space-y-4">
-                        {lob.data.breakdown.map((sub, sIdx) => (
-                          <div key={sIdx} className={`p-4 rounded-2xl border ${innerBg} space-y-3`}>
-                            {/* Judul Subkategori */}
-                            <div className="flex justify-between items-center">
-                              <span className="text-xs font-black text-slate-950 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                                <span className="w-2 h-2 rounded-full bg-sky-500"></span>
-                                {sub.subCategory}
-                              </span>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[11px] font-bold text-slate-500">
-                                  {w1Filter}: {sub.w1Qty} Unit ({formatIDR(sub.w1Amount)}) | {w2Filter}: {sub.w2Qty} Unit ({formatIDR(sub.w2Amount)})
-                                </span>
-                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                                  sub.growthAmt >= 0 ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400" : "bg-rose-500/20 text-rose-700 dark:text-rose-400"
-                                }`}>
-                                  {sub.growthAmt >= 0 ? `+${sub.growthAmt}%` : `${sub.growthAmt}%`}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Breakdown Staf */}
-                            <div className="overflow-x-auto w-full">
-                              <table className="w-full text-left text-xs min-w-[500px]">
-                                <thead className="text-[10px] uppercase font-black text-slate-500 border-b border-inherit">
-                                  <tr>
-                                    <th className="py-1.5 px-3">Nama Staff</th>
-                                    <th className="py-1.5 px-3 text-center">{w1Filter} (Qty / Amount)</th>
-                                    <th className="py-1.5 px-3 text-center">{w2Filter} (Qty / Amount)</th>
-                                    <th className="py-1.5 px-3 text-right">Growth (%)</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-inherit font-bold">
-                                  {sub.staffData.map((st, stIdx) => (
-                                    <tr key={stIdx} className="hover:opacity-90">
-                                      <td className="py-2 px-3 font-black text-slate-900 dark:text-slate-100">{st.name}</td>
-                                      <td className="py-2 px-3 text-center font-mono text-slate-600 dark:text-slate-400">
-                                        {st.w1Qty} Unit / {formatIDR(st.w1Amount)}
-                                      </td>
-                                      <td className="py-2 px-3 text-center font-mono font-black text-slate-950 dark:text-white">
-                                        {st.w2Qty} Unit / {formatIDR(st.w2Amount)}
-                                      </td>
-                                      <td className="py-2 px-3 text-right font-black">
-                                        <span className={st.growthAmt >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
-                                          {st.growthAmt >= 0 ? `▲ +${st.growthAmt}%` : `▼ ${st.growthAmt}%`}
-                                        </span>
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
                 </div>
               )}
-              {/* TAB KHUSUS: QOALA PROTECTION & ATTACHMENT RATE */}
+
+              {/* TAB KHUSUS: QOALA PROTECTION */}
               {activeTab === "qoala-ar" && (
                 <div className="space-y-6 sm:space-y-8">
-                  {/* BANNER KPI UTAMA */}
                   <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-4`}>
                     <div className="flex flex-wrap justify-between items-center gap-4">
                       <div>
@@ -2727,7 +2481,6 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
                       </div>
                     </div>
 
-                    {/* KARTU GRID KPI */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 pt-2">
                       <div className={`p-4 rounded-2xl border ${innerBg}`}>
                         <span className={`text-[10px] font-black uppercase tracking-wider ${textMuted} block`}>Store Attachment Rate</span>
@@ -2764,89 +2517,10 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
                       </div>
                     </div>
                   </div>
-
-                  {/* TABEL LEADERBOARD AR PER STAF */}
-                  <div className={`${cardBg} rounded-3xl border-2 shadow-xl overflow-hidden`}>
-                    <div className="px-5 py-4 border-b border-inherit flex justify-between items-center">
-                      <div>
-                        <h3 className="text-sm font-black text-slate-950 dark:text-white">Peringkat Attachment Rate (AR %) Sales Tim</h3>
-                        <p className={`text-xs ${textMuted} mt-0.5`}>Evaluasi efektivitas offering proteksi setiap unit device yang terjual</p>
-                      </div>
-                      <span className="text-xs text-slate-500 font-black">{qoalaAnalytics.staffLeaderboard.length} Staf Terdata</span>
-                    </div>
-
-                    <div className="overflow-x-auto w-full">
-                      <table className="w-full text-left text-xs min-w-[650px]">
-                        <thead className={`${innerBg} uppercase text-[10px] font-black border-b border-inherit tracking-wider text-slate-900 dark:text-slate-300`}>
-                          <tr>
-                            <th className="py-3 px-4">Rank</th>
-                            <th className="py-3 px-4">Nama Sales</th>
-                            <th className="py-3 px-3 text-center">Device (Unit)</th>
-                            <th className="py-3 px-3 text-center">Qoala (Polis)</th>
-                            <th className="py-3 px-4 text-right">Nilai Omset (Rp)</th>
-                            <th className="py-3 px-4 text-center">Attachment Rate (AR %)</th>
-                            <th className="py-3 px-3 text-center">Status</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-inherit font-bold">
-                          {qoalaAnalytics.staffLeaderboard.map((st, idx) => (
-                            <tr key={idx} className="hover:opacity-90 transition">
-                              <td className="py-3 px-4 font-black text-slate-500">#{idx + 1}</td>
-                              <td className="py-3 px-4 font-black text-slate-950 dark:text-white">
-                                {st.name}
-                                <span className="block text-[10px] font-normal text-slate-500">{st.salesId}</span>
-                              </td>
-                              <td className="py-3 px-3 text-center font-black text-slate-950 dark:text-white">{st.deviceQty}</td>
-                              <td className="py-3 px-3 text-center font-black text-sky-700 dark:text-sky-400">{st.qoalaQty}</td>
-                              <td className="py-3 px-4 text-right font-black font-mono text-emerald-700 dark:text-emerald-400">
-                                {formatIDR(st.qoalaAmount)}
-                              </td>
-                              <td className="py-3 px-4 text-center">
-                                <span className={`px-2.5 py-1 rounded-full text-xs font-black font-mono ${
-                                  st.ar >= 25 
-                                    ? "bg-emerald-500/20 text-emerald-800 dark:text-emerald-400" 
-                                    : st.ar >= 15 
-                                    ? "bg-amber-500/20 text-amber-800 dark:text-amber-400" 
-                                    : "bg-rose-500/20 text-rose-800 dark:text-rose-400"
-                                }`}>
-                                  {st.ar}%
-                                </span>
-                              </td>
-                              <td className="py-3 px-3 text-center">
-                                <span className={`text-[10px] font-black ${st.ar >= 25 ? "text-emerald-700" : st.ar >= 15 ? "text-amber-700" : "text-rose-600"}`}>
-                                  {st.ar >= 25 ? "Excellent" : st.ar >= 15 ? "Average" : "Under"}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  {/* RINCIAN PRODUK POLIS QOALA YANG TERJUAL */}
-                  <div className={`${cardBg} rounded-3xl border-2 shadow-xl p-5 sm:p-6 space-y-4`}>
-                    <h3 className="text-sm font-black text-slate-950 dark:text-white">Distribusi Polis Proteksi yang Terjual</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {qoalaAnalytics.planBreakdown.map((plan, idx) => (
-                        <div key={idx} className={`p-4 rounded-2xl border ${innerBg} flex justify-between items-center shadow-sm`}>
-                          <div>
-                            <span className="text-xs font-black text-slate-950 dark:text-white block">{plan.planName}</span>
-                            <span className="text-[11px] font-mono text-emerald-700 dark:text-emerald-400 font-bold block mt-0.5">
-                              {formatIDR(plan.amount)}
-                            </span>
-                          </div>
-                          <span className="px-2.5 py-1 rounded-xl bg-sky-500/15 text-sky-800 dark:text-sky-400 font-black text-xs font-mono">
-                            {plan.qty} Polis
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
                 </div>
               )}
               
-              {/* TAB 3: STAFF PERFORMANCE DETAIL */}
+              {/* TAB 3: STAFF PERFORMANCE LEADERBOARD */}
               {activeTab === "staff-performance" && (
                 <div className="space-y-6">
                   <div className="flex flex-wrap items-center justify-between gap-4">
@@ -2861,172 +2535,172 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
                     </div>
                   </div>
 
-                 <div
-  key={st.name}
-  className={`p-5 rounded-3xl border transition-all duration-200 hover:shadow-xl ${
-    isDark
-      ? "bg-gradient-to-b from-[#0F1E36] to-[#0A1324] border-slate-700/70 shadow-2xl shadow-black/50"
-      : "bg-white border-slate-200 shadow-md shadow-slate-200/80 hover:border-sky-300"
-  }`}
->
-  {/* Header Kartu: Avatar, Nama, Role, Badge */}
-  <div className={`flex items-center justify-between pb-3.5 border-b ${isDark ? "border-slate-700/60" : "border-slate-100"}`}>
-    <div className="flex items-center gap-3">
-      {/* Avatar Inisial */}
-      <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-black text-sm text-white shadow-sm ${
-        isDark 
-          ? "bg-gradient-to-br from-sky-500 to-indigo-600 shadow-sky-500/25" 
-          : "bg-gradient-to-br from-sky-600 to-blue-700 shadow-sky-600/20"
-      }`}>
-        {st.name.split(" ").map((n: string) => n[0]).slice(0, 2).join("")}
-      </div>
-      <div>
-        {/* Nama Staf Kontras Tinggi */}
-        <h4 className={`text-sm font-black tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}>
-          {st.name}
-        </h4>
-        {/* Role Staf Jelas */}
-        <span className={`text-[11px] font-bold block ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-          {st.role || "Senior Sales Specialist"}
-        </span>
-      </div>
-    </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {staffList.map((st) => (
+                      <div
+                        key={st.name}
+                        className={`p-5 rounded-3xl border transition-all duration-200 hover:shadow-xl ${
+                          isDark
+                            ? "bg-gradient-to-b from-[#0F1E36] to-[#0A1324] border-slate-700/70 shadow-2xl shadow-black/50"
+                            : "bg-white border-slate-200 shadow-md shadow-slate-200/80 hover:border-sky-300"
+                        }`}
+                      >
+                        {/* Header Kartu: Avatar, Nama, Role, Badge */}
+                        <div className={`flex items-center justify-between pb-3.5 border-b ${isDark ? "border-slate-700/60" : "border-slate-100"}`}>
+                          <div className="flex items-center gap-3">
+                            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-black text-sm text-white shadow-sm ${
+                              isDark 
+                                ? "bg-gradient-to-br from-sky-500 to-indigo-600 shadow-sky-500/25" 
+                                : "bg-gradient-to-br from-sky-600 to-blue-700 shadow-sky-600/20"
+                            }`}>
+                              {st.initials}
+                            </div>
+                            <div>
+                              <h4 className={`text-sm font-black tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}>
+                                {st.name}
+                              </h4>
+                              <span className={`text-[11px] font-bold block ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+                                {st.role || "Senior Sales Specialist"}
+                              </span>
+                            </div>
+                          </div>
 
-    {/* Badge Pencapaian Target */}
-    <span
-      className={`px-3 py-1 rounded-full text-[11px] font-black border shadow-sm ${
-        st.achvPct >= 100
-          ? isDark 
-            ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/40" 
-            : "bg-emerald-50 text-emerald-700 border-emerald-300"
-          : st.achvPct >= 70
-          ? isDark 
-            ? "bg-amber-500/20 text-amber-300 border-amber-400/40" 
-            : "bg-amber-50 text-amber-700 border-amber-300"
-          : isDark 
-            ? "bg-rose-500/20 text-rose-300 border-rose-400/40" 
-            : "bg-rose-50 text-rose-700 border-rose-200"
-      }`}
-    >
-      {st.achvPct >= 100 ? "Productive 🔥" : st.achvPct >= 70 ? "On Track ⚡" : "Need Focus ⚠️"}
-    </span>
-  </div>
+                          <span
+                            className={`px-3 py-1 rounded-full text-[11px] font-black border shadow-sm ${
+                              st.achvPct >= 100
+                                ? isDark 
+                                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/40" 
+                                  : "bg-emerald-50 text-emerald-700 border-emerald-300"
+                                : st.achvPct >= 70
+                                ? isDark 
+                                  ? "bg-amber-500/20 text-amber-300 border-amber-400/40" 
+                                  : "bg-amber-50 text-amber-700 border-amber-300"
+                                : isDark 
+                                  ? "bg-rose-500/20 text-rose-300 border-rose-400/40" 
+                                  : "bg-rose-50 text-rose-700 border-rose-200"
+                            }`}
+                          >
+                            {st.achvPct >= 100 ? "Productive 🔥" : st.achvPct >= 70 ? "On Track ⚡" : "Need Focus ⚠️"}
+                          </span>
+                        </div>
 
-  {/* Ringkasan Angka Penjualan & Target */}
-  <div className="py-4 flex justify-between items-end">
-    <div>
-      <span className={`text-[10px] font-black uppercase tracking-wider block ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-        Total Penjualan
-      </span>
-      <div className={`text-xl sm:text-2xl font-black font-mono mt-0.5 tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}>
-        {formatIDR(st.totalAmount)}
-      </div>
-      <span className={`text-[10px] font-semibold block mt-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-        Target: <span className={`font-mono font-bold ${isDark ? "text-slate-300" : "text-slate-700"}`}>{formatIDR(st.targetAmount)}</span>
-      </span>
-    </div>
+                        {/* Ringkasan Angka Penjualan & Target */}
+                        <div className="py-4 flex justify-between items-end">
+                          <div>
+                            <span className={`text-[10px] font-black uppercase tracking-wider block ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+                              Total Penjualan
+                            </span>
+                            <div className={`text-xl sm:text-2xl font-black font-mono mt-0.5 tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}>
+                              {formatIDR(st.totalAmount)}
+                            </div>
+                            <span className={`text-[10px] font-semibold block mt-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+                              Target: <span className={`font-mono font-bold ${isDark ? "text-slate-300" : "text-slate-700"}`}>{formatIDR(st.targetAmount)}</span>
+                            </span>
+                          </div>
 
-    <div className="text-right">
-      <span
-        className={`text-2xl sm:text-3xl font-black font-mono tracking-tight ${
-          st.achvPct >= 100 
-            ? isDark ? "text-emerald-400" : "text-emerald-600"
-            : st.achvPct >= 70 
-            ? isDark ? "text-amber-400" : "text-amber-600"
-            : isDark ? "text-rose-400" : "text-rose-600"
-        }`}
-      >
-        {st.achvPct.toFixed(1)}%
-      </span>
-    </div>
-  </div>
+                          <div className="text-right">
+                            <span
+                              className={`text-2xl sm:text-3xl font-black font-mono tracking-tight ${
+                                st.achvPct >= 100 
+                                  ? isDark ? "text-emerald-400" : "text-emerald-600"
+                                  : st.achvPct >= 70 
+                                  ? isDark ? "text-amber-400" : "text-amber-600"
+                                  : isDark ? "text-rose-400" : "text-rose-600"
+                              }`}
+                            >
+                              {st.achvPct.toFixed(1)}%
+                            </span>
+                          </div>
+                        </div>
 
-  {/* Progress Bar Pencapaian */}
-  <div className={`w-full h-2 rounded-full overflow-hidden mb-4 border ${isDark ? "bg-slate-800 border-slate-700/50" : "bg-slate-100 border-slate-200"}`}>
-    <div
-      className={`h-full rounded-full transition-all duration-500 ${
-        st.achvPct >= 100
-          ? "bg-emerald-500"
-          : st.achvPct >= 70
-          ? "bg-amber-500"
-          : "bg-rose-500"
-      }`}
-      style={{ width: `${Math.min(st.achvPct, 100)}%` }}
-    />
-  </div>
+                        {/* Progress Bar Pencapaian */}
+                        <div className={`w-full h-2 rounded-full overflow-hidden mb-4 border ${isDark ? "bg-slate-800 border-slate-700/50" : "bg-slate-100 border-slate-200"}`}>
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              st.achvPct >= 100
+                                ? "bg-emerald-500"
+                                : st.achvPct >= 70
+                                ? "bg-amber-500"
+                                : "bg-rose-500"
+                            }`}
+                            style={{ width: `${Math.min(st.achvPct, 100)}%` }}
+                          />
+                        </div>
 
-  {/* 3 Box Metrik: UPT, ATV, TRX */}
-  <div className={`grid grid-cols-3 gap-2 py-2.5 px-2 rounded-2xl border ${
-    isDark ? "bg-black/25 border-slate-700/60" : "bg-slate-50/80 border-slate-200/80"
-  }`}>
-    <div className="text-center">
-      <span className={`text-[9px] font-black uppercase block tracking-wider ${isDark ? "text-slate-400" : "text-slate-500"}`}>UPT</span>
-      <strong className={`text-xs sm:text-sm font-black font-mono block mt-0.5 ${isDark ? "text-sky-400" : "text-sky-700"}`}>
-        {st.upt || "0.0"}
-      </strong>
-    </div>
-    <div className={`text-center border-x ${isDark ? "border-slate-700/60" : "border-slate-200"}`}>
-      <span className={`text-[9px] font-black uppercase block tracking-wider ${isDark ? "text-slate-400" : "text-slate-500"}`}>ATV</span>
-      <strong className={`text-xs sm:text-sm font-black font-mono block mt-0.5 ${isDark ? "text-indigo-300" : "text-indigo-700"}`}>
-        {formatCompactIDR ? formatCompactIDR(st.atv) : formatIDR(st.atv)}
-      </strong>
-    </div>
-    <div className="text-center">
-      <span className={`text-[9px] font-black uppercase block tracking-wider ${isDark ? "text-slate-400" : "text-slate-500"}`}>TRX</span>
-      <strong className={`text-xs sm:text-sm font-black font-mono block mt-0.5 ${isDark ? "text-white" : "text-slate-900"}`}>
-        {st.trxCount || 0}
-      </strong>
-    </div>
-  </div>
+                        {/* 3 Box Metrik: UPT, ATV, TRX */}
+                        <div className={`grid grid-cols-3 gap-2 py-2.5 px-2 rounded-2xl border ${
+                          isDark ? "bg-black/25 border-slate-700/60" : "bg-slate-50/80 border-slate-200/80"
+                        }`}>
+                          <div className="text-center">
+                            <span className={`text-[9px] font-black uppercase block tracking-wider ${isDark ? "text-slate-400" : "text-slate-500"}`}>UPT</span>
+                            <strong className={`text-xs sm:text-sm font-black font-mono block mt-0.5 ${isDark ? "text-sky-400" : "text-sky-700"}`}>
+                              {st.upt || "0.0"}
+                            </strong>
+                          </div>
+                          <div className={`text-center border-x ${isDark ? "border-slate-700/60" : "border-slate-200"}`}>
+                            <span className={`text-[9px] font-black uppercase block tracking-wider ${isDark ? "text-slate-400" : "text-slate-500"}`}>ATV</span>
+                            <strong className={`text-xs sm:text-sm font-black font-mono block mt-0.5 ${isDark ? "text-indigo-300" : "text-indigo-700"}`}>
+                              {formatCompactIDR(st.atv)}
+                            </strong>
+                          </div>
+                          <div className="text-center">
+                            <span className={`text-[9px] font-black uppercase block tracking-wider ${isDark ? "text-slate-400" : "text-slate-500"}`}>TRX</span>
+                            <strong className={`text-xs sm:text-sm font-black font-mono block mt-0.5 ${isDark ? "text-white" : "text-slate-900"}`}>
+                              {st.trxCount || 0}
+                            </strong>
+                          </div>
+                        </div>
 
-  {/* Breakdown Kategori LOB dengan Dot Warna Kontras */}
-  <div className="pt-3.5 space-y-1.5 text-xs font-semibold">
-    <div className="flex justify-between items-center py-0.5">
-      <span className={`flex items-center gap-1.5 text-[11px] ${isDark ? "text-slate-400" : "text-slate-600 font-bold"}`}>
-        <span className="w-2 h-2 rounded-full bg-sky-500"></span> Apple:
-      </span>
-      <span className={`font-mono font-bold ${isDark ? "text-slate-200" : "text-slate-800"}`}>
-        {formatIDR(st.appleAmount || 0)}
-      </span>
-    </div>
-    <div className="flex justify-between items-center py-0.5">
-      <span className={`flex items-center gap-1.5 text-[11px] ${isDark ? "text-slate-400" : "text-slate-600 font-bold"}`}>
-        <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Android:
-      </span>
-      <span className={`font-mono font-bold ${isDark ? "text-slate-200" : "text-slate-800"}`}>
-        {formatIDR(st.androidAmount || 0)}
-      </span>
-    </div>
-    <div className="flex justify-between items-center py-0.5">
-      <span className={`flex items-center gap-1.5 text-[11px] ${isDark ? "text-slate-400" : "text-slate-600 font-bold"}`}>
-        <span className="w-2 h-2 rounded-full bg-amber-500"></span> Aksesoris:
-      </span>
-      <span className={`font-mono font-bold ${isDark ? "text-slate-200" : "text-slate-800"}`}>
-        {formatIDR(st.accAmount || 0)}
-      </span>
-    </div>
-    <div className="flex justify-between items-center py-0.5">
-      <span className={`flex items-center gap-1.5 text-[11px] ${isDark ? "text-slate-400" : "text-slate-600 font-bold"}`}>
-        <span className="w-2 h-2 rounded-full bg-purple-500"></span> VAS / Warranty:
-      </span>
-      <span className={`font-mono font-bold ${isDark ? "text-slate-200" : "text-slate-800"}`}>
-        {formatIDR(st.vasAmount || 0)}
-      </span>
-    </div>
-  </div>
-                   {/* Footer: Poin Reward */}
-          <div className={`mt-4 pt-3 border-t flex justify-between items-center text-xs ${isDark ? "border-slate-700/60" : "border-slate-100"}`}>
-            <span className={`font-black flex items-center gap-1 text-[11px] ${isDark ? "text-amber-400" : "text-amber-700"}`}>
-              <span>⭐</span> Poin Reward
-            </span>
-            <span className={`font-mono font-black text-sm ${isDark ? "text-amber-300" : "text-amber-700"}`}>
-              {(st.points || 0).toFixed(1)} pts
-            </span>
-          </div>
-        </div>
-      ))}
-    </div>
+                        {/* Breakdown Kategori LOB */}
+                        <div className="pt-3.5 space-y-1.5 text-xs font-semibold">
+                          <div className="flex justify-between items-center py-0.5">
+                            <span className={`flex items-center gap-1.5 text-[11px] ${isDark ? "text-slate-400" : "text-slate-600 font-bold"}`}>
+                              <span className="w-2 h-2 rounded-full bg-sky-500"></span> Apple:
+                            </span>
+                            <span className={`font-mono font-bold ${isDark ? "text-slate-200" : "text-slate-800"}`}>
+                              {formatIDR(st.appleAmount || 0)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center py-0.5">
+                            <span className={`flex items-center gap-1.5 text-[11px] ${isDark ? "text-slate-400" : "text-slate-600 font-bold"}`}>
+                              <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Android:
+                            </span>
+                            <span className={`font-mono font-bold ${isDark ? "text-slate-200" : "text-slate-800"}`}>
+                              {formatIDR(st.androidAmount || 0)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center py-0.5">
+                            <span className={`flex items-center gap-1.5 text-[11px] ${isDark ? "text-slate-400" : "text-slate-600 font-bold"}`}>
+                              <span className="w-2 h-2 rounded-full bg-amber-500"></span> Aksesoris:
+                            </span>
+                            <span className={`font-mono font-bold ${isDark ? "text-slate-200" : "text-slate-800"}`}>
+                              {formatIDR(st.accAmount || 0)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center py-0.5">
+                            <span className={`flex items-center gap-1.5 text-[11px] ${isDark ? "text-slate-400" : "text-slate-600 font-bold"}`}>
+                              <span className="w-2 h-2 rounded-full bg-purple-500"></span> VAS / Warranty:
+                            </span>
+                            <span className={`font-mono font-bold ${isDark ? "text-slate-200" : "text-slate-800"}`}>
+                              {formatIDR(st.vasAmount || 0)}
+                            </span>
+                          </div>
+                        </div>
 
+                        {/* Footer: Poin Reward */}
+                        <div className={`mt-4 pt-3 border-t flex justify-between items-center text-xs ${isDark ? "border-slate-700/60" : "border-slate-100"}`}>
+                          <span className={`font-black flex items-center gap-1 text-[11px] ${isDark ? "text-amber-400" : "text-amber-700"}`}>
+                            <span>⭐</span> Poin Reward
+                          </span>
+                          <span className={`font-mono font-black text-sm ${isDark ? "text-amber-300" : "text-amber-700"}`}>
+                            {(st.points || 0).toFixed(1)} pts
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* TAB 4: DAILY TARGET */}
               {activeTab === "daily-target" && (
@@ -3093,70 +2767,6 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
                         </span>
                       </div>
                     </div>
-
-                    <div className="space-y-2 pt-2">
-                      <h3 className={`text-xs font-black uppercase tracking-wider ${textMuted}`}>
-                        DAFTAR STAF BERTUGAS HARI INI & KUOTA TARGET:
-                      </h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-                        {dailyTargetCalculated.staffOnDuty.map((s) => (
-                          <div key={s.id} className={`p-3 rounded-xl border flex justify-between items-center ${innerBg}`}>
-                            <div>
-                              <span className={`font-black text-xs ${textMain} block`}>{s.name}</span>
-                              <span className={`text-[10px] ${textMuted}`}>{s.role}</span>
-                            </div>
-                            <span className={`font-mono font-black text-xs ${accentText}`}>
-                              {formatIDR(dailyTargetCalculated.targetPerStaffToday)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="pt-4 border-t border-inherit space-y-3">
-                      <h3 className={`text-xs font-black uppercase tracking-wider ${textMuted}`}>
-                        RIWAYAT PENCAPAIAN TANGGAL BERJALAN (1 - 31 OKT):
-                      </h3>
-                      <div className="overflow-x-auto w-full rounded-2xl border border-inherit">
-                        <table className="w-full text-left text-xs min-w-[550px]">
-                          <thead className={`${innerBg} uppercase text-[10px] font-black border-b border-inherit text-slate-900 dark:text-slate-300`}>
-                            <tr>
-                              <th className="py-2.5 px-3 font-black">Tanggal</th>
-                              <th className="py-2.5 px-3 text-right font-black">Target Harian</th>
-                              <th className="py-2.5 px-3 text-right font-black">Pencapaian Aktual</th>
-                              <th className="py-2.5 px-3 text-center font-black">Progress %</th>
-                              <th className="py-2.5 px-3 text-right font-black">Selisih (+/-)</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-inherit font-bold">
-                            {dailyTrendStats.map((d, i) => {
-                              const pAchv = calcAchv(d.actual, d.target);
-                              return (
-                                <tr key={i} className="hover:opacity-90">
-                                  <td className="py-2.5 px-3 font-black text-slate-950 dark:text-white">{d.dayLabel} (Hari {i + 1})</td>
-                                  <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-800 dark:text-slate-300">{formatIDR(d.target)}</td>
-                                  <td className="py-2.5 px-3 text-right font-black text-emerald-700 dark:text-emerald-400 font-mono">{formatIDR(d.actual)}</td>
-                                  <td className="py-2.5 px-3 text-center">
-                                    <span className={`px-2 py-0.5 rounded text-[10px] font-black ${
-                                      pAchv >= 100 
-                                      ? "bg-emerald-500/20 text-emerald-800 dark:text-emerald-400" 
-                                      : pAchv >= 70 
-                                      ? "bg-amber-500/20 text-amber-800 dark:text-amber-400" 
-                                      : "bg-rose-500/20 text-rose-800 dark:text-rose-400"
-                                    }`}>
-                                      {pAchv}%
-                                    </span>
-                                  </td>
-                                  <td className={`py-2.5 px-3 text-right font-mono font-black ${d.gap >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600"}`}>
-                                    {formatIDR(d.gap)}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
                   </div>
                 </div>
               )}
@@ -3207,79 +2817,6 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
                         );
                       })}
                     </div>
-
-                    <div className={`overflow-x-auto w-full rounded-2xl border ${innerBg}`}>
-                      <table className="w-full text-left text-xs min-w-[650px]">
-                        <thead className={`${innerBg} uppercase text-[11px] font-black border-b border-inherit text-slate-900 dark:text-slate-300`}>
-                          <tr>
-                            <th className="py-3 px-4 font-black">Nama Staf</th>
-                            <th className="py-3 px-3 font-black">Role</th>
-                            <th className="py-3 px-3 text-center font-black">Senin</th>
-                            <th className="py-3 px-3 text-center font-black">Selasa</th>
-                            <th className="py-3 px-3 text-center font-black">Rabu</th>
-                            <th className="py-3 px-3 text-center font-black">Kamis</th>
-                            <th className="py-3 px-3 text-center font-black">Jumat</th>
-                            <th className="py-3 px-3 text-center font-black">Sabtu</th>
-                            <th className="py-3 px-3 text-center font-black">Minggu</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-inherit font-bold">
-                          {scheduleData.map((s) => (
-                            <tr key={s.id} className="hover:opacity-90 transition">
-                              <td className="py-3 px-4 font-black text-slate-950 dark:text-white">{s.name}</td>
-                              <td className="py-3 px-3 text-slate-700 dark:text-slate-400 font-bold text-[11px]">{s.role}</td>
-                              {(["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const).map((dayKey) => {
-                                const shift = s[dayKey];
-                                const isOff = shift === "OFF";
-                                const isMorning = shift === "D047";
-                                const isEvening = shift === "D103";
-                                const canEdit = currentSalesId === ADMIN_ID;
-
-                                return (
-                                  <td key={dayKey} className="py-2.5 px-2 text-center">
-                                    {canEdit ? (
-                                      <select
-                                        value={shift}
-                                        onChange={(e) => updateScheduleShift(s.id, dayKey, e.target.value)}
-                                        className={`px-2 py-1 rounded-lg text-[10px] font-black border focus:outline-none cursor-pointer ${
-                                          isOff
-                                            ? "bg-slate-300 dark:bg-slate-700/40 text-slate-900 dark:text-slate-300 border-slate-400"
-                                            : isMorning
-                                            ? "bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-500/40"
-                                            : isEvening
-                                            ? "bg-sky-500/20 text-sky-800 dark:text-sky-300 border-sky-500/40"
-                                            : "bg-purple-500/20 text-purple-800 dark:text-purple-300 border-purple-500/40"
-                                        }`}
-                                      >
-                                        <option value="D047">D047 (Pagi)</option>
-                                        <option value="D103">D103 (Siang)</option>
-                                        <option value="OFF">OFF (Libur)</option>
-                                        <option value="TR">TR (Training)</option>
-                                        <option value="CUTI">CUTI / RO</option>
-                                      </select>
-                                    ) : (
-                                      <span
-                                        className={`px-2 py-1 rounded-lg text-[10px] font-black border inline-block ${
-                                          isOff
-                                            ? "bg-slate-300 dark:bg-slate-700/40 text-slate-900 dark:text-slate-300 border-slate-400"
-                                            : isMorning
-                                            ? "bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-500/40"
-                                            : isEvening
-                                            ? "bg-sky-500/20 text-sky-800 dark:text-sky-300 border-sky-500/40"
-                                            : "bg-purple-500/20 text-purple-800 dark:text-purple-300 border-purple-500/40"
-                                        }`}
-                                      >
-                                        {shift}
-                                      </span>
-                                    )}
-                                  </td>
-                                );
-                              })}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
                   </div>
                 </div>
               )}
@@ -3321,165 +2858,7 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
                         </button>
                       </div>
                     </div>
-
-                    <div className="space-y-4 pt-2">
-                      {feedbacks
-                        .filter((f) => selectedFeedbackStaff === "ALL" || f.salesName.toLowerCase().includes(selectedFeedbackStaff.toLowerCase()))
-                        .map((fb) => (
-                          <div
-                            key={fb.id}
-                            className={`p-4 sm:p-5 rounded-2xl border transition-all ${innerBg}`}
-                          >
-                            <div className="flex flex-wrap justify-between items-start gap-2 mb-3">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-sky-500/20 text-sky-800 dark:text-sky-400 font-black flex items-center justify-center text-xs border border-sky-400/40">
-                                  {fb.initials}
-                                </div>
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <h4 className="font-black text-sm text-slate-950 dark:text-white">{fb.salesName}</h4>
-                                    <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">({fb.salesRole})</span>
-                                  </div>
-                                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">{fb.timestamp}</span>
-                                </div>
-                              </div>
-
-                              <span
-                                className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${
-                                  fb.sentiment === "Luar Biasa"
-                                  ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border-emerald-400/30"
-                                  : fb.sentiment === "Cukup Baik"
-                                  ? "bg-amber-500/15 text-amber-800 dark:text-amber-400 border-amber-400/30"
-                                  : "bg-rose-500/15 text-rose-800 dark:text-rose-400 border-rose-400/30"
-                                }`}
-                              >
-                                {fb.sentiment}
-                              </span>
-                            </div>
-
-                            <div
-                              className={`p-3.5 rounded-xl border text-xs font-semibold leading-relaxed ${cardBg} text-slate-950 dark:text-slate-100`}
-                            >
-                              {fb.text}
-                            </div>
-
-                            <div className="flex flex-wrap items-center gap-2 mt-3 pt-2">
-                              {[
-                                { key: "thumbsUp" as const, emoji: "👍" },
-                                { key: "heart" as const, emoji: "🧡" },
-                                { key: "fire" as const, emoji: "🔥" },
-                                { key: "thumbsDown" as const, emoji: "👎🏻" },
-                                { key: "sad" as const, emoji: "🥲" },
-                              ].map((btn) => {
-                                const isClicked = fb.userReactions.includes(btn.key);
-                                return (
-                                  <button
-                                    key={btn.key}
-                                    onClick={() => handleToggleReaction(fb.id, btn.key)}
-                                    className={`px-2.5 py-1 rounded-full text-xs font-black border transition flex items-center gap-1 active:scale-90 ${
-                                      isClicked
-                                        ? "bg-sky-500/20 text-sky-800 dark:text-sky-400 border-sky-400 shadow-sm"
-                                        : `${innerBg} border-inherit text-slate-800 dark:text-slate-300 hover:opacity-100`
-                                    }`}
-                                  >
-                                    <span>{btn.emoji}</span>
-                                    <span>{fb.reactions[btn.key]}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        ))}
-                    </div>
                   </div>
-
-                  {feedbackModalOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-                      <div className={`w-full max-w-lg rounded-3xl ${cardBg} border-2 border-inherit p-6 shadow-2xl space-y-4`}>
-                        <div className="flex justify-between items-center pb-3 border-b border-inherit">
-                          <h3 className="font-black text-sm flex items-center gap-2 text-slate-950 dark:text-white">
-                            <span>✍️</span>
-                            <span>Tulis Feedback Penjualan Baru</span>
-                          </h3>
-                          <button
-                            onClick={() => setFeedbackModalOpen(false)}
-                            className="w-8 h-8 rounded-full bg-slate-700/20 dark:bg-slate-700/30 flex items-center justify-center text-xs font-black text-slate-900 dark:text-white"
-                          >
-                            ✕
-                          </button>
-                        </div>
-
-                        <form onSubmit={handleCreateFeedback} className="space-y-4 text-xs font-bold">
-                          <div>
-                            <label className="font-black uppercase tracking-wider block mb-1 text-slate-900 dark:text-slate-100">Pilih Nama Sales</label>
-                            <select
-                              value={newFeedbackStaff}
-                              onChange={(e) => setNewFeedbackStaff(e.target.value)}
-                              className={`w-full px-3 py-2.5 rounded-xl border ${innerBg} font-bold focus:outline-none text-slate-950 dark:text-white`}
-                            >
-                              {staffList.map((s) => (
-                                <option key={s.salesId} value={s.name}>
-                                  {s.name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          <div>
-                            <label className="font-black uppercase tracking-wider block mb-1 text-slate-900 dark:text-slate-100">Sentimen / Evaluasi Cepat</label>
-                            <div className="grid grid-cols-3 gap-2">
-                              {(["Luar Biasa", "Cukup Baik", "Kecewa"] as const).map((sent) => (
-                                <button
-                                  type="button"
-                                  key={sent}
-                                  onClick={() => setNewFeedbackSentiment(sent)}
-                                  className={`py-2 rounded-xl font-black border transition ${
-                                    newFeedbackSentiment === sent
-                                      ? sent === "Luar Biasa"
-                                        ? "bg-emerald-500 text-white border-emerald-400"
-                                        : sent === "Cukup Baik"
-                                        ? "bg-amber-500 text-slate-950 border-amber-400"
-                                        : "bg-rose-500 text-white border-rose-400"
-                                      : `${innerBg} text-slate-800 dark:text-slate-300`
-                                  }`}
-                                >
-                                  {sent}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="font-black uppercase tracking-wider block mb-1 text-slate-900 dark:text-slate-100">Catatan Ulasan Penjualan</label>
-                            <textarea
-                              rows={4}
-                              required
-                              placeholder="Tuliskan apresiasi, closing sukses, atau kendala interaksi penjualan..."
-                              value={newFeedbackText}
-                              onChange={(e) => setNewFeedbackText(e.target.value)}
-                              className={`w-full p-3 rounded-xl border ${innerBg} font-semibold focus:outline-none text-slate-950 dark:text-white`}
-                            />
-                          </div>
-
-                          <div className="flex justify-end gap-2 pt-2">
-                            <button
-                              type="button"
-                              onClick={() => setFeedbackModalOpen(false)}
-                              className={`px-4 py-2 rounded-xl ${innerBg} border font-black text-slate-900 dark:text-white`}
-                            >
-                              Batal
-                            </button>
-                            <button
-                              type="submit"
-                              className="px-5 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-black"
-                            >
-                              Kirim Feedback
-                            </button>
-                          </div>
-                        </form>
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -3505,85 +2884,6 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
                           {bnplSummary.totalQty} Unit
                         </span>
                       </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-                      {bnplSummary.tenders.map((t, idx) => (
-                        <div key={idx} className={`p-4 ${innerBg} border rounded-2xl space-y-1.5 shadow-sm`}>
-                          <div className="flex justify-between items-center">
-                            <span className={`text-xs font-black uppercase ${accentText}`}>{t.tender}</span>
-                            <span className="text-[10px] px-2 py-0.5 rounded-full font-black bg-slate-200 dark:bg-slate-700/50 text-slate-950 dark:text-slate-200 border border-slate-300 dark:border-transparent">
-                              {t.share}% Toko
-                            </span>
-                          </div>
-                          <div className="text-base sm:text-lg font-black font-mono text-black dark:text-white">
-                            {formatIDR(t.amount)}
-                          </div>
-                          <div className="flex justify-between text-[11px] font-bold text-slate-800 dark:text-slate-300">
-                            <span>Qty: <strong className="font-black text-amber-700 dark:text-amber-300">{t.qty} Unit</strong></span>
-                            <span>Est: <strong className="font-black font-mono text-slate-950 dark:text-slate-200">{formatIDR(t.estimate)}</strong></span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="pt-4">
-                      <div className="flex flex-wrap gap-2 pb-2">
-                        <button
-                          onClick={() => setSelectedBnplTender("ALL")}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-black transition ${
-                            selectedBnplTender === "ALL" ? activeTabBtn : `${innerBg} border text-slate-800 dark:text-slate-300 hover:opacity-100`
-                          }`}
-                        >
-                          Semua Tender ({bnplRecords.length})
-                        </button>
-                        {bnplSummary.tenders.map((t) => (
-                          <button
-                            key={t.tender}
-                            onClick={() => setSelectedBnplTender(t.tender)}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-black transition ${
-                              selectedBnplTender.toLowerCase() === t.tender.toLowerCase()
-                                ? activeTabBtn
-                                : `${innerBg} border text-slate-800 dark:text-slate-300 hover:opacity-100`
-                            }`}
-                          >
-                            {t.tender} ({t.qty} Unit)
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className={`overflow-x-auto w-full rounded-2xl border ${innerBg}`}>
-                      <table className="w-full text-left text-xs min-w-[650px]">
-                        <thead className={`${innerBg} uppercase text-[11px] font-black border-b border-inherit text-slate-900 dark:text-slate-300`}>
-                          <tr>
-                            <th className="py-3.5 px-4 font-black">Tanggal</th>
-                            <th className="py-3.5 px-4 font-black">No. Invoice</th>
-                            <th className="py-3.5 px-4 font-black">Mitra BNPL</th>
-                            <th className="py-3.5 px-4 font-black">Detail Produk</th>
-                            <th className="py-3.5 px-4 text-center font-black">QTY</th>
-                            <th className="py-3.5 px-4 text-right font-black">Nilai Pembiayaan (Rp)</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-inherit font-bold">
-                          {bnplSummary.list.map((b, idx) => (
-                            <tr key={idx} className="hover:opacity-90 transition">
-                              <td className="py-3 px-4 font-mono text-slate-800 dark:text-slate-300 whitespace-nowrap">{b.date}</td>
-                              <td className={`py-3 px-4 font-mono font-black ${accentText}`}>{b.invoice}</td>
-                              <td className="py-3 px-4">
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-black border ${innerBg} text-slate-950 dark:text-white`}>
-                                  {b.tender}
-                                </span>
-                              </td>
-                              <td className="py-3 px-4 font-black text-slate-950 dark:text-white max-w-md">{b.product}</td>
-                              <td className="py-3 px-4 text-center font-black text-amber-700 dark:text-amber-300">{b.qty}</td>
-                              <td className="py-3 px-4 text-right font-black text-emerald-700 dark:text-emerald-400 whitespace-nowrap font-mono">
-                                {formatIDR(b.amount)}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
                     </div>
                   </div>
                 </div>
@@ -3652,83 +2952,12 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
                       <span className="absolute left-3.5 top-3.5 text-slate-500 font-bold">🔎</span>
                     </div>
                   </div>
-
-                  {(() => {
-                    const query = productSearchQuery.trim().toLowerCase();
-                    const filtered = query
-                      ? transactions.filter((t: any) =>
-                          (t.sapArticle && String(t.sapArticle).toLowerCase().includes(query)) ||
-                          (t.productName && String(t.productName).toLowerCase().includes(query))
-                        )
-                      : [];
-
-                    const totalQty = filtered.reduce((acc: number, curr: any) => acc + (Number(curr.qty) || 0), 0);
-                    const totalAmount = filtered.reduce((acc: number, curr: any) => acc + (Number(curr.amount) || 0), 0);
-
-                    return (
-                      <div className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className={`p-5 ${cardBg} border rounded-2xl shadow-sm`}>
-                            <span className="text-xs text-slate-600 dark:text-slate-400 uppercase font-black tracking-wider">Total Unit Terjual</span>
-                            <p className="text-2xl font-black text-sky-700 dark:text-sky-400 mt-1">{totalQty.toLocaleString("id-ID")} Qty</p>
-                          </div>
-                          <div className={`p-5 ${cardBg} border rounded-2xl shadow-sm`}>
-                            <span className="text-xs text-slate-600 dark:text-slate-400 uppercase font-black tracking-wider">Total Nilai Penjualan (Amount)</span>
-                            <p className="text-2xl font-black text-emerald-700 dark:text-emerald-400 mt-1 font-mono">Rp {totalAmount.toLocaleString("id-ID")}</p>
-                          </div>
-                        </div>
-
-                        <div className={`overflow-x-auto w-full rounded-2xl border ${cardBg}`}>
-                          <table className="w-full text-left text-xs min-w-[650px]">
-                            <thead className={`${innerBg} uppercase text-[11px] font-black border-b border-inherit text-slate-900 dark:text-slate-400`}>
-                              <tr>
-                                <th className="py-3 px-4 font-black">Tanggal</th>
-                                <th className="py-3 px-4 font-black">Sales Person</th>
-                                <th className="py-3 px-4 font-black">Artikel SAP</th>
-                                <th className="py-3 px-4 font-black">Deskripsi Produk</th>
-                                <th className="py-3 px-4 text-center font-black">Qty</th>
-                                <th className="py-3 px-4 text-right font-black">Amount (Rp)</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-inherit font-bold">
-                              {filtered.length > 0 ? (
-                                filtered.map((item: any, idx: number) => (
-                                  <tr key={idx} className="hover:opacity-90">
-                                    <td className="py-3 px-4 whitespace-nowrap text-slate-800 dark:text-slate-300 font-mono">{item.date || item.isoDate || "-"}</td>
-                                    <td className="py-3 px-4 font-black text-slate-950 dark:text-white">
-                                      {item.salesName || "-"}
-                                      <span className="block text-[10px] text-slate-600 dark:text-slate-400 font-bold">{item.salesId}</span>
-                                    </td>
-                                    <td className="py-3 px-4 font-mono font-black text-sky-700 dark:text-sky-400">{item.sapArticle || "-"}</td>
-                                    <td className="py-3 px-4 max-w-xs font-bold text-slate-950 dark:text-white">{item.productName || "-"}</td>
-                                    <td className="py-3 px-4 text-center font-black text-sky-700 dark:text-sky-400">{item.qty || 0}</td>
-                                    <td className="py-3 px-4 text-right font-black text-emerald-700 dark:text-emerald-400 font-mono">
-                                      Rp {(Number(item.amount) || 0).toLocaleString("id-ID")}
-                                    </td>
-                                  </tr>
-                                ))
-                              ) : (
-                                <tr>
-                                  <td colSpan={6} className="text-center py-8 text-slate-600 dark:text-slate-400 font-bold">
-                                    {productSearchQuery
-                                      ? "Tidak ada transaksi yang sesuai dengan kata kunci."
-                                      : "Silakan ketik nama produk atau kode artikel pada kolom di atas."}
-                                  </td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    );
-                  })()}
                 </div>
               )}
 
-              {/* TAB 10: MoM GROWTH ANALYSIS HIERARKIS & ROOT CAUSE */}
+              {/* TAB 10: MoM GROWTH ANALYSIS */}
               {activeTab === "mom-comparison" && (
                 <div className="space-y-6 sm:space-y-8">
-                  {/* HEADER & FILTER SELEKSI DUA BULAN */}
                   <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl flex flex-wrap items-center justify-between gap-4`}>
                     <div>
                       <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
@@ -3775,7 +3004,6 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
                     </div>
                   </div>
 
-                  {/* 1. KARTU TOTAL SALES STORE & PER STAF */}
                   <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-5`}>
                     <div className="flex flex-wrap justify-between items-center pb-3 border-b border-inherit gap-3">
                       <div>
@@ -3798,190 +3026,14 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
                         </span>
                       </div>
                     </div>
-
-                    <div>
-                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-3">
-                        PENCAPAIAN OMSET PER STAF ({momCompareMonth} vs {momBaseMonth}):
-                      </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {momAnalytics.staffSales.map((st, idx) => (
-                          <div key={idx} className={`p-3.5 rounded-2xl border ${innerBg} flex justify-between items-center shadow-sm`}>
-                            <div>
-                              <span className="text-xs font-black text-slate-950 dark:text-white block">{st.name}</span>
-                              <div className="text-[11px] font-bold text-slate-500 mt-0.5">
-                                <span>{momCompareMonth}: {formatIDR(st.m2)}</span>
-                                <span className="mx-1">•</span>
-                                <span className="text-slate-950 dark:text-slate-200">{momBaseMonth}: {formatIDR(st.m1)}</span>
-                              </div>
-                            </div>
-                            <span className={`px-2 py-0.5 rounded-lg text-xs font-black ${
-                              st.growth >= 0 
-                                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" 
-                                : "bg-rose-500/15 text-rose-700 dark:text-rose-400"
-                            }`}>
-                              {st.growth >= 0 ? `▲ +${st.growth}%` : `▼ ${st.growth}%`}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
                   </div>
+                </div>
+              )}
+            </>
+          )}
+        </main>
+      </div>
 
-                  {/* 2. RINCIAN PER LOB (APPLE, SAMSUNG, HUAWEI, OPPO, AKSESORIS, VAS) */}
-                  {[
-                    { title: "🍎 APPLE DEVICES", data: momAnalytics.apple, color: "text-sky-600 dark:text-sky-400" },
-                    { title: "📱 SAMSUNG DEVICES", data: momAnalytics.samsung, color: "text-blue-600 dark:text-blue-400" },
-                    { title: "🔴 HUAWEI DEVICES", data: momAnalytics.huawei, color: "text-rose-600 dark:text-rose-400" },
-                    { title: "🟢 OPPO DEVICES", data: momAnalytics.oppo, color: "text-emerald-600 dark:text-emerald-400" },
-                    { title: "🤖 ANDROID LAINNYA (Xiaomi, Vivo, Infinix, dll)", data: momAnalytics.androidOther, color: "text-indigo-600 dark:text-indigo-400" },
-                    { title: "🔌 ACCESSORIES", data: momAnalytics.accessories, color: "text-amber-600 dark:text-amber-400" },
-                    { title: "🛡️ VAS & SERVICES (Qoala, Telkomsel, XL, dll)", data: momAnalytics.vas, color: "text-purple-600 dark:text-purple-400" },
-                  ].map((lob, lIdx) => (
-                    <div key={lIdx} className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-4`}>
-                      <div className="flex flex-wrap justify-between items-center pb-3 border-b border-inherit gap-3">
-                        <div className="flex items-center gap-3">
-                          <h3 className={`text-sm sm:text-base font-black ${lob.color}`}>{lob.title}</h3>
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-black ${
-                            lob.data.growthAmt >= 0 
-                              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-400/30" 
-                              : "bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-400/30"
-                          }`}>
-                            {lob.data.growthAmt >= 0 ? `▲ +${lob.data.growthAmt}%` : `▼ ${lob.data.growthAmt}%`}
-                          </span>
-                        </div>
-                        <div className="text-right text-xs font-bold text-slate-500">
-                          <span>{momCompareMonth}: {lob.data.totalQtyM2} Unit ({formatIDR(lob.data.totalAmtM2)})</span>
-                          <span className="mx-2">➔</span>
-                          <span className="text-slate-950 dark:text-white font-black">{momBaseMonth}: {lob.data.totalQtyM1} Unit ({formatIDR(lob.data.totalAmtM1)})</span>
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        {lob.data.breakdown.map((sub, sIdx) => (
-                          <div key={sIdx} className={`p-4 rounded-2xl border ${innerBg} space-y-3`}>
-                            <div className="flex justify-between items-center">
-                              <span className="text-xs font-black text-slate-950 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                                <span className="w-2 h-2 rounded-full bg-sky-500"></span>
-                                {sub.subCategory}
-                              </span>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[11px] font-bold text-slate-500">
-                                  {momCompareMonth}: {sub.m2Qty} Unit ({formatIDR(sub.m2Amount)}) | {momBaseMonth}: {sub.m1Qty} Unit ({formatIDR(sub.m1Amount)})
-                                </span>
-                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                                  sub.growthAmt >= 0 ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400" : "bg-rose-500/20 text-rose-700 dark:text-rose-400"
-                                }`}>
-                                  {sub.growthAmt >= 0 ? `+${sub.growthAmt}%` : `${sub.growthAmt}%`}
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="overflow-x-auto w-full">
-                              <table className="w-full text-left text-xs min-w-[500px]">
-                                <thead className="text-[10px] uppercase font-black text-slate-500 border-b border-inherit">
-                                  <tr>
-                                    <th className="py-1.5 px-3">Nama Staff</th>
-                                    <th className="py-1.5 px-3 text-center">{momCompareMonth} (Qty / Amount)</th>
-                                    <th className="py-1.5 px-3 text-center">{momBaseMonth} (Qty / Amount)</th>
-                                    <th className="py-1.5 px-3 text-right">Growth (%)</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-inherit font-bold">
-                                  {sub.staffData.map((st, stIdx) => (
-                                    <tr key={stIdx} className="hover:opacity-90">
-                                      <td className="py-2 px-3 font-black text-slate-900 dark:text-slate-100">{st.name}</td>
-                                      <td className="py-2 px-3 text-center font-mono text-slate-600 dark:text-slate-400">
-                                        {st.m2Qty} Unit / {formatIDR(st.m2Amount)}
-                                      </td>
-                                      <td className="py-2 px-3 text-center font-mono font-black text-slate-950 dark:text-white">
-                                        {st.m1Qty} Unit / {formatIDR(st.m1Amount)}
-                                      </td>
-                                      <td className="py-2 px-3 text-right font-black">
-                                        <span className={st.growthAmt >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
-                                          {st.growthAmt >= 0 ? `▲ +${st.growthAmt}%` : `▼ ${st.growthAmt}%`}
-                                        </span>
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* 3. ROOT CAUSE: PENYEBAB PENURUNAN DARI PRODUK DEFISIT TERBESAR */}
-                  <div className={`${cardBg} rounded-3xl border-2 border-rose-500/30 overflow-hidden shadow-xl`}>
-                    <div className="px-5 py-4 border-b border-rose-500/20 flex justify-between items-center bg-rose-500/5">
-                      <div>
-                        <h3 className="text-sm font-black text-rose-600 dark:text-rose-400 flex items-center gap-2">
-                          <span>🔍</span>
-                          <span>ANALISIS PENYEBAB PENURUNAN (ROOT CAUSE BY PRODUCT DEFICIT)</span>
-                        </h3>
-                        <p className={`text-xs ${textMuted} mt-0.5 font-semibold`}>
-                          Daftar produk dengan defisit omset terbesar yang memicu penurunan penjualan di {momBaseMonth} dibanding {momCompareMonth}
-                        </p>
-                      </div>
-                      <span className="text-xs text-rose-700 dark:text-rose-400 font-black bg-rose-500/10 px-2.5 py-1 rounded-full border border-rose-500/20">
-                        {momAnalytics.droppedProducts.length} Produk Teridentifikasi
-                      </span>
-                    </div>
-
-                    <div className="overflow-x-auto w-full">
-                      <table className="w-full text-left text-xs min-w-[700px]">
-                        <thead className={`${innerBg} ${textMuted} uppercase text-[10px] tracking-wider border-b border-inherit font-black text-slate-900 dark:text-slate-300`}>
-                          <tr>
-                            <th className="px-4 py-3 font-black">Nama Produk</th>
-                            <th className="px-4 py-3 font-black">Brand</th>
-                            <th className="px-4 py-3 text-center font-black">{momCompareMonth} (Unit)</th>
-                            <th className="px-4 py-3 text-right font-black">{momCompareMonth} (Omset)</th>
-                            <th className="px-4 py-3 text-center font-black">{momBaseMonth} (Unit)</th>
-                            <th className="px-4 py-3 text-right font-black">{momBaseMonth} (Omset)</th>
-                            <th className="px-4 py-3 text-right font-black text-rose-600">Nilai Defisit (Gap)</th>
-                            <th className="px-4 py-3 text-right font-black">Penurunan (%)</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-inherit font-bold">
-                          {momAnalytics.droppedProducts.length === 0 ? (
-                            <tr>
-                              <td colSpan={8} className="text-center py-6 text-slate-500 font-black">
-                                Tidak ada produk yang mengalami penurunan omset pada periode ini.
-                              </td>
-                            </tr>
-                          ) : (
-                            momAnalytics.droppedProducts.slice(0, 25).map((p: any, i: number) => (
-                              <tr key={i} className="hover:opacity-90 transition">
-                                <td className="px-4 py-3 font-black text-slate-950 dark:text-white max-w-xs">{p.name}</td>
-                                <td className="px-4 py-3">
-                                  <span className="px-2 py-0.5 rounded text-[10px] font-black bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-200">
-                                    {p.brand}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3 text-center text-slate-700 dark:text-slate-300">{p.m2Qty}</td>
-                                <td className="px-4 py-3 text-right font-mono text-slate-700 dark:text-slate-300">{formatIDR(p.m2Amt)}</td>
-                                <td className="px-4 py-3 text-center font-black text-amber-700 dark:text-amber-400">{p.m1Qty}</td>
-                                <td className="px-4 py-3 text-right font-mono font-black text-amber-700 dark:text-amber-400">{formatIDR(p.m1Amt)}</td>
-                                <td className="px-4 py-3 text-right font-black text-rose-600 font-mono">
-                                  {formatIDR(p.diff)}
-                                </td>
-                                <td className="px-4 py-3 text-right font-black text-rose-600 font-mono">
-                                  {p.growth}%
-                                </td>
-                              </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                    </div>
-        </>
-      )}
-    </main>
-  </div>
-      
-      
       {/* BOTTOM SHEET MODAL DRILLDOWN */}
       {bottomSheetOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm transition-opacity animate-in fade-in overflow-hidden p-0 sm:p-4">
