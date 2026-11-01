@@ -2221,7 +2221,6 @@ const textMuted = isDark ? "text-slate-400" : "text-slate-500";
           </div>
         </header>
         
-            </header>
         <main className="p-3 sm:p-6 lg:p-8 w-full max-w-[1700px] mx-auto flex-1 overflow-x-hidden">
           <header className="mb-6 border-b border-inherit pb-5 print:hidden">
             <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
