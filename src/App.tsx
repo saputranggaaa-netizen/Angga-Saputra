@@ -4,7 +4,6 @@ import React, { useState, useEffect, useMemo } from "react";
 
 const LOG_API_URL = "https://script.google.com/macros/s/AKfycbymMye32fTgxNg4rKtLn5iqVWq4xenaZSJ2bxGW4yfZdMYoYKRbXYYCKrx1n_Uul_JNdw/exec";
 
-// Modal Upload Bukti ke RAW SalesPerson (Kolom M-O)
 export const UploadRawSalesModal = ({ isOpen, onClose, selectedInvoice, defaultSalesName }: any) => {
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
   const [catatan, setCatatan] = React.useState("");
@@ -289,7 +288,7 @@ export default function DigiplusOperationalEngine() {
   const [currentSalesId, setCurrentSalesId] = useState<string>("");
   const [currentSalesName, setCurrentSalesName] = useState<string>("");
 
-  // Live Spreadsheet Data & Dynamic Targets
+  // Live Spreadsheet Data & Targets
   const [transactions, setTransactions] = useState<RawTransaction[]>([]);
   const [bnplRecords, setBnplRecords] = useState<BnplRecord[]>([]);
   const [storeTotalTarget, setStoreTotalTarget] = useState<number>(8728667173);
@@ -313,15 +312,15 @@ export default function DigiplusOperationalEngine() {
   const [w2Filter, setW2Filter] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<string>("2026-11-01");
 
-  // Bottom Sheet Drawer State
+  // Modal State
   const [bottomSheetOpen, setBottomSheetOpen] = useState<boolean>(false);
   const [sheetTitle, setSheetTitle] = useState<string>("");
   const [sheetContent, setSheetContent] = useState<React.ReactNode>(null);
 
-  // Feedbacks
+  // Feedback State
   const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>(DEFAULT_FEEDBACKS);
 
-  // PPTX Exporting State
+  // Export State
   const [isExportingPptx, setIsExportingPptx] = useState<boolean>(false);
 
   const SPREADSHEET_ID = "1v_QCLTDKORjVnByrzo9qRiivdU8CGO99nJri9jBETWM";
@@ -391,9 +390,7 @@ export default function DigiplusOperationalEngine() {
       const textBnpl = await resBnpl.text();
       const textTarget = await resTarget.text();
 
-      const jsonDb = JSON.parse(
-        textDb.substring(textDb.indexOf("{"), textDb.lastIndexOf("}") + 1)
-      );
+      const jsonDb = JSON.parse(textDb.substring(textDb.indexOf("{"), textDb.lastIndexOf("}") + 1));
       const parsedTrx: RawTransaction[] = [];
       (jsonDb.table.rows || []).forEach((r: any) => {
         const c = r.c;
@@ -453,9 +450,7 @@ export default function DigiplusOperationalEngine() {
         }
       });
 
-      const jsonBnpl = JSON.parse(
-        textBnpl.substring(textBnpl.indexOf("{"), textBnpl.lastIndexOf("}") + 1)
-      );
+      const jsonBnpl = JSON.parse(textBnpl.substring(textBnpl.indexOf("{"), textBnpl.lastIndexOf("}") + 1));
       const parsedBnpl: BnplRecord[] = [];
       (jsonBnpl.table.rows || []).forEach((r: any) => {
         const c = r.c;
@@ -475,10 +470,7 @@ export default function DigiplusOperationalEngine() {
         }
       });
 
-      const jsonTarget = JSON.parse(
-        textTarget.substring(textTarget.indexOf("{"), textTarget.lastIndexOf("}") + 1)
-      );
-
+      const jsonTarget = JSON.parse(textTarget.substring(textTarget.indexOf("{"), textTarget.lastIndexOf("}") + 1));
       const targetMap: Record<string, number> = {};
       let parsedGrandTotal = 0;
       let targetApple = 0;
@@ -798,7 +790,6 @@ export default function DigiplusOperationalEngine() {
     };
   }, [activeTransactions, periodType, storeTotalTarget, categoryTargets, selectedDate, transactions]);
 
-  // Target LOB & Estimasi
   const targetStoreLOB = overviewStats.target;
   const targetAppleLOB = overviewStats.lobs.find((l) => l.name.includes("Apple"))?.target || Math.round(targetStoreLOB * 0.794);
   const targetAndroidLOB = overviewStats.lobs.find((l) => l.name.includes("Android"))?.target || Math.round(targetStoreLOB * 0.108);
@@ -807,7 +798,6 @@ export default function DigiplusOperationalEngine() {
 
   const calcEst = (val: number) => Math.round(val * 1.25);
 
-  // Qoala Analytics
   const qoalaAnalytics = useMemo(() => {
     const activeTx = activeTransactions || [];
     const deviceItems = activeTx.filter((t) => t.groupCategory === "DEVICES");
@@ -824,7 +814,7 @@ export default function DigiplusOperationalEngine() {
     return { totalDeviceQty, totalQoalaQty, totalQoalaAmount, storeAR };
   }, [activeTransactions]);
 
-  // Staff Performance List Memo
+  // Perhitungan Leaderboard Staf dengan format UPT desimal pasti
   const staffList = useMemo(() => {
     const map: Record<string, {
       salesId: string;
@@ -876,7 +866,8 @@ export default function DigiplusOperationalEngine() {
 
     return sorted.map((s, idx) => {
       const invCount = s.invoices.size;
-      const upt = calcUpt(s.qty, invCount);
+      const rawUpt = calcUpt(s.qty, invCount);
+      const upt = typeof rawUpt === "number" && !isNaN(rawUpt) ? rawUpt.toFixed(1) : "0.0";
       const atv = invCount > 0 ? Math.round(s.total / invCount) : 0;
 
       const nameKey = s.name.trim().toLowerCase();
@@ -902,7 +893,7 @@ export default function DigiplusOperationalEngine() {
         trxCount: invCount,
         atv,
         qty: s.qty,
-        upt:uptFormatted, // format desimal seperti "1.2",
+        upt,
         points: Number((achv * 0.15).toFixed(1)),
         appleAmount: s.appleAmount,
         androidAmount: s.androidAmount,
@@ -912,7 +903,6 @@ export default function DigiplusOperationalEngine() {
     });
   }, [activeTransactions, staffTargets, storeTotalTarget]);
 
-  // Sub-Category Helper & MoM / WoW Builder
   const getSubCategory = (t: RawTransaction) => {
     const p = (t.productName || "").toUpperCase();
     const b = (t.brand || "").toUpperCase();
@@ -966,7 +956,6 @@ export default function DigiplusOperationalEngine() {
   const buildAppleSubCategoryData = (trxP1: RawTransaction[], trxP2: RawTransaction[]) => {
     const appleItemsP1 = (trxP1 || []).filter((t) => t.brand === "APPLE" && t.groupCategory === "DEVICES");
     const appleItemsP2 = (trxP2 || []).filter((t) => t.brand === "APPLE" && t.groupCategory === "DEVICES");
-
     const appleCategories = ["iPhone", "iPad", "MacBook", "Apple Watch", "AirPods"];
 
     return appleCategories.map((subCat) => {
@@ -1565,7 +1554,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
     { id: "sales-detail", label: "Rincian Transaksi Log", icon: "📋", color: "bg-slate-600", shadow: "shadow-slate-600/30" },
   ];
 
-  // Helper Komparasi Tabel MoM
   const renderComparisonSection = (data: typeof momAnalytics) => {
     return (
       <div className="space-y-6 sm:space-y-8">
@@ -1610,7 +1598,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
           </div>
         </div>
 
-        {/* Total Toko & Staf */}
         <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-5`}>
           <div className="flex flex-wrap justify-between items-center pb-4 border-b border-inherit gap-4">
             <div>
@@ -1662,7 +1649,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
           </div>
         </div>
 
-        {/* Root Cause Drop Produk */}
         <div className={`${cardBg} rounded-3xl border-2 border-rose-500/30 overflow-hidden shadow-xl`}>
           <div className="px-5 py-4 border-b border-rose-500/20 flex justify-between items-center bg-rose-500/5">
             <div>
@@ -1988,14 +1974,12 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                   <span>Halo, {currentSalesName} 👋</span>
                 </div>
 
-                {/* Tampilan Hari, Tanggal, & Jam Real-Time */}
                 <div className="flex flex-wrap items-center gap-2 mt-1.5">
                   <span className="px-2.5 py-1 rounded-xl bg-sky-500/15 text-sky-400 border border-sky-400/30 text-xs font-black flex items-center gap-1.5 shadow-sm">
                     <span>🗓️</span>
                     <span>{todayFormatted}</span>
                   </span>
 
-                  {/* Jam Digital Real-time */}
                   <span className="px-2.5 py-1 rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-400/30 text-xs font-black font-mono flex items-center gap-1.5 shadow-sm">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                     <span>{currentTime || "Memuat..."}</span>
@@ -2208,7 +2192,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     </div>
                   </div>
 
-                  {/* TARGET VS ACHIEVEMENT (T/A) & DRILLDOWN DETAIL */}
+                  {/* TARGET VS ACHIEVEMENT (T/A) & DRILLDOWN PRODUK */}
                   <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-6`}>
                     <div className="flex flex-wrap justify-between items-center pb-4 border-b border-inherit gap-3">
                       <div>
@@ -2556,7 +2540,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               {/* TAB 2: WEEKLY SALES (WoW) + TARGET VS ACHIEVEMENT (T/A) */}
               {activeTab === "weekly-sales" && (
                 <div className="space-y-6 sm:space-y-8">
-                  {/* HEADER & FILTER SELEKSI MINGGU */}
                   <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl flex flex-wrap items-center justify-between gap-4`}>
                     <div>
                       <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
@@ -2603,7 +2586,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     </div>
                   </div>
 
-                  {/* KARTU KOMPARASI TOTAL SALES STORE */}
                   <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-5`}>
                     <div className="flex flex-wrap justify-between items-center pb-3 border-b border-inherit gap-3">
                       <div>
@@ -3102,14 +3084,12 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                             : "bg-white border-slate-300 shadow-md shadow-slate-200/80 hover:border-sky-400"
                         }`}
                       >
-                        {/* Header Kartu: Avatar & Nama Staf */}
                         <div className={`flex items-center justify-between pb-3.5 border-b ${isDark ? "border-slate-700/60" : "border-slate-200"}`}>
                           <div className="flex items-center gap-3">
                             <div className="w-11 h-11 rounded-2xl flex items-center justify-center font-black text-sm text-white shadow-md bg-gradient-to-br from-sky-600 to-blue-700">
                               {st.initials}
                             </div>
                             <div>
-                              {/* Nama Staf Jelas & Tebal */}
                               <h4 className="text-sm font-black tracking-tight text-slate-950 dark:text-white">
                                 {st.name}
                               </h4>
@@ -3119,7 +3099,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                             </div>
                           </div>
 
-                          {/* Badge Status */}
                           <span
                             className={`px-3 py-1 rounded-full text-[11px] font-black border shadow-sm ${
                               st.achvPct >= 100
@@ -3133,13 +3112,11 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                           </span>
                         </div>
 
-                        {/* Nilai Total Penjualan & % Achv */}
                         <div className="py-4 flex justify-between items-end">
                           <div>
                             <span className="text-[10px] font-black uppercase tracking-wider block text-slate-500 dark:text-slate-400">
                               Total Penjualan
                             </span>
-                            {/* Nominal Jelas: Hitam Gelap di Light Mode */}
                             <div className="text-xl sm:text-2xl font-black font-mono mt-0.5 tracking-tight text-slate-950 dark:text-white">
                               {formatIDR(st.totalAmount)}
                             </div>
@@ -3160,7 +3137,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                           </div>
                         </div>
 
-                        {/* Progress Bar */}
                         <div className={`w-full h-2 rounded-full overflow-hidden mb-4 border ${isDark ? "bg-slate-800 border-slate-700/50" : "bg-slate-200 border-slate-300"}`}>
                           <div
                             className={`h-full rounded-full transition-all duration-500 ${
@@ -3174,13 +3150,11 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                           />
                         </div>
 
-                        {/* Kotak Metrik: UPT, ATV, TRX (Kontras Tinggi untuk Light Mode) */}
                         <div className={`grid grid-cols-3 gap-2 py-3 px-3 rounded-2xl border ${
                           isDark 
                             ? "bg-slate-900/60 border-slate-700/80" 
                             : "bg-slate-100/90 border-slate-300 shadow-inner"
                         }`}>
-                          {/* Metrik UPT */}
                           <div className="text-center">
                             <span className="text-[10px] font-black uppercase tracking-wider block text-slate-500 dark:text-slate-400">
                               UPT
@@ -3190,7 +3164,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                             </strong>
                           </div>
 
-                          {/* Metrik ATV */}
                           <div className={`text-center border-x ${isDark ? "border-slate-700" : "border-slate-300"}`}>
                             <span className="text-[10px] font-black uppercase tracking-wider block text-slate-500 dark:text-slate-400">
                               ATV
@@ -3200,7 +3173,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                             </strong>
                           </div>
 
-                          {/* Metrik TRX */}
                           <div className="text-center">
                             <span className="text-[10px] font-black uppercase tracking-wider block text-slate-500 dark:text-slate-400">
                               TRX
@@ -3210,6 +3182,10 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                             </strong>
                           </div>
                         </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
 
               {/* TAB 4: DAILY TARGET */}
