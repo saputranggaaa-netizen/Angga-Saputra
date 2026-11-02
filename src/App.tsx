@@ -288,6 +288,13 @@ export default function DigiplusOperationalEngine() {
   const [sheetTitle, setSheetTitle] = useState<string>("");
   const [sheetContent, setSheetContent] = useState<React.ReactNode>(null);
 
+  // BNPL Tab Filter
+  const [selectedBnplTender, setSelectedBnplTender] = useState<string>("ALL");
+
+  // Feedback State
+  const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>(DEFAULT_FEEDBACKS);
+  const [selectedFeedbackStaff, setSelectedFeedbackStaff] = useState<string>("ALL");
+
   // PPTX Exporting State
   const [isExportingPptx, setIsExportingPptx] = useState<boolean>(false);
 
@@ -721,7 +728,7 @@ export default function DigiplusOperationalEngine() {
     };
   }, [activeTransactions, periodType, storeTotalTarget, categoryTargets, selectedDate, transactions]);
 
-  // Target LOB & Kalkulasi Estimasi Linear
+  // Target LOB & Estimasi
   const targetStoreLOB = overviewStats.target;
   const targetAppleLOB = overviewStats.lobs.find((l) => l.name.includes("Apple"))?.target || Math.round(targetStoreLOB * 0.794);
   const targetAndroidLOB = overviewStats.lobs.find((l) => l.name.includes("Android"))?.target || Math.round(targetStoreLOB * 0.108);
@@ -729,6 +736,417 @@ export default function DigiplusOperationalEngine() {
   const targetVasLOB = overviewStats.lobs.find((l) => l.name.includes("VAS"))?.target || Math.round(targetStoreLOB * 0.045);
 
   const calcEst = (val: number) => Math.round(val * 1.25);
+
+  // Qoala Analytics
+  const qoalaAnalytics = useMemo(() => {
+    const activeTx = activeTransactions || [];
+    const deviceItems = activeTx.filter((t) => t.groupCategory === "DEVICES");
+    const qoalaItems = activeTx.filter((t) => {
+      const pUpper = (t.productName || "").toUpperCase();
+      return t.brand === "QOALA" || pUpper.includes("QOALA") || pUpper.includes("PROTEKSI");
+    });
+
+    const totalDeviceQty = deviceItems.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
+    const totalQoalaQty = qoalaItems.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
+    const totalQoalaAmount = qoalaItems.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+    const storeAR = totalDeviceQty > 0 ? Number(((totalQoalaQty / totalDeviceQty) * 100).toFixed(1)) : 0;
+
+    return { totalDeviceQty, totalQoalaQty, totalQoalaAmount, storeAR };
+  }, [activeTransactions]);
+
+  // Staff Performance List Memo
+  const staffList = useMemo(() => {
+    const map: Record<string, {
+      salesId: string;
+      name: string;
+      total: number;
+      qty: number;
+      invoices: Set<string>;
+      appleAmount: number;
+      androidAmount: number;
+      accAmount: number;
+      vasAmount: number;
+    }> = {};
+
+    activeTransactions.forEach((t) => {
+      const id = t.salesId || "OTHER";
+      if (!map[id]) {
+        map[id] = {
+          salesId: id,
+          name: t.salesName || `Sales ${id}`,
+          total: 0,
+          qty: 0,
+          invoices: new Set(),
+          appleAmount: 0,
+          androidAmount: 0,
+          accAmount: 0,
+          vasAmount: 0,
+        };
+      }
+
+      map[id].total += t.amount;
+      map[id].qty += t.qty;
+      if (t.invoice) map[id].invoices.add(t.invoice);
+
+      const pUpper = (t.productName || "").toUpperCase();
+      const isCaseAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE");
+
+      if (t.brand === "APPLE" && !isCaseAcc && (t.groupCategory === "DEVICES" || pUpper.includes("IPHONE") || pUpper.includes("IPAD") || pUpper.includes("MAC") || pUpper.includes("WATCH") || pUpper.includes("AIRPOD"))) {
+        map[id].appleAmount += t.amount;
+      } else if (t.groupCategory === "DEVICES" && t.brand !== "APPLE" && !isCaseAcc) {
+        map[id].androidAmount += t.amount;
+      } else if (t.groupCategory === "ACCESSORIES") {
+        map[id].accAmount += t.amount;
+      } else if (t.groupCategory === "VAS" || t.brand === "QOALA" || pUpper.includes("QOALA") || pUpper.includes("PROTEKSI") || pUpper.includes("TELKOMSEL") || pUpper.includes("MYPRIO")) {
+        map[id].vasAmount += t.amount;
+      }
+    });
+
+    const sorted = Object.values(map).sort((a, b) => b.total - a.total);
+
+    return sorted.map((s, idx) => {
+      const invCount = s.invoices.size;
+      const upt = calcUpt(s.qty, invCount);
+      const atv = invCount > 0 ? Math.round(s.total / invCount) : 0;
+
+      const nameKey = s.name.trim().toLowerCase();
+      const matchedTarget = 
+        staffTargets[nameKey] ||
+        staffTargets[nameKey.split(" ")[0]] ||
+        staffTargets[s.salesId];
+
+      const targetQuota = matchedTarget || Math.round((storeTotalTarget || 8728667173) / Math.max(sorted.length, 1));
+      const achv = calcAchv(s.total, targetQuota);
+      const words = s.name.split(" ");
+      const initials = words.length > 1 ? (words[0][0] + words[1][0]).toUpperCase() : words[0].slice(0, 2).toUpperCase();
+
+      return {
+        rank: idx + 1,
+        salesId: s.salesId,
+        name: s.name,
+        role: "Sales Specialist",
+        initials,
+        totalAmount: s.total,
+        targetAmount: targetQuota,
+        achvPct: achv,
+        trxCount: invCount,
+        atv,
+        qty: s.qty,
+        upt,
+        points: Number((achv * 0.15).toFixed(1)),
+        appleAmount: s.appleAmount,
+        androidAmount: s.androidAmount,
+        accAmount: s.accAmount,
+        vasAmount: s.vasAmount,
+      };
+    });
+  }, [activeTransactions, staffTargets, storeTotalTarget]);
+
+  // Sub-Category Helper & MoM / WoW Builder
+  const getSubCategory = (t: RawTransaction) => {
+    const p = (t.productName || "").toUpperCase();
+    const b = (t.brand || "").toUpperCase();
+    const g = (t.groupCategory || "").toUpperCase();
+
+    if (b === "APPLE") {
+      if (p.includes("IPHONE")) return "iPhone";
+      if (p.includes("IPAD")) return "iPad";
+      if (p.includes("MAC") || p.includes("BOOK")) return "MacBook";
+      if (p.includes("WATCH")) return "Apple Watch";
+      if (p.includes("AIRPOD")) return "AirPods";
+      return "Apple Other";
+    }
+
+    if (g === "DEVICES") {
+      if (p.includes("PHONE") || p.includes("GALAXY S") || p.includes("GALAXY Z") || p.includes("GALAXY A") || p.includes("REDMI") || p.includes("NOTE") || p.includes("RENO") || p.includes("PURA") || p.includes("MATE")) {
+        return `${t.brand} Phone`;
+      }
+      if (p.includes("TAB") || p.includes("PAD") || p.includes("MATEPAD")) {
+        return `${t.brand} Tablet`;
+      }
+      if (p.includes("WATCH") || p.includes("BAND") || p.includes("FIT")) {
+        return `${t.brand} Watch`;
+      }
+      return `${t.brand} Other`;
+    }
+
+    if (g === "ACCESSORIES") {
+      if (p.includes("CASE") || p.includes("COVER")) return "Casing & Protection";
+      if (p.includes("GLASS") || p.includes("TEMPERED")) return "Screen Protector";
+      if (p.includes("ADAPTER") || p.includes("CHARGER") || p.includes("POWER")) return "Power & Adapter";
+      if (p.includes("CABLE")) return "Cable & Connector";
+      return "Audio & Other Acc";
+    }
+
+    if (g === "VAS" || b === "QOALA") {
+      if (p.includes("QOALA") || p.includes("PROTEKSI")) return "Qoala Proteksi Gadget";
+      if (b.includes("TELKOMSEL") || p.includes("TELKOMSEL")) return "Telkomsel Halo/Data";
+      if (b.includes("XL") || p.includes("MYPRIO")) return "XL Prioritas";
+      return "VAS / Other Service";
+    }
+
+    return "Lain-lain";
+  };
+
+  const calcGrowth = (curr: number, prev: number) => {
+    if (prev === 0) return curr > 0 ? 100 : 0;
+    return Number((((curr - prev) / prev) * 100).toFixed(1));
+  };
+
+  const buildAppleSubCategoryData = (trxP1: RawTransaction[], trxP2: RawTransaction[]) => {
+    const appleItemsP1 = (trxP1 || []).filter((t) => t.brand === "APPLE" && t.groupCategory === "DEVICES");
+    const appleItemsP2 = (trxP2 || []).filter((t) => t.brand === "APPLE" && t.groupCategory === "DEVICES");
+
+    const appleCategories = ["iPhone", "iPad", "MacBook", "Apple Watch", "AirPods"];
+
+    return appleCategories.map((subCat) => {
+      const matchP1 = appleItemsP1.filter((t) => getSubCategory(t) === subCat);
+      const matchP2 = appleItemsP2.filter((t) => getSubCategory(t) === subCat);
+
+      const totalQtyP1 = matchP1.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
+      const totalAmtP1 = matchP1.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+      const totalQtyP2 = matchP2.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
+      const totalAmtP2 = matchP2.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+
+      const staffSet = new Set([...matchP1.map((t) => t.salesName), ...matchP2.map((t) => t.salesName)]);
+      const staffSubList = Array.from(staffSet).filter(Boolean).map((sName) => {
+        const sTrx1 = matchP1.filter((t) => t.salesName === sName);
+        const sTrx2 = matchP2.filter((t) => t.salesName === sName);
+
+        const q1 = sTrx1.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
+        const a1 = sTrx1.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+        const q2 = sTrx2.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
+        const a2 = sTrx2.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+
+        return {
+          name: sName,
+          p1Qty: q1,
+          p1Amt: a1,
+          p2Qty: q2,
+          p2Amt: a2,
+          growthAmt: calcGrowth(a2, a1),
+        };
+      }).sort((a, b) => b.p2Amt - a.p2Amt);
+
+      return {
+        subCat,
+        totalQtyP1,
+        totalAmtP1,
+        totalQtyP2,
+        totalAmtP2,
+        growthAmt: calcGrowth(totalAmtP2, totalAmtP1),
+        staffList: staffSubList,
+      };
+    });
+  };
+
+  const buildAndroidBrandHierarchy = (trxP1: RawTransaction[], trxP2: RawTransaction[], brandName: string) => {
+    const filterFn = (t: RawTransaction) => {
+      const bUpper = (t.brand || "").toUpperCase();
+      if (brandName === "ANDROID LAINNYA") {
+        return !["APPLE", "SAMSUNG", "HUAWEI", "OPPO"].includes(bUpper) && t.groupCategory === "DEVICES";
+      }
+      return bUpper.includes(brandName.toUpperCase()) && t.groupCategory === "DEVICES";
+    };
+
+    const brandP1 = (trxP1 || []).filter(filterFn);
+    const brandP2 = (trxP2 || []).filter(filterFn);
+
+    const totalQtyP1 = brandP1.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
+    const totalAmtP1 = brandP1.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+    const totalQtyP2 = brandP2.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
+    const totalAmtP2 = brandP2.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+
+    const staffNames = Array.from(new Set([...brandP1.map((t) => t.salesName), ...brandP2.map((t) => t.salesName)])).filter(Boolean);
+
+    const staffBreakdown = staffNames.map((sName) => {
+      const stP1 = brandP1.filter((t) => t.salesName === sName);
+      const stP2 = brandP2.filter((t) => t.salesName === sName);
+
+      const stQty1 = stP1.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
+      const stAmt1 = stP1.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+      const stQty2 = stP2.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
+      const stAmt2 = stP2.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+
+      const categories = ["Phone", "Tablet", "Watch", "Other"];
+      const subItems = categories.map((cat) => {
+        const catMatchP1 = stP1.filter((t) => {
+          const sub = getSubCategory(t).toLowerCase();
+          return cat === "Other" ? (!sub.includes("phone") && !sub.includes("tablet") && !sub.includes("watch")) : sub.includes(cat.toLowerCase());
+        });
+        const catMatchP2 = stP2.filter((t) => {
+          const sub = getSubCategory(t).toLowerCase();
+          return cat === "Other" ? (!sub.includes("phone") && !sub.includes("tablet") && !sub.includes("watch")) : sub.includes(cat.toLowerCase());
+        });
+
+        const q1 = catMatchP1.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
+        const a1 = catMatchP1.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+        const q2 = catMatchP2.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
+        const a2 = catMatchP2.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+
+        return {
+          catLabel: `${brandName} ${cat}`,
+          q1,
+          a1,
+          q2,
+          a2,
+          growthAmt: calcGrowth(a2, a1),
+        };
+      }).filter((c) => c.q1 > 0 || c.q2 > 0);
+
+      return {
+        name: sName,
+        totalQty1: stQty1,
+        totalAmt1: stAmt1,
+        totalQty2: stQty2,
+        totalAmt2: stAmt2,
+        growthAmt: calcGrowth(stAmt2, stAmt1),
+        subItems,
+      };
+    }).sort((a, b) => b.totalAmt2 - a.totalAmt2);
+
+    return {
+      brand: brandName,
+      totalQtyP1,
+      totalAmtP1,
+      totalQtyP2,
+      totalAmtP2,
+      growthAmt: calcGrowth(totalAmtP2, totalAmtP1),
+      staffBreakdown,
+    };
+  };
+
+  const buildDroppedProductsAnalysis = (trxP1: RawTransaction[], trxP2: RawTransaction[]) => {
+    const deficitMap: Record<string, { name: string; brand: string; p1Amt: number; p2Amt: number; p1Qty: number; p2Qty: number }> = {};
+
+    [...(trxP1 || []), ...(trxP2 || [])].forEach((t) => {
+      const pName = (t.productName || "Unknown").trim();
+      const brand = t.brand || "OTHER";
+
+      if (!deficitMap[pName]) {
+        deficitMap[pName] = { name: pName, brand, p1Amt: 0, p2Amt: 0, p1Qty: 0, p2Qty: 0 };
+      }
+    });
+
+    (trxP1 || []).forEach((t) => {
+      const pName = (t.productName || "Unknown").trim();
+      if (deficitMap[pName]) {
+        deficitMap[pName].p1Amt += (Number(t.amount) || 0);
+        deficitMap[pName].p1Qty += (Number(t.qty) || 1);
+      }
+    });
+
+    (trxP2 || []).forEach((t) => {
+      const pName = (t.productName || "Unknown").trim();
+      if (deficitMap[pName]) {
+        deficitMap[pName].p2Amt += (Number(t.amount) || 0);
+        deficitMap[pName].p2Qty += (Number(t.qty) || 1);
+      }
+    });
+
+    return Object.values(deficitMap)
+      .map((p) => {
+        const diff = p.p2Amt - p.p1Amt;
+        const growth = calcGrowth(p.p2Amt, p.p1Amt);
+        return { ...p, diff, growth };
+      })
+      .filter((p) => p.diff < 0)
+      .sort((a, b) => a.diff - b.diff);
+  };
+
+  // Komparasi MoM
+  const momAnalytics = useMemo(() => {
+    const trxM1 = transactions.filter((t) => (t.monthKey || t.month || "").trim() === momCompareMonth);
+    const trxM2 = transactions.filter((t) => (t.monthKey || t.month || "").trim() === momBaseMonth);
+
+    const totalM1 = trxM1.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+    const totalM2 = trxM2.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+    const storeGrowth = calcGrowth(totalM2, totalM1);
+
+    const staffNames = Array.from(new Set([...trxM1.map((t) => t.salesName), ...trxM2.map((t) => t.salesName)])).filter(Boolean);
+    const staffSales = staffNames.map((name) => {
+      const sM1 = trxM1.filter((t) => t.salesName === name).reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+      const sM2 = trxM2.filter((t) => t.salesName === name).reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+      return {
+        name,
+        m1: sM1,
+        m2: sM2,
+        growth: calcGrowth(sM2, sM1),
+      };
+    }).sort((a, b) => b.m2 - a.m2);
+
+    return {
+      p1Label: momCompareMonth,
+      p2Label: momBaseMonth,
+      totalM1,
+      totalM2,
+      storeGrowth,
+      staffSales,
+      appleData: buildAppleSubCategoryData(trxM1, trxM2),
+      samsungData: buildAndroidBrandHierarchy(trxM1, trxM2, "SAMSUNG"),
+      huaweiData: buildAndroidBrandHierarchy(trxM1, trxM2, "HUAWEI"),
+      oppoData: buildAndroidBrandHierarchy(trxM1, trxM2, "OPPO"),
+      androidOtherData: buildAndroidBrandHierarchy(trxM1, trxM2, "ANDROID LAINNYA"),
+      droppedProducts: buildDroppedProductsAnalysis(trxM1, trxM2),
+    };
+  }, [transactions, momBaseMonth, momCompareMonth]);
+
+  // Komparasi WoW
+  const weeklyComparisonData = useMemo(() => {
+    const getTrxForWeek = (selectedVal: string) => {
+      if (!selectedVal) return [];
+
+      const wObj = AUTO_WEEKS.find((w) => w.key === selectedVal || w.label === selectedVal);
+      const targetLabel = (wObj ? wObj.label : selectedVal).trim().toLowerCase();
+      const targetKey = (wObj ? wObj.key : selectedVal).trim().toLowerCase();
+      const weekNum = targetKey.replace(/\D/g, "");
+
+      return transactions.filter((t) => {
+        if (!t.weekLabel) return false;
+        const wl = t.weekLabel.trim().toLowerCase();
+        return (
+          wl === targetLabel ||
+          wl.includes(targetLabel) ||
+          wl.includes(targetKey) ||
+          (weekNum && (wl.includes(`week ${weekNum}`) || wl.includes(`w${weekNum}`)))
+        );
+      });
+    };
+
+    const trxW1 = getTrxForWeek(w1Filter);
+    const trxW2 = getTrxForWeek(w2Filter);
+
+    const totalW1 = trxW1.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+    const totalW2 = trxW2.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+    const storeGrowth = calcGrowth(totalW2, totalW1);
+
+    const staffNames = Array.from(new Set([...trxW1.map((t) => t.salesName), ...trxW2.map((t) => t.salesName)])).filter(Boolean);
+    const staffSales = staffNames.map((name) => {
+      const sW1 = trxW1.filter((t) => t.salesName === name).reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+      const sW2 = trxW2.filter((t) => t.salesName === name).reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+      return {
+        name,
+        w1: sW1,
+        w2: sW2,
+        growth: calcGrowth(sW2, sW1),
+      };
+    }).sort((a, b) => b.w2 - a.w2);
+
+    return {
+      p1Label: w1Filter || "Minggu 1",
+      p2Label: w2Filter || "Minggu 2",
+      totalM1: totalW1,
+      totalM2: totalW2,
+      storeGrowth,
+      staffSales,
+      appleData: buildAppleSubCategoryData(trxW1, trxW2),
+      samsungData: buildAndroidBrandHierarchy(trxW1, trxW2, "SAMSUNG"),
+      huaweiData: buildAndroidBrandHierarchy(trxW1, trxW2, "HUAWEI"),
+      oppoData: buildAndroidBrandHierarchy(trxW1, trxW2, "OPPO"),
+      androidOtherData: buildAndroidBrandHierarchy(trxW1, trxW2, "ANDROID LAINNYA"),
+      droppedProducts: buildDroppedProductsAnalysis(trxW1, trxW2),
+    };
+  }, [transactions, w1Filter, w2Filter, AUTO_WEEKS]);
 
   const timeGoneStats = useMemo(() => {
     const targetDateStr = selectedDate || new Date().toISOString().split("T")[0];
@@ -829,6 +1247,26 @@ export default function DigiplusOperationalEngine() {
       return { day, morning, evening, off, totalStaff: morning + evening };
     });
   }, [scheduleData]);
+
+  const bnplSummary = useMemo(() => {
+    const totalAmount = bnplRecords.reduce((acc, b) => acc + b.amount, 0);
+    const totalQty = bnplRecords.reduce((acc, b) => acc + b.qty, 0);
+
+    const map: Record<string, { amount: number; qty: number }> = {};
+    bnplRecords.forEach((b) => {
+      const tKey = b.tender || "Other";
+      if (!map[tKey]) map[tKey] = { amount: 0, qty: 0 };
+      map[tKey].amount += b.amount;
+      map[tKey].qty += b.qty;
+    });
+
+    const tenders = Object.entries(map).map(([tender, d]) => {
+      const share = overviewStats.actual > 0 ? Number(((d.amount / overviewStats.actual) * 100).toFixed(1)) : 0;
+      return { tender, amount: d.amount, qty: d.qty, share };
+    }).sort((a, b) => b.amount - a.amount);
+
+    return { totalAmount, totalQty, tenders, list: bnplRecords };
+  }, [bnplRecords, overviewStats.actual]);
 
   const handleShareDaily = () => {
     const appleVal = overviewStats.lobs.find((l) => l.name.includes("Apple"))?.actual || 0;
@@ -936,7 +1374,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
     setBottomSheetOpen(true);
   };
 
-  // Fungsi Drilldown dengan Filter Periode Aktif
   const openLobDetailSheet = (lobName: string, items: RawTransaction[]) => {
     const activePeriodLabel = 
       periodType === "daily" 
@@ -1050,62 +1487,190 @@ _Diperbarui via Digiplus Store Operations Engine._`;
     { id: "sales-detail", label: "Rincian Transaksi Log", icon: "📋", color: "bg-slate-600", shadow: "shadow-slate-600/30" },
   ];
 
-  if (!isLoggedIn) {
+  // Komponen Helper Render Komparasi
+  const renderComparisonSection = (data: typeof momAnalytics, isWeekly = false) => {
     return (
-      <div className={`min-h-screen ${bgMain} flex items-center justify-center p-4 ${textMain} font-sans overflow-x-hidden w-full max-w-full`}>
-        <div className={`max-w-md w-full ${cardBg} border-2 rounded-3xl p-6 md:p-8 shadow-2xl`}>
-          <div className="text-center mb-6 flex flex-col items-center justify-center">
-            <img 
-              src="/apple-touch-icon.png" 
-              alt="Logo Digiplus" 
-              className="w-16 h-16 object-contain rounded-2xl bg-white p-1 shadow-md mb-2"
-            />
-            <h2 className="font-black text-3xl tracking-wider mb-1 text-slate-950 dark:text-white">
-              QF01
+      <div className="space-y-6 sm:space-y-8">
+        <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl flex flex-wrap items-center justify-between gap-4`}>
+          <div>
+            <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
+              <span>⚖️</span>
+              <span>{isWeekly ? "PERBANDINGAN WEEK TO WEEK (WoW) SALES" : "ANALISIS PERTUMBUHAN MONTH TO MONTH (MoM)"}</span>
             </h2>
-            <h1 className="text-xl font-black text-slate-950 dark:text-white">DIGIPLUS GRAND INDONESIA</h1>
-            <p className={`text-xs ${accentText} mt-1 uppercase tracking-widest`}>PORTAL DASHBOARD SALES</p>
           </div>
-          
-          <form onSubmit={handleLogin} className="space-y-4 font-bold">
-            <div>
-              <label className="text-xs font-black uppercase tracking-wider block text-slate-900 dark:text-slate-100">Sales ID / NIK Karyawan</label>
-              <input
-                type="text"
-                required
-                placeholder="Contoh: 24004971 atau 22008089"
-                value={salesIdInput}
-                onChange={(e) => setSalesIdInput(e.target.value)}
-                className={`w-full mt-1.5 px-4 py-3 rounded-xl ${innerBg} border text-sm font-semibold focus:outline-none text-slate-950 dark:text-white`}
-              />
-            </div>
 
-            <div>
-              <label className="text-xs font-black uppercase tracking-wider block text-slate-900 dark:text-slate-100">Kata Sandi</label>
-              <input
-                type="password"
-                required
-                placeholder="Welcome@123"
-                value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                className={`w-full mt-1.5 px-4 py-3 rounded-xl ${innerBg} border text-sm font-semibold focus:outline-none text-slate-950 dark:text-white`}
-              />
-            </div>
-
-            {loginErr && (
-              <p className="text-xs text-rose-600 font-black">{loginErr}</p>
+          <div className="flex flex-wrap items-center gap-3">
+            {isWeekly ? (
+              <>
+                <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
+                  <span className="text-[11px] font-black text-slate-600 dark:text-slate-400">Baseline:</span>
+                  <select
+                    value={w1Filter}
+                    onChange={(e) => setW1Filter(e.target.value)}
+                    className="bg-transparent font-black text-xs text-slate-950 dark:text-white focus:outline-none"
+                  >
+                    {AUTO_WEEKS.map((w) => (
+                      <option key={`w1-${w.key}`} value={w.label} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
+                        {w.label} ({w.range})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <span className="text-xs font-black text-slate-500">VS</span>
+                <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
+                  <span className="text-[11px] font-black text-slate-600 dark:text-slate-400">Pembanding:</span>
+                  <select
+                    value={w2Filter}
+                    onChange={(e) => setW2Filter(e.target.value)}
+                    className="bg-transparent font-black text-xs text-sky-700 dark:text-sky-400 focus:outline-none"
+                  >
+                    {AUTO_WEEKS.map((w) => (
+                      <option key={`w2-${w.key}`} value={w.label} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
+                        {w.label} ({w.range})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
+                  <span className="text-[11px] font-black text-slate-600 dark:text-slate-400">Bulan 1:</span>
+                  <select
+                    value={momCompareMonth}
+                    onChange={(e) => setMomCompareMonth(e.target.value)}
+                    className="bg-transparent font-black text-xs text-slate-950 dark:text-white focus:outline-none"
+                  >
+                    {availableMonths.map((m) => (
+                      <option key={`cmp-${m}`} value={m} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <span className="text-xs font-black text-slate-500">VS</span>
+                <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
+                  <span className="text-[11px] font-black text-slate-600 dark:text-slate-400">Bulan 2:</span>
+                  <select
+                    value={momBaseMonth}
+                    onChange={(e) => setMomBaseMonth(e.target.value)}
+                    className="bg-transparent font-black text-xs text-sky-700 dark:text-sky-400 focus:outline-none"
+                  >
+                    {availableMonths.map((m) => (
+                      <option key={`base-${m}`} value={m} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
             )}
+          </div>
+        </div>
 
-            <button
-              type="submit"
-              className={`w-full py-3.5 ${isDark ? "bg-sky-500 text-white" : "bg-blue-600 text-white"} font-black rounded-xl text-xs uppercase tracking-wider transition mt-2 shadow-lg`}
-            >
-              Masuk Dashboard
-            </button>
-          </form>
+        {/* Total Toko & Staf */}
+        <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-5`}>
+          <div className="flex flex-wrap justify-between items-center pb-4 border-b border-inherit gap-4">
+            <div>
+              <span className="text-xs font-black uppercase tracking-wider text-slate-500">TOTAL SALES TOKO</span>
+              <div className="flex items-center gap-3 mt-1">
+                <span className="text-2xl sm:text-3xl font-black font-mono text-slate-950 dark:text-white">
+                  {formatIDR(data.totalM2)}
+                </span>
+                <span className={`px-2.5 py-1 rounded-full text-xs font-black flex items-center gap-1 ${
+                  data.storeGrowth >= 0 
+                    ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border border-emerald-400/30" 
+                    : "bg-rose-500/15 text-rose-800 dark:text-rose-400 border border-rose-400/30"
+                }`}>
+                  <span>{data.storeGrowth >= 0 ? "▲ +" : "▼ "}</span>
+                  <span>{data.storeGrowth}%</span>
+                </span>
+              </div>
+              <span className="text-[11px] font-bold text-slate-500 mt-0.5 block">
+                {data.p1Label}: {formatIDR(data.totalM1)} ➔ {data.p2Label}: {formatIDR(data.totalM2)}
+              </span>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-3 flex items-center gap-2">
+              <span>👥</span>
+              <span>TOTAL SALES PER STAF:</span>
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              {data.staffSales.map((st, idx) => (
+                <div key={idx} className={`p-4 rounded-2xl border ${innerBg} flex justify-between items-center shadow-sm`}>
+                  <div>
+                    <span className="text-xs font-black text-slate-950 dark:text-white block">{st.name}</span>
+                    <div className="text-[11px] font-semibold text-slate-500 mt-1 space-y-0.5">
+                      <div><strong className="text-slate-700 dark:text-slate-300">{data.p1Label}:</strong> {formatIDR(st.m1)}</div>
+                      <div><strong className="text-slate-900 dark:text-white font-bold">{data.p2Label}:</strong> {formatIDR(st.m2)}</div>
+                    </div>
+                  </div>
+                  <span className={`px-2.5 py-1 rounded-xl text-xs font-black border ${
+                    st.growth >= 0 
+                      ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-400/30" 
+                      : "bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-400/30"
+                  }`}>
+                    {st.growth >= 0 ? `▲ +${st.growth}%` : `▼ ${st.growth}%`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Root Cause Drop Produk */}
+        <div className={`${cardBg} rounded-3xl border-2 border-rose-500/30 overflow-hidden shadow-xl`}>
+          <div className="px-5 py-4 border-b border-rose-500/20 flex justify-between items-center bg-rose-500/5">
+            <div>
+              <h3 className="text-sm font-black text-rose-600 dark:text-rose-400 flex items-center gap-2">
+                <span>🔍</span>
+                <span>ANALISIS PENYEBAB PENURUNAN (ROOT CAUSE BY PRODUCT DEFICIT)</span>
+              </h3>
+            </div>
+            <span className="text-xs text-rose-700 dark:text-rose-400 font-black bg-rose-500/10 px-2.5 py-1 rounded-full border border-rose-500/20">
+              {data.droppedProducts.length} Produk Teridentifikasi
+            </span>
+          </div>
+
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-left text-xs min-w-[700px]">
+              <thead className={`${innerBg} uppercase text-[10px] tracking-wider border-b border-inherit font-black text-slate-900 dark:text-slate-300`}>
+                <tr>
+                  <th className="px-4 py-3">Nama Produk</th>
+                  <th className="px-4 py-3">Brand</th>
+                  <th className="px-4 py-3 text-center">{data.p1Label} (Unit)</th>
+                  <th className="px-4 py-3 text-right">{data.p1Label} (Omset)</th>
+                  <th className="px-4 py-3 text-center">{data.p2Label} (Unit)</th>
+                  <th className="px-4 py-3 text-right">{data.p2Label} (Omset)</th>
+                  <th className="px-4 py-3 text-right text-rose-600">Nilai Defisit</th>
+                  <th className="px-4 py-3 text-right">Penurunan (%)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-inherit font-bold">
+                {data.droppedProducts.slice(0, 25).map((p, i) => (
+                  <tr key={i} className="hover:opacity-90">
+                    <td className="px-4 py-3 font-black text-slate-950 dark:text-white max-w-xs">{p.name}</td>
+                    <td className="px-4 py-3">{p.brand}</td>
+                    <td className="px-4 py-3 text-center">{p.p1Qty}</td>
+                    <td className="px-4 py-3 text-right font-mono">{formatIDR(p.p1Amt)}</td>
+                    <td className="px-4 py-3 text-center font-black text-amber-500">{p.p2Qty}</td>
+                    <td className="px-4 py-3 text-right font-mono font-black text-amber-500">{formatIDR(p.p2Amt)}</td>
+                    <td className="px-4 py-3 text-right font-black text-rose-600 font-mono">{formatIDR(p.diff)}</td>
+                    <td className="px-4 py-3 text-right font-black text-rose-600 font-mono">{p.growth}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     );
+  };
+
+  if (!isLoggedIn) {
+    return null;
   }
 
   return (
@@ -1213,7 +1778,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
         }`}
       >
         <div>
-          {/* Header Drawer */}
           <div className="flex items-center justify-between pb-4 border-b border-inherit">
             <div className="flex items-center gap-2.5">
               <div className="w-9 h-9 rounded-xl bg-sky-500 text-white font-black text-sm flex items-center justify-center shadow-sm">
@@ -1229,7 +1793,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
             </button>
           </div>
 
-          {/* Navigasi Menu Drawer */}
           <nav className="mt-4 space-y-1.5 overflow-y-auto max-h-[60vh] pr-1 custom-scrollbar">
             {mainNavItems.map((item) => {
               const active = activeTab === item.id;
@@ -1255,20 +1818,9 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                 </button>
               );
             })}
-
-            <button
-              onClick={() => { setUploadModalOpen(true); setMobileDrawerOpen(false); }}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 border border-transparent active:scale-[0.98]"
-            >
-              <div className="w-7 h-7 rounded-lg bg-cyan-500 shadow-md shadow-cyan-500/30 flex items-center justify-center text-xs shrink-0 text-white">
-                📤
-              </div>
-              <span>Upload Bukti RAW</span>
-            </button>
           </nav>
         </div>
 
-        {/* Footer Drawer */}
         <div className="pt-4 border-t border-inherit space-y-2">
           <button
             onClick={toggleTheme}
@@ -1490,25 +2042,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                         </div>
                       </div>
                     </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-4 border-t border-inherit text-xs">
-                      <div className={`p-3 ${innerBg} rounded-xl border`}>
-                        <span className="text-slate-700 dark:text-slate-300 text-[11px] font-bold">Kesenjangan Pace:</span>
-                        <div className="text-sm font-black text-rose-600 mt-0.5">-{(timeGoneStats.timeElapsedPct - overviewStats.achv).toFixed(1)}%</div>
-                      </div>
-                      <div className={`p-3 ${innerBg} rounded-xl border`}>
-                        <span className="text-slate-700 dark:text-slate-300 text-[11px] font-bold">Daily Run Rate Aktual:</span>
-                        <div className="text-sm font-black text-sky-700 dark:text-sky-400 mt-0.5">{formatIDR(Math.round(overviewStats.actual / Math.max(timeGoneStats.elapsedDays, 1)))} / hari</div>
-                      </div>
-                      <div className={`p-3 ${innerBg} rounded-xl border`}>
-                        <span className="text-slate-700 dark:text-slate-300 text-[11px] font-bold">Target Periode:</span>
-                        <div className={`text-sm font-black ${accentText} mt-0.5`}>{formatIDR(overviewStats.target)}</div>
-                      </div>
-                      <div className={`p-3 ${innerBg} rounded-xl border`}>
-                        <span className="text-slate-700 dark:text-slate-300 text-[11px] font-bold">Penjualan Hari Ini:</span>
-                        <div className="text-sm font-black text-emerald-700 dark:text-emerald-400 mt-0.5">{formatIDR(overviewStats.todayActual)}</div>
-                      </div>
-                    </div>
                   </div>
 
                   {/* TREND DAILY SALES */}
@@ -1516,18 +2049,17 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     <div className="flex justify-between items-center">
                       <div>
                         <h3 className="text-sm font-black uppercase tracking-wider text-slate-950 dark:text-white">Trend Daily Sales vs Target Ideal Harian</h3>
-                        <p className={`text-xs ${textMuted} mt-0.5`}>Perbandingan omset harian terhadap target flat {formatIDR(Math.round((storeTotalTarget || 8728667173) / timeGoneStats.totalDays))}/hari</p>
                       </div>
                     </div>
                     <div className="overflow-x-auto w-full">
                       <table className="w-full text-left text-xs min-w-[550px]">
                         <thead className={`${innerBg} uppercase text-[10px] font-black border-b border-inherit text-slate-900 dark:text-slate-300`}>
                           <tr>
-                            <th className="py-3 px-3 font-black">Tanggal</th>
-                            <th className="py-3 px-3 text-right font-black">Actual Omset</th>
-                            <th className="py-3 px-3 text-right font-black">Target Ideal</th>
-                            <th className="py-3 px-3 text-right font-black">Gap Harian</th>
-                            <th className="py-3 px-3 text-center font-black">Status</th>
+                            <th className="py-3 px-3">Tanggal</th>
+                            <th className="py-3 px-3 text-right">Actual Omset</th>
+                            <th className="py-3 px-3 text-right">Target Ideal</th>
+                            <th className="py-3 px-3 text-right">Gap Harian</th>
+                            <th className="py-3 px-3 text-center">Status</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-inherit font-bold">
@@ -1559,13 +2091,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                           <span>🎯</span>
                           <span>TARGET VS ACHIEVEMENT (T/A) &amp; DRILLDOWN PRODUK</span>
                         </h3>
-                        <p className={`text-xs ${textMuted} mt-0.5`}>
-                          Periode Terfilter: {periodType.toUpperCase()} ({periodType === "daily" ? selectedDate : periodType === "weekly" ? selectedWeek : selectedMonth})
-                        </p>
                       </div>
-                      <span className="text-xs font-bold text-slate-500">
-                        Klik &quot;More Details ➔&quot; untuk melihat rincian nota &amp; produk terjual
-                      </span>
                     </div>
 
                     <div className="space-y-6">
@@ -1903,55 +2429,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               )}
 
               {/* TAB 2: WEEKLY SALES (WEEK TO WEEK) */}
-              {activeTab === "weekly-sales" && (
-                <div className="space-y-6 sm:space-y-8">
-                  <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl flex flex-wrap items-center justify-between gap-4`}>
-                    <div>
-                      <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
-                        <span>📈</span>
-                        <span>PERBANDINGAN WEEK TO WEEK (WoW) SALES</span>
-                      </h2>
-                      <p className={`text-xs ${textMuted} mt-0.5`}>
-                        Bandingkan pertumbuhan omset, unit (Qty), dan kontribusi sales per produk
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-3">
-                      <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
-                        <span className="text-[11px] font-black text-slate-600 dark:text-slate-400">Baseline (W1):</span>
-                        <select
-                          value={w1Filter}
-                          onChange={(e) => setW1Filter(e.target.value)}
-                          className="bg-transparent font-black text-xs text-slate-950 dark:text-white focus:outline-none cursor-pointer"
-                        >
-                          {AUTO_WEEKS.map((w) => (
-                            <option key={`w1-${w.key}`} value={w.label} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
-                              {w.label} ({w.range})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <span className="text-xs font-black text-slate-500">VS</span>
-
-                      <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
-                        <span className="text-[11px] font-black text-slate-600 dark:text-slate-400">Pembanding (W2):</span>
-                        <select
-                          value={w2Filter}
-                          onChange={(e) => setW2Filter(e.target.value)}
-                          className="bg-transparent font-black text-xs text-sky-700 dark:text-sky-400 focus:outline-none cursor-pointer"
-                        >
-                          {AUTO_WEEKS.map((w) => (
-                            <option key={`w2-${w.key}`} value={w.label} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
-                              {w.label} ({w.range})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
+              {activeTab === "weekly-sales" && renderComparisonSection(weeklyComparisonData, true)}
 
               {/* TAB KHUSUS: QOALA PROTECTION */}
               {activeTab === "qoala-ar" && (
@@ -1973,34 +2451,34 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                       <div className={`p-4 rounded-2xl border ${innerBg}`}>
                         <span className={`text-[10px] font-black uppercase tracking-wider ${textMuted} block`}>Store Attachment Rate</span>
                         <div className="text-2xl sm:text-3xl font-black mt-1 font-mono text-emerald-600 dark:text-emerald-400">
-                          {calcAchv(
-                            activeTransactions.filter((t) => t.brand === "QOALA" || (t.productName || "").toUpperCase().includes("QOALA")).reduce((acc, t) => acc + (Number(t.qty) || 1), 0),
-                            activeTransactions.filter((t) => t.groupCategory === "DEVICES").reduce((acc, t) => acc + (Number(t.qty) || 1), 0)
-                          )}%
+                          {qoalaAnalytics.storeAR}%
                         </div>
                       </div>
                       <div className={`p-4 rounded-2xl border ${innerBg}`}>
                         <span className={`text-[10px] font-black uppercase tracking-wider ${textMuted} block`}>Total Polis Terjual</span>
                         <div className="text-2xl sm:text-3xl font-black mt-1 text-sky-600 dark:text-sky-400 font-mono">
-                          {activeTransactions.filter((t) => t.brand === "QOALA" || (t.productName || "").toUpperCase().includes("QOALA")).reduce((acc, t) => acc + (Number(t.qty) || 1), 0)} Unit
+                          {qoalaAnalytics.totalQoalaQty} Unit
                         </div>
                       </div>
                       <div className={`p-4 rounded-2xl border ${innerBg}`}>
                         <span className={`text-[10px] font-black uppercase tracking-wider ${textMuted} block`}>Total Device Terjual</span>
                         <div className="text-2xl sm:text-3xl font-black mt-1 text-slate-900 dark:text-white font-mono">
-                          {activeTransactions.filter((t) => t.groupCategory === "DEVICES").reduce((acc, t) => acc + (Number(t.qty) || 1), 0)} Unit
+                          {qoalaAnalytics.totalDeviceQty} Unit
                         </div>
                       </div>
                       <div className={`p-4 rounded-2xl border ${innerBg}`}>
                         <span className={`text-[10px] font-black uppercase tracking-wider ${textMuted} block`}>Total Omset Premi</span>
                         <div className="text-2xl sm:text-3xl font-black mt-1 text-emerald-600 dark:text-emerald-400 font-mono">
-                          {formatIDR(activeTransactions.filter((t) => t.brand === "QOALA" || (t.productName || "").toUpperCase().includes("QOALA")).reduce((acc, t) => acc + (Number(t.amount) || 0), 0))}
+                          {formatIDR(qoalaAnalytics.totalQoalaAmount)}
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
               )}
+
+              {/* TAB 10: MoM GROWTH ANALYSIS */}
+              {activeTab === "mom-comparison" && renderComparisonSection(momAnalytics, false)}
 
               {/* TAB 3: STAFF PERFORMANCE LEADERBOARD */}
               {activeTab === "staff-performance" && (
@@ -2098,6 +2576,29 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                             }`}
                             style={{ width: `${Math.min(st.achvPct, 100)}%` }}
                           />
+                        </div>
+
+                        <div className={`grid grid-cols-3 gap-2 py-2.5 px-2 rounded-2xl border ${
+                          isDark ? "bg-black/25 border-slate-700/60" : "bg-slate-50/80 border-slate-200/80"
+                        }`}>
+                          <div className="text-center">
+                            <span className={`text-[9px] font-black uppercase block tracking-wider ${isDark ? "text-slate-400" : "text-slate-500"}`}>UPT</span>
+                            <strong className={`text-xs sm:text-sm font-black font-mono block mt-0.5 ${isDark ? "text-sky-400" : "text-sky-700"}`}>
+                              {st.upt || "0.0"}
+                            </strong>
+                          </div>
+                          <div className={`text-center border-x ${isDark ? "border-slate-700/60" : "border-slate-200"}`}>
+                            <span className={`text-[9px] font-black uppercase block tracking-wider ${isDark ? "text-slate-400" : "text-slate-500"}`}>ATV</span>
+                            <strong className={`text-xs sm:text-sm font-black font-mono block mt-0.5 ${isDark ? "text-indigo-300" : "text-indigo-700"}`}>
+                              {formatCompactIDR(st.atv)}
+                            </strong>
+                          </div>
+                          <div className="text-center">
+                            <span className={`text-[9px] font-black uppercase block tracking-wider ${isDark ? "text-slate-400" : "text-slate-500"}`}>TRX</span>
+                            <strong className={`text-xs sm:text-sm font-black font-mono block mt-0.5 ${isDark ? "text-white" : "text-slate-900"}`}>
+                              {st.trxCount || 0}
+                            </strong>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -2206,12 +2707,147 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                   </div>
                 </div>
               )}
+
+              {/* TAB 6: FEEDBACK TIM */}
+              {activeTab === "feedback" && (
+                <div className="space-y-6">
+                  <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-5 overflow-hidden`}>
+                    <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
+                      <span>💬</span>
+                      <span>Riwayat Feedback Penjualan Tim</span>
+                    </h2>
+                    <div className="space-y-3">
+                      {feedbacks.map((fb) => (
+                        <div key={fb.id} className={`p-4 rounded-2xl border ${innerBg} space-y-2`}>
+                          <div className="flex justify-between items-center">
+                            <span className="font-black text-sm text-slate-900 dark:text-white">{fb.salesName}</span>
+                            <span className="text-xs text-slate-500">{fb.timestamp}</span>
+                          </div>
+                          <p className="text-xs text-slate-700 dark:text-slate-300 font-medium">{fb.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 7: BNPL TRANSACTIONS */}
+              {activeTab === "bnpl" && (
+                <div className="space-y-6">
+                  <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-4 overflow-hidden`}>
+                    <div className="flex flex-wrap justify-between items-center gap-4">
+                      <div>
+                        <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
+                          <span>💳</span>
+                          <span>TRANSAKSI PEMBIAYAAN KONSUMEN (BNPL)</span>
+                        </h2>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border border-emerald-400/30">
+                          Total BNPL: {formatIDR(bnplSummary.totalAmount)}
+                        </span>
+                        <span className="px-3 py-1 rounded-full text-xs font-black bg-sky-500/15 text-sky-800 dark:text-sky-400 border border-sky-400/30">
+                          {bnplSummary.totalQty} Unit
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+                      {bnplSummary.tenders.map((td, idx) => (
+                        <div key={idx} className={`p-3.5 rounded-2xl border ${innerBg}`}>
+                          <span className="text-xs font-black text-slate-900 dark:text-white block">{td.tender}</span>
+                          <div className="text-base font-black font-mono text-emerald-600 dark:text-emerald-400 mt-1">{formatIDR(td.amount)}</div>
+                          <span className="text-[11px] text-slate-500 block">{td.qty} Transaksi ({td.share}% Share)</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 8: SALES DETAIL LOG */}
+              {activeTab === "sales-detail" && (
+                <div className="space-y-4">
+                  <div className={`p-4 sm:p-6 ${cardBg} border rounded-3xl overflow-x-auto w-full shadow-xl`}>
+                    <h3 className="text-base font-black mb-4 text-slate-950 dark:text-white">Rincian Transaksi Log (50 Terkini)</h3>
+                    <table className="w-full text-left text-xs min-w-[650px]">
+                      <thead className={`${innerBg} uppercase text-[11px] font-black border-b border-inherit text-slate-900 dark:text-slate-300`}>
+                        <tr>
+                          <th className="p-3">Tanggal</th>
+                          <th className="p-3">No. Invoice</th>
+                          <th className="p-3">Salesperson</th>
+                          <th className="p-3">Nama Produk</th>
+                          <th className="p-3 text-center">Qty</th>
+                          <th className="p-3 text-right">Nominal</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-inherit font-bold">
+                        {activeTransactions.slice(0, 50).map((t, idx) => (
+                          <tr key={idx} className="hover:opacity-90">
+                            <td className="p-3 font-mono text-slate-700 dark:text-slate-300 whitespace-nowrap">{t.date}</td>
+                            <td className="p-3 font-mono font-black text-sky-600 dark:text-sky-400">{t.invoice}</td>
+                            <td className="p-3 font-black text-slate-950 dark:text-white">{t.salesName}</td>
+                            <td className="p-3 text-slate-900 dark:text-white">{t.productName}</td>
+                            <td className="p-3 text-center text-amber-600 font-mono">{t.qty}</td>
+                            <td className="p-3 text-right font-black text-emerald-600 font-mono">{formatIDR(t.amount)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 9: CARI PRODUK TERJUAL */}
+              {activeTab === "product-search" && (
+                <div className="space-y-6">
+                  <div className={`p-6 ${cardBg} border rounded-2xl shadow-xl space-y-4`}>
+                    <h2 className="text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
+                      <span>🔍</span> PENCARIAN PRODUK TERJUAL
+                    </h2>
+                    <input
+                      type="text"
+                      value={productSearchQuery}
+                      onChange={(e) => setProductSearchQuery(e.target.value)}
+                      placeholder="Ketik kode artikel SAP atau nama produk..."
+                      className={`w-full p-3.5 pl-4 rounded-xl ${innerBg} border text-sm font-bold focus:outline-none focus:border-sky-400 text-slate-950 dark:text-white`}
+                    />
+                    <div className="overflow-x-auto w-full">
+                      <table className="w-full text-left text-xs min-w-[600px]">
+                        <thead className={`${innerBg} uppercase text-[10px] font-black border-b border-inherit`}>
+                          <tr>
+                            <th className="p-3">Tanggal</th>
+                            <th className="p-3">Invoice</th>
+                            <th className="p-3">Produk</th>
+                            <th className="p-3 text-center">Qty</th>
+                            <th className="p-3 text-right">Nominal</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-inherit">
+                          {activeTransactions
+                            .filter((t) => t.productName.toLowerCase().includes(productSearchQuery.toLowerCase()) || t.sapArticle.includes(productSearchQuery))
+                            .slice(0, 30)
+                            .map((t, idx) => (
+                              <tr key={idx} className="hover:opacity-90">
+                                <td className="p-3 font-mono">{t.date}</td>
+                                <td className="p-3 font-mono text-sky-600 font-bold">{t.invoice}</td>
+                                <td className="p-3 font-bold">{t.productName}</td>
+                                <td className="p-3 text-center text-amber-500 font-bold">{t.qty}</td>
+                                <td className="p-3 text-right font-mono font-black text-emerald-600">{formatIDR(t.amount)}</td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </main>
       </div>
 
-      {/* Floating Action Button (FAB) Navigasi Mobile Drawer di Pojok Kanan Bawah */}
+      {/* Floating Action Button (FAB) Mobile di Pojok Kanan Bawah */}
       <button
         type="button"
         onClick={() => setMobileDrawerOpen(true)}
@@ -2222,7 +2858,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
         <span className="text-[10px] font-black uppercase tracking-wider leading-none">Menu</span>
       </button>
 
-      {/* BOTTOM SHEET MODAL DRILLDOWN DETAIL */}
+      {/* BOTTOM SHEET MODAL DRILLDOWN */}
       {bottomSheetOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm transition-opacity animate-in fade-in overflow-hidden p-0 sm:p-4">
           <div className={`w-full sm:max-w-3xl max-h-[85vh] rounded-t-3xl sm:rounded-3xl ${cardBg} border-2 border-inherit shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300`}>
