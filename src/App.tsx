@@ -1331,42 +1331,49 @@ export default function DigiplusOperationalEngine() {
   }, [transactions, storeTotalTarget, selectedDate, timeGoneStats]);
 
   const dailyTargetCalculated = useMemo(() => {
-    const totalMonthTarget = storeTotalTarget || 8728667173;
-    const totalDays = timeGoneStats.totalDays;
-    const daysPassed = timeGoneStats.elapsedDays;
-    const daysLeft = timeGoneStats.remainingDays;
+    // 1. Hitung total target harian seluruh staf dari sheet catch-up gid=789142551
+    const totalStaffDailyCatchup = Object.values(staffDailyTargets || {}).reduce(
+      (acc, curr) => acc + (Number(curr.total) || 0),
+      0
+    );
 
-    const actualAchievedSoFar = transactions.reduce((acc, t) => acc + t.amount, 0);
-    const remainingTarget = Math.max(0, totalMonthTarget - actualAchievedSoFar);
-    const requiredDailyRunRate = daysLeft > 0 ? Math.round(remainingTarget / daysLeft) : 0;
+    // 2. Transaksi aktual toko hari ini
+    const todayTrx = transactions.filter((t) => t.isoDate === selectedDate);
+    const actualToday = todayTrx.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
 
-    const todayShiftKey = "sat";
-    const staffOnDuty = scheduleData.filter((s) => s[todayShiftKey] !== "OFF" && s[todayShiftKey] !== "CUTI");
-    const staffCount = staffOnDuty.length || 7;
+    // 3. Hitung hari dalam bulan berjalan
+    const now = new Date(selectedDate || Date.now());
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const totalDaysInMonth = new Date(year, month + 1, 0).getDate();
+    const daysPassed = now.getDate();
+    const daysLeft = Math.max(1, totalDaysInMonth - daysPassed);
 
-    const targetStoreToday = requiredDailyRunRate;
-    const targetPerStaffToday = Math.round(targetStoreToday / staffCount);
+    // Prioritaskan total penjumlahan staf catch-up sheet
+    const targetStoreToday = totalStaffDailyCatchup > 0 
+      ? totalStaffDailyCatchup 
+      : (storeTotalTarget > 0 ? Math.round(storeTotalTarget / totalDaysInMonth) : 0);
 
-    const actualToday = overviewStats.todayActual;
-    const achvToday = calcAchv(actualToday, targetStoreToday);
+    // Jumlah staf aktif
+    const activeStaffCount = Object.keys(staffDailyTargets).length || (staffList && staffList.length) || 1;
+    const targetPerStaffToday = Math.round(targetStoreToday / activeStaffCount);
 
     return {
-      totalMonthTarget,
-      totalDays,
+      totalMonthTarget: storeTotalTarget,
+      totalDays: totalDaysInMonth,
       daysPassed,
       daysLeft,
-      actualAchievedSoFar,
-      remainingTarget,
-      requiredDailyRunRate,
-      staffOnDuty,
-      staffCount,
+      actualAchievedSoFar: 0,
+      remainingTarget: 0,
+      requiredDailyRunRate: targetStoreToday,
+      staffOnDuty: [],
+      staffCount: activeStaffCount,
       targetStoreToday,
       targetPerStaffToday,
       actualToday,
-      achvToday,
+      achvToday: targetStoreToday > 0 ? Math.round((actualToday / targetStoreToday) * 100) : 0,
     };
-  }, [transactions, scheduleData, overviewStats.todayActual, storeTotalTarget, timeGoneStats]);
-
+  }, [staffDailyTargets, transactions, selectedDate, storeTotalTarget, staffList]);
   const scheduleDaySummary = useMemo(() => {
     const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
     return days.map((day) => {
