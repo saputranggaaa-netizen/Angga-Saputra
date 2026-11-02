@@ -288,13 +288,6 @@ export default function DigiplusOperationalEngine() {
   const [sheetTitle, setSheetTitle] = useState<string>("");
   const [sheetContent, setSheetContent] = useState<React.ReactNode>(null);
 
-  // BNPL Tab Filter
-  const [selectedBnplTender, setSelectedBnplTender] = useState<string>("ALL");
-
-  // Feedback State
-  const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>(DEFAULT_FEEDBACKS);
-  const [selectedFeedbackStaff, setSelectedFeedbackStaff] = useState<string>("ALL");
-
   // PPTX Exporting State
   const [isExportingPptx, setIsExportingPptx] = useState<boolean>(false);
 
@@ -728,501 +721,14 @@ export default function DigiplusOperationalEngine() {
     };
   }, [activeTransactions, periodType, storeTotalTarget, categoryTargets, selectedDate, transactions]);
 
-  const getSubCategory = (t: RawTransaction) => {
-    const p = (t.productName || "").toUpperCase();
-    const b = (t.brand || "").toUpperCase();
-    const g = (t.groupCategory || "").toUpperCase();
+  // Target LOB & Kalkulasi Estimasi Linear
+  const targetStoreLOB = overviewStats.target;
+  const targetAppleLOB = overviewStats.lobs.find((l) => l.name.includes("Apple"))?.target || Math.round(targetStoreLOB * 0.794);
+  const targetAndroidLOB = overviewStats.lobs.find((l) => l.name.includes("Android"))?.target || Math.round(targetStoreLOB * 0.108);
+  const targetAccessoriesLOB = overviewStats.lobs.find((l) => l.name.includes("Accessories"))?.target || Math.round(targetStoreLOB * 0.05);
+  const targetVasLOB = overviewStats.lobs.find((l) => l.name.includes("VAS"))?.target || Math.round(targetStoreLOB * 0.045);
 
-    if (b === "APPLE") {
-      if (p.includes("IPHONE")) return "iPhone";
-      if (p.includes("IPAD")) return "iPad";
-      if (p.includes("MAC") || p.includes("BOOK")) return "MacBook";
-      if (p.includes("WATCH")) return "Apple Watch";
-      if (p.includes("AIRPOD")) return "AirPods";
-      return "Apple Other";
-    }
-
-    if (g === "DEVICES") {
-      if (p.includes("PHONE") || p.includes("GALAXY S") || p.includes("GALAXY Z") || p.includes("GALAXY A") || p.includes("REDMI") || p.includes("NOTE") || p.includes("RENO") || p.includes("PURA") || p.includes("MATE")) {
-        return `${t.brand} Phone`;
-      }
-      if (p.includes("TAB") || p.includes("PAD") || p.includes("MATEPAD")) {
-        return `${t.brand} Tablet`;
-      }
-      if (p.includes("WATCH") || p.includes("BAND") || p.includes("FIT")) {
-        return `${t.brand} Watch`;
-      }
-      return `${t.brand} Other`;
-    }
-
-    if (g === "ACCESSORIES") {
-      if (p.includes("CASE") || p.includes("COVER")) return "Casing & Protection";
-      if (p.includes("GLASS") || p.includes("TEMPERED")) return "Screen Protector";
-      if (p.includes("ADAPTER") || p.includes("CHARGER") || p.includes("POWER")) return "Power & Adapter";
-      if (p.includes("CABLE")) return "Cable & Connector";
-      return "Audio & Other Acc";
-    }
-
-    if (g === "VAS" || b === "QOALA") {
-      if (p.includes("QOALA") || p.includes("PROTEKSI")) return "Qoala Proteksi Gadget";
-      if (b.includes("TELKOMSEL") || p.includes("TELKOMSEL")) return "Telkomsel Halo/Data";
-      if (b.includes("XL") || p.includes("MYPRIO")) return "XL Prioritas";
-      return "VAS / Other Service";
-    }
-
-    return "Lain-lain";
-  };
-
-  const calcGrowth = (curr: number, prev: number) => {
-    if (prev === 0) return curr > 0 ? 100 : 0;
-    return Number((((curr - prev) / prev) * 100).toFixed(1));
-  };
-
-  const buildAppleSubCategoryData = (trxP1: RawTransaction[], trxP2: RawTransaction[]) => {
-    const appleItemsP1 = (trxP1 || []).filter((t) => t.brand === "APPLE" && t.groupCategory === "DEVICES");
-    const appleItemsP2 = (trxP2 || []).filter((t) => t.brand === "APPLE" && t.groupCategory === "DEVICES");
-
-    const appleCategories = ["iPhone", "iPad", "MacBook", "Apple Watch", "AirPods"];
-
-    return appleCategories.map((subCat) => {
-      const matchP1 = appleItemsP1.filter((t) => getSubCategory(t) === subCat);
-      const matchP2 = appleItemsP2.filter((t) => getSubCategory(t) === subCat);
-
-      const totalQtyP1 = matchP1.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
-      const totalAmtP1 = matchP1.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-      const totalQtyP2 = matchP2.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
-      const totalAmtP2 = matchP2.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-
-      const staffSet = new Set([...matchP1.map((t) => t.salesName), ...matchP2.map((t) => t.salesName)]);
-      const staffList = Array.from(staffSet).filter(Boolean).map((sName) => {
-        const sTrx1 = matchP1.filter((t) => t.salesName === sName);
-        const sTrx2 = matchP2.filter((t) => t.salesName === sName);
-
-        const q1 = sTrx1.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
-        const a1 = sTrx1.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-        const q2 = sTrx2.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
-        const a2 = sTrx2.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-
-        return {
-          name: sName,
-          p1Qty: q1,
-          p1Amt: a1,
-          p2Qty: q2,
-          p2Amt: a2,
-          growthAmt: calcGrowth(a2, a1),
-        };
-      }).sort((a, b) => b.p2Amt - a.p2Amt);
-
-      return {
-        subCat,
-        totalQtyP1,
-        totalAmtP1,
-        totalQtyP2,
-        totalAmtP2,
-        growthAmt: calcGrowth(totalAmtP2, totalAmtP1),
-        staffList,
-      };
-    });
-  };
-
-  const buildAndroidBrandHierarchy = (trxP1: RawTransaction[], trxP2: RawTransaction[], brandName: string) => {
-    const filterFn = (t: RawTransaction) => {
-      const bUpper = (t.brand || "").toUpperCase();
-      if (brandName === "ANDROID LAINNYA") {
-        return !["APPLE", "SAMSUNG", "HUAWEI", "OPPO"].includes(bUpper) && t.groupCategory === "DEVICES";
-      }
-      return bUpper.includes(brandName.toUpperCase()) && t.groupCategory === "DEVICES";
-    };
-
-    const brandP1 = (trxP1 || []).filter(filterFn);
-    const brandP2 = (trxP2 || []).filter(filterFn);
-
-    const totalQtyP1 = brandP1.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
-    const totalAmtP1 = brandP1.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-    const totalQtyP2 = brandP2.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
-    const totalAmtP2 = brandP2.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-
-    const staffNames = Array.from(new Set([...brandP1.map((t) => t.salesName), ...brandP2.map((t) => t.salesName)])).filter(Boolean);
-
-    const staffBreakdown = staffNames.map((sName) => {
-      const stP1 = brandP1.filter((t) => t.salesName === sName);
-      const stP2 = brandP2.filter((t) => t.salesName === sName);
-
-      const stQty1 = stP1.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
-      const stAmt1 = stP1.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-      const stQty2 = stP2.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
-      const stAmt2 = stP2.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-
-      const categories = ["Phone", "Tablet", "Watch", "Other"];
-      const subItems = categories.map((cat) => {
-        const catMatchP1 = stP1.filter((t) => {
-          const sub = getSubCategory(t).toLowerCase();
-          return cat === "Other" ? (!sub.includes("phone") && !sub.includes("tablet") && !sub.includes("watch")) : sub.includes(cat.toLowerCase());
-        });
-        const catMatchP2 = stP2.filter((t) => {
-          const sub = getSubCategory(t).toLowerCase();
-          return cat === "Other" ? (!sub.includes("phone") && !sub.includes("tablet") && !sub.includes("watch")) : sub.includes(cat.toLowerCase());
-        });
-
-        const q1 = catMatchP1.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
-        const a1 = catMatchP1.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-        const q2 = catMatchP2.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
-        const a2 = catMatchP2.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-
-        return {
-          catLabel: `${brandName} ${cat}`,
-          q1,
-          a1,
-          q2,
-          a2,
-          growthAmt: calcGrowth(a2, a1),
-        };
-      }).filter((c) => c.q1 > 0 || c.q2 > 0);
-
-      return {
-        name: sName,
-        totalQty1: stQty1,
-        totalAmt1: stAmt1,
-        totalQty2: stQty2,
-        totalAmt2: stAmt2,
-        growthAmt: calcGrowth(stAmt2, stAmt1),
-        subItems,
-      };
-    }).sort((a, b) => b.totalAmt2 - a.totalAmt2);
-
-    return {
-      brand: brandName,
-      totalQtyP1,
-      totalAmtP1,
-      totalQtyP2,
-      totalAmtP2,
-      growthAmt: calcGrowth(totalAmtP2, totalAmtP1),
-      staffBreakdown,
-    };
-  };
-
-  const buildDroppedProductsAnalysis = (trxP1: RawTransaction[], trxP2: RawTransaction[]) => {
-    const deficitMap: Record<string, { name: string; brand: string; p1Amt: number; p2Amt: number; p1Qty: number; p2Qty: number }> = {};
-
-    [...(trxP1 || []), ...(trxP2 || [])].forEach((t) => {
-      const pName = (t.productName || "Unknown").trim();
-      const brand = t.brand || "OTHER";
-
-      if (!deficitMap[pName]) {
-        deficitMap[pName] = { name: pName, brand, p1Amt: 0, p2Amt: 0, p1Qty: 0, p2Qty: 0 };
-      }
-    });
-
-    (trxP1 || []).forEach((t) => {
-      const pName = (t.productName || "Unknown").trim();
-      if (deficitMap[pName]) {
-        deficitMap[pName].p1Amt += (Number(t.amount) || 0);
-        deficitMap[pName].p1Qty += (Number(t.qty) || 1);
-      }
-    });
-
-    (trxP2 || []).forEach((t) => {
-      const pName = (t.productName || "Unknown").trim();
-      if (deficitMap[pName]) {
-        deficitMap[pName].p2Amt += (Number(t.amount) || 0);
-        deficitMap[pName].p2Qty += (Number(t.qty) || 1);
-      }
-    });
-
-    return Object.values(deficitMap)
-      .map((p) => {
-        const diff = p.p2Amt - p.p1Amt;
-        const growth = calcGrowth(p.p2Amt, p.p1Amt);
-        return { ...p, diff, growth };
-      })
-      .filter((p) => p.diff < 0)
-      .sort((a, b) => a.diff - b.diff);
-  };
-
-  // Komparasi Month to Month
-  const momAnalytics = useMemo(() => {
-    const trxM1 = transactions.filter((t) => (t.monthKey || t.month || "").trim() === momCompareMonth);
-    const trxM2 = transactions.filter((t) => (t.monthKey || t.month || "").trim() === momBaseMonth);
-
-    const totalM1 = trxM1.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-    const totalM2 = trxM2.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-    const storeGrowth = calcGrowth(totalM2, totalM1);
-
-    const staffNames = Array.from(new Set([...trxM1.map((t) => t.salesName), ...trxM2.map((t) => t.salesName)])).filter(Boolean);
-    const staffSales = staffNames.map((name) => {
-      const sM1 = trxM1.filter((t) => t.salesName === name).reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-      const sM2 = trxM2.filter((t) => t.salesName === name).reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-      return {
-        name,
-        m1: sM1,
-        m2: sM2,
-        growth: calcGrowth(sM2, sM1),
-      };
-    }).sort((a, b) => b.m2 - a.m2);
-
-    return {
-      p1Label: momCompareMonth,
-      p2Label: momBaseMonth,
-      totalM1,
-      totalM2,
-      storeGrowth,
-      staffSales,
-      appleData: buildAppleSubCategoryData(trxM1, trxM2),
-      samsungData: buildAndroidBrandHierarchy(trxM1, trxM2, "SAMSUNG"),
-      huaweiData: buildAndroidBrandHierarchy(trxM1, trxM2, "HUAWEI"),
-      oppoData: buildAndroidBrandHierarchy(trxM1, trxM2, "OPPO"),
-      androidOtherData: buildAndroidBrandHierarchy(trxM1, trxM2, "ANDROID LAINNYA"),
-      droppedProducts: buildDroppedProductsAnalysis(trxM1, trxM2),
-    };
-  }, [transactions, momBaseMonth, momCompareMonth]);
-
-  // Komparasi Week to Week
-  const weeklyComparisonData = useMemo(() => {
-    const getTrxForWeek = (selectedVal: string) => {
-      if (!selectedVal) return [];
-
-      const wObj = AUTO_WEEKS.find((w) => w.key === selectedVal || w.label === selectedVal);
-      const targetLabel = (wObj ? wObj.label : selectedVal).trim().toLowerCase();
-      const targetKey = (wObj ? wObj.key : selectedVal).trim().toLowerCase();
-      const weekNum = targetKey.replace(/\D/g, "");
-
-      return transactions.filter((t) => {
-        if (!t.weekLabel) return false;
-        const wl = t.weekLabel.trim().toLowerCase();
-        return (
-          wl === targetLabel ||
-          wl.includes(targetLabel) ||
-          wl.includes(targetKey) ||
-          (weekNum && (wl.includes(`week ${weekNum}`) || wl.includes(`w${weekNum}`)))
-        );
-      });
-    };
-
-    const trxW1 = getTrxForWeek(w1Filter);
-    const trxW2 = getTrxForWeek(w2Filter);
-
-    const totalW1 = trxW1.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-    const totalW2 = trxW2.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-    const storeGrowth = calcGrowth(totalW2, totalW1);
-
-    const staffNames = Array.from(new Set([...trxW1.map((t) => t.salesName), ...trxW2.map((t) => t.salesName)])).filter(Boolean);
-    const staffSales = staffNames.map((name) => {
-      const sW1 = trxW1.filter((t) => t.salesName === name).reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-      const sW2 = trxW2.filter((t) => t.salesName === name).reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-      return {
-        name,
-        w1: sW1,
-        w2: sW2,
-        growth: calcGrowth(sW2, sW1),
-      };
-    }).sort((a, b) => b.w2 - a.w2);
-
-    return {
-      p1Label: w1Filter || "Minggu 1",
-      p2Label: w2Filter || "Minggu 2",
-      totalM1: totalW1,
-      totalM2: totalW2,
-      storeGrowth,
-      staffSales,
-      appleData: buildAppleSubCategoryData(trxW1, trxW2),
-      samsungData: buildAndroidBrandHierarchy(trxW1, trxW2, "SAMSUNG"),
-      huaweiData: buildAndroidBrandHierarchy(trxW1, trxW2, "HUAWEI"),
-      oppoData: buildAndroidBrandHierarchy(trxW1, trxW2, "OPPO"),
-      androidOtherData: buildAndroidBrandHierarchy(trxW1, trxW2, "ANDROID LAINNYA"),
-      droppedProducts: buildDroppedProductsAnalysis(trxW1, trxW2),
-    };
-  }, [transactions, w1Filter, w2Filter, AUTO_WEEKS]);
-
-  const staffList = useMemo(() => {
-    const map: Record<string, {
-      salesId: string;
-      name: string;
-      total: number;
-      qty: number;
-      invoices: Set<string>;
-      appleMap: Record<string, { actual: number; qty: number; icon: string }>;
-      androidMap: Record<string, { actual: number; qty: number; icon: string }>;
-      accMap: Record<string, { actual: number; qty: number; icon: string }>;
-      vasMap: Record<string, { actual: number; qty: number; icon: string }>;
-      weekSales: Record<string, number>;
-      rawItems: RawTransaction[];
-    }> = {};
-
-    activeTransactions.forEach((t) => {
-      const id = t.salesId || "OTHER";
-      if (!map[id]) {
-        map[id] = {
-          salesId: id,
-          name: t.salesName || `Sales ${id}`,
-          total: 0,
-          qty: 0,
-          invoices: new Set(),
-          appleMap: {
-            "iPhone": { actual: 0, qty: 0, icon: "📱" },
-            "iPad": { actual: 0, qty: 0, icon: "📟" },
-            "MacBook": { actual: 0, qty: 0, icon: "💻" },
-            "Apple Watch": { actual: 0, qty: 0, icon: "⌚" },
-            "AirPods": { actual: 0, qty: 0, icon: "🎧" },
-          },
-          androidMap: {
-            "Samsung Devices": { actual: 0, qty: 0, icon: "📱" },
-            "Xiaomi / Redmi Devices": { actual: 0, qty: 0, icon: "🟠" },
-            "Oppo Devices": { actual: 0, qty: 0, icon: "🟢" },
-            "Motorola Devices": { actual: 0, qty: 0, icon: "Ⓜ️" },
-            "Huawei Devices": { actual: 0, qty: 0, icon: "🔴" },
-            "Infinix Devices": { actual: 0, qty: 0, icon: "⚡" },
-          },
-          accMap: {},
-          vasMap: {
-            "Qoala Proteksi Gadget": { actual: 0, qty: 0, icon: "🛡️" },
-            "Telkomsel Halo/Data": { actual: 0, qty: 0, icon: "🔴" },
-            "XL Prioritas": { actual: 0, qty: 0, icon: "🔵" },
-            "Indosat IM3": { actual: 0, qty: 0, icon: "🟡" },
-          },
-          weekSales: {},
-          rawItems: [],
-        };
-      }
-
-      map[id].total += t.amount;
-      map[id].qty += t.qty;
-      map[id].rawItems.push(t);
-      if (t.invoice) map[id].invoices.add(t.invoice);
-
-      const wLabel = t.weekLabel || "W_Other";
-      map[id].weekSales[wLabel] = (map[id].weekSales[wLabel] || 0) + t.amount;
-
-      const pUpper = t.productName.toUpperCase();
-      const isCaseAcc = pUpper.includes("CASE") || pUpper.includes("GLASS") || pUpper.includes("ADAPTER") || pUpper.includes("CABLE") || pUpper.includes("BAND");
-
-      if (t.brand === "APPLE" && !isCaseAcc && (t.groupCategory === "DEVICES" || pUpper.includes("IPHONE") || pUpper.includes("IPAD") || pUpper.includes("MAC") || pUpper.includes("WATCH") || pUpper.includes("AIRPOD"))) {
-        if (pUpper.includes("IPHONE")) { map[id].appleMap["iPhone"].actual += t.amount; map[id].appleMap["iPhone"].qty += t.qty; }
-        else if (pUpper.includes("IPAD")) { map[id].appleMap["iPad"].actual += t.amount; map[id].appleMap["iPad"].qty += t.qty; }
-        else if (pUpper.includes("MAC") || pUpper.includes("BOOK")) { map[id].appleMap["MacBook"].actual += t.amount; map[id].appleMap["MacBook"].qty += t.qty; }
-        else if (pUpper.includes("WATCH")) { map[id].appleMap["Apple Watch"].actual += t.amount; map[id].appleMap["Apple Watch"].qty += t.qty; }
-        else if (pUpper.includes("AIRPOD")) { map[id].appleMap["AirPods"].actual += t.amount; map[id].appleMap["AirPods"].qty += t.qty; }
-      }
-
-      if (t.groupCategory === "DEVICES" && t.brand !== "APPLE" && !isCaseAcc) {
-        if (t.brand === "SAMSUNG" || pUpper.includes("GALAXY")) { map[id].androidMap["Samsung Devices"].actual += t.amount; map[id].androidMap["Samsung Devices"].qty += t.qty; }
-        else if (t.brand === "XIAOMI" || pUpper.includes("REDMI")) { map[id].androidMap["Xiaomi / Redmi Devices"].actual += t.amount; map[id].androidMap["Xiaomi / Redmi Devices"].qty += t.qty; }
-        else if (t.brand === "OPPO") { map[id].androidMap["Oppo Devices"].actual += t.amount; map[id].androidMap["Oppo Devices"].qty += t.qty; }
-        else if (t.brand === "MOTOROLA") { map[id].androidMap["Motorola Devices"].actual += t.amount; map[id].androidMap["Motorola Devices"].qty += t.qty; }
-        else if (t.brand === "HUAWEI") { map[id].androidMap["Huawei Devices"].actual += t.amount; map[id].androidMap["Huawei Devices"].qty += t.qty; }
-        else if (t.brand === "INFINIX") { map[id].androidMap["Infinix Devices"].actual += t.amount; map[id].androidMap["Infinix Devices"].qty += t.qty; }
-      }
-
-      if (t.groupCategory === "ACCESSORIES") {
-        const item = t.productName.trim() || "Aksesoris";
-        if (!map[id].accMap[item]) map[id].accMap[item] = { actual: 0, qty: 0, icon: "🔌" };
-        map[id].accMap[item].actual += t.amount;
-        map[id].accMap[item].qty += t.qty;
-      }
-
-      if (t.brand === "QOALA" || pUpper.includes("QOALA") || pUpper.includes("PROTEKSI")) {
-        map[id].vasMap["Qoala Proteksi Gadget"].actual += t.amount;
-        map[id].vasMap["Qoala Proteksi Gadget"].qty += t.qty;
-      } else if (t.brand === "TELKOMSEL" || pUpper.includes("TELKOMSEL")) {
-        map[id].vasMap["Telkomsel Halo/Data"].actual += t.amount;
-        map[id].vasMap["Telkomsel Halo/Data"].qty += t.qty;
-      } else if (t.brand === "XL" || pUpper.includes("MYPRIO")) {
-        map[id].vasMap["XL Prioritas"].actual += t.amount;
-        map[id].vasMap["XL Prioritas"].qty += t.qty;
-      } else if (t.brand === "INDOSAT") {
-        map[id].vasMap["Indosat IM3"].actual += t.amount;
-        map[id].vasMap["Indosat IM3"].qty += t.qty;
-      }
-    });
-
-    const sorted = Object.values(map).sort((a, b) => b.total - a.total);
-
-    return sorted.map((s, idx) => {
-      const invCount = s.invoices.size;
-      const upt = calcUpt(s.qty, invCount);
-      const atv = invCount > 0 ? Math.round(s.total / invCount) : 0;
-
-      const nameKey = s.name.trim().toLowerCase();
-      const matchedTarget = 
-        staffTargets[nameKey] ||
-        staffTargets[nameKey.split(" ")[0]] ||
-        staffTargets[s.salesId];
-
-      const targetQuota = matchedTarget || Math.round((storeTotalTarget || 8728667173) / 6);
-      const achv = calcAchv(s.total, targetQuota);
-      const variance = s.total - targetQuota;
-
-      const words = s.name.split(" ");
-      const initials = words.length > 1 ? (words[0][0] + words[1][0]).toUpperCase() : words[0].slice(0, 2).toUpperCase();
-
-      const sortedAcc = Object.entries(s.accMap)
-        .map(([name, d]) => ({ name, ...d }))
-        .sort((a, b) => b.actual - a.actual);
-
-      const totalAccActual = sortedAcc.reduce((acc, c) => acc + c.actual, 0);
-      const totalVasActual = Object.values(s.vasMap).reduce((acc, c) => acc + c.actual, 0);
-
-      const appleAmount = Object.values(s.appleMap).reduce((acc, c) => acc + c.actual, 0);
-      const androidAmount = Object.values(s.androidMap).reduce((acc, c) => acc + c.actual, 0);
-
-      const targetAcc = 80000000;
-      const targetVas = 60000000;
-
-      let status: "Tercapai" | "Perlu Perhatian Khusus" | "Dalam Pantauan" = "Dalam Pantauan";
-      let ringkasan = `Pencapaian ${achv}% terhadap target kuota.`;
-      let rekomendasi = "Tingkatkan penawaran bundling aksesoris dan layanan proteksi pada setiap nota penjualan.";
-
-      if (achv >= 100) {
-        status = "Tercapai";
-        ringkasan = `Performa sangat prima! Target tercapai ${achv}% dengan total ${invCount} struk nota.`;
-        rekomendasi = "Pertahankan konsistensi penjualan unit dan maksimalkan attachment rate aksesoris premium.";
-      } else if (achv < 20) {
-        status = "Perlu Perhatian Khusus";
-        ringkasan = `Pencapaian sangat tertinggal (${achv}%), defisit omset mencapai ${formatIDR(variance)}.`;
-        rekomendasi = "Evaluasi interaksi prospek customer harian dan manfaatkan program cicilan/BNPL 0%.";
-      }
-
-      return {
-        rank: idx + 1,
-        salesId: s.salesId,
-        name: s.name,
-        role: "Sales Specialist",
-        initials,
-        actual: s.total,
-        target: targetQuota,
-        achievement: achv,
-        achvPct: achv,
-        variance,
-        estimate: Math.round(s.total * 1.25),
-        invoicesCount: invCount,
-        trxCount: invCount,
-        atv,
-        qty: s.qty,
-        upt,
-        points: Number((achv * 0.15).toFixed(1)),
-        totalAmount: s.total,
-        targetAmount: targetQuota,
-        appleAmount,
-        androidAmount,
-        accAmount: totalAccActual,
-        vasAmount: totalVasActual,
-        totalAccActual,
-        targetAcc,
-        achvAcc: calcAchv(totalAccActual, targetAcc),
-        totalVasActual,
-        targetVas,
-        achvVas: calcAchv(totalVasActual, targetVas),
-        status,
-        ringkasan,
-        rekomendasi,
-        appleSub: Object.entries(s.appleMap).map(([name, d]) => ({ name, ...d })),
-        androidSub: Object.entries(s.androidMap).map(([name, d]) => ({ name, ...d })),
-        accessoriesSub: sortedAcc,
-        vasSub: Object.entries(s.vasMap).map(([name, d]) => ({ name, ...d })),
-        weekSales: s.weekSales,
-        rawItems: s.rawItems,
-      };
-    });
-  }, [activeTransactions, staffTargets, storeTotalTarget]);
+  const calcEst = (val: number) => Math.round(val * 1.25);
 
   const timeGoneStats = useMemo(() => {
     const targetDateStr = selectedDate || new Date().toISOString().split("T")[0];
@@ -1307,32 +813,6 @@ export default function DigiplusOperationalEngine() {
       achvToday,
     };
   }, [transactions, scheduleData, overviewStats.todayActual, storeTotalTarget, timeGoneStats]);
-
-  const bnplSummary = useMemo(() => {
-    const totalAmount = bnplRecords.reduce((acc, b) => acc + b.amount, 0);
-    const totalQty = bnplRecords.reduce((acc, b) => acc + b.qty, 0);
-    const storeActual = overviewStats.actual;
-
-    const map: Record<string, { amount: number; qty: number }> = {};
-    bnplRecords.forEach((b) => {
-      const tKey = b.tender || "Other";
-      if (!map[tKey]) map[tKey] = { amount: 0, qty: 0 };
-      map[tKey].amount += b.amount;
-      map[tKey].qty += b.qty;
-    });
-
-    const tenders = Object.entries(map).map(([tender, d]) => {
-      const share = storeActual > 0 ? Number(((d.amount / storeActual) * 100).toFixed(1)) : 0;
-      const estimate = Math.round((d.amount / 24) * 31);
-      return { tender, amount: d.amount, qty: d.qty, share, estimate };
-    }).sort((a, b) => b.amount - a.amount);
-
-    const filteredRecords = selectedBnplTender === "ALL"
-      ? bnplRecords
-      : bnplRecords.filter((b) => b.tender.toLowerCase() === selectedBnplTender.toLowerCase());
-
-    return { totalAmount, totalQty, tenders, list: filteredRecords };
-  }, [bnplRecords, overviewStats.actual, selectedBnplTender]);
 
   const scheduleDaySummary = useMemo(() => {
     const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
@@ -1456,17 +936,81 @@ _Diperbarui via Digiplus Store Operations Engine._`;
     setBottomSheetOpen(true);
   };
 
+  // Fungsi Drilldown dengan Filter Periode Aktif
   const openLobDetailSheet = (lobName: string, items: RawTransaction[]) => {
-    openCustomBottomSheet(`Rincian Produk: ${lobName} (${items.length} Item)`, (
+    const activePeriodLabel = 
+      periodType === "daily" 
+        ? `Tanggal: ${selectedDate}` 
+        : periodType === "weekly" 
+        ? `Minggu: ${selectedWeek}` 
+        : `Bulan: ${selectedMonth}`;
+
+    openCustomBottomSheet(
+      `${lobName} • (${activePeriodLabel})`,
       <div className="space-y-4 text-xs font-semibold">
         <div className="flex justify-between items-center p-3.5 rounded-2xl bg-black/10 dark:bg-black/25 border border-inherit shadow-inner">
-          <span className="font-bold text-slate-800 dark:text-slate-300">Total Nilai Kategori:</span>
-          <strong className="text-emerald-700 dark:text-emerald-400 font-black text-sm sm:text-base">
-            {formatIDR(items.reduce((acc, c) => acc + c.amount, 0))}
-          </strong>
+          <div>
+            <span className="font-bold text-slate-800 dark:text-slate-300 block">Total Qty Terjual:</span>
+            <strong className="text-sky-600 dark:text-sky-400 font-black text-sm">
+              {items.reduce((acc, c) => acc + (Number(c.qty) || 1), 0)} Unit
+            </strong>
+          </div>
+          <div className="text-right">
+            <span className="font-bold text-slate-800 dark:text-slate-300 block">Total Nilai Transaksi:</span>
+            <strong className="text-emerald-700 dark:text-emerald-400 font-black text-sm sm:text-base font-mono">
+              {formatIDR(items.reduce((acc, c) => acc + (Number(c.amount) || 0), 0))}
+            </strong>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto rounded-2xl border border-inherit w-full">
+          <table className="w-full text-left text-xs min-w-[550px]">
+            <thead className="bg-slate-200/70 dark:bg-black/40 uppercase text-[10px] font-black tracking-wider border-b border-inherit text-slate-950 dark:text-slate-300">
+              <tr>
+                <th className="py-3 px-3">Tanggal</th>
+                <th className="py-3 px-3">Invoice</th>
+                <th className="py-3 px-3">Sales Person</th>
+                <th className="py-3 px-3">Nama Produk</th>
+                <th className="py-3 px-3 text-center">Qty</th>
+                <th className="py-3 px-3 text-right">Nilai (Rp)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-inherit font-semibold">
+              {items.length > 0 ? (
+                items.map((it, idx) => (
+                  <tr key={idx} className="hover:opacity-90">
+                    <td className="py-2.5 px-3 font-mono text-[11px] text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                      {it.date || it.isoDate}
+                    </td>
+                    <td className="py-2.5 px-3 font-mono font-bold text-sky-600 dark:text-sky-400 whitespace-nowrap">
+                      {it.invoice}
+                    </td>
+                    <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                      {it.salesName}
+                    </td>
+                    <td className="py-2.5 px-3 text-slate-950 dark:text-white max-w-xs">
+                      {it.productName}
+                    </td>
+                    <td className="py-2.5 px-3 text-center font-black text-amber-600 dark:text-amber-400 font-mono">
+                      {it.qty}
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-black text-emerald-700 dark:text-emerald-400 font-mono whitespace-nowrap">
+                      {formatIDR(it.amount)}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={6} className="text-center py-8 text-slate-500 font-bold italic">
+                    Tidak ada transaksi pada periode {activePeriodLabel}.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
-    ));
+    );
   };
 
   const isDark = theme === "dark";
@@ -1506,361 +1050,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
     { id: "sales-detail", label: "Rincian Transaksi Log", icon: "📋", color: "bg-slate-600", shadow: "shadow-slate-600/30" },
   ];
 
-  const renderComparisonSection = (data: typeof momAnalytics, isWeekly = false) => {
-    return (
-      <div className="space-y-6 sm:space-y-8">
-        <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl flex flex-wrap items-center justify-between gap-4`}>
-          <div>
-            <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
-              <span>⚖️</span>
-              <span>{isWeekly ? "PERBANDINGAN WEEK TO WEEK (WoW) SALES" : "ANALISIS PERTUMBUHAN MONTH TO MONTH (MoM)"}</span>
-            </h2>
-            <p className={`text-xs ${textMuted} mt-0.5`}>
-              Analisis komparasi omset per staf, kuantitas produk, sub-kategori LOB, serta akar penyebab penurunan
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            {isWeekly ? (
-              <>
-                <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
-                  <span className="text-[11px] font-black text-slate-600 dark:text-slate-400">Baseline (W1):</span>
-                  <select
-                    value={w1Filter}
-                    onChange={(e) => setW1Filter(e.target.value)}
-                    className="bg-transparent font-black text-xs text-slate-950 dark:text-white focus:outline-none cursor-pointer"
-                  >
-                    {AUTO_WEEKS.map((w) => (
-                      <option key={`w1-${w.key}`} value={w.label} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
-                        {w.label} ({w.range})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <span className="text-xs font-black text-slate-500">VS</span>
-
-                <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
-                  <span className="text-[11px] font-black text-slate-600 dark:text-slate-400">Pembanding (W2):</span>
-                  <select
-                    value={w2Filter}
-                    onChange={(e) => setW2Filter(e.target.value)}
-                    className="bg-transparent font-black text-xs text-sky-700 dark:text-sky-400 focus:outline-none cursor-pointer"
-                  >
-                    {AUTO_WEEKS.map((w) => (
-                      <option key={`w2-${w.key}`} value={w.label} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
-                        {w.label} ({w.range})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
-                  <span className="text-[11px] font-black text-slate-600 dark:text-slate-400">Bulan 1 (Lalu):</span>
-                  <select
-                    value={momCompareMonth}
-                    onChange={(e) => setMomCompareMonth(e.target.value)}
-                    className="bg-transparent font-black text-xs text-slate-950 dark:text-white focus:outline-none cursor-pointer"
-                  >
-                    {availableMonths.map((m) => (
-                      <option key={`cmp-${m}`} value={m} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <span className="text-xs font-black text-slate-500">VS</span>
-
-                <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
-                  <span className="text-[11px] font-black text-slate-600 dark:text-slate-400">Bulan 2 (Sekarang):</span>
-                  <select
-                    value={momBaseMonth}
-                    onChange={(e) => setMomBaseMonth(e.target.value)}
-                    className="bg-transparent font-black text-xs text-sky-700 dark:text-sky-400 focus:outline-none cursor-pointer"
-                  >
-                    {availableMonths.map((m) => (
-                      <option key={`base-${m}`} value={m} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* 1. TOTAL SALES BERDASARKAN FILTER */}
-        <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-6`}>
-          <div className="flex flex-wrap justify-between items-center pb-4 border-b border-inherit gap-4">
-            <div>
-              <span className="text-xs font-black uppercase tracking-wider text-slate-500">TOTAL SALES TOKO</span>
-              <div className="flex items-center gap-3 mt-1">
-                <span className="text-2xl sm:text-3xl font-black font-mono text-slate-950 dark:text-white">
-                  {formatIDR(data.totalM2)}
-                </span>
-                <span className={`px-2.5 py-1 rounded-full text-xs font-black flex items-center gap-1 ${
-                  data.storeGrowth >= 0 
-                    ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border border-emerald-400/30" 
-                    : "bg-rose-500/15 text-rose-800 dark:text-rose-400 border border-rose-400/30"
-                }`}>
-                  <span>{data.storeGrowth >= 0 ? "▲ +" : "▼ "}</span>
-                  <span>{data.storeGrowth}%</span>
-                </span>
-              </div>
-              <span className="text-[11px] font-bold text-slate-500 mt-0.5 block">
-                {data.p1Label}: {formatIDR(data.totalM1)} ➔ {data.p2Label}: {formatIDR(data.totalM2)}
-              </span>
-            </div>
-          </div>
-
-          <div>
-            <h4 className="text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-3 flex items-center gap-2">
-              <span>👥</span>
-              <span>TOTAL SALES PER STAF ({data.p1Label} VS {data.p2Label}):</span>
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-              {data.staffSales.map((st, idx) => (
-                <div key={idx} className={`p-4 rounded-2xl border ${innerBg} flex justify-between items-center shadow-sm`}>
-                  <div>
-                    <span className="text-xs font-black text-slate-950 dark:text-white block">{st.name}</span>
-                    <div className="text-[11px] font-semibold text-slate-500 mt-1 space-y-0.5">
-                      <div><strong className="text-slate-700 dark:text-slate-300">{data.p1Label}:</strong> {formatIDR(st.m1)}</div>
-                      <div><strong className="text-slate-900 dark:text-white font-bold">{data.p2Label}:</strong> {formatIDR(st.m2)}</div>
-                    </div>
-                  </div>
-                  <span className={`px-2.5 py-1 rounded-xl text-xs font-black border ${
-                    st.growth >= 0 
-                      ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-400/30" 
-                      : "bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-400/30"
-                  }`}>
-                    {st.growth >= 0 ? `▲ +${st.growth}%` : `▼ ${st.growth}%`}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* 2. PER LOB: APPLE DEVICES */}
-        <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-5`}>
-          <div className="flex flex-wrap justify-between items-center pb-3 border-b border-inherit gap-3">
-            <h3 className="text-sm sm:text-base font-black text-sky-600 dark:text-sky-400 flex items-center gap-2">
-              <span>🍎</span>
-              <span>PER LOB — APPLE DEVICES (MENAMPILKAN QTY DAN AMOUNT)</span>
-            </h3>
-            <span className="text-xs font-bold text-slate-500">
-              iPhone, iPad, MacBook, Apple Watch, AirPods
-            </span>
-          </div>
-
-          <div className="space-y-4">
-            {data.appleData.map((sub, sIdx) => (
-              <div key={sIdx} className={`p-4 rounded-2xl border ${innerBg} space-y-3`}>
-                <div className="flex flex-wrap justify-between items-center gap-2 pb-2 border-b border-inherit/40">
-                  <span className="text-xs font-black text-slate-950 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-sky-500"></span>
-                    <span>{sub.subCat}</span>
-                  </span>
-                  <div className="flex items-center gap-3 text-xs">
-                    <span className="text-slate-500 font-bold">
-                      {data.p1Label}: {sub.totalQtyP1} Unit ({formatIDR(sub.totalAmtP1)}) ➔ {data.p2Label}: {sub.totalQtyP2} Unit ({formatIDR(sub.totalAmtP2)})
-                    </span>
-                    <span className={`px-2 py-0.5 rounded-lg text-[11px] font-black ${
-                      sub.growthAmt >= 0 ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400" : "bg-rose-500/20 text-rose-600 dark:text-rose-400"
-                    }`}>
-                      {sub.growthAmt >= 0 ? `▲ +${sub.growthAmt}%` : `▼ ${sub.growthAmt}%`}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto w-full">
-                  <table className="w-full text-left text-xs min-w-[500px]">
-                    <thead className="text-[10px] uppercase font-black text-slate-500 border-b border-inherit">
-                      <tr>
-                        <th className="py-1 px-3">Nama Staff</th>
-                        <th className="py-1 px-3 text-center">{data.p1Label} (Qty / Amount)</th>
-                        <th className="py-1 px-3 text-center">{data.p2Label} (Qty / Amount)</th>
-                        <th className="py-1 px-3 text-right">Growth (%)</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-inherit font-bold">
-                      {sub.staffList.length > 0 ? (
-                        sub.staffList.map((st, idx) => (
-                          <tr key={idx} className="hover:opacity-90">
-                            <td className="py-2 px-3 text-slate-900 dark:text-slate-100 font-black">{st.name}</td>
-                            <td className="py-2 px-3 text-center font-mono text-slate-600 dark:text-slate-400">
-                              {st.p1Qty} Unit / {formatIDR(st.p1Amt)}
-                            </td>
-                            <td className="py-2 px-3 text-center font-mono text-slate-950 dark:text-white font-black">
-                              {st.p2Qty} Unit / {formatIDR(st.p2Amt)}
-                            </td>
-                            <td className="py-2 px-3 text-right font-black">
-                              <span className={st.growthAmt >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
-                                {st.growthAmt >= 0 ? `▲ +${st.growthAmt}%` : `▼ ${st.growthAmt}%`}
-                              </span>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={4} className="py-2 px-3 text-center text-slate-500 italic">Tidak ada transaksi tercatat pada periode ini.</td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* 3. PER LOB: ANDROID DEVICES */}
-        {[
-          { title: "SAMSUNG DEVICES", data: data.samsungData, color: "text-blue-600 dark:text-blue-400", icon: "📱" },
-          { title: "HUAWEI DEVICES", data: data.huaweiData, color: "text-rose-600 dark:text-rose-400", icon: "🔴" },
-          { title: "OPPO DEVICES", data: data.oppoData, color: "text-emerald-600 dark:text-emerald-400", icon: "🟢" },
-          { title: "ANDROID LAINNYA (Xiaomi, Motorola, Infinix, dll)", data: data.androidOtherData, color: "text-indigo-600 dark:text-indigo-400", icon: "🤖" },
-        ].map((brandObj, bIdx) => (
-          <div key={bIdx} className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-5`}>
-            <div className="flex flex-wrap justify-between items-center pb-3 border-b border-inherit gap-3">
-              <div className="flex items-center gap-3">
-                <span className="text-lg">{brandObj.icon}</span>
-                <h3 className={`text-sm sm:text-base font-black ${brandObj.color}`}>
-                  —— {brandObj.title} (MENAMPILKAN QTY DAN AMOUNT) ——
-                </h3>
-                <span className={`px-2 py-0.5 rounded-full text-xs font-black ${
-                  brandObj.data.growthAmt >= 0 
-                    ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-400/30" 
-                    : "bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-400/30"
-                }`}>
-                  {brandObj.data.growthAmt >= 0 ? `▲ +${brandObj.data.growthAmt}%` : `▼ ${brandObj.data.growthAmt}%`}
-                </span>
-              </div>
-              <div className="text-right text-xs font-bold text-slate-500">
-                <span>{data.p1Label}: {brandObj.data.totalQtyP1} Unit ({formatIDR(brandObj.data.totalAmtP1)})</span>
-                <span className="mx-2">➔</span>
-                <span className="text-slate-950 dark:text-white font-black">{data.p2Label}: {brandObj.data.totalQtyP2} Unit ({formatIDR(brandObj.data.totalAmtP2)})</span>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              {brandObj.data.staffBreakdown.length > 0 ? (
-                brandObj.data.staffBreakdown.map((st, stIdx) => (
-                  <div key={stIdx} className={`p-4 rounded-2xl border ${innerBg} space-y-3`}>
-                    <div className="flex justify-between items-center pb-2 border-b border-inherit/40">
-                      <div>
-                        <span className="text-xs font-black text-slate-950 dark:text-white block">{st.name}</span>
-                        <span className="text-[11px] font-bold text-slate-500">
-                          Total: {data.p1Label} ({st.totalQty1} Qty / {formatIDR(st.totalAmt1)}) ➔ {data.p2Label} ({st.totalQty2} Qty / {formatIDR(st.totalAmt2)})
-                        </span>
-                      </div>
-                      <span className={`px-2 py-0.5 rounded-lg text-xs font-black ${
-                        st.growthAmt >= 0 ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400" : "bg-rose-500/20 text-rose-600 dark:text-rose-400"
-                      }`}>
-                        {st.growthAmt >= 0 ? `▲ +${st.growthAmt}%` : `▼ ${st.growthAmt}%`}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-1">
-                      {st.subItems.map((catItem, cIdx) => (
-                        <div key={cIdx} className={`p-2.5 rounded-xl border ${cardBg} text-xs space-y-1`}>
-                          <div className="flex justify-between items-center">
-                            <span className="font-black text-slate-900 dark:text-slate-200">{catItem.catLabel}</span>
-                            <span className={`text-[10px] font-black ${catItem.growthAmt >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-                              {catItem.growthAmt >= 0 ? `+${catItem.growthAmt}%` : `${catItem.growthAmt}%`}
-                            </span>
-                          </div>
-                          <div className="text-[11px] font-mono text-slate-500">
-                            <div>{data.p1Label}: <strong className="text-slate-700 dark:text-slate-300">{catItem.q1} Qty / {formatIDR(catItem.a1)}</strong></div>
-                            <div>{data.p2Label}: <strong className="text-slate-950 dark:text-white font-bold">{catItem.q2} Qty / {formatIDR(catItem.a2)}</strong></div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-4 text-xs text-slate-500 italic">
-                  Tidak ada transaksi {brandObj.title} pada rentang periode yang dibandingkan.
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-
-        {/* 4. ANALISIS PENYEBAB PENURUNAN */}
-        <div className={`${cardBg} rounded-3xl border-2 border-rose-500/30 overflow-hidden shadow-xl`}>
-          <div className="px-5 py-4 border-b border-rose-500/20 flex justify-between items-center bg-rose-500/5">
-            <div>
-              <h3 className="text-sm font-black text-rose-600 dark:text-rose-400 flex items-center gap-2">
-                <span>🔍</span>
-                <span>ANALISIS PENYEBAB PENURUNAN (ROOT CAUSE BY PRODUCT DEFICIT)</span>
-              </h3>
-              <p className={`text-xs ${textMuted} mt-0.5 font-semibold`}>
-                Daftar produk dengan defisit omset terbesar yang memicu penurunan penjualan di {data.p2Label} dibanding {data.p1Label}
-              </p>
-            </div>
-            <span className="text-xs text-rose-700 dark:text-rose-400 font-black bg-rose-500/10 px-2.5 py-1 rounded-full border border-rose-500/20">
-              {data.droppedProducts.length} Produk Teridentifikasi
-            </span>
-          </div>
-
-          <div className="overflow-x-auto w-full">
-            <table className="w-full text-left text-xs min-w-[700px]">
-              <thead className={`${innerBg} uppercase text-[10px] tracking-wider border-b border-inherit font-black text-slate-900 dark:text-slate-300`}>
-                <tr>
-                  <th className="px-4 py-3 font-black">Nama Produk</th>
-                  <th className="px-4 py-3 font-black">Brand</th>
-                  <th className="px-4 py-3 text-center font-black">{data.p1Label} (Unit)</th>
-                  <th className="px-4 py-3 text-right font-black">{data.p1Label} (Omset)</th>
-                  <th className="px-4 py-3 text-center font-black">{data.p2Label} (Unit)</th>
-                  <th className="px-4 py-3 text-right font-black">{data.p2Label} (Omset)</th>
-                  <th className="px-4 py-3 text-right font-black text-rose-600">Nilai Defisit (Gap)</th>
-                  <th className="px-4 py-3 text-right font-black">Penurunan (%)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-inherit font-bold">
-                {data.droppedProducts.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="text-center py-6 text-slate-500 font-black">
-                      Tidak ada produk yang mengalami penurunan omset pada periode ini. Seluruh produk bertumbuh positif! 🎉
-                    </td>
-                  </tr>
-                ) : (
-                  data.droppedProducts.slice(0, 25).map((p, i) => (
-                    <tr key={i} className="hover:opacity-90 transition">
-                      <td className="px-4 py-3 font-black text-slate-950 dark:text-white max-w-xs">{p.name}</td>
-                      <td className="px-4 py-3">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-black bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-200">
-                          {p.brand}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-center text-slate-700 dark:text-slate-300 font-mono">{p.p1Qty}</td>
-                      <td className="px-4 py-3 text-right font-mono text-slate-700 dark:text-slate-300">{formatIDR(p.p1Amt)}</td>
-                      <td className="px-4 py-3 text-center font-black text-amber-700 dark:text-amber-400 font-mono">{p.p2Qty}</td>
-                      <td className="px-4 py-3 text-right font-mono font-black text-amber-700 dark:text-amber-400">{formatIDR(p.p2Amt)}</td>
-                      <td className="px-4 py-3 text-right font-black text-rose-600 font-mono">
-                        {formatIDR(p.diff)}
-                      </td>
-                      <td className="px-4 py-3 text-right font-black text-rose-600 font-mono">
-                        {p.growth}%
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Form Login jika belum terautentikasi
   if (!isLoggedIn) {
     return (
       <div className={`min-h-screen ${bgMain} flex items-center justify-center p-4 ${textMain} font-sans overflow-x-hidden w-full max-w-full`}>
@@ -1921,6 +1110,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
 
   return (
     <div className={`min-h-screen flex ${bgMain} ${isDark ? "text-slate-100" : "text-slate-900"} font-sans antialiased overflow-x-hidden w-full max-w-full relative`}>
+      
       {/* 1. SIDEBAR DESKTOP */}
       <aside
         className={`hidden lg:flex flex-col justify-between w-64 xl:w-72 h-screen sticky top-0 shrink-0 border-r backdrop-blur-2xl z-30 transition-all ${glassSidebar}`}
@@ -2008,7 +1198,8 @@ _Diperbarui via Digiplus Store Operations Engine._`;
           </div>
         </div>
       </aside>
-{/* 2. DRAWER MOBILE */}
+
+      {/* 2. DRAWER MOBILE */}
       {mobileDrawerOpen && (
         <div
           onClick={() => setMobileDrawerOpen(false)}
@@ -2095,7 +1286,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
           </button>
         </div>
       </div>
-      
+
       {/* 3. KONTEN UTAMA */}
       <div className="flex-1 flex flex-col min-w-0">
         <header className={`lg:hidden flex items-center justify-between px-4 py-3 border-b backdrop-blur-xl sticky top-0 z-20 print:hidden ${glassSidebar}`}>
@@ -2248,6 +1439,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               {/* TAB 1: OVERVIEW STORE */}
               {activeTab === "store-overview" && (
                 <div className="space-y-6 sm:space-y-8">
+                  {/* TIME GONE ANALYTICS */}
                   <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl relative overflow-hidden`}>
                     <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
                       <div className="flex items-center gap-3">
@@ -2319,6 +1511,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     </div>
                   </div>
 
+                  {/* TREND DAILY SALES */}
                   <div className={`p-5 rounded-3xl border ${cardBg} space-y-3 overflow-hidden`}>
                     <div className="flex justify-between items-center">
                       <div>
@@ -2357,11 +1550,408 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                       </table>
                     </div>
                   </div>
+
+                  {/* SEKSI: TARGET VS ACHIEVEMENT (T/A) & DRILLDOWN DETAIL */}
+                  <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-6`}>
+                    <div className="flex flex-wrap justify-between items-center pb-4 border-b border-inherit gap-3">
+                      <div>
+                        <h3 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
+                          <span>🎯</span>
+                          <span>TARGET VS ACHIEVEMENT (T/A) &amp; DRILLDOWN PRODUK</span>
+                        </h3>
+                        <p className={`text-xs ${textMuted} mt-0.5`}>
+                          Periode Terfilter: {periodType.toUpperCase()} ({periodType === "daily" ? selectedDate : periodType === "weekly" ? selectedWeek : selectedMonth})
+                        </p>
+                      </div>
+                      <span className="text-xs font-bold text-slate-500">
+                        Klik &quot;More Details ➔&quot; untuk melihat rincian nota &amp; produk terjual
+                      </span>
+                    </div>
+
+                    <div className="space-y-6">
+                      {/* 1. APPLE DEVICES */}
+                      {(() => {
+                        const items = overviewStats.appleItems || [];
+                        const actual = items.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+                        const target = targetAppleLOB;
+                        const achv = calcAchv(actual, target);
+                        const gap = actual - target;
+
+                        const subList = [
+                          { label: "iPhone", filterKey: "IPHONE", targetWeight: 0.72 },
+                          { label: "iPad", filterKey: "IPAD", targetWeight: 0.12 },
+                          { label: "MacBook", filterKey: "MAC", targetWeight: 0.08 },
+                          { label: "Apple Watch", filterKey: "WATCH", targetWeight: 0.05 },
+                          { label: "AirPods", filterKey: "AIRPOD", targetWeight: 0.03 },
+                        ];
+
+                        return (
+                          <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-4`}>
+                            <div className="flex flex-wrap justify-between items-center gap-3 pb-3 border-b border-inherit/50">
+                              <div className="flex items-center gap-3">
+                                <span className="text-2xl">🍎</span>
+                                <div>
+                                  <h4 className="text-sm sm:text-base font-black text-sky-600 dark:text-sky-400">
+                                    Apple Devices
+                                  </h4>
+                                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-0.5">
+                                    <strong>T/A:</strong> {formatIDR(target)} / <strong className="text-emerald-600 dark:text-emerald-400">{formatIDR(actual)}</strong>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-4 text-right">
+                                <div>
+                                  <div className={`text-sm sm:text-base font-black font-mono ${achv >= 100 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
+                                    {achv}% ({gap >= 0 ? `+${formatIDR(gap)}` : formatIDR(gap)})
+                                  </div>
+                                  <span className="text-[11px] text-slate-500 font-bold block">
+                                    Estimate: <strong className="text-slate-800 dark:text-slate-200">{formatIDR(calcEst(actual))}</strong>
+                                  </span>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => openLobDetailSheet("Seluruh Apple Devices Terjual", items)}
+                                  className="px-3 py-1.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 text-sky-700 dark:text-sky-400 border border-sky-400/30 text-xs font-black transition active:scale-95"
+                                >
+                                  More Details ➔
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+                              {subList.map((sub, idx) => {
+                                const subItems = items.filter((t) => (t.productName || "").toUpperCase().includes(sub.filterKey));
+                                const subActual = subItems.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+                                const subTarget = Math.round(target * sub.targetWeight);
+                                const subAchv = calcAchv(subActual, subTarget);
+                                const subGap = subActual - subTarget;
+
+                                return (
+                                  <div key={idx} className={`p-3.5 rounded-xl border ${cardBg} text-xs space-y-2 shadow-sm`}>
+                                    <div className="flex justify-between items-center">
+                                      <span className="font-black text-slate-900 dark:text-white uppercase tracking-wider">{sub.label}</span>
+                                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${subAchv >= 100 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"}`}>
+                                        {subAchv}%
+                                      </span>
+                                    </div>
+                                    <div className="text-[11px] font-mono text-slate-600 dark:text-slate-400 space-y-0.5">
+                                      <div><strong>T/A:</strong> {formatIDR(subTarget)} / <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatIDR(subActual)}</span></div>
+                                      <div><strong>-/+:</strong> <span className={subGap >= 0 ? "text-emerald-600" : "text-rose-600"}>{subGap >= 0 ? `+${formatIDR(subGap)}` : formatIDR(subGap)}</span></div>
+                                      <div><strong>Estimate:</strong> {formatIDR(calcEst(subActual))}</div>
+                                    </div>
+                                    <div className="pt-1 border-t border-inherit/40 flex justify-end">
+                                      <button
+                                        type="button"
+                                        onClick={() => openLobDetailSheet(`Daftar ${sub.label} Terjual`, subItems)}
+                                        className="text-[10px] font-black text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-1"
+                                      >
+                                        <span>More Details</span>
+                                        <span>➔</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* 2. ANDROID DEVICES */}
+                      {(() => {
+                        const items = overviewStats.androidItems || [];
+                        const actual = items.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+                        const target = targetAndroidLOB;
+                        const achv = calcAchv(actual, target);
+                        const gap = actual - target;
+
+                        const androidBrands = [
+                          { label: "Samsung Device", brandKey: "SAMSUNG", icon: "📱", weight: 0.55 },
+                          { label: "Huawei Device", brandKey: "HUAWEI", icon: "🔴", weight: 0.18 },
+                          { label: "Xiaomi / Redmi Device", brandKey: "XIAOMI", icon: "🟠", weight: 0.14 },
+                          { label: "Oppo Device", brandKey: "OPPO", icon: "🟢", weight: 0.08 },
+                          { label: "Motorola & Lainnya", brandKey: "OTHER", icon: "🤖", weight: 0.05 },
+                        ];
+
+                        return (
+                          <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-4`}>
+                            <div className="flex flex-wrap justify-between items-center gap-3 pb-3 border-b border-inherit/50">
+                              <div className="flex items-center gap-3">
+                                <span className="text-2xl">🤖</span>
+                                <div>
+                                  <h4 className="text-sm sm:text-base font-black text-indigo-600 dark:text-indigo-400">
+                                    Android Devices
+                                  </h4>
+                                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-0.5">
+                                    <strong>T/A:</strong> {formatIDR(target)} / <strong className="text-emerald-600 dark:text-emerald-400">{formatIDR(actual)}</strong>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-4 text-right">
+                                <div>
+                                  <div className={`text-sm sm:text-base font-black font-mono ${achv >= 100 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
+                                    {achv}% ({gap >= 0 ? `+${formatIDR(gap)}` : formatIDR(gap)})
+                                  </div>
+                                  <span className="text-[11px] text-slate-500 font-bold block">
+                                    Estimate: <strong className="text-slate-800 dark:text-slate-200">{formatIDR(calcEst(actual))}</strong>
+                                  </span>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => openLobDetailSheet("Seluruh Android Devices Terjual", items)}
+                                  className="px-3 py-1.5 rounded-xl bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-700 dark:text-indigo-400 border border-indigo-400/30 text-xs font-black transition active:scale-95"
+                                >
+                                  More Details ➔
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+                              {androidBrands.map((b, idx) => {
+                                const brandItems = b.brandKey === "OTHER"
+                                  ? items.filter((t) => !["SAMSUNG", "HUAWEI", "XIAOMI", "OPPO"].includes((t.brand || "").toUpperCase()))
+                                  : items.filter((t) => (t.brand || "").toUpperCase().includes(b.brandKey));
+
+                                const bActual = brandItems.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+                                const bTarget = Math.round(target * b.weight);
+                                const bAchv = calcAchv(bActual, bTarget);
+                                const bGap = bActual - bTarget;
+
+                                return (
+                                  <div key={idx} className={`p-3.5 rounded-xl border ${cardBg} text-xs space-y-2 shadow-sm`}>
+                                    <div className="flex justify-between items-center">
+                                      <span className="font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                                        <span>{b.icon}</span>
+                                        <span>{b.label}</span>
+                                      </span>
+                                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${bAchv >= 100 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"}`}>
+                                        {bAchv}%
+                                      </span>
+                                    </div>
+                                    <div className="text-[11px] font-mono text-slate-600 dark:text-slate-400 space-y-0.5">
+                                      <div><strong>T/A:</strong> {formatIDR(bTarget)} / <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatIDR(bActual)}</span></div>
+                                      <div><strong>-/+:</strong> <span className={bGap >= 0 ? "text-emerald-600" : "text-rose-600"}>{bGap >= 0 ? `+${formatIDR(bGap)}` : formatIDR(bGap)}</span></div>
+                                      <div><strong>Estimate:</strong> {formatIDR(calcEst(bActual))}</div>
+                                    </div>
+                                    <div className="pt-1 border-t border-inherit/40 flex justify-end">
+                                      <button
+                                        type="button"
+                                        onClick={() => openLobDetailSheet(`Daftar ${b.label} Terjual`, brandItems)}
+                                        className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+                                      >
+                                        <span>More Details</span>
+                                        <span>➔</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* 3. ACCESSORIES */}
+                      {(() => {
+                        const items = overviewStats.accItems || [];
+                        const actual = items.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+                        const target = targetAccessoriesLOB;
+                        const achv = calcAchv(actual, target);
+                        const gap = actual - target;
+
+                        return (
+                          <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-4`}>
+                            <div className="flex flex-wrap justify-between items-center gap-3">
+                              <div className="flex items-center gap-3">
+                                <span className="text-2xl">🔌</span>
+                                <div>
+                                  <h4 className="text-sm sm:text-base font-black text-amber-600 dark:text-amber-400">
+                                    Accessories (Cases, Chargers &amp; Audio)
+                                  </h4>
+                                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-0.5">
+                                    <strong>T/A:</strong> {formatIDR(target)} / <strong className="text-emerald-600 dark:text-emerald-400">{formatIDR(actual)}</strong>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-4 text-right">
+                                <div>
+                                  <div className={`text-sm sm:text-base font-black font-mono ${achv >= 100 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
+                                    {achv}% ({gap >= 0 ? `+${formatIDR(gap)}` : formatIDR(gap)})
+                                  </div>
+                                  <span className="text-[11px] text-slate-500 font-bold block">
+                                    Estimate: <strong className="text-slate-800 dark:text-slate-200">{formatIDR(calcEst(actual))}</strong>
+                                  </span>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => openLobDetailSheet("Seluruh Aksesoris Supplier Terjual", items)}
+                                  className="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-400 border border-amber-400/30 text-xs font-black transition active:scale-95"
+                                >
+                                  More Details ➔
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* 4. VALUE-ADDED SERVICES (VAS) */}
+                      {(() => {
+                        const items = overviewStats.vasItems || [];
+                        const actual = items.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+                        const target = targetVasLOB;
+                        const achv = calcAchv(actual, target);
+                        const gap = actual - target;
+
+                        const vasSubs = [
+                          { label: "Qoala Protection", filterKey: "QOALA", icon: "🛡️", weight: 0.65 },
+                          { label: "Telkomsel Halo/Data", filterKey: "TELKOMSEL", icon: "🔴", weight: 0.15 },
+                          { label: "XL Prioritas (MyPrio)", filterKey: "XL", icon: "🔵", weight: 0.12 },
+                          { label: "Indosat IM3", filterKey: "INDOSAT", icon: "🟡", weight: 0.08 },
+                        ];
+
+                        return (
+                          <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-4`}>
+                            <div className="flex flex-wrap justify-between items-center gap-3 pb-3 border-b border-inherit/50">
+                              <div className="flex items-center gap-3">
+                                <span className="text-2xl">🛡️</span>
+                                <div>
+                                  <h4 className="text-sm sm:text-base font-black text-purple-600 dark:text-purple-400">
+                                    Value-Added Services (VAS &amp; Warranty)
+                                  </h4>
+                                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-0.5">
+                                    <strong>T/A:</strong> {formatIDR(target)} / <strong className="text-emerald-600 dark:text-emerald-400">{formatIDR(actual)}</strong>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-4 text-right">
+                                <div>
+                                  <div className={`text-sm sm:text-base font-black font-mono ${achv >= 100 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
+                                    {achv}% ({gap >= 0 ? `+${formatIDR(gap)}` : formatIDR(gap)})
+                                  </div>
+                                  <span className="text-[11px] text-slate-500 font-bold block">
+                                    Estimate: <strong className="text-slate-800 dark:text-slate-200">{formatIDR(calcEst(actual))}</strong>
+                                  </span>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => openLobDetailSheet("Seluruh Transaksi Layanan VAS Terjual", items)}
+                                  className="px-3 py-1.5 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-700 dark:text-purple-400 border border-purple-400/30 text-xs font-black transition active:scale-95"
+                                >
+                                  More Details ➔
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+                              {vasSubs.map((vs, idx) => {
+                                const vsItems = items.filter((t) => {
+                                  const pUpper = (t.productName || "").toUpperCase();
+                                  const bUpper = (t.brand || "").toUpperCase();
+                                  return bUpper.includes(vs.filterKey) || pUpper.includes(vs.filterKey);
+                                });
+
+                                const vsActual = vsItems.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+                                const vsTarget = Math.round(target * vs.weight);
+                                const vsAchv = calcAchv(vsActual, vsTarget);
+                                const vsGap = vsActual - vsTarget;
+
+                                return (
+                                  <div key={idx} className={`p-3.5 rounded-xl border ${cardBg} text-xs space-y-2 shadow-sm`}>
+                                    <div className="flex justify-between items-center">
+                                      <span className="font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                                        <span>{vs.icon}</span>
+                                        <span>{vs.label}</span>
+                                      </span>
+                                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${vsAchv >= 100 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"}`}>
+                                        {vsAchv}%
+                                      </span>
+                                    </div>
+                                    <div className="text-[11px] font-mono text-slate-600 dark:text-slate-400 space-y-0.5">
+                                      <div><strong>T/A:</strong> {formatIDR(vsTarget)} / <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatIDR(vsActual)}</span></div>
+                                      <div><strong>-/+:</strong> <span className={vsGap >= 0 ? "text-emerald-600" : "text-rose-600"}>{vsGap >= 0 ? `+${formatIDR(vsGap)}` : formatIDR(vsGap)}</span></div>
+                                      <div><strong>Estimate:</strong> {formatIDR(calcEst(vsActual))}</div>
+                                    </div>
+                                    <div className="pt-1 border-t border-inherit/40 flex justify-end">
+                                      <button
+                                        type="button"
+                                        onClick={() => openLobDetailSheet(`Daftar ${vs.label} Terjual`, vsItems)}
+                                        className="text-[10px] font-black text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1"
+                                      >
+                                        <span>More Details</span>
+                                        <span>➔</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
                 </div>
               )}
 
               {/* TAB 2: WEEKLY SALES (WEEK TO WEEK) */}
-              {activeTab === "weekly-sales" && renderComparisonSection(weeklyComparisonData, true)}
+              {activeTab === "weekly-sales" && (
+                <div className="space-y-6 sm:space-y-8">
+                  <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl flex flex-wrap items-center justify-between gap-4`}>
+                    <div>
+                      <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
+                        <span>📈</span>
+                        <span>PERBANDINGAN WEEK TO WEEK (WoW) SALES</span>
+                      </h2>
+                      <p className={`text-xs ${textMuted} mt-0.5`}>
+                        Bandingkan pertumbuhan omset, unit (Qty), dan kontribusi sales per produk
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
+                        <span className="text-[11px] font-black text-slate-600 dark:text-slate-400">Baseline (W1):</span>
+                        <select
+                          value={w1Filter}
+                          onChange={(e) => setW1Filter(e.target.value)}
+                          className="bg-transparent font-black text-xs text-slate-950 dark:text-white focus:outline-none cursor-pointer"
+                        >
+                          {AUTO_WEEKS.map((w) => (
+                            <option key={`w1-${w.key}`} value={w.label} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
+                              {w.label} ({w.range})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <span className="text-xs font-black text-slate-500">VS</span>
+
+                      <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
+                        <span className="text-[11px] font-black text-slate-600 dark:text-slate-400">Pembanding (W2):</span>
+                        <select
+                          value={w2Filter}
+                          onChange={(e) => setW2Filter(e.target.value)}
+                          className="bg-transparent font-black text-xs text-sky-700 dark:text-sky-400 focus:outline-none cursor-pointer"
+                        >
+                          {AUTO_WEEKS.map((w) => (
+                            <option key={`w2-${w.key}`} value={w.label} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
+                              {w.label} ({w.range})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* TAB KHUSUS: QOALA PROTECTION */}
               {activeTab === "qoala-ar" && (
@@ -2371,65 +1961,47 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                       <div>
                         <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
                           <span>🛡️</span>
-                          <span>QOALA PROTECTION & ATTACHMENT RATE (AR %)</span>
+                          <span>QOALA PROTECTION &amp; ATTACHMENT RATE (AR %)</span>
                         </h2>
                         <p className={`text-xs ${textMuted} mt-0.5`}>
                           Periode: {periodType.toUpperCase()} ({periodType === "daily" ? selectedDate : periodType === "weekly" ? selectedWeek : selectedMonth})
                         </p>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <span className={`px-3 py-1 rounded-full text-xs font-black border ${
-                          qoalaAnalytics.storeAR >= 25 
-                            ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border-emerald-400/30" 
-                            : qoalaAnalytics.storeAR >= 15 
-                            ? "bg-amber-500/15 text-amber-800 dark:text-amber-400 border-amber-400/30" 
-                            : "bg-rose-500/15 text-rose-800 dark:text-rose-400 border-rose-400/30"
-                        }`}>
-                          Benchmark Toko: {qoalaAnalytics.storeAR >= 25 ? "Target Tercapai 🔥" : qoalaAnalytics.storeAR >= 15 ? "Perlu Ditingkatkan ⚠️" : "Under Target ❗"}
-                        </span>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 pt-2">
                       <div className={`p-4 rounded-2xl border ${innerBg}`}>
                         <span className={`text-[10px] font-black uppercase tracking-wider ${textMuted} block`}>Store Attachment Rate</span>
-                        <div className={`text-2xl sm:text-3xl font-black mt-1 font-mono ${
-                          qoalaAnalytics.storeAR >= 25 ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400"
-                        }`}>
-                          {qoalaAnalytics.storeAR}%
+                        <div className="text-2xl sm:text-3xl font-black mt-1 font-mono text-emerald-600 dark:text-emerald-400">
+                          {calcAchv(
+                            activeTransactions.filter((t) => t.brand === "QOALA" || (t.productName || "").toUpperCase().includes("QOALA")).reduce((acc, t) => acc + (Number(t.qty) || 1), 0),
+                            activeTransactions.filter((t) => t.groupCategory === "DEVICES").reduce((acc, t) => acc + (Number(t.qty) || 1), 0)
+                          )}%
                         </div>
-                        <span className="text-[11px] font-bold text-slate-500 mt-1 block">Rasio Polis vs Device</span>
                       </div>
-
                       <div className={`p-4 rounded-2xl border ${innerBg}`}>
-                        <span className={`text-[10px] font-black uppercase tracking-wider ${textMuted} block`}>Total Polis Qoala Terjual</span>
-                        <div className="text-2xl sm:text-3xl font-black mt-1 text-sky-700 dark:text-sky-400 font-mono">
-                          {qoalaAnalytics.totalQoalaQty} Unit
+                        <span className={`text-[10px] font-black uppercase tracking-wider ${textMuted} block`}>Total Polis Terjual</span>
+                        <div className="text-2xl sm:text-3xl font-black mt-1 text-sky-600 dark:text-sky-400 font-mono">
+                          {activeTransactions.filter((t) => t.brand === "QOALA" || (t.productName || "").toUpperCase().includes("QOALA")).reduce((acc, t) => acc + (Number(t.qty) || 1), 0)} Unit
                         </div>
-                        <span className="text-[11px] font-bold text-slate-500 mt-1 block">Polis Perlindungan Aktif</span>
                       </div>
-
                       <div className={`p-4 rounded-2xl border ${innerBg}`}>
-                        <span className={`text-[10px] font-black uppercase tracking-wider ${textMuted} block`}>Total Perangkat Terjual (Device)</span>
-                        <div className="text-2xl sm:text-3xl font-black mt-1 text-slate-950 dark:text-white font-mono">
-                          {qoalaAnalytics.totalDeviceQty} Unit
+                        <span className={`text-[10px] font-black uppercase tracking-wider ${textMuted} block`}>Total Device Terjual</span>
+                        <div className="text-2xl sm:text-3xl font-black mt-1 text-slate-900 dark:text-white font-mono">
+                          {activeTransactions.filter((t) => t.groupCategory === "DEVICES").reduce((acc, t) => acc + (Number(t.qty) || 1), 0)} Unit
                         </div>
-                        <span className="text-[11px] font-bold text-slate-500 mt-1 block">Smartphone, Tablet & Laptop</span>
                       </div>
-
                       <div className={`p-4 rounded-2xl border ${innerBg}`}>
-                        <span className={`text-[10px] font-black uppercase tracking-wider ${textMuted} block`}>Total Omset Premi Qoala</span>
-                        <div className="text-2xl sm:text-3xl font-black mt-1 text-emerald-700 dark:text-emerald-400 font-mono">
-                          {formatIDR(qoalaAnalytics.totalQoalaAmount)}
+                        <span className={`text-[10px] font-black uppercase tracking-wider ${textMuted} block`}>Total Omset Premi</span>
+                        <div className="text-2xl sm:text-3xl font-black mt-1 text-emerald-600 dark:text-emerald-400 font-mono">
+                          {formatIDR(activeTransactions.filter((t) => t.brand === "QOALA" || (t.productName || "").toUpperCase().includes("QOALA")).reduce((acc, t) => acc + (Number(t.amount) || 0), 0))}
                         </div>
-                        <span className="text-[11px] font-bold text-slate-500 mt-1 block">Kontribusi Penjualan Proteksi</span>
                       </div>
                     </div>
                   </div>
                 </div>
               )}
-              
+
               {/* TAB 3: STAFF PERFORMANCE LEADERBOARD */}
               {activeTab === "staff-performance" && (
                 <div className="space-y-6">
@@ -2439,9 +2011,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                         <span>🏆</span>
                         <span>STAFF PERFORMANCE LEADERBOARD ({staffList.length} STAF)</span>
                       </h2>
-                      <p className={`text-xs ${textMuted} mt-0.5`}>
-                        Evaluasi pencapaian target, UPT, ATV, rincian kategori produk, dan poin reward staf.
-                      </p>
                     </div>
                   </div>
 
@@ -2501,9 +2070,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                             <div className={`text-xl sm:text-2xl font-black font-mono mt-0.5 tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}>
                               {formatIDR(st.totalAmount)}
                             </div>
-                            <span className={`text-[10px] font-semibold block mt-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-                              Target: <span className={`font-mono font-bold ${isDark ? "text-slate-300" : "text-slate-700"}`}>{formatIDR(st.targetAmount)}</span>
-                            </span>
                           </div>
 
                           <div className="text-right">
@@ -2532,73 +2098,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                             }`}
                             style={{ width: `${Math.min(st.achvPct, 100)}%` }}
                           />
-                        </div>
-
-                        <div className={`grid grid-cols-3 gap-2 py-2.5 px-2 rounded-2xl border ${
-                          isDark ? "bg-black/25 border-slate-700/60" : "bg-slate-50/80 border-slate-200/80"
-                        }`}>
-                          <div className="text-center">
-                            <span className={`text-[9px] font-black uppercase block tracking-wider ${isDark ? "text-slate-400" : "text-slate-500"}`}>UPT</span>
-                            <strong className={`text-xs sm:text-sm font-black font-mono block mt-0.5 ${isDark ? "text-sky-400" : "text-sky-700"}`}>
-                              {st.upt || "0.0"}
-                            </strong>
-                          </div>
-                          <div className={`text-center border-x ${isDark ? "border-slate-700/60" : "border-slate-200"}`}>
-                            <span className={`text-[9px] font-black uppercase block tracking-wider ${isDark ? "text-slate-400" : "text-slate-500"}`}>ATV</span>
-                            <strong className={`text-xs sm:text-sm font-black font-mono block mt-0.5 ${isDark ? "text-indigo-300" : "text-indigo-700"}`}>
-                              {formatCompactIDR(st.atv)}
-                            </strong>
-                          </div>
-                          <div className="text-center">
-                            <span className={`text-[9px] font-black uppercase block tracking-wider ${isDark ? "text-slate-400" : "text-slate-500"}`}>TRX</span>
-                            <strong className={`text-xs sm:text-sm font-black font-mono block mt-0.5 ${isDark ? "text-white" : "text-slate-900"}`}>
-                              {st.trxCount || 0}
-                            </strong>
-                          </div>
-                        </div>
-
-                        <div className="pt-3.5 space-y-1.5 text-xs font-semibold">
-                          <div className="flex justify-between items-center py-0.5">
-                            <span className={`flex items-center gap-1.5 text-[11px] ${isDark ? "text-slate-400" : "text-slate-600 font-bold"}`}>
-                              <span className="w-2 h-2 rounded-full bg-sky-500"></span> Apple:
-                            </span>
-                            <span className={`font-mono font-bold ${isDark ? "text-slate-200" : "text-slate-800"}`}>
-                              {formatIDR(st.appleAmount || 0)}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center py-0.5">
-                            <span className={`flex items-center gap-1.5 text-[11px] ${isDark ? "text-slate-400" : "text-slate-600 font-bold"}`}>
-                              <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Android:
-                            </span>
-                            <span className={`font-mono font-bold ${isDark ? "text-slate-200" : "text-slate-800"}`}>
-                              {formatIDR(st.androidAmount || 0)}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center py-0.5">
-                            <span className={`flex items-center gap-1.5 text-[11px] ${isDark ? "text-slate-400" : "text-slate-600 font-bold"}`}>
-                              <span className="w-2 h-2 rounded-full bg-amber-500"></span> Aksesoris:
-                            </span>
-                            <span className={`font-mono font-bold ${isDark ? "text-slate-200" : "text-slate-800"}`}>
-                              {formatIDR(st.accAmount || 0)}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center py-0.5">
-                            <span className={`flex items-center gap-1.5 text-[11px] ${isDark ? "text-slate-400" : "text-slate-600 font-bold"}`}>
-                              <span className="w-2 h-2 rounded-full bg-purple-500"></span> VAS / Warranty:
-                            </span>
-                            <span className={`font-mono font-bold ${isDark ? "text-slate-200" : "text-slate-800"}`}>
-                              {formatIDR(st.vasAmount || 0)}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className={`mt-4 pt-3 border-t flex justify-between items-center text-xs ${isDark ? "border-slate-700/60" : "border-slate-100"}`}>
-                          <span className={`font-black flex items-center gap-1 text-[11px] ${isDark ? "text-amber-400" : "text-amber-700"}`}>
-                            <span>⭐</span> Poin Reward
-                          </span>
-                          <span className={`font-mono font-black text-sm ${isDark ? "text-amber-300" : "text-amber-700"}`}>
-                            {(st.points || 0).toFixed(1)} pts
-                          </span>
                         </div>
                       </div>
                     ))}
@@ -2707,18 +2206,26 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                   </div>
                 </div>
               )}
-
-              {/* TAB 10: MoM GROWTH ANALYSIS */}
-              {activeTab === "mom-comparison" && renderComparisonSection(momAnalytics, false)}
             </>
           )}
         </main>
       </div>
 
-      {/* BOTTOM SHEET MODAL DRILLDOWN */}
+      {/* Floating Action Button (FAB) Navigasi Mobile Drawer di Pojok Kanan Bawah */}
+      <button
+        type="button"
+        onClick={() => setMobileDrawerOpen(true)}
+        className="lg:hidden fixed bottom-6 right-6 z-40 w-14 h-14 rounded-2xl bg-sky-500 hover:bg-sky-400 active:scale-95 text-white shadow-xl shadow-sky-500/40 border border-sky-400/30 flex flex-col items-center justify-center gap-0.5 transition-all duration-200"
+        aria-label="Buka Menu Navigasi"
+      >
+        <span className="text-xl leading-none">☰</span>
+        <span className="text-[10px] font-black uppercase tracking-wider leading-none">Menu</span>
+      </button>
+
+      {/* BOTTOM SHEET MODAL DRILLDOWN DETAIL */}
       {bottomSheetOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm transition-opacity animate-in fade-in overflow-hidden p-0 sm:p-4">
-          <div className={`w-full sm:max-w-2xl max-h-[85vh] rounded-t-3xl sm:rounded-3xl ${cardBg} border-2 border-inherit shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300`}>
+          <div className={`w-full sm:max-w-3xl max-h-[85vh] rounded-t-3xl sm:rounded-3xl ${cardBg} border-2 border-inherit shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300`}>
             <div className="flex items-center justify-between p-4 sm:p-5 border-b border-inherit bg-black/10 dark:bg-black/20">
               <h3 className={`text-sm sm:text-base font-black ${textMain} flex items-center gap-2 truncate`}>
                 <span>📋</span>
