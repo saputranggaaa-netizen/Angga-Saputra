@@ -608,21 +608,43 @@ export default function DigiplusOperationalEngine() {
   const AUTO_WEEKS = useMemo(() => {
     const map = new Map<string, { label: string; minDate: string; maxDate: string; count: number }>();
 
-    transactions.forEach((t) => {
-      const wLabel = t.weekLabel ? t.weekLabel.trim() : "";
+    (transactions || []).forEach((t) => {
+      let wLabel = t.weekLabel ? String(t.weekLabel).trim() : "";
+
+      // Fallback: Jika kolom weekLabel di sheet kosong, hitung otomatis dari tanggal isoDate
+      if (!wLabel && t.isoDate) {
+        const parts = t.isoDate.split("-");
+        const day = parseInt(parts[2], 10);
+        if (!isNaN(day)) {
+          const wNum = Math.min(Math.ceil(day / 7), 5);
+          wLabel = `W${wNum}`;
+        }
+      }
+
       if (!wLabel) return;
 
       if (!map.has(wLabel)) {
-        map.set(wLabel, { label: wLabel, minDate: t.isoDate, maxDate: t.isoDate, count: 0 });
+        map.set(wLabel, { label: wLabel, minDate: t.isoDate || "", maxDate: t.isoDate || "", count: 0 });
       }
 
       const item = map.get(wLabel)!;
       item.count++;
-      if (t.isoDate && t.isoDate < item.minDate) item.minDate = t.isoDate;
-      if (t.isoDate && t.isoDate > item.maxDate) item.maxDate = t.isoDate;
+      if (t.isoDate && (!item.minDate || t.isoDate < item.minDate)) item.minDate = t.isoDate;
+      if (t.isoDate && (!item.maxDate || t.isoDate > item.maxDate)) item.maxDate = t.isoDate;
     });
 
-    const sorted = Array.from(map.values()).sort((a, b) => a.minDate.localeCompare(b.minDate));
+    let sorted = Array.from(map.values()).sort((a, b) => (a.minDate || "").localeCompare(b.minDate || ""));
+
+    // Fallback darurat jika di spreadsheet sama sekali belum ada label minggu
+    if (sorted.length === 0) {
+      sorted = [
+        { label: "W1", minDate: "2026-10-01", maxDate: "2026-10-07", count: 1 },
+        { label: "W2", minDate: "2026-10-08", maxDate: "2026-10-14", count: 1 },
+        { label: "W3", minDate: "2026-10-15", maxDate: "2026-10-21", count: 1 },
+        { label: "W4", minDate: "2026-10-22", maxDate: "2026-10-28", count: 1 },
+        { label: "W5", minDate: "2026-10-29", maxDate: "2026-10-31", count: 1 },
+      ];
+    }
 
     return sorted.map((w, idx) => {
       const key = `W${idx + 1}`;
@@ -631,15 +653,22 @@ export default function DigiplusOperationalEngine() {
         const p = iso.split("-");
         return p.length === 3 ? `${p[2]}/${p[1]}` : iso;
       };
-      const range = w.minDate ? `${formatNice(w.minDate)} s.d. ${formatNice(w.maxDate)}` : "Periode Berjalan";
+      const range = (w.minDate && w.maxDate) ? `${formatNice(w.minDate)} s.d. ${formatNice(w.maxDate)}` : "Periode Berjalan";
       return { key, label: w.label, range, days: 7 };
     });
   }, [transactions]);
 
+  // Otomatis isi nilai W1 dan W2 saat data minggu sudah siap
   useEffect(() => {
     if (AUTO_WEEKS.length > 0) {
-      if (!w1Filter) setW1Filter(AUTO_WEEKS[Math.max(0, AUTO_WEEKS.length - 2)]?.label || AUTO_WEEKS[0].label);
-      if (!w2Filter) setW2Filter(AUTO_WEEKS[AUTO_WEEKS.length - 1]?.label || AUTO_WEEKS[0].label);
+      if (!w1Filter || !AUTO_WEEKS.some((w) => w.label === w1Filter)) {
+        const defaultW1 = AUTO_WEEKS.length >= 2 ? AUTO_WEEKS[AUTO_WEEKS.length - 2].label : AUTO_WEEKS[0].label;
+        setW1Filter(defaultW1);
+      }
+      if (!w2Filter || !AUTO_WEEKS.some((w) => w.label === w2Filter)) {
+        const defaultW2 = AUTO_WEEKS[AUTO_WEEKS.length - 1].label;
+        setW2Filter(defaultW2);
+      }
     }
   }, [AUTO_WEEKS, w1Filter, w2Filter]);
 
