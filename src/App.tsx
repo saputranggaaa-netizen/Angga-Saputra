@@ -315,13 +315,7 @@ export default function DigiplusOperationalEngine() {
   // State untuk memilih staf di menu Target Vs Achievement Per Staff
   const [selectedStaffId, setSelectedStaffId] = useState<string>("");
 
-  // Inisialisasi otomatis staf pertama jika belum dipilih
-  useEffect(() => {
-    if (!selectedStaffId && staffList.length > 0) {
-      setSelectedStaffId(staffList[0].salesId);
-    }
-  }, [staffList, selectedStaffId]);
-
+  
   // Modal State
   const [bottomSheetOpen, setBottomSheetOpen] = useState<boolean>(false);
   const [sheetTitle, setSheetTitle] = useState<string>("");
