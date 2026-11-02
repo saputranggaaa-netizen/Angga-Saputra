@@ -327,8 +327,7 @@ export default function DigiplusOperationalEngine() {
 
   // Export State
   const [isExportingPptx, setIsExportingPptx] = useState<boolean>(false);
-  // State Staf Terpilih untuk Drilldown
-  const [selectedStaffId, setSelectedStaffId] = useState<string>("");
+ 
 
   const SPREADSHEET_ID = "1v_QCLTDKORjVnByrzo9qRiivdU8CGO99nJri9jBETWM";
   const ADMIN_ID = "22008089";
