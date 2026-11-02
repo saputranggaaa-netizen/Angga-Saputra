@@ -902,7 +902,7 @@ export default function DigiplusOperationalEngine() {
         trxCount: invCount,
         atv,
         qty: s.qty,
-        upt,
+        upt:uptFormatted, // format desimal seperti "1.2",
         points: Number((achv * 0.15).toFixed(1)),
         appleAmount: s.appleAmount,
         androidAmount: s.androidAmount,
@@ -3174,33 +3174,42 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                           />
                         </div>
 
-                        {/* Kotak Metrik: UPT, ATV, TRX */}
-                        <div className={`grid grid-cols-3 gap-2 py-2.5 px-2 rounded-2xl border ${
-                          isDark ? "bg-black/30 border-slate-700/60" : "bg-slate-100 border-slate-300"
+                        {/* Kotak Metrik: UPT, ATV, TRX (Kontras Tinggi untuk Light Mode) */}
+                        <div className={`grid grid-cols-3 gap-2 py-3 px-3 rounded-2xl border ${
+                          isDark 
+                            ? "bg-slate-900/60 border-slate-700/80" 
+                            : "bg-slate-100/90 border-slate-300 shadow-inner"
                         }`}>
+                          {/* Metrik UPT */}
                           <div className="text-center">
-                            <span className="text-[10px] font-black uppercase block tracking-wider text-slate-600 dark:text-slate-400">UPT</span>
-                            <strong className="text-xs sm:text-sm font-black font-mono block mt-0.5 text-sky-800 dark:text-sky-400">
-                              {st.upt || "0.0"}
+                            <span className="text-[10px] font-black uppercase tracking-wider block text-slate-500 dark:text-slate-400">
+                              UPT
+                            </span>
+                            <strong className="text-xs sm:text-sm font-black font-mono block mt-1 text-blue-700 dark:text-sky-400">
+                              {st.upt}
                             </strong>
                           </div>
-                          <div className={`text-center border-x ${isDark ? "border-slate-700/60" : "border-slate-300"}`}>
-                            <span className="text-[10px] font-black uppercase block tracking-wider text-slate-600 dark:text-slate-400">ATV</span>
-                            <strong className="text-xs sm:text-sm font-black font-mono block mt-0.5 text-indigo-900 dark:text-indigo-300">
+
+                          {/* Metrik ATV */}
+                          <div className={`text-center border-x ${isDark ? "border-slate-700" : "border-slate-300"}`}>
+                            <span className="text-[10px] font-black uppercase tracking-wider block text-slate-500 dark:text-slate-400">
+                              ATV
+                            </span>
+                            <strong className="text-xs sm:text-sm font-black font-mono block mt-1 text-slate-900 dark:text-slate-100">
                               {formatCompactIDR(st.atv)}
                             </strong>
                           </div>
+
+                          {/* Metrik TRX */}
                           <div className="text-center">
-                            <span className="text-[10px] font-black uppercase block tracking-wider text-slate-600 dark:text-slate-400">TRX</span>
-                            <strong className="text-xs sm:text-sm font-black font-mono block mt-0.5 text-slate-950 dark:text-white">
+                            <span className="text-[10px] font-black uppercase tracking-wider block text-slate-500 dark:text-slate-400">
+                              TRX
+                            </span>
+                            <strong className="text-xs sm:text-sm font-black font-mono block mt-1 text-slate-950 dark:text-white">
                               {st.trxCount || 0}
                             </strong>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
               )}
 
               {/* TAB 4: DAILY TARGET */}
