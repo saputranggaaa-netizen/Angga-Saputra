@@ -2437,52 +2437,500 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                 </div>
               )}
 
-              {/* TAB 2: WEEKLY SALES (WEEK TO WEEK) */}
-              {activeTab === "weekly-sales" && renderComparisonSection(weeklyComparisonData, true)}
-
-              {/* TAB KHUSUS: QOALA PROTECTION */}
-              {activeTab === "qoala-ar" && (
+              {/* TAB 2: WEEKLY SALES (WoW) + TARGET VS ACHIEVEMENT (T/A) */}
+              {activeTab === "weekly-sales" && (
                 <div className="space-y-6 sm:space-y-8">
-                  <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-4`}>
-                    <div className="flex flex-wrap justify-between items-center gap-4">
-                      <div>
-                        <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
-                          <span>🛡️</span>
-                          <span>QOALA PROTECTION &amp; ATTACHMENT RATE (AR %)</span>
-                        </h2>
-                        <p className={`text-xs ${textMuted} mt-0.5`}>
-                          Periode: {periodType.toUpperCase()} ({periodType === "daily" ? selectedDate : periodType === "weekly" ? selectedWeek : selectedMonth})
-                        </p>
-                      </div>
+                  {/* HEADER & FILTER SELEKSI MINGGU */}
+                  <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl flex flex-wrap items-center justify-between gap-4`}>
+                    <div>
+                      <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
+                        <span>📈</span>
+                        <span>PERBANDINGAN WEEK TO WEEK (WoW) SALES</span>
+                      </h2>
+                      <p className={`text-xs ${textMuted} mt-0.5`}>
+                        Bandingkan pertumbuhan omset, unit (Qty), dan kontribusi sales per produk
+                      </p>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 pt-2">
-                      <div className={`p-4 rounded-2xl border ${innerBg}`}>
-                        <span className={`text-[10px] font-black uppercase tracking-wider ${textMuted} block`}>Store Attachment Rate</span>
-                        <div className="text-2xl sm:text-3xl font-black mt-1 font-mono text-emerald-600 dark:text-emerald-400">
-                          {qoalaAnalytics.storeAR}%
-                        </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
+                        <span className="text-[11px] font-black text-slate-600 dark:text-slate-400">Baseline (W1):</span>
+                        <select
+                          value={w1Filter}
+                          onChange={(e) => setW1Filter(e.target.value)}
+                          className="bg-transparent font-black text-xs text-slate-950 dark:text-white focus:outline-none cursor-pointer"
+                        >
+                          {AUTO_WEEKS.map((w) => (
+                            <option key={`w1-${w.key}`} value={w.label} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
+                              {w.label} ({w.range})
+                            </option>
+                          ))}
+                        </select>
                       </div>
-                      <div className={`p-4 rounded-2xl border ${innerBg}`}>
-                        <span className={`text-[10px] font-black uppercase tracking-wider ${textMuted} block`}>Total Polis Terjual</span>
-                        <div className="text-2xl sm:text-3xl font-black mt-1 text-sky-600 dark:text-sky-400 font-mono">
-                          {qoalaAnalytics.totalQoalaQty} Unit
-                        </div>
-                      </div>
-                      <div className={`p-4 rounded-2xl border ${innerBg}`}>
-                        <span className={`text-[10px] font-black uppercase tracking-wider ${textMuted} block`}>Total Device Terjual</span>
-                        <div className="text-2xl sm:text-3xl font-black mt-1 text-slate-900 dark:text-white font-mono">
-                          {qoalaAnalytics.totalDeviceQty} Unit
-                        </div>
-                      </div>
-                      <div className={`p-4 rounded-2xl border ${innerBg}`}>
-                        <span className={`text-[10px] font-black uppercase tracking-wider ${textMuted} block`}>Total Omset Premi</span>
-                        <div className="text-2xl sm:text-3xl font-black mt-1 text-emerald-600 dark:text-emerald-400 font-mono">
-                          {formatIDR(qoalaAnalytics.totalQoalaAmount)}
-                        </div>
+
+                      <span className="text-xs font-black text-slate-500">VS</span>
+
+                      <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
+                        <span className="text-[11px] font-black text-slate-600 dark:text-slate-400">Pembanding (W2):</span>
+                        <select
+                          value={w2Filter}
+                          onChange={(e) => setW2Filter(e.target.value)}
+                          className="bg-transparent font-black text-xs text-sky-700 dark:text-sky-400 focus:outline-none cursor-pointer"
+                        >
+                          {AUTO_WEEKS.map((w) => (
+                            <option key={`w2-${w.key}`} value={w.label} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
+                              {w.label} ({w.range})
+                            </option>
+                          ))}
+                        </select>
                       </div>
                     </div>
                   </div>
+
+                  {/* KARTU KOMPARASI TOTAL SALES STORE */}
+                  <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-5`}>
+                    <div className="flex flex-wrap justify-between items-center pb-3 border-b border-inherit gap-3">
+                      <div>
+                        <span className="text-xs font-black uppercase tracking-wider text-slate-500">TOTAL SALES STORE</span>
+                        <div className="flex items-center gap-3 mt-1">
+                          <span className="text-xl sm:text-2xl font-black font-mono text-slate-950 dark:text-white">
+                            {formatIDR(weeklyComparisonData.totalM2)}
+                          </span>
+                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-black flex items-center gap-1 ${
+                            weeklyComparisonData.storeGrowth >= 0 
+                              ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border border-emerald-400/30" 
+                              : "bg-rose-500/15 text-rose-800 dark:text-rose-400 border border-rose-400/30"
+                          }`}>
+                            <span>{weeklyComparisonData.storeGrowth >= 0 ? "▲ +" : "▼ "}</span>
+                            <span>{weeklyComparisonData.storeGrowth}%</span>
+                          </span>
+                        </div>
+                        <span className="text-[11px] font-bold text-slate-500">
+                          {weeklyComparisonData.p1Label}: {formatIDR(weeklyComparisonData.totalM1)} ➔ {weeklyComparisonData.p2Label}: {formatIDR(weeklyComparisonData.totalM2)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-3">
+                        PENCAPAIAN OMSET PER STAF ({weeklyComparisonData.p1Label} VS {weeklyComparisonData.p2Label}):
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {weeklyComparisonData.staffSales.map((st, idx) => (
+                          <div key={idx} className={`p-3.5 rounded-2xl border ${innerBg} flex justify-between items-center shadow-sm`}>
+                            <div>
+                              <span className="text-xs font-black text-slate-950 dark:text-white block">{st.name}</span>
+                              <div className="text-[11px] font-bold text-slate-500 mt-0.5">
+                                <span>{weeklyComparisonData.p1Label}: {formatIDR(st.m1)}</span>
+                                <span className="mx-1">•</span>
+                                <span className="text-slate-950 dark:text-slate-200">{weeklyComparisonData.p2Label}: {formatIDR(st.m2)}</span>
+                              </div>
+                            </div>
+                            <span className={`px-2 py-0.5 rounded-lg text-xs font-black ${
+                              st.growth >= 0 
+                                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" 
+                                : "bg-rose-500/15 text-rose-700 dark:text-rose-400"
+                            }`}>
+                              {st.growth >= 0 ? `▲ +${st.growth}%` : `▼ ${st.growth}%`}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ========================================================
+                      SEKSI UTAMA: TARGET VS ACHIEVEMENT (T/A) MINGGUAN
+                  ======================================================== */}
+                  {(() => {
+                    // Ambil transaksi minggu berjalan pembanding (W2)
+                    const w2Trx = transactions.filter((t) => {
+                      if (!t.weekLabel || !w2Filter) return false;
+                      const wl = t.weekLabel.trim().toLowerCase();
+                      const target = w2Filter.trim().toLowerCase();
+                      const numMatch = target.match(/(?:week|w)\s*(\d+)/i) || target.match(/\d+/);
+                      const targetNum = numMatch ? numMatch[1] : "";
+
+                      if (wl === target || target.includes(wl) || wl.includes(target)) return true;
+                      if (targetNum) {
+                        const rowNumMatch = wl.match(/(?:week|w)\s*(\d+)/i) || wl.match(/\d+/);
+                        if (rowNumMatch && rowNumMatch[1] === targetNum) return true;
+                      }
+                      return false;
+                    });
+
+                    // Target 1 Minggu Toko (7 Hari dari bulanan)
+                    const weeklyStoreTarget = Math.round(((storeTotalTarget || 8728667173) / 31) * 7);
+                    const weeklyAppleTarget = Math.round(weeklyStoreTarget * 0.794);
+                    const weeklyAndroidTarget = Math.round(weeklyStoreTarget * 0.108);
+                    const weeklyAccTarget = Math.round(weeklyStoreTarget * 0.05);
+                    const weeklyVasTarget = Math.round(weeklyStoreTarget * 0.045);
+
+                    // Filter Item Per LOB untuk W2
+                    const appleW2Items = w2Trx.filter((t) => {
+                      const p = (t.productName || "").toUpperCase();
+                      const isAcc = p.includes("CASE") || p.includes("GLASS") || p.includes("ADAPTER") || p.includes("CABLE");
+                      return t.brand === "APPLE" && !isAcc && (t.groupCategory === "DEVICES" || p.includes("IPHONE") || p.includes("IPAD") || p.includes("MAC") || p.includes("WATCH") || p.includes("AIRPOD"));
+                    });
+
+                    const androidW2Items = w2Trx.filter((t) => {
+                      const p = (t.productName || "").toUpperCase();
+                      const isAcc = p.includes("CASE") || p.includes("GLASS") || p.includes("ADAPTER") || p.includes("CABLE");
+                      return t.groupCategory === "DEVICES" && t.brand !== "APPLE" && !isAcc;
+                    });
+
+                    const accW2Items = w2Trx.filter((t) => t.groupCategory === "ACCESSORIES");
+                    const vasW2Items = w2Trx.filter((t) => {
+                      const p = (t.productName || "").toUpperCase();
+                      return t.groupCategory === "VAS" || t.brand === "QOALA" || p.includes("QOALA") || p.includes("PROTEKSI") || p.includes("TELKOMSEL") || p.includes("MYPRIO");
+                    });
+
+                    return (
+                      <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-6`}>
+                        <div className="flex flex-wrap justify-between items-center pb-4 border-b border-inherit gap-3">
+                          <div>
+                            <h3 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
+                              <span>🎯</span>
+                              <span>TARGET VS ACHIEVEMENT (T/A) MINGGUAN — {w2Filter || "Minggu Berjalan"}</span>
+                            </h3>
+                            <p className={`text-xs ${textMuted} mt-0.5`}>
+                              Kalkulasi Target Proporsional 7 Hari vs Penjualan Realisasi Periode Terpilih
+                            </p>
+                          </div>
+                          <span className="text-xs font-bold text-slate-500">
+                            Klik &quot;More Details ➔&quot; untuk audit nota &amp; rincian produk
+                          </span>
+                        </div>
+
+                        <div className="space-y-6">
+                          {/* 1. APPLE DEVICES */}
+                          {(() => {
+                            const actual = appleW2Items.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+                            const target = weeklyAppleTarget;
+                            const achv = calcAchv(actual, target);
+                            const gap = actual - target;
+
+                            const appleSubList = [
+                              { label: "iPhone", filterKey: "IPHONE", targetWeight: 0.72 },
+                              { label: "iPad", filterKey: "IPAD", targetWeight: 0.12 },
+                              { label: "MacBook", filterKey: "MAC", targetWeight: 0.08 },
+                              { label: "Apple Watch", filterKey: "WATCH", targetWeight: 0.05 },
+                              { label: "AirPods", filterKey: "AIRPOD", targetWeight: 0.03 },
+                            ];
+
+                            return (
+                              <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-4`}>
+                                <div className="flex flex-wrap justify-between items-center gap-3 pb-3 border-b border-inherit/50">
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-2xl">🍎</span>
+                                    <div>
+                                      <h4 className="text-sm sm:text-base font-black text-sky-600 dark:text-sky-400">
+                                        Apple Devices
+                                      </h4>
+                                      <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-0.5">
+                                        <strong>T/A:</strong> {formatIDR(target)} / <strong className="text-emerald-600 dark:text-emerald-400">{formatIDR(actual)}</strong>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-4 text-right">
+                                    <div>
+                                      <div className={`text-sm sm:text-base font-black font-mono ${achv >= 100 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
+                                        {achv}% ({gap >= 0 ? `+${formatIDR(gap)}` : formatIDR(gap)})
+                                      </div>
+                                      <span className="text-[11px] text-slate-500 font-bold block">
+                                        Estimate: <strong className="text-slate-800 dark:text-slate-200">{formatIDR(calcEst(actual))}</strong>
+                                      </span>
+                                    </div>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => openLobDetailSheet(`Seluruh Apple Devices Terjual (${w2Filter})`, appleW2Items)}
+                                      className="px-3 py-1.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 text-sky-700 dark:text-sky-400 border border-sky-400/30 text-xs font-black transition active:scale-95"
+                                    >
+                                      More Details ➔
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+                                  {appleSubList.map((sub, idx) => {
+                                    const subItems = appleW2Items.filter((t) => (t.productName || "").toUpperCase().includes(sub.filterKey));
+                                    const subActual = subItems.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+                                    const subTarget = Math.round(target * sub.targetWeight);
+                                    const subAchv = calcAchv(subActual, subTarget);
+                                    const subGap = subActual - subTarget;
+
+                                    return (
+                                      <div key={idx} className={`p-3.5 rounded-xl border ${cardBg} text-xs space-y-2 shadow-sm`}>
+                                        <div className="flex justify-between items-center">
+                                          <span className="font-black text-slate-900 dark:text-white uppercase tracking-wider">{sub.label}</span>
+                                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${subAchv >= 100 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"}`}>
+                                            {subAchv}%
+                                          </span>
+                                        </div>
+                                        <div className="text-[11px] font-mono text-slate-600 dark:text-slate-400 space-y-0.5">
+                                          <div><strong>T/A:</strong> {formatIDR(subTarget)} / <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatIDR(subActual)}</span></div>
+                                          <div><strong>-/+:</strong> <span className={subGap >= 0 ? "text-emerald-600" : "text-rose-600"}>{subGap >= 0 ? `+${formatIDR(subGap)}` : formatIDR(subGap)}</span></div>
+                                          <div><strong>Estimate:</strong> {formatIDR(calcEst(subActual))}</div>
+                                        </div>
+                                        <div className="pt-1 border-t border-inherit/40 flex justify-end">
+                                          <button
+                                            type="button"
+                                            onClick={() => openLobDetailSheet(`Daftar ${sub.label} Terjual (${w2Filter})`, subItems)}
+                                            className="text-[10px] font-black text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-1"
+                                          >
+                                            <span>More Details</span>
+                                            <span>➔</span>
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* 2. ANDROID DEVICES */}
+                          {(() => {
+                            const actual = androidW2Items.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+                            const target = weeklyAndroidTarget;
+                            const achv = calcAchv(actual, target);
+                            const gap = actual - target;
+
+                            const androidBrands = [
+                              { label: "Samsung Device", brandKey: "SAMSUNG", icon: "📱", weight: 0.55 },
+                              { label: "Huawei Device", brandKey: "HUAWEI", icon: "🔴", weight: 0.18 },
+                              { label: "Xiaomi / Redmi Device", brandKey: "XIAOMI", icon: "🟠", weight: 0.14 },
+                              { label: "Oppo Device", brandKey: "OPPO", icon: "🟢", weight: 0.08 },
+                              { label: "Motorola & Lainnya", brandKey: "OTHER", icon: "🤖", weight: 0.05 },
+                            ];
+
+                            return (
+                              <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-4`}>
+                                <div className="flex flex-wrap justify-between items-center gap-3 pb-3 border-b border-inherit/50">
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-2xl">🤖</span>
+                                    <div>
+                                      <h4 className="text-sm sm:text-base font-black text-indigo-600 dark:text-indigo-400">
+                                        Android Devices
+                                      </h4>
+                                      <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-0.5">
+                                        <strong>T/A:</strong> {formatIDR(target)} / <strong className="text-emerald-600 dark:text-emerald-400">{formatIDR(actual)}</strong>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-4 text-right">
+                                    <div>
+                                      <div className={`text-sm sm:text-base font-black font-mono ${achv >= 100 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
+                                        {achv}% ({gap >= 0 ? `+${formatIDR(gap)}` : formatIDR(gap)})
+                                      </div>
+                                      <span className="text-[11px] text-slate-500 font-bold block">
+                                        Estimate: <strong className="text-slate-800 dark:text-slate-200">{formatIDR(calcEst(actual))}</strong>
+                                      </span>
+                                    </div>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => openLobDetailSheet(`Seluruh Android Devices Terjual (${w2Filter})`, androidW2Items)}
+                                      className="px-3 py-1.5 rounded-xl bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-700 dark:text-indigo-400 border border-indigo-400/30 text-xs font-black transition active:scale-95"
+                                    >
+                                      More Details ➔
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+                                  {androidBrands.map((b, idx) => {
+                                    const brandItems = b.brandKey === "OTHER"
+                                      ? androidW2Items.filter((t) => !["SAMSUNG", "HUAWEI", "XIAOMI", "OPPO"].includes((t.brand || "").toUpperCase()))
+                                      : androidW2Items.filter((t) => (t.brand || "").toUpperCase().includes(b.brandKey));
+
+                                    const bActual = brandItems.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+                                    const bTarget = Math.round(target * b.weight);
+                                    const bAchv = calcAchv(bActual, bTarget);
+                                    const bGap = bActual - bTarget;
+
+                                    return (
+                                      <div key={idx} className={`p-3.5 rounded-xl border ${cardBg} text-xs space-y-2 shadow-sm`}>
+                                        <div className="flex justify-between items-center">
+                                          <span className="font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                                            <span>{b.icon}</span>
+                                            <span>{b.label}</span>
+                                          </span>
+                                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${bAchv >= 100 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"}`}>
+                                            {bAchv}%
+                                          </span>
+                                        </div>
+                                        <div className="text-[11px] font-mono text-slate-600 dark:text-slate-400 space-y-0.5">
+                                          <div><strong>T/A:</strong> {formatIDR(bTarget)} / <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatIDR(bActual)}</span></div>
+                                          <div><strong>-/+:</strong> <span className={bGap >= 0 ? "text-emerald-600" : "text-rose-600"}>{bGap >= 0 ? `+${formatIDR(bGap)}` : formatIDR(bGap)}</span></div>
+                                          <div><strong>Estimate:</strong> {formatIDR(calcEst(bActual))}</div>
+                                        </div>
+                                        <div className="pt-1 border-t border-inherit/40 flex justify-end">
+                                          <button
+                                            type="button"
+                                            onClick={() => openLobDetailSheet(`Daftar ${b.label} Terjual (${w2Filter})`, brandItems)}
+                                            className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+                                          >
+                                            <span>More Details</span>
+                                            <span>➔</span>
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* 3. ACCESSORIES */}
+                          {(() => {
+                            const actual = accW2Items.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+                            const target = weeklyAccTarget;
+                            const achv = calcAchv(actual, target);
+                            const gap = actual - target;
+
+                            return (
+                              <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-4`}>
+                                <div className="flex flex-wrap justify-between items-center gap-3">
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-2xl">🔌</span>
+                                    <div>
+                                      <h4 className="text-sm sm:text-base font-black text-amber-600 dark:text-amber-400">
+                                        Accessories (Cases, Chargers &amp; Audio)
+                                      </h4>
+                                      <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-0.5">
+                                        <strong>T/A:</strong> {formatIDR(target)} / <strong className="text-emerald-600 dark:text-emerald-400">{formatIDR(actual)}</strong>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-4 text-right">
+                                    <div>
+                                      <div className={`text-sm sm:text-base font-black font-mono ${achv >= 100 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
+                                        {achv}% ({gap >= 0 ? `+${formatIDR(gap)}` : formatIDR(gap)})
+                                      </div>
+                                      <span className="text-[11px] text-slate-500 font-bold block">
+                                        Estimate: <strong className="text-slate-800 dark:text-slate-200">{formatIDR(calcEst(actual))}</strong>
+                                      </span>
+                                    </div>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => openLobDetailSheet(`Seluruh Aksesoris Supplier Terjual (${w2Filter})`, accW2Items)}
+                                      className="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-400 border border-amber-400/30 text-xs font-black transition active:scale-95"
+                                    >
+                                      More Details ➔
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* 4. VALUE-ADDED SERVICES (VAS) */}
+                          {(() => {
+                            const actual = vasW2Items.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+                            const target = weeklyVasTarget;
+                            const achv = calcAchv(actual, target);
+                            const gap = actual - target;
+
+                            const vasSubs = [
+                              { label: "Qoala Protection", filterKey: "QOALA", icon: "🛡️", weight: 0.65 },
+                              { label: "Telkomsel Halo/Data", filterKey: "TELKOMSEL", icon: "🔴", weight: 0.15 },
+                              { label: "XL Prioritas (MyPrio)", filterKey: "XL", icon: "🔵", weight: 0.12 },
+                              { label: "Indosat IM3", filterKey: "INDOSAT", icon: "🟡", weight: 0.08 },
+                            ];
+
+                            return (
+                              <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-4`}>
+                                <div className="flex flex-wrap justify-between items-center gap-3 pb-3 border-b border-inherit/50">
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-2xl">🛡️</span>
+                                    <div>
+                                      <h4 className="text-sm sm:text-base font-black text-purple-600 dark:text-purple-400">
+                                        Value-Added Services (VAS &amp; Warranty)
+                                      </h4>
+                                      <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-0.5">
+                                        <strong>T/A:</strong> {formatIDR(target)} / <strong className="text-emerald-600 dark:text-emerald-400">{formatIDR(actual)}</strong>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-4 text-right">
+                                    <div>
+                                      <div className={`text-sm sm:text-base font-black font-mono ${achv >= 100 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
+                                        {achv}% ({gap >= 0 ? `+${formatIDR(gap)}` : formatIDR(gap)})
+                                      </div>
+                                      <span className="text-[11px] text-slate-500 font-bold block">
+                                        Estimate: <strong className="text-slate-800 dark:text-slate-200">{formatIDR(calcEst(actual))}</strong>
+                                      </span>
+                                    </div>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => openLobDetailSheet(`Seluruh Layanan VAS Terjual (${w2Filter})`, vasW2Items)}
+                                      className="px-3 py-1.5 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-700 dark:text-purple-400 border border-purple-400/30 text-xs font-black transition active:scale-95"
+                                    >
+                                      More Details ➔
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+                                  {vasSubs.map((vs, idx) => {
+                                    const vsItems = vasW2Items.filter((t) => {
+                                      const pUpper = (t.productName || "").toUpperCase();
+                                      const bUpper = (t.brand || "").toUpperCase();
+                                      return bUpper.includes(vs.filterKey) || pUpper.includes(vs.filterKey);
+                                    });
+
+                                    const vsActual = vsItems.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+                                    const vsTarget = Math.round(target * vs.weight);
+                                    const vsAchv = calcAchv(vsActual, vsTarget);
+                                    const vsGap = vsActual - vsTarget;
+
+                                    return (
+                                      <div key={idx} className={`p-3.5 rounded-xl border ${cardBg} text-xs space-y-2 shadow-sm`}>
+                                        <div className="flex justify-between items-center">
+                                          <span className="font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                                            <span>{vs.icon}</span>
+                                            <span>{vs.label}</span>
+                                          </span>
+                                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${vsAchv >= 100 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"}`}>
+                                            {vsAchv}%
+                                          </span>
+                                        </div>
+                                        <div className="text-[11px] font-mono text-slate-600 dark:text-slate-400 space-y-0.5">
+                                          <div><strong>T/A:</strong> {formatIDR(vsTarget)} / <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatIDR(vsActual)}</span></div>
+                                          <div><strong>-/+:</strong> <span className={vsGap >= 0 ? "text-emerald-600" : "text-rose-600"}>{vsGap >= 0 ? `+${formatIDR(vsGap)}` : formatIDR(vsGap)}</span></div>
+                                          <div><strong>Estimate:</strong> {formatIDR(calcEst(vsActual))}</div>
+                                        </div>
+                                        <div className="pt-1 border-t border-inherit/40 flex justify-end">
+                                          <button
+                                            type="button"
+                                            onClick={() => openLobDetailSheet(`Daftar ${vs.label} Terjual (${w2Filter})`, vsItems)}
+                                            className="text-[10px] font-black text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1"
+                                          >
+                                            <span>More Details</span>
+                                            <span>➔</span>
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 
