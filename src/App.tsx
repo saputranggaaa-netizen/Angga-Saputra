@@ -329,8 +329,7 @@ export default function DigiplusOperationalEngine() {
 
   // Feedback State
   const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>(DEFAULT_FEEDBACKS);
-  // State untuk memilih staf di menu Target Vs Achievement Per Staff
-  const [selectedStaffId, setSelectedStaffId] = useState<string>("");
+  
 
   // Export State
   const [isExportingPptx, setIsExportingPptx] = useState<boolean>(false);
