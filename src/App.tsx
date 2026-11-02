@@ -552,10 +552,23 @@ export default function DigiplusOperationalEngine() {
         const targetVal = typeof rawTargetVal === "number" 
           ? rawTargetVal 
           : Number(String(rawTargetVal || 0).replace(/[^0-9]/g, ""));
+        // Abaikan header, baris total, grand total, month, summary, atau target toko
+if (
+  !rawStaffName ||
+  rawStaffName.includes("staff") ||
+  rawStaffName.includes("nama") ||
+  rawStaffName.includes("total") ||
+  rawStaffName.includes("grand") ||
+  rawStaffName.includes("month") ||
+  rawStaffName.includes("target") ||
+  rawStaffName.includes("all") ||
+  rawStaffName.length <= 2 ||
+  isNaN(targetVal)
+) {
+  return;
+}
 
-        if (!rawStaffName || rawStaffName.includes("staff") || rawStaffName.includes("nama") || isNaN(targetVal)) {
-          return;
-        }
+        
 
         if (!parsedStaffDailyTargets[rawStaffName]) {
           parsedStaffDailyTargets[rawStaffName] = { total: 0, apple: 0, android: 0, accessories: 0, vas: 0 };
