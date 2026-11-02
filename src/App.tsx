@@ -2008,18 +2008,37 @@ _Diperbarui via Digiplus Store Operations Engine._`;
           </div>
         </div>
       </aside>
-{/* Floating Action Button (FAB) Menu - Pojok Kanan Bawah */}
-      <button
-        type="button"
-        onClick={() => setMobileDrawerOpen(true)}
-        className="lg:hidden fixed bottom-6 right-6 z-40 w-14 h-14 rounded-2xl bg-sky-500 hover:bg-sky-400 active:scale-95 text-white shadow-xl shadow-sky-500/40 border border-sky-400/30 flex flex-col items-center justify-center gap-0.5 transition-all duration-200"
-        aria-label="Buka Menu Navigasi"
+{/* 2. DRAWER MOBILE */}
+      {mobileDrawerOpen && (
+        <div
+          onClick={() => setMobileDrawerOpen(false)}
+          className="lg:hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 transition-opacity print:hidden"
+        />
+      )}
+
+      <div
+        className={`lg:hidden fixed top-0 bottom-0 left-0 w-72 max-w-[80vw] z-50 transform transition-transform duration-300 ease-in-out border-r backdrop-blur-2xl p-5 flex flex-col justify-between print:hidden ${glassSidebar} ${
+          mobileDrawerOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
       >
-        <span className="text-xl leading-none">☰</span>
-        <span className="text-[10px] font-black uppercase tracking-wider leading-none">Menu</span>
-      </button>
+        <div>
+          {/* Header Drawer */}
+          <div className="flex items-center justify-between pb-4 border-b border-inherit">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-sky-500 text-white font-black text-sm flex items-center justify-center shadow-sm">
+                QF01
+              </div>
+              <span className="font-black text-sm text-slate-950 dark:text-white">DIGIPLUS GI</span>
+            </div>
+            <button
+              onClick={() => setMobileDrawerOpen(false)}
+              className="w-8 h-8 rounded-full bg-slate-700/20 dark:bg-slate-700/30 flex items-center justify-center text-xs font-bold text-slate-950 dark:text-white"
+            >
+              ✕
+            </button>
           </div>
 
+          {/* Navigasi Menu Drawer */}
           <nav className="mt-4 space-y-1.5 overflow-y-auto max-h-[60vh] pr-1 custom-scrollbar">
             {mainNavItems.map((item) => {
               const active = activeTab === item.id;
@@ -2058,6 +2077,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
           </nav>
         </div>
 
+        {/* Footer Drawer */}
         <div className="pt-4 border-t border-inherit space-y-2">
           <button
             onClick={toggleTheme}
@@ -2075,7 +2095,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
           </button>
         </div>
       </div>
-
+      
       {/* 3. KONTEN UTAMA */}
       <div className="flex-1 flex flex-col min-w-0">
         <header className={`lg:hidden flex items-center justify-between px-4 py-3 border-b backdrop-blur-xl sticky top-0 z-20 print:hidden ${glassSidebar}`}>
