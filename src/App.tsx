@@ -3099,53 +3099,48 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                         className={`p-5 rounded-3xl border transition-all duration-200 hover:shadow-xl ${
                           isDark
                             ? "bg-gradient-to-b from-[#0F1E36] to-[#0A1324] border-slate-700/70 shadow-2xl shadow-black/50"
-                            : "bg-white border-slate-200 shadow-md shadow-slate-200/80 hover:border-sky-300"
+                            : "bg-white border-slate-300 shadow-md shadow-slate-200/80 hover:border-sky-400"
                         }`}
                       >
-                        <div className={`flex items-center justify-between pb-3.5 border-b ${isDark ? "border-slate-700/60" : "border-slate-100"}`}>
+                        {/* Header Kartu: Avatar & Nama Staf */}
+                        <div className={`flex items-center justify-between pb-3.5 border-b ${isDark ? "border-slate-700/60" : "border-slate-200"}`}>
                           <div className="flex items-center gap-3">
-                            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-black text-sm text-white shadow-sm ${
-                              isDark 
-                                ? "bg-gradient-to-br from-sky-500 to-indigo-600 shadow-sky-500/25" 
-                                : "bg-gradient-to-br from-sky-600 to-blue-700 shadow-sky-600/20"
-                            }`}>
+                            <div className="w-11 h-11 rounded-2xl flex items-center justify-center font-black text-sm text-white shadow-md bg-gradient-to-br from-sky-600 to-blue-700">
                               {st.initials}
                             </div>
                             <div>
-                              <h4 className={`text-sm font-black tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}>
+                              {/* Nama Staf Jelas & Tebal */}
+                              <h4 className="text-sm font-black tracking-tight text-slate-950 dark:text-white">
                                 {st.name}
                               </h4>
-                              <span className={`text-[11px] font-bold block ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-                                {st.role || "Senior Sales Specialist"}
+                              <span className="text-[11px] font-bold block text-slate-600 dark:text-slate-400">
+                                {st.role || "Sales Specialist"}
                               </span>
                             </div>
                           </div>
 
+                          {/* Badge Status */}
                           <span
                             className={`px-3 py-1 rounded-full text-[11px] font-black border shadow-sm ${
                               st.achvPct >= 100
-                                ? isDark 
-                                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/40" 
-                                  : "bg-emerald-50 text-emerald-700 border-emerald-300"
+                                ? "bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-400/40"
                                 : st.achvPct >= 70
-                                ? isDark 
-                                  ? "bg-amber-500/20 text-amber-300 border-amber-400/40" 
-                                  : "bg-amber-50 text-amber-700 border-amber-300"
-                                : isDark 
-                                  ? "bg-rose-500/20 text-rose-300 border-rose-400/40" 
-                                  : "bg-rose-50 text-rose-700 border-rose-200"
+                                ? "bg-amber-50 text-amber-900 border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-400/40"
+                                : "bg-rose-50 text-rose-800 border-rose-300 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-400/40"
                             }`}
                           >
                             {st.achvPct >= 100 ? "Productive 🔥" : st.achvPct >= 70 ? "On Track ⚡" : "Need Focus ⚠️"}
                           </span>
                         </div>
 
+                        {/* Nilai Total Penjualan & % Achv */}
                         <div className="py-4 flex justify-between items-end">
                           <div>
-                            <span className={`text-[10px] font-black uppercase tracking-wider block ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+                            <span className="text-[10px] font-black uppercase tracking-wider block text-slate-500 dark:text-slate-400">
                               Total Penjualan
                             </span>
-                            <div className={`text-xl sm:text-2xl font-black font-mono mt-0.5 tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}>
+                            {/* Nominal Jelas: Hitam Gelap di Light Mode */}
+                            <div className="text-xl sm:text-2xl font-black font-mono mt-0.5 tracking-tight text-slate-950 dark:text-white">
                               {formatIDR(st.totalAmount)}
                             </div>
                           </div>
@@ -3154,10 +3149,10 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                             <span
                               className={`text-2xl sm:text-3xl font-black font-mono tracking-tight ${
                                 st.achvPct >= 100 
-                                  ? isDark ? "text-emerald-400" : "text-emerald-600"
+                                  ? "text-emerald-700 dark:text-emerald-400"
                                   : st.achvPct >= 70 
-                                  ? isDark ? "text-amber-400" : "text-amber-600"
-                                  : isDark ? "text-rose-400" : "text-rose-600"
+                                  ? "text-amber-700 dark:text-amber-400"
+                                  : "text-rose-600 dark:text-rose-400"
                               }`}
                             >
                               {st.achvPct.toFixed(1)}%
@@ -3165,11 +3160,12 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                           </div>
                         </div>
 
-                        <div className={`w-full h-2 rounded-full overflow-hidden mb-4 border ${isDark ? "bg-slate-800 border-slate-700/50" : "bg-slate-100 border-slate-200"}`}>
+                        {/* Progress Bar */}
+                        <div className={`w-full h-2 rounded-full overflow-hidden mb-4 border ${isDark ? "bg-slate-800 border-slate-700/50" : "bg-slate-200 border-slate-300"}`}>
                           <div
                             className={`h-full rounded-full transition-all duration-500 ${
                               st.achvPct >= 100
-                                ? "bg-emerald-500"
+                                ? "bg-emerald-600"
                                 : st.achvPct >= 70
                                 ? "bg-amber-500"
                                 : "bg-rose-500"
@@ -3178,24 +3174,25 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                           />
                         </div>
 
+                        {/* Kotak Metrik: UPT, ATV, TRX */}
                         <div className={`grid grid-cols-3 gap-2 py-2.5 px-2 rounded-2xl border ${
-                          isDark ? "bg-black/25 border-slate-700/60" : "bg-slate-50/80 border-slate-200/80"
+                          isDark ? "bg-black/30 border-slate-700/60" : "bg-slate-100 border-slate-300"
                         }`}>
                           <div className="text-center">
-                            <span className={`text-[9px] font-black uppercase block tracking-wider ${isDark ? "text-slate-400" : "text-slate-500"}`}>UPT</span>
-                            <strong className={`text-xs sm:text-sm font-black font-mono block mt-0.5 ${isDark ? "text-sky-400" : "text-sky-700"}`}>
+                            <span className="text-[10px] font-black uppercase block tracking-wider text-slate-600 dark:text-slate-400">UPT</span>
+                            <strong className="text-xs sm:text-sm font-black font-mono block mt-0.5 text-sky-800 dark:text-sky-400">
                               {st.upt || "0.0"}
                             </strong>
                           </div>
-                          <div className={`text-center border-x ${isDark ? "border-slate-700/60" : "border-slate-200"}`}>
-                            <span className={`text-[9px] font-black uppercase block tracking-wider ${isDark ? "text-slate-400" : "text-slate-500"}`}>ATV</span>
-                            <strong className={`text-xs sm:text-sm font-black font-mono block mt-0.5 ${isDark ? "text-indigo-300" : "text-indigo-700"}`}>
+                          <div className={`text-center border-x ${isDark ? "border-slate-700/60" : "border-slate-300"}`}>
+                            <span className="text-[10px] font-black uppercase block tracking-wider text-slate-600 dark:text-slate-400">ATV</span>
+                            <strong className="text-xs sm:text-sm font-black font-mono block mt-0.5 text-indigo-900 dark:text-indigo-300">
                               {formatCompactIDR(st.atv)}
                             </strong>
                           </div>
                           <div className="text-center">
-                            <span className={`text-[9px] font-black uppercase block tracking-wider ${isDark ? "text-slate-400" : "text-slate-500"}`}>TRX</span>
-                            <strong className={`text-xs sm:text-sm font-black font-mono block mt-0.5 ${isDark ? "text-white" : "text-slate-900"}`}>
+                            <span className="text-[10px] font-black uppercase block tracking-wider text-slate-600 dark:text-slate-400">TRX</span>
+                            <strong className="text-xs sm:text-sm font-black font-mono block mt-0.5 text-slate-950 dark:text-white">
                               {st.trxCount || 0}
                             </strong>
                           </div>
