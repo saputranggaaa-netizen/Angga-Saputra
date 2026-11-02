@@ -329,6 +329,8 @@ export default function DigiplusOperationalEngine() {
 
   // Feedback State
   const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>(DEFAULT_FEEDBACKS);
+  // State untuk memilih staf di menu Target Vs Achievement Per Staff
+  const [selectedStaffId, setSelectedStaffId] = useState<string>("");
 
   // Export State
   const [isExportingPptx, setIsExportingPptx] = useState<boolean>(false);
@@ -912,6 +914,12 @@ export default function DigiplusOperationalEngine() {
       };
     });
   }, [activeTransactions, staffTargets, storeTotalTarget]);
+  // Otomatis pilih staf pertama saat daftar staf sudah dihitung
+  useEffect(() => {
+    if (!selectedStaffId && staffList && staffList.length > 0) {
+      setSelectedStaffId(staffList[0].salesId);
+    }
+  }, [staffList, selectedStaffId]);
 
   const getSubCategory = (t: RawTransaction) => {
     const p = (t.productName || "").toUpperCase();
@@ -1413,8 +1421,11 @@ _Diperbarui via Digiplus Store Operations Engine._`;
   };
 
   const handleShareStaffWA = (staff: any, staffTrx: RawTransaction[]) => {
+    if (!staff) return;
+    const currentTrx = staffTrx || [];
+
     const calcSub = (filterFn: (t: RawTransaction) => boolean) => {
-      const filtered = staffTrx.filter(filterFn);
+      const filtered = currentTrx.filter(filterFn);
       const qty = filtered.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
       const amt = filtered.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
       return `${qty} Unit / ${formatIDR(amt)}`;
@@ -1443,15 +1454,15 @@ _Diperbarui via Digiplus Store Operations Engine._`;
     const xlText = calcSub((t) => t.groupCategory === "VAS" && (t.brand.includes("XL") || (t.productName || "").toUpperCase().includes("MYPRIO")));
     const isatText = calcSub((t) => t.groupCategory === "VAS" && (t.brand.includes("INDOSAT") || (t.productName || "").toUpperCase().includes("INDOSAT")));
 
-    const varianceVal = staff.totalAmount - staff.targetAmount;
+    const varianceVal = (staff.totalAmount || 0) - (staff.targetAmount || 0);
     const varianceStr = varianceVal >= 0 ? `+${formatIDR(varianceVal)}` : formatIDR(varianceVal);
 
     const message = 
 `- ${staff.name} -
 
-Target : ${formatIDR(staff.targetAmount)}
-Achievement : ${formatIDR(staff.totalAmount)}
-% : ${staff.achvPct}%
+Target : ${formatIDR(staff.targetAmount || 0)}
+Achievement : ${formatIDR(staff.totalAmount || 0)}
+% : ${staff.achvPct || 0}%
 Variance : ${varianceStr}
 
 Achievement
@@ -1481,7 +1492,7 @@ Indosat IM3 : ${isatText}`;
 
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank");
   };
-
+  
   const handlePrintSchedule = () => {
     if (typeof window !== "undefined") {
       window.print();
