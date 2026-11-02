@@ -1096,23 +1096,32 @@ export default function DigiplusOperationalEngine() {
     const getTrxForWeek = (selectedVal: string) => {
       if (!selectedVal) return [];
 
-      const wObj = AUTO_WEEKS.find((w) => w.key === selectedVal || w.label === selectedVal);
-      const targetLabel = (wObj ? wObj.label : selectedVal).trim().toLowerCase();
-      const targetKey = (wObj ? wObj.key : selectedVal).trim().toLowerCase();
-      const weekNum = targetKey.replace(/\D/g, "");
+      const cleanSelected = selectedVal.trim().toLowerCase();
+      // Ambil angka minggunya saja (misal: "w4" atau "week 11" diambil angkanya: "4" atau "11")
+      const weekMatch = cleanSelected.match(/(?:week|w)\s*(\d+)/i) || cleanSelected.match(/\d+/);
+      const targetNum = weekMatch ? weekMatch[1] : "";
 
       return transactions.filter((t) => {
         if (!t.weekLabel) return false;
         const wl = t.weekLabel.trim().toLowerCase();
-        return (
-          wl === targetLabel ||
-          wl.includes(targetLabel) ||
-          wl.includes(targetKey) ||
-          (weekNum && (wl.includes(`week ${weekNum}`) || wl.includes(`w${weekNum}`)))
-        );
+
+        // 1. Cocokkan jika teks sama persis atau saling mengandung
+        if (wl === cleanSelected || cleanSelected.includes(wl) || wl.includes(cleanSelected)) {
+          return true;
+        }
+
+        // 2. Jika ada angka minggu, cocokkan pola "w{angka}" atau "week {angka}"
+        if (targetNum) {
+          const rowWeekMatch = wl.match(/(?:week|w)\s*(\d+)/i) || wl.match(/\d+/);
+          const rowNum = rowWeekMatch ? rowWeekMatch[1] : "";
+          if (rowNum && rowNum === targetNum) {
+            return true;
+          }
+        }
+
+        return false;
       });
     };
-
     const trxW1 = getTrxForWeek(w1Filter);
     const trxW2 = getTrxForWeek(w2Filter);
 
