@@ -1344,17 +1344,34 @@ if (
   }, [transactions, storeTotalTarget, selectedDate, timeGoneStats]);
 
   const dailyTargetCalculated = useMemo(() => {
-    // 1. Hitung total target harian seluruh staf dari sheet catch-up gid=789142551
-    const totalStaffDailyCatchup = Object.values(staffDailyTargets || {}).reduce(
-      (acc, curr) => acc + (Number(curr.total) || 0),
-      0
-    );
+    // 1. Ambil daftar nama staf aktif toko (QF01)
+    const activeStaffNames = (staffList || [])
+      .map((s) => s.name.trim().toLowerCase())
+      .filter((name) => !name.includes("admin") && !name.includes("leader"));
 
-    // 2. Transaksi aktual toko hari ini
+    // 2. Hitung target harian KHUSUS untuk staf aktif toko
+    let totalStaffDailyCatchup = 0;
+    activeStaffNames.forEach((name) => {
+      // Cocokkan nama staf
+      const targetDetail = staffDailyTargets[name] || staffDailyTargets[name.split(" ")[0]];
+      if (targetDetail && targetDetail.total > 0) {
+        totalStaffDailyCatchup += Number(targetDetail.total) || 0;
+      }
+    });
+
+    // Fallback: Jika staffList kosong, gunakan total dari staffDailyTargets yang wajar (< Rp 500 jt)
+    if (totalStaffDailyCatchup === 0) {
+      totalStaffDailyCatchup = Object.values(staffDailyTargets || {}).reduce(
+        (acc, curr) => acc + (Number(curr.total) || 0),
+        0
+      );
+    }
+
+    // 3. Transaksi aktual toko hari ini
     const todayTrx = transactions.filter((t) => t.isoDate === selectedDate);
     const actualToday = todayTrx.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
 
-    // 3. Hitung hari dalam bulan berjalan
+    // 4. Hitung hari dalam bulan berjalan
     const now = new Date(selectedDate || Date.now());
     const year = now.getFullYear();
     const month = now.getMonth();
@@ -1362,13 +1379,8 @@ if (
     const daysPassed = now.getDate();
     const daysLeft = Math.max(1, totalDaysInMonth - daysPassed);
 
-    // Prioritaskan total penjumlahan staf catch-up sheet
-    const targetStoreToday = totalStaffDailyCatchup > 0 
-      ? totalStaffDailyCatchup 
-      : (storeTotalTarget > 0 ? Math.round(storeTotalTarget / totalDaysInMonth) : 0);
-
-    // Jumlah staf aktif
-    const activeStaffCount = Object.keys(staffDailyTargets).length || (staffList && staffList.length) || 1;
+    const targetStoreToday = totalStaffDailyCatchup;
+    const activeStaffCount = activeStaffNames.length || 1;
     const targetPerStaffToday = Math.round(targetStoreToday / activeStaffCount);
 
     return {
@@ -1386,7 +1398,7 @@ if (
       actualToday,
       achvToday: targetStoreToday > 0 ? Math.round((actualToday / targetStoreToday) * 100) : 0,
     };
-  }, [staffDailyTargets, transactions, selectedDate, storeTotalTarget, staffList]);
+  }, [staffDailyTargets, staffList, transactions, selectedDate, storeTotalTarget]);
   const scheduleDaySummary = useMemo(() => {
     const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
     return days.map((day) => {
@@ -3875,13 +3887,10 @@ Indosat IM3 : ${isatText}`;
 
                   {/* DETAIL TARGET VS ACHIEVEMENT PER STAFF */}
                   {(() => {
-                    const availableStaffNames = Array.from(
-                      new Set([
-                        ...Object.keys(staffDailyTargets),
-                        ...staffList.map((s) => s.name.trim().toLowerCase()),
-                      ])
-                    ).filter(Boolean);
-
+                  const availableStaffNames = (staffList || [])
+  .map((s) => s.name.trim().toLowerCase())
+  .filter((name) => !name.includes("admin") && !name.includes("leader") && Boolean(staffDailyTargets[name] || staffDailyTargets[name.split(" ")[0]]));
+                    
                     const activeName = selectedDailyStaff || availableStaffNames[0] || "";
 
                     const targetData: StaffDailyTargetDetail = staffDailyTargets[activeName] || 
