@@ -312,6 +312,16 @@ export default function DigiplusOperationalEngine() {
   const [w2Filter, setW2Filter] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<string>("2026-11-01");
 
+  // State untuk memilih staf di menu Target Vs Achievement Per Staff
+  const [selectedStaffId, setSelectedStaffId] = useState<string>("");
+
+  // Inisialisasi otomatis staf pertama jika belum dipilih
+  useEffect(() => {
+    if (!selectedStaffId && staffList.length > 0) {
+      setSelectedStaffId(staffList[0].salesId);
+    }
+  }, [staffList, selectedStaffId]);
+
   // Modal State
   const [bottomSheetOpen, setBottomSheetOpen] = useState<boolean>(false);
   const [sheetTitle, setSheetTitle] = useState<string>("");
@@ -1400,6 +1410,76 @@ ${scheduleDaySummary.map((d, i) => `• ${dayNames[i]}: ${d.totalStaff} Orang (P
 _Diperbarui via Digiplus Store Operations Engine._`;
 
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+  };
+
+  const handleShareStaffWA = (staff: any, staffTrx: RawTransaction[]) => {
+    const calcSub = (filterFn: (t: RawTransaction) => boolean) => {
+      const filtered = staffTrx.filter(filterFn);
+      const qty = filtered.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
+      const amt = filtered.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+      return `${qty} Unit / ${formatIDR(amt)}`;
+    };
+
+    // Sub-item Apple
+    const iphoneText = calcSub((t) => t.brand === "APPLE" && (t.productName || "").toUpperCase().includes("IPHONE"));
+    const ipadText = calcSub((t) => t.brand === "APPLE" && (t.productName || "").toUpperCase().includes("IPAD"));
+    const macbookText = calcSub((t) => t.brand === "APPLE" && ((t.productName || "").toUpperCase().includes("MAC") || (t.productName || "").toUpperCase().includes("BOOK")));
+    const watchText = calcSub((t) => t.brand === "APPLE" && (t.productName || "").toUpperCase().includes("WATCH"));
+
+    // Sub-item Android
+    const samsungText = calcSub((t) => t.brand === "SAMSUNG" && t.groupCategory === "DEVICES");
+    const oppoText = calcSub((t) => t.brand === "OPPO" && t.groupCategory === "DEVICES");
+    const huaweiText = calcSub((t) => t.brand === "HUAWEI" && t.groupCategory === "DEVICES");
+    const xiaomiText = calcSub((t) => (t.brand === "XIAOMI" || t.brand === "REDMI") && t.groupCategory === "DEVICES");
+    const motoText = calcSub((t) => t.brand === "MOTOROLA" && t.groupCategory === "DEVICES");
+    const infinixText = calcSub((t) => t.brand === "INFINIX" && t.groupCategory === "DEVICES");
+
+    // Accessories
+    const accText = calcSub((t) => t.groupCategory === "ACCESSORIES");
+
+    // VAS
+    const qoalaText = calcSub((t) => t.groupCategory === "VAS" && (t.brand === "QOALA" || (t.productName || "").toUpperCase().includes("QOALA") || (t.productName || "").toUpperCase().includes("PROTEKSI")));
+    const tselText = calcSub((t) => t.groupCategory === "VAS" && (t.brand.includes("TELKOMSEL") || (t.productName || "").toUpperCase().includes("TELKOMSEL")));
+    const xlText = calcSub((t) => t.groupCategory === "VAS" && (t.brand.includes("XL") || (t.productName || "").toUpperCase().includes("MYPRIO")));
+    const isatText = calcSub((t) => t.groupCategory === "VAS" && (t.brand.includes("INDOSAT") || (t.productName || "").toUpperCase().includes("INDOSAT")));
+
+    const varianceVal = staff.totalAmount - staff.targetAmount;
+    const varianceStr = varianceVal >= 0 ? `+${formatIDR(varianceVal)}` : formatIDR(varianceVal);
+
+    const message = 
+`- ${staff.name} -
+
+Target : ${formatIDR(staff.targetAmount)}
+Achievement : ${formatIDR(staff.totalAmount)}
+% : ${staff.achvPct}%
+Variance : ${varianceStr}
+
+Achievement
+
+- Apple Devices
+iPhone : ${iphoneText}
+iPad : ${ipadText}
+MacBook : ${macbookText}
+Apple watch : ${watchText}
+
+- Android Devices
+Samsung : ${samsungText}
+Oppo : ${oppoText}
+Huawei : ${huaweiText}
+Xiaomi : ${xiaomiText}
+Motorola : ${motoText}
+Infinix : ${infinixText}
+
+- Accessories
+Achievement : ${accText}
+
+- VAS
+Qoala Protection : ${qoalaText}
+Telkomsel Halo/Data : ${tselText}
+XL Prioritas : ${xlText}
+Indosat IM3 : ${isatText}`;
+
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank");
   };
 
   const handlePrintSchedule = () => {
@@ -3062,129 +3142,528 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               {/* TAB 10: MoM GROWTH ANALYSIS */}
               {activeTab === "mom-comparison" && renderComparisonSection(momAnalytics)}
 
-              {/* TAB 3: STAFF PERFORMANCE LEADERBOARD */}
+              {/* TAB 3: STAFF PERFORMANCE & TARGET VS ACHIEVEMENT PER STAFF */}
               {activeTab === "staff-performance" && (
-                <div className="space-y-6">
-                  <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div>
-                      <h2 className="text-base sm:text-lg font-black tracking-wide flex items-center gap-2 text-slate-950 dark:text-white">
-                        <span>🏆</span>
-                        <span>STAFF PERFORMANCE LEADERBOARD ({staffList.length} STAF)</span>
-                      </h2>
+                <div className="space-y-8">
+                  {/* BAGIAN 1: LEADERBOARD OVERVIEW */}
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                      <div>
+                        <h2 className="text-base sm:text-lg font-black tracking-wide flex items-center gap-2 text-slate-950 dark:text-white">
+                          <span>🏆</span>
+                          <span>STAFF PERFORMANCE LEADERBOARD ({staffList.length} STAF)</span>
+                        </h2>
+                        <p className={`text-xs ${textMuted} mt-0.5`}>
+                          Periode: {periodType.toUpperCase()} ({periodType === "daily" ? selectedDate : periodType === "weekly" ? selectedWeek : selectedMonth})
+                        </p>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {staffList.map((st) => (
-                      <div
-                        key={st.name}
-                        className={`p-5 rounded-3xl border transition-all duration-200 hover:shadow-xl ${
-                          isDark
-                            ? "bg-gradient-to-b from-[#0F1E36] to-[#0A1324] border-slate-700/70 shadow-2xl shadow-black/50"
-                            : "bg-white border-slate-300 shadow-md shadow-slate-200/80 hover:border-sky-400"
-                        }`}
-                      >
-                        <div className={`flex items-center justify-between pb-3.5 border-b ${isDark ? "border-slate-700/60" : "border-slate-200"}`}>
-                          <div className="flex items-center gap-3">
-                            <div className="w-11 h-11 rounded-2xl flex items-center justify-center font-black text-sm text-white shadow-md bg-gradient-to-br from-sky-600 to-blue-700">
-                              {st.initials}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {staffList.map((st) => (
+                        <div
+                          key={st.salesId}
+                          onClick={() => setSelectedStaffId(st.salesId)}
+                          className={`p-5 rounded-3xl border transition-all duration-200 cursor-pointer hover:shadow-xl ${
+                            selectedStaffId === st.salesId
+                              ? isDark 
+                                ? "bg-[#112240] border-sky-400 ring-2 ring-sky-400/40 shadow-xl"
+                                : "bg-sky-50/70 border-sky-400 ring-2 ring-sky-400/40 shadow-lg"
+                              : isDark
+                                ? "bg-gradient-to-b from-[#0F1E36] to-[#0A1324] border-slate-700/70 shadow-2xl shadow-black/50"
+                                : "bg-white border-slate-300 shadow-md shadow-slate-200/80 hover:border-sky-400"
+                          }`}
+                        >
+                          {/* Header Kartu */}
+                          <div className={`flex items-center justify-between pb-3.5 border-b ${isDark ? "border-slate-700/60" : "border-slate-200"}`}>
+                            <div className="flex items-center gap-3">
+                              <div className="w-11 h-11 rounded-2xl flex items-center justify-center font-black text-sm text-white shadow-md bg-gradient-to-br from-sky-600 to-blue-700">
+                                {st.initials}
+                              </div>
+                              <div>
+                                <h4 className="text-sm font-black tracking-tight text-slate-950 dark:text-white">
+                                  {st.name}
+                                </h4>
+                                <span className="text-[11px] font-bold block text-slate-600 dark:text-slate-400">
+                                  {st.role || "Sales Specialist"}
+                                </span>
+                              </div>
                             </div>
+
+                            <span
+                              className={`px-3 py-1 rounded-full text-[11px] font-black border shadow-sm ${
+                                st.achvPct >= 100
+                                  ? "bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-400/40"
+                                  : st.achvPct >= 70
+                                  ? "bg-amber-50 text-amber-900 border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-400/40"
+                                  : "bg-rose-50 text-rose-800 border-rose-300 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-400/40"
+                              }`}
+                            >
+                              {st.achvPct >= 100 ? "Productive 🔥" : st.achvPct >= 70 ? "On Track ⚡" : "Need Focus ⚠️"}
+                            </span>
+                          </div>
+
+                          {/* Nominal & Persen */}
+                          <div className="py-4 flex justify-between items-end">
                             <div>
-                              <h4 className="text-sm font-black tracking-tight text-slate-950 dark:text-white">
-                                {st.name}
-                              </h4>
-                              <span className="text-[11px] font-bold block text-slate-600 dark:text-slate-400">
-                                {st.role || "Sales Specialist"}
+                              <span className="text-[10px] font-black uppercase tracking-wider block text-slate-500 dark:text-slate-400">
+                                Total Penjualan
+                              </span>
+                              <div className="text-xl sm:text-2xl font-black font-mono mt-0.5 tracking-tight text-slate-950 dark:text-white">
+                                {formatIDR(st.totalAmount)}
+                              </div>
+                            </div>
+
+                            <div className="text-right">
+                              <span
+                                className={`text-2xl sm:text-3xl font-black font-mono tracking-tight ${
+                                  st.achvPct >= 100 
+                                    ? "text-emerald-700 dark:text-emerald-400"
+                                    : st.achvPct >= 70 
+                                    ? "text-amber-700 dark:text-amber-400"
+                                    : "text-rose-600 dark:text-rose-400"
+                                }`}
+                              >
+                                {st.achvPct.toFixed(1)}%
                               </span>
                             </div>
                           </div>
 
-                          <span
-                            className={`px-3 py-1 rounded-full text-[11px] font-black border shadow-sm ${
-                              st.achvPct >= 100
-                                ? "bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-400/40"
-                                : st.achvPct >= 70
-                                ? "bg-amber-50 text-amber-900 border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-400/40"
-                                : "bg-rose-50 text-rose-800 border-rose-300 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-400/40"
-                            }`}
-                          >
-                            {st.achvPct >= 100 ? "Productive 🔥" : st.achvPct >= 70 ? "On Track ⚡" : "Need Focus ⚠️"}
-                          </span>
+                          {/* Progress Bar */}
+                          <div className={`w-full h-2 rounded-full overflow-hidden mb-4 border ${isDark ? "bg-slate-800 border-slate-700/50" : "bg-slate-200 border-slate-300"}`}>
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                st.achvPct >= 100
+                                  ? "bg-emerald-600"
+                                  : st.achvPct >= 70
+                                  ? "bg-amber-500"
+                                  : "bg-rose-500"
+                              }`}
+                              style={{ width: `${Math.min(st.achvPct, 100)}%` }}
+                            />
+                          </div>
+
+                          {/* Grid Metrik UPT, ATV, TRX */}
+                          <div className={`grid grid-cols-3 gap-2 py-3 px-3 rounded-2xl border ${
+                            isDark ? "bg-slate-900/60 border-slate-700/80" : "bg-slate-100/90 border-slate-300 shadow-inner"
+                          }`}>
+                            <div className="text-center">
+                              <span className="text-[10px] font-black uppercase tracking-wider block text-slate-500 dark:text-slate-400">UPT</span>
+                              <strong className="text-xs sm:text-sm font-black font-mono block mt-1 text-blue-700 dark:text-sky-400">
+                                {st.upt}
+                              </strong>
+                            </div>
+                            <div className={`text-center border-x ${isDark ? "border-slate-700" : "border-slate-300"}`}>
+                              <span className="text-[10px] font-black uppercase tracking-wider block text-slate-500 dark:text-slate-400">ATV</span>
+                              <strong className="text-xs sm:text-sm font-black font-mono block mt-1 text-slate-900 dark:text-slate-100">
+                                {formatCompactIDR(st.atv)}
+                              </strong>
+                            </div>
+                            <div className="text-center">
+                              <span className="text-[10px] font-black uppercase tracking-wider block text-slate-500 dark:text-slate-400">TRX</span>
+                              <strong className="text-xs sm:text-sm font-black font-mono block mt-1 text-slate-950 dark:text-white">
+                                {st.trxCount || 0}
+                              </strong>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* ========================================================
+                      BAGIAN 2: TARGET VS ACHIEVEMENT PER STAFF (DRILLDOWN)
+                  ======================================================== */}
+                  {(() => {
+                    const activeStaff = staffList.find((s) => s.salesId === selectedStaffId) || staffList[0];
+                    if (!activeStaff) return null;
+
+                    // Filter transaksi hanya milik staf yang dipilih pada periode aktif
+                    const currentStaffTrx = activeTransactions.filter((t) => t.salesId === activeStaff.salesId);
+
+                    const targetStaffTotal = activeStaff.targetAmount || 1;
+                    const targetApple = Math.round(targetStaffTotal * 0.794);
+                    const targetAndroid = Math.round(targetStaffTotal * 0.108);
+                    const targetAccessories = Math.round(targetStaffTotal * 0.05);
+                    const targetVas = Math.round(targetStaffTotal * 0.045);
+
+                    // Filter LOB items
+                    const staffAppleItems = currentStaffTrx.filter((t) => {
+                      const p = (t.productName || "").toUpperCase();
+                      const isAcc = p.includes("CASE") || p.includes("GLASS") || p.includes("ADAPTER") || p.includes("CABLE");
+                      return t.brand === "APPLE" && !isAcc && (t.groupCategory === "DEVICES" || p.includes("IPHONE") || p.includes("IPAD") || p.includes("MAC") || p.includes("WATCH") || p.includes("AIRPOD"));
+                    });
+
+                    const staffAndroidItems = currentStaffTrx.filter((t) => {
+                      const p = (t.productName || "").toUpperCase();
+                      const isAcc = p.includes("CASE") || p.includes("GLASS") || p.includes("ADAPTER") || p.includes("CABLE");
+                      return t.groupCategory === "DEVICES" && t.brand !== "APPLE" && !isAcc;
+                    });
+
+                    const staffAccItems = currentStaffTrx.filter((t) => t.groupCategory === "ACCESSORIES");
+
+                    const staffVasItems = currentStaffTrx.filter((t) => {
+                      const p = (t.productName || "").toUpperCase();
+                      return t.groupCategory === "VAS" || t.brand === "QOALA" || p.includes("QOALA") || p.includes("PROTEKSI") || p.includes("TELKOMSEL") || p.includes("MYPRIO");
+                    });
+
+                    const appleActual = staffAppleItems.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+                    const appleAchv = calcAchv(appleActual, targetApple);
+                    const appleGap = appleActual - targetApple;
+
+                    const androidActual = staffAndroidItems.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+                    const androidAchv = calcAchv(androidActual, targetAndroid);
+                    const androidGap = androidActual - targetAndroid;
+
+                    const accActual = staffAccItems.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+                    const accAchv = calcAchv(accActual, targetAccessories);
+                    const accGap = accActual - targetAccessories;
+
+                    const vasActual = staffVasItems.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+                    const vasAchv = calcAchv(vasActual, targetVas);
+                    const vasGap = vasActual - targetVas;
+
+                    return (
+                      <div className={`p-5 sm:p-7 ${cardBg} border-2 rounded-3xl shadow-2xl space-y-7`}>
+                        {/* Header Section Per Staff & Tombol WA */}
+                        <div className="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-inherit">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xl">👤</span>
+                              <h3 className="text-lg sm:text-xl font-black text-slate-950 dark:text-white">
+                                Target Vs Achievement Per Staff
+                              </h3>
+                            </div>
+                            <p className={`text-xs ${textMuted} mt-1`}>
+                              Menampilkan rincian pencapaian &amp; drilldown produk untuk: <strong className="text-sky-600 dark:text-sky-400">{activeStaff.name} ({activeStaff.salesId})</strong>
+                            </p>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-3">
+                            {/* Dropdown Pemilihan Staf */}
+                            <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
+                              <span className="text-xs font-bold text-slate-500">Pilih Staf:</span>
+                              <select
+                                value={selectedStaffId}
+                                onChange={(e) => setSelectedStaffId(e.target.value)}
+                                className="bg-transparent font-black text-xs text-slate-900 dark:text-white focus:outline-none cursor-pointer"
+                              >
+                                {staffList.map((s) => (
+                                  <option key={s.salesId} value={s.salesId} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
+                                    {s.name} ({formatCompactIDR(s.totalAmount)})
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            {/* Tombol Share WhatsApp Sesuai Format Auto-Text */}
+                            <button
+                              type="button"
+                              onClick={() => handleShareStaffWA(activeStaff, currentStaffTrx)}
+                              className="px-4 py-2 rounded-xl bg-[#25D366] hover:bg-emerald-600 text-white text-xs font-black transition flex items-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95"
+                            >
+                              <span>📲</span>
+                              <span>Share WA Staff</span>
+                            </button>
+                          </div>
                         </div>
 
-                        <div className="py-4 flex justify-between items-end">
-                          <div>
-                            <span className="text-[10px] font-black uppercase tracking-wider block text-slate-500 dark:text-slate-400">
-                              Total Penjualan
-                            </span>
-                            <div className="text-xl sm:text-2xl font-black font-mono mt-0.5 tracking-tight text-slate-950 dark:text-white">
-                              {formatIDR(st.totalAmount)}
+                        {/* LIST 4 KATEGORI (LOB) */}
+                        <div className="space-y-6">
+                          {/* 1. APPLE DEVICES */}
+                          <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-4`}>
+                            <div className="flex flex-wrap justify-between items-center gap-3 pb-3 border-b border-inherit/50">
+                              <div className="flex items-center gap-3">
+                                <span className="text-2xl">🍎</span>
+                                <div>
+                                  <h4 className="text-sm sm:text-base font-black text-sky-600 dark:text-sky-400">
+                                    Apple Devices
+                                  </h4>
+                                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-0.5">
+                                    <strong>T/A:</strong> {formatIDR(targetApple)} / <strong className="text-emerald-600 dark:text-emerald-400">{formatIDR(appleActual)}</strong>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-4 text-right">
+                                <div>
+                                  <div className={`text-sm sm:text-base font-black font-mono ${appleAchv >= 100 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
+                                    {appleAchv}% ({appleGap >= 0 ? `+${formatIDR(appleGap)}` : formatIDR(appleGap)})
+                                  </div>
+                                  <span className="text-[11px] text-slate-500 font-bold block">
+                                    Estimate: <strong className="text-slate-800 dark:text-slate-200">{formatIDR(calcEst(appleActual))}</strong>
+                                  </span>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => openLobDetailSheet(`Apple Devices Terjual - ${activeStaff.name}`, staffAppleItems)}
+                                  className="px-3 py-1.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 text-sky-700 dark:text-sky-400 border border-sky-400/30 text-xs font-black transition active:scale-95"
+                                >
+                                  More Details ➔
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Sub-item Apple: iPhone, iPad, MacBook, Watch, AirPods */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+                              {[
+                                { label: "iPhone", filterKey: "IPHONE", weight: 0.72 },
+                                { label: "iPad", filterKey: "IPAD", weight: 0.12 },
+                                { label: "MacBook", filterKey: "MAC", weight: 0.08 },
+                                { label: "Apple Watch", filterKey: "WATCH", weight: 0.05 },
+                                { label: "AirPods", filterKey: "AIRPOD", weight: 0.03 },
+                              ].map((sub, idx) => {
+                                const subItems = staffAppleItems.filter((t) => (t.productName || "").toUpperCase().includes(sub.filterKey));
+                                const subActual = subItems.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+                                const subTarget = Math.round(targetApple * sub.weight);
+                                const subAchv = calcAchv(subActual, subTarget);
+                                const subGap = subActual - subTarget;
+
+                                return (
+                                  <div key={idx} className={`p-3.5 rounded-xl border ${cardBg} text-xs space-y-2 shadow-sm`}>
+                                    <div className="flex justify-between items-center">
+                                      <span className="font-black text-slate-900 dark:text-white uppercase tracking-wider">{sub.label}</span>
+                                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${subAchv >= 100 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"}`}>
+                                        {subAchv}%
+                                      </span>
+                                    </div>
+                                    <div className="text-[11px] font-mono text-slate-600 dark:text-slate-400 space-y-0.5">
+                                      <div><strong>T/A:</strong> {formatIDR(subTarget)} / <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatIDR(subActual)}</span></div>
+                                      <div><strong>-/+:</strong> <span className={subGap >= 0 ? "text-emerald-600" : "text-rose-600"}>{subGap >= 0 ? `+${formatIDR(subGap)}` : formatIDR(subGap)}</span></div>
+                                      <div><strong>Estimate:</strong> {formatIDR(calcEst(subActual))}</div>
+                                    </div>
+                                    <div className="pt-1 border-t border-inherit/40 flex justify-end">
+                                      <button
+                                        type="button"
+                                        onClick={() => openLobDetailSheet(`${sub.label} Terjual - ${activeStaff.name}`, subItems)}
+                                        className="text-[10px] font-black text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-1"
+                                      >
+                                        <span>More Details</span>
+                                        <span>➔</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
 
-                          <div className="text-right">
-                            <span
-                              className={`text-2xl sm:text-3xl font-black font-mono tracking-tight ${
-                                st.achvPct >= 100 
-                                  ? "text-emerald-700 dark:text-emerald-400"
-                                  : st.achvPct >= 70 
-                                  ? "text-amber-700 dark:text-amber-400"
-                                  : "text-rose-600 dark:text-rose-400"
-                              }`}
-                            >
-                              {st.achvPct.toFixed(1)}%
-                            </span>
+                          {/* 2. ANDROID DEVICES */}
+                          <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-4`}>
+                            <div className="flex flex-wrap justify-between items-center gap-3 pb-3 border-b border-inherit/50">
+                              <div className="flex items-center gap-3">
+                                <span className="text-2xl">🤖</span>
+                                <div>
+                                  <h4 className="text-sm sm:text-base font-black text-indigo-600 dark:text-indigo-400">
+                                    Android Devices
+                                  </h4>
+                                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-0.5">
+                                    <strong>T/A:</strong> {formatIDR(targetAndroid)} / <strong className="text-emerald-600 dark:text-emerald-400">{formatIDR(androidActual)}</strong>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-4 text-right">
+                                <div>
+                                  <div className={`text-sm sm:text-base font-black font-mono ${androidAchv >= 100 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
+                                    {androidAchv}% ({androidGap >= 0 ? `+${formatIDR(androidGap)}` : formatIDR(androidGap)})
+                                  </div>
+                                  <span className="text-[11px] text-slate-500 font-bold block">
+                                    Estimate: <strong className="text-slate-800 dark:text-slate-200">{formatIDR(calcEst(androidActual))}</strong>
+                                  </span>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => openLobDetailSheet(`Android Devices Terjual - ${activeStaff.name}`, staffAndroidItems)}
+                                  className="px-3 py-1.5 rounded-xl bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-700 dark:text-indigo-400 border border-indigo-400/30 text-xs font-black transition active:scale-95"
+                                >
+                                  More Details ➔
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Sub-item Brand Android: Samsung, Oppo, Huawei, Xiaomi, Motorola, Infinix */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+                              {[
+                                { label: "Samsung Device", brandKey: "SAMSUNG", icon: "📱", weight: 0.50 },
+                                { label: "Oppo Device", brandKey: "OPPO", icon: "🟢", weight: 0.15 },
+                                { label: "Huawei Device", brandKey: "HUAWEI", icon: "🔴", weight: 0.15 },
+                                { label: "Xiaomi / Redmi", brandKey: "XIAOMI", icon: "🟠", weight: 0.10 },
+                                { label: "Motorola", brandKey: "MOTOROLA", icon: "🔷", weight: 0.05 },
+                                { label: "Infinix & Lainnya", brandKey: "INFINIX", icon: "⚡", weight: 0.05 },
+                              ].map((b, idx) => {
+                                const brandItems = staffAndroidItems.filter((t) => {
+                                  const br = (t.brand || "").toUpperCase();
+                                  if (b.brandKey === "INFINIX") {
+                                    return br.includes("INFINIX") || (!["SAMSUNG", "OPPO", "HUAWEI", "XIAOMI", "MOTOROLA"].includes(br));
+                                  }
+                                  return br.includes(b.brandKey);
+                                });
+
+                                const bActual = brandItems.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+                                const bTarget = Math.round(targetAndroid * b.weight);
+                                const bAchv = calcAchv(bActual, bTarget);
+                                const bGap = bActual - bTarget;
+
+                                return (
+                                  <div key={idx} className={`p-3.5 rounded-xl border ${cardBg} text-xs space-y-2 shadow-sm`}>
+                                    <div className="flex justify-between items-center">
+                                      <span className="font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                                        <span>{b.icon}</span>
+                                        <span>{b.label}</span>
+                                      </span>
+                                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${bAchv >= 100 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"}`}>
+                                        {bAchv}%
+                                      </span>
+                                    </div>
+                                    <div className="text-[11px] font-mono text-slate-600 dark:text-slate-400 space-y-0.5">
+                                      <div><strong>T/A:</strong> {formatIDR(bTarget)} / <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatIDR(bActual)}</span></div>
+                                      <div><strong>-/+:</strong> <span className={bGap >= 0 ? "text-emerald-600" : "text-rose-600"}>{bGap >= 0 ? `+${formatIDR(bGap)}` : formatIDR(bGap)}</span></div>
+                                      <div><strong>Estimate:</strong> {formatIDR(calcEst(bActual))}</div>
+                                    </div>
+                                    <div className="pt-1 border-t border-inherit/40 flex justify-end">
+                                      <button
+                                        type="button"
+                                        onClick={() => openLobDetailSheet(`${b.label} Terjual - ${activeStaff.name}`, brandItems)}
+                                        className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+                                      >
+                                        <span>More Details</span>
+                                        <span>➔</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
-                        </div>
 
-                        <div className={`w-full h-2 rounded-full overflow-hidden mb-4 border ${isDark ? "bg-slate-800 border-slate-700/50" : "bg-slate-200 border-slate-300"}`}>
-                          <div
-                            className={`h-full rounded-full transition-all duration-500 ${
-                              st.achvPct >= 100
-                                ? "bg-emerald-600"
-                                : st.achvPct >= 70
-                                ? "bg-amber-500"
-                                : "bg-rose-500"
-                            }`}
-                            style={{ width: `${Math.min(st.achvPct, 100)}%` }}
-                          />
-                        </div>
+                          {/* 3. ACCESSORIES */}
+                          <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-4`}>
+                            <div className="flex flex-wrap justify-between items-center gap-3">
+                              <div className="flex items-center gap-3">
+                                <span className="text-2xl">🔌</span>
+                                <div>
+                                  <h4 className="text-sm sm:text-base font-black text-amber-600 dark:text-amber-400">
+                                    Accessories (Database Supplier)
+                                  </h4>
+                                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-0.5">
+                                    <strong>T/A:</strong> {formatIDR(targetAccessories)} / <strong className="text-emerald-600 dark:text-emerald-400">{formatIDR(accActual)}</strong>
+                                  </div>
+                                </div>
+                              </div>
 
-                        <div className={`grid grid-cols-3 gap-2 py-3 px-3 rounded-2xl border ${
-                          isDark 
-                            ? "bg-slate-900/60 border-slate-700/80" 
-                            : "bg-slate-100/90 border-slate-300 shadow-inner"
-                        }`}>
-                          <div className="text-center">
-                            <span className="text-[10px] font-black uppercase tracking-wider block text-slate-500 dark:text-slate-400">
-                              UPT
-                            </span>
-                            <strong className="text-xs sm:text-sm font-black font-mono block mt-1 text-blue-700 dark:text-sky-400">
-                              {st.upt}
-                            </strong>
+                              <div className="flex items-center gap-4 text-right">
+                                <div>
+                                  <div className={`text-sm sm:text-base font-black font-mono ${accAchv >= 100 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
+                                    {accAchv}% ({accGap >= 0 ? `+${formatIDR(accGap)}` : formatIDR(accGap)})
+                                  </div>
+                                  <span className="text-[11px] text-slate-500 font-bold block">
+                                    Estimate: <strong className="text-slate-800 dark:text-slate-200">{formatIDR(calcEst(accActual))}</strong>
+                                  </span>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => openLobDetailSheet(`Accessories Terjual - ${activeStaff.name}`, staffAccItems)}
+                                  className="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-400 border border-amber-400/30 text-xs font-black transition active:scale-95"
+                                >
+                                  More Details ➔
+                                </button>
+                              </div>
+                            </div>
                           </div>
 
-                          <div className={`text-center border-x ${isDark ? "border-slate-700" : "border-slate-300"}`}>
-                            <span className="text-[10px] font-black uppercase tracking-wider block text-slate-500 dark:text-slate-400">
-                              ATV
-                            </span>
-                            <strong className="text-xs sm:text-sm font-black font-mono block mt-1 text-slate-900 dark:text-slate-100">
-                              {formatCompactIDR(st.atv)}
-                            </strong>
-                          </div>
+                          {/* 4. VALUE-ADDED SERVICES (VAS) */}
+                          <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-4`}>
+                            <div className="flex flex-wrap justify-between items-center gap-3 pb-3 border-b border-inherit/50">
+                              <div className="flex items-center gap-3">
+                                <span className="text-2xl">🛡️</span>
+                                <div>
+                                  <h4 className="text-sm sm:text-base font-black text-purple-600 dark:text-purple-400">
+                                    Value-Added Services (VAS &amp; Warranty)
+                                  </h4>
+                                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-0.5">
+                                    <strong>T/A:</strong> {formatIDR(targetVas)} / <strong className="text-emerald-600 dark:text-emerald-400">{formatIDR(vasActual)}</strong>
+                                  </div>
+                                </div>
+                              </div>
 
-                          <div className="text-center">
-                            <span className="text-[10px] font-black uppercase tracking-wider block text-slate-500 dark:text-slate-400">
-                              TRX
-                            </span>
-                            <strong className="text-xs sm:text-sm font-black font-mono block mt-1 text-slate-950 dark:text-white">
-                              {st.trxCount || 0}
-                            </strong>
+                              <div className="flex items-center gap-4 text-right">
+                                <div>
+                                  <div className={`text-sm sm:text-base font-black font-mono ${vasAchv >= 100 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
+                                    {vasAchv}% ({vasGap >= 0 ? `+${formatIDR(vasGap)}` : formatIDR(vasGap)})
+                                  </div>
+                                  <span className="text-[11px] text-slate-500 font-bold block">
+                                    Estimate: <strong className="text-slate-800 dark:text-slate-200">{formatIDR(calcEst(vasActual))}</strong>
+                                  </span>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => openLobDetailSheet(`Layanan VAS Terjual - ${activeStaff.name}`, staffVasItems)}
+                                  className="px-3 py-1.5 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-700 dark:text-purple-400 border border-purple-400/30 text-xs font-black transition active:scale-95"
+                                >
+                                  More Details ➔
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Sub-item VAS: Qoala, Telkomsel, XL, Indosat */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+                              {[
+                                { label: "Qoala Protection", filterKey: "QOALA", icon: "🛡️", weight: 0.65 },
+                                { label: "Telkomsel Halo/Data", filterKey: "TELKOMSEL", icon: "🔴", weight: 0.15 },
+                                { label: "XL Prioritas (MyPrio)", filterKey: "XL", icon: "🔵", weight: 0.12 },
+                                { label: "Indosat IM3", filterKey: "INDOSAT", icon: "🟡", weight: 0.08 },
+                              ].map((vs, idx) => {
+                                const vsItems = staffVasItems.filter((t) => {
+                                  const pUpper = (t.productName || "").toUpperCase();
+                                  const bUpper = (t.brand || "").toUpperCase();
+                                  return bUpper.includes(vs.filterKey) || pUpper.includes(vs.filterKey);
+                                });
+
+                                const vsActual = vsItems.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+                                const vsTarget = Math.round(targetVas * vs.weight);
+                                const vsAchv = calcAchv(vsActual, vsTarget);
+                                const vsGap = vsActual - vsTarget;
+
+                                return (
+                                  <div key={idx} className={`p-3.5 rounded-xl border ${cardBg} text-xs space-y-2 shadow-sm`}>
+                                    <div className="flex justify-between items-center">
+                                      <span className="font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                                        <span>{vs.icon}</span>
+                                        <span>{vs.label}</span>
+                                      </span>
+                                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${vsAchv >= 100 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"}`}>
+                                        {vsAchv}%
+                                      </span>
+                                    </div>
+                                    <div className="text-[11px] font-mono text-slate-600 dark:text-slate-400 space-y-0.5">
+                                      <div><strong>T/A:</strong> {formatIDR(vsTarget)} / <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatIDR(vsActual)}</span></div>
+                                      <div><strong>-/+:</strong> <span className={vsGap >= 0 ? "text-emerald-600" : "text-rose-600"}>{vsGap >= 0 ? `+${formatIDR(vsGap)}` : formatIDR(vsGap)}</span></div>
+                                      <div><strong>Estimate:</strong> {formatIDR(calcEst(vsActual))}</div>
+                                    </div>
+                                    <div className="pt-1 border-t border-inherit/40 flex justify-end">
+                                      <button
+                                        type="button"
+                                        onClick={() => openLobDetailSheet(`${vs.label} Terjual - ${activeStaff.name}`, vsItems)}
+                                        className="text-[10px] font-black text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1"
+                                      >
+                                        <span>More Details</span>
+                                        <span>➔</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })()}
                 </div>
               )}
 
