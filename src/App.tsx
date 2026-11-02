@@ -251,7 +251,27 @@ export default function DigiplusOperationalEngine() {
   const [productSearchQuery, setProductSearchQuery] = useState("");
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState<boolean>(false);
 
-  // Format Hari & Tanggal Hari Ini (Bahasa Indonesia)
+  // Real-time Clock (WIB)
+  const [currentTime, setCurrentTime] = useState<string>("");
+
+  useEffect(() => {
+    const updateClock = () => {
+      const now = new Date();
+      const timeStr = new Intl.DateTimeFormat("id-ID", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+        timeZone: "Asia/Jakarta",
+      }).format(now);
+      setCurrentTime(`${timeStr.replace(/\./g, ":")} WIB`);
+    };
+
+    updateClock();
+    const timer = setInterval(updateClock, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const todayFormatted = useMemo(() => {
     return new Intl.DateTimeFormat("id-ID", {
       weekday: "long",
@@ -298,12 +318,8 @@ export default function DigiplusOperationalEngine() {
   const [sheetTitle, setSheetTitle] = useState<string>("");
   const [sheetContent, setSheetContent] = useState<React.ReactNode>(null);
 
-  // BNPL Tab Filter
-  const [selectedBnplTender, setSelectedBnplTender] = useState<string>("ALL");
-
-  // Feedback State
+  // Feedbacks
   const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>(DEFAULT_FEEDBACKS);
-  const [selectedFeedbackStaff, setSelectedFeedbackStaff] = useState<string>("ALL");
 
   // PPTX Exporting State
   const [isExportingPptx, setIsExportingPptx] = useState<boolean>(false);
@@ -621,7 +637,6 @@ export default function DigiplusOperationalEngine() {
     (transactions || []).forEach((t) => {
       let wLabel = t.weekLabel ? String(t.weekLabel).trim() : "";
 
-      // Fallback: Jika kolom weekLabel di sheet kosong, hitung otomatis dari tanggal isoDate
       if (!wLabel && t.isoDate) {
         const parts = t.isoDate.split("-");
         const day = parseInt(parts[2], 10);
@@ -645,7 +660,6 @@ export default function DigiplusOperationalEngine() {
 
     let sorted = Array.from(map.values()).sort((a, b) => (a.minDate || "").localeCompare(b.minDate || ""));
 
-    // Fallback darurat jika di spreadsheet sama sekali belum ada label minggu
     if (sorted.length === 0) {
       sorted = [
         { label: "W1", minDate: "2026-10-01", maxDate: "2026-10-07", count: 1 },
@@ -668,7 +682,6 @@ export default function DigiplusOperationalEngine() {
     });
   }, [transactions]);
 
-  // Otomatis isi nilai W1 dan W2 saat data minggu sudah siap
   useEffect(() => {
     if (AUTO_WEEKS.length > 0) {
       if (!w1Filter || !AUTO_WEEKS.some((w) => w.label === w1Filter)) {
@@ -691,7 +704,25 @@ export default function DigiplusOperationalEngine() {
         return t.isoDate === selectedDate;
       }
       if (periodType === "weekly" && selectedWeek !== "ALL") {
-        return t.weekLabel.toLowerCase().includes(selectedWeek.toLowerCase());
+        const rawWl = (t.weekLabel || "").trim().toLowerCase();
+        const rawSelected = selectedWeek.trim().toLowerCase();
+
+        if (rawWl === rawSelected || rawSelected.includes(rawWl) || rawWl.includes(rawSelected)) {
+          return true;
+        }
+
+        const selMatch = rawSelected.match(/(?:week|w)\s*(\d+)/i) || rawSelected.match(/\d+/);
+        const selNum = selMatch ? selMatch[1] : "";
+
+        if (selNum) {
+          const rowMatch = rawWl.match(/(?:week|w)\s*(\d+)/i) || rawWl.match(/\d+/);
+          const rowNum = rowMatch ? rowMatch[1] : "";
+          if (rowNum && rowNum === selNum) {
+            return true;
+          }
+        }
+
+        return false;
       }
       return true;
     });
@@ -1136,7 +1167,6 @@ export default function DigiplusOperationalEngine() {
       if (!selectedVal) return [];
 
       const cleanSelected = selectedVal.trim().toLowerCase();
-      // Ambil angka minggunya saja (misal: "w4" atau "week 11" diambil angkanya: "4" atau "11")
       const weekMatch = cleanSelected.match(/(?:week|w)\s*(\d+)/i) || cleanSelected.match(/\d+/);
       const targetNum = weekMatch ? weekMatch[1] : "";
 
@@ -1144,12 +1174,10 @@ export default function DigiplusOperationalEngine() {
         if (!t.weekLabel) return false;
         const wl = t.weekLabel.trim().toLowerCase();
 
-        // 1. Cocokkan jika teks sama persis atau saling mengandung
         if (wl === cleanSelected || cleanSelected.includes(wl) || wl.includes(cleanSelected)) {
           return true;
         }
 
-        // 2. Jika ada angka minggu, cocokkan pola "w{angka}" atau "week {angka}"
         if (targetNum) {
           const rowWeekMatch = wl.match(/(?:week|w)\s*(\d+)/i) || wl.match(/\d+/);
           const rowNum = rowWeekMatch ? rowWeekMatch[1] : "";
@@ -1161,6 +1189,7 @@ export default function DigiplusOperationalEngine() {
         return false;
       });
     };
+
     const trxW1 = getTrxForWeek(w1Filter);
     const trxW2 = getTrxForWeek(w2Filter);
 
@@ -1193,6 +1222,7 @@ export default function DigiplusOperationalEngine() {
       oppoData: buildAndroidBrandHierarchy(trxW1, trxW2, "OPPO"),
       androidOtherData: buildAndroidBrandHierarchy(trxW1, trxW2, "ANDROID LAINNYA"),
       droppedProducts: buildDroppedProductsAnalysis(trxW1, trxW2),
+      trxW2,
     };
   }, [transactions, w1Filter, w2Filter, AUTO_WEEKS]);
 
@@ -1535,84 +1565,48 @@ _Diperbarui via Digiplus Store Operations Engine._`;
     { id: "sales-detail", label: "Rincian Transaksi Log", icon: "📋", color: "bg-slate-600", shadow: "shadow-slate-600/30" },
   ];
 
-  // Komponen Helper Render Komparasi
-  const renderComparisonSection = (data: typeof momAnalytics, isWeekly = false) => {
+  // Helper Komparasi Tabel MoM
+  const renderComparisonSection = (data: typeof momAnalytics) => {
     return (
       <div className="space-y-6 sm:space-y-8">
         <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl flex flex-wrap items-center justify-between gap-4`}>
           <div>
             <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
               <span>⚖️</span>
-              <span>{isWeekly ? "PERBANDINGAN WEEK TO WEEK (WoW) SALES" : "ANALISIS PERTUMBUHAN MONTH TO MONTH (MoM)"}</span>
+              <span>ANALISIS PERTUMBUHAN MONTH TO MONTH (MoM)</span>
             </h2>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            {isWeekly ? (
-              <>
-                <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
-                  <span className="text-[11px] font-black text-slate-600 dark:text-slate-400">Baseline:</span>
-                  <select
-                    value={w1Filter}
-                    onChange={(e) => setW1Filter(e.target.value)}
-                    className="bg-transparent font-black text-xs text-slate-950 dark:text-white focus:outline-none"
-                  >
-                    {AUTO_WEEKS.map((w) => (
-                      <option key={`w1-${w.key}`} value={w.label} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
-                        {w.label} ({w.range})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <span className="text-xs font-black text-slate-500">VS</span>
-                <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
-                  <span className="text-[11px] font-black text-slate-600 dark:text-slate-400">Pembanding:</span>
-                  <select
-                    value={w2Filter}
-                    onChange={(e) => setW2Filter(e.target.value)}
-                    className="bg-transparent font-black text-xs text-sky-700 dark:text-sky-400 focus:outline-none"
-                  >
-                    {AUTO_WEEKS.map((w) => (
-                      <option key={`w2-${w.key}`} value={w.label} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
-                        {w.label} ({w.range})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
-                  <span className="text-[11px] font-black text-slate-600 dark:text-slate-400">Bulan 1:</span>
-                  <select
-                    value={momCompareMonth}
-                    onChange={(e) => setMomCompareMonth(e.target.value)}
-                    className="bg-transparent font-black text-xs text-slate-950 dark:text-white focus:outline-none"
-                  >
-                    {availableMonths.map((m) => (
-                      <option key={`cmp-${m}`} value={m} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <span className="text-xs font-black text-slate-500">VS</span>
-                <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
-                  <span className="text-[11px] font-black text-slate-600 dark:text-slate-400">Bulan 2:</span>
-                  <select
-                    value={momBaseMonth}
-                    onChange={(e) => setMomBaseMonth(e.target.value)}
-                    className="bg-transparent font-black text-xs text-sky-700 dark:text-sky-400 focus:outline-none"
-                  >
-                    {availableMonths.map((m) => (
-                      <option key={`base-${m}`} value={m} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </>
-            )}
+            <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
+              <span className="text-[11px] font-black text-slate-600 dark:text-slate-400">Bulan 1:</span>
+              <select
+                value={momCompareMonth}
+                onChange={(e) => setMomCompareMonth(e.target.value)}
+                className="bg-transparent font-black text-xs text-slate-950 dark:text-white focus:outline-none"
+              >
+                {availableMonths.map((m) => (
+                  <option key={`cmp-${m}`} value={m} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <span className="text-xs font-black text-slate-500">VS</span>
+            <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
+              <span className="text-[11px] font-black text-slate-600 dark:text-slate-400">Bulan 2:</span>
+              <select
+                value={momBaseMonth}
+                onChange={(e) => setMomBaseMonth(e.target.value)}
+                className="bg-transparent font-black text-xs text-sky-700 dark:text-sky-400 focus:outline-none"
+              >
+                {availableMonths.map((m) => (
+                  <option key={`base-${m}`} value={m} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -1718,7 +1712,61 @@ _Diperbarui via Digiplus Store Operations Engine._`;
   };
 
   if (!isLoggedIn) {
-    return null;
+    return (
+      <div className={`min-h-screen ${bgMain} flex items-center justify-center p-4 ${textMain} font-sans overflow-x-hidden w-full max-w-full`}>
+        <div className={`max-w-md w-full ${cardBg} border-2 rounded-3xl p-6 md:p-8 shadow-2xl`}>
+          <div className="text-center mb-6 flex flex-col items-center justify-center">
+            <img 
+              src="/apple-touch-icon.png" 
+              alt="Logo Digiplus" 
+              className="w-16 h-16 object-contain rounded-2xl bg-white p-1 shadow-md mb-2"
+            />
+            <h2 className="font-black text-3xl tracking-wider mb-1 text-slate-950 dark:text-white">
+              QF01
+            </h2>
+            <h1 className="text-xl font-black text-slate-950 dark:text-white">DIGIPLUS GRAND INDONESIA</h1>
+            <p className={`text-xs ${accentText} mt-1 uppercase tracking-widest`}>PORTAL DASHBOARD SALES</p>
+          </div>
+          
+          <form onSubmit={handleLogin} className="space-y-4 font-bold">
+            <div>
+              <label className="text-xs font-black uppercase tracking-wider block text-slate-900 dark:text-slate-100">Sales ID / NIK Karyawan</label>
+              <input
+                type="text"
+                required
+                placeholder="Contoh: 24004971 atau 22008089"
+                value={salesIdInput}
+                onChange={(e) => setSalesIdInput(e.target.value)}
+                className={`w-full mt-1.5 px-4 py-3 rounded-xl ${innerBg} border text-sm font-semibold focus:outline-none text-slate-950 dark:text-white`}
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-black uppercase tracking-wider block text-slate-900 dark:text-slate-100">Kata Sandi</label>
+              <input
+                type="password"
+                required
+                placeholder="Welcome@123"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                className={`w-full mt-1.5 px-4 py-3 rounded-xl ${innerBg} border text-sm font-semibold focus:outline-none text-slate-950 dark:text-white`}
+              />
+            </div>
+
+            {loginErr && (
+              <p className="text-xs text-rose-600 font-black">{loginErr}</p>
+            )}
+
+            <button
+              type="submit"
+              className={`w-full py-3.5 ${isDark ? "bg-sky-500 text-white" : "bg-blue-600 text-white"} font-black rounded-xl text-xs uppercase tracking-wider transition mt-2 shadow-lg`}
+            >
+              Masuk Dashboard
+            </button>
+          </form>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -1914,16 +1962,12 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     • {currentTime}
                   </span>
                 </div>
-              </div>
-              <div>
-                <h2 className="text-xs font-black leading-none text-slate-900 dark:text-white">DIGIPLUS GI</h2>
-                <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold block mt-0.5">
-                  {currentSalesName || "Store Leader Admin"}
+                <span className="text-[9px] text-slate-400 font-mono block mt-0.5">
+                  {todayFormatted}
                 </span>
               </div>
             </div>
           </div>
-          
 
           <div className="flex items-center gap-2">
             <button
@@ -1937,23 +1981,32 @@ _Diperbarui via Digiplus Store Operations Engine._`;
         </header>
         
         <main className="p-3 sm:p-6 lg:p-8 w-full max-w-[1700px] mx-auto flex-1 overflow-x-hidden pb-6">
-          <div>
+          <header className="mb-6 border-b border-inherit pb-5 print:hidden">
+            <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
+              <div>
                 <div className={`text-xl sm:text-2xl font-black ${accentText} flex items-center gap-2`}>
                   <span>Halo, {currentSalesName} 👋</span>
                 </div>
-                
-                {/* Tampilan Hari & Tanggal Hari Ini */}
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="px-2.5 py-0.5 rounded-lg bg-sky-500/15 text-sky-400 border border-sky-400/30 text-xs font-black flex items-center gap-1.5 shadow-sm">
+
+                {/* Tampilan Hari, Tanggal, & Jam Real-Time */}
+                <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                  <span className="px-2.5 py-1 rounded-xl bg-sky-500/15 text-sky-400 border border-sky-400/30 text-xs font-black flex items-center gap-1.5 shadow-sm">
                     <span>🗓️</span>
                     <span>{todayFormatted}</span>
                   </span>
-                  <span className={`text-[11px] ${textMuted} font-semibold hidden sm:inline`}>
-                    • Kode Toko: <strong>QF01 (Grand Indonesia)</strong>
+
+                  {/* Jam Digital Real-time */}
+                  <span className="px-2.5 py-1 rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-400/30 text-xs font-black font-mono flex items-center gap-1.5 shadow-sm">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>{currentTime || "Memuat..."}</span>
+                  </span>
+
+                  <span className={`text-[11px] ${textMuted} font-semibold hidden md:inline ml-1`}>
+                    • Toko: <strong>QF01 (Grand Indonesia)</strong>
                   </span>
                 </div>
 
-                <p className={`text-[11px] ${textMuted} mt-1 font-semibold`}>
+                <p className={`text-[11px] ${textMuted} mt-1.5 font-semibold`}>
                   Live Feed: <code>DATABASE</code> (gid: 602901290) &amp; <code>BNPL DATABASE</code> (gid: 2697970)
                 </p>
               </div>
@@ -2033,6 +2086,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     </select>
                   </div>
                 )}
+
                 {periodType === "daily" && (
                   <div className="flex items-center gap-2">
                     <span className="font-black text-slate-900 dark:text-slate-200">🗓️ Tanggal:</span>
@@ -2154,7 +2208,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     </div>
                   </div>
 
-                  {/* SEKSI: TARGET VS ACHIEVEMENT (T/A) & DRILLDOWN DETAIL */}
+                  {/* TARGET VS ACHIEVEMENT (T/A) & DRILLDOWN DETAIL */}
                   <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-6`}>
                     <div className="flex flex-wrap justify-between items-center pb-4 border-b border-inherit gap-3">
                       <div>
@@ -2166,7 +2220,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     </div>
 
                     <div className="space-y-6">
-                      {/* 1. APPLE DEVICES */}
+                      {/* Apple Devices */}
                       {(() => {
                         const items = overviewStats.appleItems || [];
                         const actual = items.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
@@ -2256,7 +2310,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                         );
                       })()}
 
-                      {/* 2. ANDROID DEVICES */}
+                      {/* Android Devices */}
                       {(() => {
                         const items = overviewStats.androidItems || [];
                         const actual = items.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
@@ -2352,7 +2406,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                         );
                       })()}
 
-                      {/* 3. ACCESSORIES */}
+                      {/* Accessories */}
                       {(() => {
                         const items = overviewStats.accItems || [];
                         const actual = items.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
@@ -2398,7 +2452,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                         );
                       })()}
 
-                      {/* 4. VALUE-ADDED SERVICES (VAS) */}
+                      {/* VAS */}
                       {(() => {
                         const items = overviewStats.vasItems || [];
                         const actual = items.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
@@ -2601,34 +2655,15 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     </div>
                   </div>
 
-                  {/* ========================================================
-                      SEKSI UTAMA: TARGET VS ACHIEVEMENT (T/A) MINGGUAN
-                  ======================================================== */}
+                  {/* TARGET VS ACHIEVEMENT (T/A) MINGGUAN */}
                   {(() => {
-                    // Ambil transaksi minggu berjalan pembanding (W2)
-                    const w2Trx = transactions.filter((t) => {
-                      if (!t.weekLabel || !w2Filter) return false;
-                      const wl = t.weekLabel.trim().toLowerCase();
-                      const target = w2Filter.trim().toLowerCase();
-                      const numMatch = target.match(/(?:week|w)\s*(\d+)/i) || target.match(/\d+/);
-                      const targetNum = numMatch ? numMatch[1] : "";
-
-                      if (wl === target || target.includes(wl) || wl.includes(target)) return true;
-                      if (targetNum) {
-                        const rowNumMatch = wl.match(/(?:week|w)\s*(\d+)/i) || wl.match(/\d+/);
-                        if (rowNumMatch && rowNumMatch[1] === targetNum) return true;
-                      }
-                      return false;
-                    });
-
-                    // Target 1 Minggu Toko (7 Hari dari bulanan)
+                    const w2Trx = weeklyComparisonData.trxW2 || [];
                     const weeklyStoreTarget = Math.round(((storeTotalTarget || 8728667173) / 31) * 7);
                     const weeklyAppleTarget = Math.round(weeklyStoreTarget * 0.794);
                     const weeklyAndroidTarget = Math.round(weeklyStoreTarget * 0.108);
                     const weeklyAccTarget = Math.round(weeklyStoreTarget * 0.05);
                     const weeklyVasTarget = Math.round(weeklyStoreTarget * 0.045);
 
-                    // Filter Item Per LOB untuk W2
                     const appleW2Items = w2Trx.filter((t) => {
                       const p = (t.productName || "").toUpperCase();
                       const isAcc = p.includes("CASE") || p.includes("GLASS") || p.includes("ADAPTER") || p.includes("CABLE");
@@ -2665,7 +2700,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                         </div>
 
                         <div className="space-y-6">
-                          {/* 1. APPLE DEVICES */}
+                          {/* 1. Apple Devices */}
                           {(() => {
                             const actual = appleW2Items.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
                             const target = weeklyAppleTarget;
@@ -2754,7 +2789,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                             );
                           })()}
 
-                          {/* 2. ANDROID DEVICES */}
+                          {/* 2. Android Devices */}
                           {(() => {
                             const actual = androidW2Items.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
                             const target = weeklyAndroidTarget;
@@ -2849,7 +2884,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                             );
                           })()}
 
-                          {/* 3. ACCESSORIES */}
+                          {/* 3. Accessories */}
                           {(() => {
                             const actual = accW2Items.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
                             const target = weeklyAccTarget;
@@ -2894,7 +2929,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                             );
                           })()}
 
-                          {/* 4. VALUE-ADDED SERVICES (VAS) */}
+                          {/* 4. VAS */}
                           {(() => {
                             const actual = vasW2Items.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
                             const target = weeklyVasTarget;
@@ -2996,8 +3031,54 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                 </div>
               )}
 
+              {/* TAB KHUSUS: QOALA PROTECTION */}
+              {activeTab === "qoala-ar" && (
+                <div className="space-y-6 sm:space-y-8">
+                  <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-4`}>
+                    <div className="flex flex-wrap justify-between items-center gap-4">
+                      <div>
+                        <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
+                          <span>🛡️</span>
+                          <span>QOALA PROTECTION &amp; ATTACHMENT RATE (AR %)</span>
+                        </h2>
+                        <p className={`text-xs ${textMuted} mt-0.5`}>
+                          Periode: {periodType.toUpperCase()} ({periodType === "daily" ? selectedDate : periodType === "weekly" ? selectedWeek : selectedMonth})
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 pt-2">
+                      <div className={`p-4 rounded-2xl border ${innerBg}`}>
+                        <span className={`text-[10px] font-black uppercase tracking-wider ${textMuted} block`}>Store Attachment Rate</span>
+                        <div className="text-2xl sm:text-3xl font-black mt-1 font-mono text-emerald-600 dark:text-emerald-400">
+                          {qoalaAnalytics.storeAR}%
+                        </div>
+                      </div>
+                      <div className={`p-4 rounded-2xl border ${innerBg}`}>
+                        <span className={`text-[10px] font-black uppercase tracking-wider ${textMuted} block`}>Total Polis Terjual</span>
+                        <div className="text-2xl sm:text-3xl font-black mt-1 text-sky-600 dark:text-sky-400 font-mono">
+                          {qoalaAnalytics.totalQoalaQty} Unit
+                        </div>
+                      </div>
+                      <div className={`p-4 rounded-2xl border ${innerBg}`}>
+                        <span className={`text-[10px] font-black uppercase tracking-wider ${textMuted} block`}>Total Device Terjual</span>
+                        <div className="text-2xl sm:text-3xl font-black mt-1 text-slate-900 dark:text-white font-mono">
+                          {qoalaAnalytics.totalDeviceQty} Unit
+                        </div>
+                      </div>
+                      <div className={`p-4 rounded-2xl border ${innerBg}`}>
+                        <span className={`text-[10px] font-black uppercase tracking-wider ${textMuted} block`}>Total Omset Premi</span>
+                        <div className="text-2xl sm:text-3xl font-black mt-1 text-emerald-600 dark:text-emerald-400 font-mono">
+                          {formatIDR(qoalaAnalytics.totalQoalaAmount)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* TAB 10: MoM GROWTH ANALYSIS */}
-              {activeTab === "mom-comparison" && renderComparisonSection(momAnalytics, false)}
+              {activeTab === "mom-comparison" && renderComparisonSection(momAnalytics)}
 
               {/* TAB 3: STAFF PERFORMANCE LEADERBOARD */}
               {activeTab === "staff-performance" && (
