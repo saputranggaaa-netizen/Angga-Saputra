@@ -349,8 +349,8 @@ export default function DigiplusOperationalEngine() {
   const [momBaseMonth, setMomBaseMonth] = useState<string>("Oktober2026");
   const [momCompareMonth, setMomCompareMonth] = useState<string>("September2026");
   const [selectedWeek, setSelectedWeek] = useState<string>("ALL");
-  const [w1Filter, setW1Filter] = useState<string>("W1");
-  const [w2Filter, setW2Filter] = useState<string>("W2");
+  const [w1Filter, setW1Filter] = useState<string>("");
+  const [w2Filter, setW2Filter] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<string>("2026-11-01");
 
   // Bottom Sheet Drawer State
@@ -727,6 +727,14 @@ export default function DigiplusOperationalEngine() {
     });
   }, [transactions]);
 
+  // Set Default State Minggu Otomatis
+  useEffect(() => {
+    if (AUTO_WEEKS.length > 0) {
+      if (!w1Filter) setW1Filter(AUTO_WEEKS[Math.max(0, AUTO_WEEKS.length - 2)]?.label || AUTO_WEEKS[0].label);
+      if (!w2Filter) setW2Filter(AUTO_WEEKS[AUTO_WEEKS.length - 1]?.label || AUTO_WEEKS[0].label);
+    }
+  }, [AUTO_WEEKS, w1Filter, w2Filter]);
+
   const activeTransactions = useMemo(() => {
     return transactions.filter((t) => {
       if (selectedMonth !== "ALL" && selectedMonth !== "Semua Bulan" && t.monthKey !== selectedMonth && t.month !== selectedMonth) {
@@ -812,10 +820,6 @@ export default function DigiplusOperationalEngine() {
     };
   }, [activeTransactions, periodType, storeTotalTarget, categoryTargets, selectedDate, transactions]);
 
-  // =========================================================================
-  // HELPER ENGINES UNTUK KOMPARASI HIERARKIS (MoM & WoW)
-  // =========================================================================
-
   const getSubCategory = (t: RawTransaction) => {
     const p = (t.productName || "").toUpperCase();
     const b = (t.brand || "").toUpperCase();
@@ -866,7 +870,6 @@ export default function DigiplusOperationalEngine() {
     return Number((((curr - prev) / prev) * 100).toFixed(1));
   };
 
-  // Engine Pembentuk Data Hirarkis Apple (Sub-Kategori -> Per Staf)
   const buildAppleSubCategoryData = (trxP1: RawTransaction[], trxP2: RawTransaction[]) => {
     const appleItemsP1 = trxP1.filter((t) => t.brand === "APPLE" && t.groupCategory === "DEVICES");
     const appleItemsP2 = trxP2.filter((t) => t.brand === "APPLE" && t.groupCategory === "DEVICES");
@@ -914,7 +917,6 @@ export default function DigiplusOperationalEngine() {
     });
   };
 
-  // Engine Pembentuk Data Hirarkis Android (Brand -> Per Staf -> Kategori Phone/Tablet/Watch)
   const buildAndroidBrandHierarchy = (trxP1: RawTransaction[], trxP2: RawTransaction[], brandName: string) => {
     const filterFn = (t: RawTransaction) => {
       const bUpper = (t.brand || "").toUpperCase();
@@ -943,7 +945,6 @@ export default function DigiplusOperationalEngine() {
       const stQty2 = stP2.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
       const stAmt2 = stP2.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
 
-      // Kategori Produk Staf: Phone, Tablet, Watch
       const categories = ["Phone", "Tablet", "Watch", "Other"];
       const subItems = categories.map((cat) => {
         const catMatchP1 = stP1.filter((t) => {
@@ -992,14 +993,11 @@ export default function DigiplusOperationalEngine() {
     };
   };
 
-  // Engine Analisis Akar Penyebab Penurunan (Root Cause by Product Deficit)
   const buildDroppedProductsAnalysis = (trxP1: RawTransaction[], trxP2: RawTransaction[]) => {
     const deficitMap: Record<string, { name: string; brand: string; p1Amt: number; p2Amt: number; p1Qty: number; p2Qty: number }> = {};
 
     [...trxP1, ...trxP2].forEach((t) => {
       const pName = (t.productName || "Unknown").trim();
-      const amt = Number(t.amount) || 0;
-      const qty = Number(t.qty) || 1;
       const brand = t.brand || "OTHER";
 
       if (!deficitMap[pName]) {
@@ -1070,12 +1068,26 @@ export default function DigiplusOperationalEngine() {
     };
   }, [transactions, momBaseMonth, momCompareMonth]);
 
-  // Komparasi Week to Week
+  // Komparasi Week to Week (Dengan Pencocokan String Fleksibel)
   const weeklyComparisonData = useMemo(() => {
-    const getTrxForWeek = (wKey: string) => {
-      const wObj = AUTO_WEEKS.find((w) => w.key === wKey || w.label === wKey);
-      const labelMatch = wObj ? wObj.label.toLowerCase() : wKey.toLowerCase();
-      return transactions.filter((t) => t.weekLabel && t.weekLabel.toLowerCase().includes(labelMatch));
+    const getTrxForWeek = (selectedVal: string) => {
+      if (!selectedVal) return [];
+
+      const wObj = AUTO_WEEKS.find((w) => w.key === selectedVal || w.label === selectedVal);
+      const targetLabel = (wObj ? wObj.label : selectedVal).trim().toLowerCase();
+      const targetKey = (wObj ? wObj.key : selectedVal).trim().toLowerCase();
+      const weekNum = targetKey.replace(/\D/g, "");
+
+      return transactions.filter((t) => {
+        if (!t.weekLabel) return false;
+        const wl = t.weekLabel.trim().toLowerCase();
+        return (
+          wl === targetLabel ||
+          wl.includes(targetLabel) ||
+          wl.includes(targetKey) ||
+          (weekNum && (wl.includes(`week ${weekNum}`) || wl.includes(`w${weekNum}`)))
+        );
+      });
     };
 
     const trxW1 = getTrxForWeek(w1Filter);
@@ -1098,10 +1110,10 @@ export default function DigiplusOperationalEngine() {
     }).sort((a, b) => b.w2 - a.w2);
 
     return {
-      p1Label: w1Filter,
-      p2Label: w2Filter,
-      totalW1,
-      totalW2,
+      p1Label: w1Filter || "Minggu 1",
+      p2Label: w2Filter || "Minggu 2",
+      totalM1: totalW1,
+      totalM2: totalW2,
       storeGrowth,
       staffSales,
       appleData: buildAppleSubCategoryData(trxW1, trxW2),
@@ -1112,69 +1124,6 @@ export default function DigiplusOperationalEngine() {
       droppedProducts: buildDroppedProductsAnalysis(trxW1, trxW2),
     };
   }, [transactions, w1Filter, w2Filter, AUTO_WEEKS]);
-
-  const qoalaAnalytics = useMemo(() => {
-    const activeTx = activeTransactions || [];
-
-    const deviceItems = activeTx.filter((t) => t.groupCategory === "DEVICES");
-    const qoalaItems = activeTx.filter((t) => {
-      const pUpper = (t.productName || "").toUpperCase();
-      return t.brand === "QOALA" || pUpper.includes("QOALA") || pUpper.includes("PROTEKSI");
-    });
-
-    const totalDeviceQty = deviceItems.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
-    const totalQoalaQty = qoalaItems.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
-    const totalQoalaAmount = qoalaItems.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-
-    const storeAR = totalDeviceQty > 0 ? Number(((totalQoalaQty / totalDeviceQty) * 100).toFixed(1)) : 0;
-
-    const staffMap: Record<string, { name: string; salesId: string; deviceQty: number; qoalaQty: number; qoalaAmount: number; trxItems: RawTransaction[] }> = {};
-
-    activeTx.forEach((t) => {
-      const sName = t.salesName || "Unknown";
-      if (!staffMap[sName]) {
-        staffMap[sName] = { name: sName, salesId: t.salesId, deviceQty: 0, qoalaQty: 0, qoalaAmount: 0, trxItems: [] };
-      }
-
-      const pUpper = (t.productName || "").toUpperCase();
-      const isDevice = t.groupCategory === "DEVICES";
-      const isQoala = t.brand === "QOALA" || pUpper.includes("QOALA") || pUpper.includes("PROTEKSI");
-
-      if (isDevice) {
-        staffMap[sName].deviceQty += (Number(t.qty) || 1);
-      }
-      if (isQoala) {
-        staffMap[sName].qoalaQty += (Number(t.qty) || 1);
-        staffMap[sName].qoalaAmount += (Number(t.amount) || 0);
-        staffMap[sName].trxItems.push(t);
-      }
-    });
-
-    const staffLeaderboard = Object.values(staffMap).map((s) => {
-      const ar = s.deviceQty > 0 ? Number(((s.qoalaQty / s.deviceQty) * 100).toFixed(1)) : 0;
-      return { ...s, ar };
-    }).sort((a, b) => b.ar - a.ar);
-
-    const planMap: Record<string, { planName: string; qty: number; amount: number }> = {};
-    qoalaItems.forEach((t) => {
-      const pName = t.productName.trim();
-      if (!planMap[pName]) planMap[pName] = { planName: pName, qty: 0, amount: 0 };
-      planMap[pName].qty += (Number(t.qty) || 1);
-      planMap[pName].amount += (Number(t.amount) || 0);
-    });
-
-    const planBreakdown = Object.values(planMap).sort((a, b) => b.qty - a.qty);
-
-    return {
-      totalDeviceQty,
-      totalQoalaQty,
-      totalQoalaAmount,
-      storeAR,
-      staffLeaderboard,
-      planBreakdown,
-      allQoalaTransactions: qoalaItems,
-    };
-  }, [activeTransactions]);
 
   const staffList = useMemo(() => {
     const map: Record<string, {
@@ -1718,46 +1667,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
     ));
   };
 
-  if (!isMounted) return null;
-
-  const isDark = theme === "dark";
-  const bgMain = isDark 
-    ? "bg-[#0A1128] bg-gradient-to-br from-[#070D1E] via-[#0A1128] to-[#0F1B3D]" 
-    : "bg-[#F3F4F6] bg-gradient-to-br from-[#F8FAFC] via-[#F1F5F9] to-[#E2E8F0]";
-
-  const cardBg = isDark 
-    ? "bg-[#0B1528] border-slate-700/60 shadow-xl shadow-black/40" 
-    : "bg-white border-slate-200 shadow-lg shadow-slate-200/50";
-
-  const innerBg = isDark 
-    ? "bg-[#111F38] border-slate-700/50" 
-    : "bg-slate-50 border-slate-200";
-
-  const textMain = isDark ? "text-slate-50" : "text-slate-900";
-  const textMuted = isDark ? "text-slate-400" : "text-slate-500";
-  const accentText = isDark ? "text-sky-400" : "text-sky-600";
-  const activeTabBtn = isDark 
-    ? "bg-sky-500/20 text-sky-400 border border-sky-400/40 shadow-sm" 
-    : "bg-sky-50 text-sky-700 border border-sky-300 shadow-sm";
-  const glassSidebar = isDark 
-    ? "bg-[#070D1E]/90 border-slate-800" 
-    : "bg-white/90 border-slate-200";
-
-  const mainNavItems = [
-    { id: "store-overview", label: "Overview Store", icon: "📊", color: "bg-emerald-500", shadow: "shadow-emerald-500/30" },
-    { id: "weekly-sales", label: "Weekly Sales (WoW)", icon: "📈", color: "bg-blue-600", shadow: "shadow-blue-600/30" },
-    { id: "qoala-ar", label: "Qoala Protection (AR %)", icon: "🛡️", color: "bg-rose-500", shadow: "shadow-rose-500/30" },
-    { id: "mom-comparison", label: "MoM Growth Analysis", icon: "⚖️", color: "bg-indigo-500", shadow: "shadow-indigo-500/30" },
-    { id: "staff-performance", label: "Staff Performance", icon: "🏆", color: "bg-amber-500", shadow: "shadow-amber-500/30" },
-    { id: "daily-target", label: "Daily Target & Run Rate", icon: "🎯", color: "bg-orange-500", shadow: "shadow-orange-500/30" },
-    { id: "schedule", label: "Jadwal Shift 1 Minggu", icon: "📅", color: "bg-sky-500", shadow: "shadow-sky-500/30" },
-    { id: "feedback", label: "Feedback Tim", icon: "💬", color: "bg-teal-500", shadow: "shadow-teal-500/30" },
-    { id: "bnpl", label: "BNPL Transactions", icon: "💳", color: "bg-purple-500", shadow: "shadow-purple-500/30" },
-    { id: "product-search", label: "Cari Produk Terjual", icon: "🔍", color: "bg-pink-500", shadow: "shadow-pink-500/30" },
-    { id: "sales-detail", label: "Rincian Transaksi Log", icon: "📋", color: "bg-slate-600", shadow: "shadow-slate-600/30" },
-  ];
-
-  // Helper Renderer untuk Tampilan Komparasi (MoM & WoW)
   const renderComparisonSection = (data: typeof momAnalytics, isWeekly = false) => {
     return (
       <div className="space-y-6 sm:space-y-8">
@@ -1784,7 +1693,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     className="bg-transparent font-black text-xs text-slate-950 dark:text-white focus:outline-none cursor-pointer"
                   >
                     {AUTO_WEEKS.map((w) => (
-                      <option key={`w1-${w.key}`} value={w.key} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
+                      <option key={`w1-${w.key}`} value={w.label} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
                         {w.label} ({w.range})
                       </option>
                     ))}
@@ -1801,7 +1710,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     className="bg-transparent font-black text-xs text-sky-700 dark:text-sky-400 focus:outline-none cursor-pointer"
                   >
                     {AUTO_WEEKS.map((w) => (
-                      <option key={`w2-${w.key}`} value={w.key} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
+                      <option key={`w2-${w.key}`} value={w.label} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
                         {w.label} ({w.range})
                       </option>
                     ))}
@@ -1870,7 +1779,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
             </div>
           </div>
 
-          {/* PER STAF: BULAN 1 VS BULAN 2 */}
           <div>
             <h4 className="text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-3 flex items-center gap-2">
               <span>👥</span>
@@ -1889,7 +1797,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                   <span className={`px-2.5 py-1 rounded-xl text-xs font-black border ${
                     st.growth >= 0 
                       ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-400/30" 
-                      : "bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-400/30"
+                      : "bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-400/30"
                   }`}>
                     {st.growth >= 0 ? `▲ +${st.growth}%` : `▼ ${st.growth}%`}
                   </span>
@@ -1899,7 +1807,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
           </div>
         </div>
 
-        {/* 2. PER LOB: APPLE DEVICES (QTY & AMOUNT PER SUB-KATEGORI & PER STAF) */}
+        {/* 2. PER LOB: APPLE DEVICES */}
         <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-5`}>
           <div className="flex flex-wrap justify-between items-center pb-3 border-b border-inherit gap-3">
             <h3 className="text-sm sm:text-base font-black text-sky-600 dark:text-sky-400 flex items-center gap-2">
@@ -1907,7 +1815,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               <span>PER LOB — APPLE DEVICES (MENAMPILKAN QTY DAN AMOUNT)</span>
             </h3>
             <span className="text-xs font-bold text-slate-500">
-              Evaluasi Qty & Nominal per Sub-Kategori (iPhone, iPad, MacBook, Watch, AirPods)
+              iPhone, iPad, MacBook, Apple Watch, AirPods
             </span>
           </div>
 
@@ -1931,7 +1839,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                   </div>
                 </div>
 
-                {/* Kontribusi Penjualan Per Staf */}
                 <div className="overflow-x-auto w-full">
                   <table className="w-full text-left text-xs min-w-[500px]">
                     <thead className="text-[10px] uppercase font-black text-slate-500 border-b border-inherit">
@@ -1973,7 +1880,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
           </div>
         </div>
 
-        {/* 3. PER LOB: ANDROID DEVICES (SAMSUNG, HUAWEI, OPPO, DLL.) */}
+        {/* 3. PER LOB: ANDROID DEVICES */}
         {[
           { title: "SAMSUNG DEVICES", data: data.samsungData, color: "text-blue-600 dark:text-blue-400", icon: "📱" },
           { title: "HUAWEI DEVICES", data: data.huaweiData, color: "text-rose-600 dark:text-rose-400", icon: "🔴" },
@@ -2002,7 +1909,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               </div>
             </div>
 
-            {/* Hierarki Per Staf -> Kategori (Phone, Tablet, Watch) */}
             <div className="space-y-4">
               {brandObj.data.staffBreakdown.length > 0 ? (
                 brandObj.data.staffBreakdown.map((st, stIdx) => (
@@ -2021,7 +1927,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                       </span>
                     </div>
 
-                    {/* Breakdown Kategori Produk */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-1">
                       {st.subItems.map((catItem, cIdx) => (
                         <div key={cIdx} className={`p-2.5 rounded-xl border ${cardBg} text-xs space-y-1`}>
@@ -2116,10 +2021,6 @@ _Diperbarui via Digiplus Store Operations Engine._`;
       </div>
     );
   };
-
-  if (!isLoggedIn) {
-    return null;
-  }
 
   return (
     <div className={`min-h-screen flex ${bgMain} ${isDark ? "text-slate-100" : "text-slate-900"} font-sans antialiased overflow-x-hidden w-full max-w-full relative`}>
@@ -2648,7 +2549,7 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                             ? "bg-amber-500/15 text-amber-800 dark:text-amber-400 border-amber-400/30" 
                             : "bg-rose-500/15 text-rose-800 dark:text-rose-400 border-rose-400/30"
                         }`}>
-                          Benchmark Toko: {qoalaAnalytics.storeAR >= 25 ? "Target Tercapai 🔥" : qoalaAnalytics.storeAR >= 15 ? "Perlu Ditingkatkan ⚠️" : "Under Target ❗"}
+                          Benchmark Toko: {qoalaAnalytics.storeAR >= 25 ? "Target管制 Tercapai 🔥" : qoalaAnalytics.storeAR >= 15 ? "Perlu Ditingkatkan ⚠️" : "Under Target ❗"}
                         </span>
                       </div>
                     </div>
