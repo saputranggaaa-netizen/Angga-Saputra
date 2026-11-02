@@ -1994,12 +1994,13 @@ _Diperbarui via Digiplus Store Operations Engine._`;
                     >
                       <option value="ALL">Semua Minggu</option>
                       {AUTO_WEEKS.map((w) => (
-                        <option key={w.key} value={w.label}>{w.label} ({w.range})</option>
+                        <option key={w.key} value={w.label}>
+                          {w.label} {w.range ? `(${w.range})` : ""}
+                        </option>
                       ))}
                     </select>
                   </div>
                 )}
-
                 {periodType === "daily" && (
                   <div className="flex items-center gap-2">
                     <span className="font-black text-slate-900 dark:text-slate-200">🗓️ Tanggal:</span>
