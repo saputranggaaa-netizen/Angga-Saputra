@@ -251,6 +251,16 @@ export default function DigiplusOperationalEngine() {
   const [productSearchQuery, setProductSearchQuery] = useState("");
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState<boolean>(false);
 
+  // Format Hari & Tanggal Hari Ini (Bahasa Indonesia)
+  const todayFormatted = useMemo(() => {
+    return new Intl.DateTimeFormat("id-ID", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }).format(new Date());
+  }, []);
+
   // Authentication State
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [salesIdInput, setSalesIdInput] = useState<string>("");
@@ -1896,12 +1906,24 @@ _Diperbarui via Digiplus Store Operations Engine._`;
               </div>
               <div>
                 <h2 className="text-xs font-black leading-none text-slate-900 dark:text-white">DIGIPLUS GI</h2>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold">
+                    {currentSalesName || "Store Leader Admin"}
+                  </span>
+                  <span className="text-[9px] text-emerald-400 font-mono font-bold">
+                    • {currentTime}
+                  </span>
+                </div>
+              </div>
+              <div>
+                <h2 className="text-xs font-black leading-none text-slate-900 dark:text-white">DIGIPLUS GI</h2>
                 <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold block mt-0.5">
                   {currentSalesName || "Store Leader Admin"}
                 </span>
               </div>
             </div>
           </div>
+          
 
           <div className="flex items-center gap-2">
             <button
@@ -1915,14 +1937,24 @@ _Diperbarui via Digiplus Store Operations Engine._`;
         </header>
         
         <main className="p-3 sm:p-6 lg:p-8 w-full max-w-[1700px] mx-auto flex-1 overflow-x-hidden pb-6">
-          <header className="mb-6 border-b border-inherit pb-5 print:hidden">
-            <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
-              <div>
+          <div>
                 <div className={`text-xl sm:text-2xl font-black ${accentText} flex items-center gap-2`}>
                   <span>Halo, {currentSalesName} 👋</span>
                 </div>
-                <p className={`text-xs ${textMuted} mt-1 font-semibold`}>
-                  Live Feed: <code>DATABASE</code> (gid: 602901290) & <code>BNPL DATABASE</code> (gid: 2697970)
+                
+                {/* Tampilan Hari & Tanggal Hari Ini */}
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="px-2.5 py-0.5 rounded-lg bg-sky-500/15 text-sky-400 border border-sky-400/30 text-xs font-black flex items-center gap-1.5 shadow-sm">
+                    <span>🗓️</span>
+                    <span>{todayFormatted}</span>
+                  </span>
+                  <span className={`text-[11px] ${textMuted} font-semibold hidden sm:inline`}>
+                    • Kode Toko: <strong>QF01 (Grand Indonesia)</strong>
+                  </span>
+                </div>
+
+                <p className={`text-[11px] ${textMuted} mt-1 font-semibold`}>
+                  Live Feed: <code>DATABASE</code> (gid: 602901290) &amp; <code>BNPL DATABASE</code> (gid: 2697970)
                 </p>
               </div>
 
