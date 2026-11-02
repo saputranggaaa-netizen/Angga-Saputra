@@ -175,6 +175,13 @@ interface FeedbackItem {
   };
   userReactions: string[];
 }
+interface StaffDailyTargetDetail {
+  total: number;
+  apple: number;
+  android: number;
+  accessories: number;
+  vas: number;
+}
 
 const formatIDR = (n: number): string => {
   return new Intl.NumberFormat("id-ID", {
@@ -301,6 +308,9 @@ export default function DigiplusOperationalEngine() {
   });
   const [scheduleData, setScheduleData] = useState<StaffScheduleItem[]>(INITIAL_SCHEDULE);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  // State target harian per staf dari gid 789142551
+  const [staffDailyTargets, setStaffDailyTargets] = useState<Record<string, StaffDailyTargetDetail>>({});
+  const [selectedDailyStaff, setSelectedDailyStaff] = useState<string>("");
 
   // Period Filters
   const [periodType, setPeriodType] = useState<PeriodType>("monthly");
@@ -385,13 +395,17 @@ export default function DigiplusOperationalEngine() {
       const dbUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=602901290`;
       const bnplUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=2697970`;
       const targetUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=685849310`;
+      
+      // 1. Tambahkan baris URL sheet daily target ini:
+      const dailyTargetSheetUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=789142551`;
 
-      const [resDb, resBnpl, resTarget] = await Promise.all([
+      // 2. Ganti blok Promise.all menjadi ini:
+      const [resDb, resBnpl, resTarget, resDailyTarget] = await Promise.all([
         fetch(dbUrl),
         fetch(bnplUrl),
         fetch(targetUrl),
+        fetch(dailyTargetSheetUrl),
       ]);
-
       const textDb = await resDb.text();
       const textBnpl = await resBnpl.text();
       const textTarget = await resTarget.text();
@@ -519,6 +533,48 @@ export default function DigiplusOperationalEngine() {
         apple: targetApple || prev.apple,
         android: targetAndroid || prev.android,
       }));
+      // Parsing Sheet Daily Target (gid: 789142551)
+      const textDailyTarget = await resDailyTarget.text();
+      const jsonDailyTarget = JSON.parse(
+        textDailyTarget.substring(textDailyTarget.indexOf("{"), textDailyTarget.lastIndexOf("}") + 1)
+      );
+
+      const parsedStaffDailyTargets: Record<string, StaffDailyTargetDetail> = {};
+
+      (jsonDailyTarget.table.rows || []).forEach((r: any) => {
+        const c = r.c;
+        if (!c) return;
+
+        // Kolom A (indeks 0) = Nama Staff, Kolom B (indeks 1) = Kategori, Kolom H (indeks 7) = Catch-up Target
+        const rawStaffName = String(c[0]?.v || c[0]?.f || "").trim().toLowerCase();
+        const rawCategory = String(c[1]?.v || c[1]?.f || "").trim().toUpperCase();
+        const rawTargetVal = c[7]?.v;
+        const targetVal = typeof rawTargetVal === "number" 
+          ? rawTargetVal 
+          : Number(String(rawTargetVal || 0).replace(/[^0-9]/g, ""));
+
+        if (!rawStaffName || rawStaffName.includes("staff") || rawStaffName.includes("nama") || isNaN(targetVal)) {
+          return;
+        }
+
+        if (!parsedStaffDailyTargets[rawStaffName]) {
+          parsedStaffDailyTargets[rawStaffName] = { total: 0, apple: 0, android: 0, accessories: 0, vas: 0 };
+        }
+
+        if (rawCategory.includes("APPLE")) {
+          parsedStaffDailyTargets[rawStaffName].apple += targetVal;
+        } else if (rawCategory.includes("ANDROID")) {
+          parsedStaffDailyTargets[rawStaffName].android += targetVal;
+        } else if (rawCategory.includes("ACCESSORIES") || rawCategory.includes("AKSESORIS")) {
+          parsedStaffDailyTargets[rawStaffName].accessories += targetVal;
+        } else if (rawCategory.includes("VAS") || rawCategory.includes("QOALA")) {
+          parsedStaffDailyTargets[rawStaffName].vas += targetVal;
+        }
+
+        parsedStaffDailyTargets[rawStaffName].total += targetVal;
+      });
+
+      setStaffDailyTargets(parsedStaffDailyTargets);
 
       setTransactions(parsedTrx);
       setBnplRecords(parsedBnpl);
@@ -1377,6 +1433,74 @@ Tanggal: ${selectedDate} (Filter: ${periodType.toUpperCase()})
 _Diperbarui otomatis via Store Performance Engine._`;
 
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+  };
+  const handleShareDailyTargetStaffWA = (staffName: string, targetData: StaffDailyTargetDetail, todayTrx: RawTransaction[]) => {
+    const calcSub = (filterFn: (t: RawTransaction) => boolean) => {
+      const filtered = todayTrx.filter(filterFn);
+      const qty = filtered.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
+      const amt = filtered.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+      return `${qty} / ${formatIDR(amt)}`;
+    };
+
+    // Sub Apple
+    const iphoneStr = calcSub((t) => t.brand === "APPLE" && (t.productName || "").toUpperCase().includes("IPHONE"));
+    const ipadStr = calcSub((t) => t.brand === "APPLE" && (t.productName || "").toUpperCase().includes("IPAD"));
+    const macbookStr = calcSub((t) => t.brand === "APPLE" && ((t.productName || "").toUpperCase().includes("MAC") || (t.productName || "").toUpperCase().includes("BOOK")));
+    const watchStr = calcSub((t) => t.brand === "APPLE" && (t.productName || "").toUpperCase().includes("WATCH"));
+
+    // Sub Android
+    const samsungStr = calcSub((t) => t.brand === "SAMSUNG" && t.groupCategory === "DEVICES");
+    const oppoStr = calcSub((t) => t.brand === "OPPO" && t.groupCategory === "DEVICES");
+    const huaweiStr = calcSub((t) => t.brand === "HUAWEI" && t.groupCategory === "DEVICES");
+    const xiaomiStr = calcSub((t) => (t.brand === "XIAOMI" || t.brand === "REDMI") && t.groupCategory === "DEVICES");
+    const motorolaStr = calcSub((t) => t.brand === "MOTOROLA" && t.groupCategory === "DEVICES");
+    const infinixStr = calcSub((t) => t.brand === "INFINIX" && t.groupCategory === "DEVICES");
+
+    // Accessories & VAS
+    const accStr = calcSub((t) => t.groupCategory === "ACCESSORIES");
+    const qoalaStr = calcSub((t) => t.groupCategory === "VAS" && (t.brand === "QOALA" || (t.productName || "").toUpperCase().includes("QOALA") || (t.productName || "").toUpperCase().includes("PROTEKSI")));
+    const tselStr = calcSub((t) => t.groupCategory === "VAS" && (t.brand.includes("TELKOMSEL") || (t.productName || "").toUpperCase().includes("TELKOMSEL")));
+    const xlStr = calcSub((t) => t.groupCategory === "VAS" && (t.brand.includes("XL") || (t.productName || "").toUpperCase().includes("MYPRIO")));
+    const isatStr = calcSub((t) => t.groupCategory === "VAS" && (t.brand.includes("INDOSAT") || (t.productName || "").toUpperCase().includes("INDOSAT")));
+
+    const totalAchvAmount = todayTrx.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+
+    const message = 
+`Target & Achievement
+Tanggal : ${selectedDate}
+
+- ${staffName} -
+
+Total Target : ${formatIDR(targetData.total)}
+Apple Devices : ${formatIDR(targetData.apple)}
+Android Device : ${formatIDR(targetData.android)}
+Accessories : ${formatIDR(targetData.accessories)}
+VAS : ${formatIDR(targetData.vas)}
+
+Total Achievement : ${formatIDR(totalAchvAmount)}
+1. Apple Devices :
+- iPhone : ${iphoneStr}
+- iPad : ${ipadStr}
+- MacBook : ${macbookStr}
+- Apple Watch : ${watchStr}
+
+1. Android Device :
+- Samsung : ${samsungStr}
+- Oppo : ${oppoStr}
+- Huawei : ${huaweiStr}
+- Xiaomi : ${xiaomiStr}
+- Motorola : ${motorolaStr}
+- Infinix : ${infinixStr}
+
+1. Accessories : ${accStr}
+
+2. VAS :
+- Qoala : ${qoalaStr}
+- Telkomsel : ${tselStr}
+- Xl : ${xlStr}
+- Indosat : ${isatStr}`;
+
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank");
   };
 
   const handleShareTargetWA = () => {
@@ -3672,28 +3796,31 @@ Indosat IM3 : ${isatText}`;
                 </div>
               )}
 
-              {/* TAB 4: DAILY TARGET */}
+              {/* TAB 4: DAILY TARGET & RUN RATE PER STAFF */}
               {activeTab === "daily-target" && (
-                <div className="space-y-6">
+                <div className="space-y-6 sm:space-y-8">
+                  {/* RINGKASAN TOKO HARIAN */}
                   <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-5 overflow-hidden`}>
                     <div className="flex flex-wrap justify-between items-center gap-4">
                       <div>
                         <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
                           <span>🎯</span>
-                          <span>TARGET HARIAN VS PENCAPAIAN BERJALAN</span>
+                          <span>DAILY TARGET &amp; RUN RATE HARIAN (QF01)</span>
                         </h2>
                         <p className={`text-xs ${textMuted} mt-0.5`}>
                           Tanggal: {selectedDate} • Hari ke-{dailyTargetCalculated.daysPassed} ({dailyTargetCalculated.daysLeft} Hari Tersisa)
                         </p>
                       </div>
 
-                      <button
-                        onClick={handleShareTargetWA}
-                        className="px-4 py-2 rounded-xl bg-[#25D366] hover:bg-emerald-600 text-white text-xs font-black transition flex items-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95"
-                      >
-                        <span>📲</span>
-                        <span>Share Target</span>
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleShareTargetWA}
+                          className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-black transition flex items-center gap-2 border border-slate-700 shadow-md active:scale-95"
+                        >
+                          <span>📢</span>
+                          <span>Share Rekap Toko</span>
+                        </button>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -3708,7 +3835,7 @@ Indosat IM3 : ${isatText}`;
 
                       <div className={`p-4 rounded-2xl border ${innerBg}`}>
                         <span className={`text-[11px] font-black ${textMuted} uppercase block tracking-wider`}>
-                          PENCAPAIAN HARI INI
+                          PENCAPAIAN TOKO HARI INI
                         </span>
                         <div className="text-xl sm:text-2xl font-black text-emerald-700 dark:text-emerald-400 mt-1 font-mono">
                           {formatIDR(dailyTargetCalculated.actualToday)}
@@ -3717,7 +3844,7 @@ Indosat IM3 : ${isatText}`;
 
                       <div className={`p-4 rounded-2xl border ${innerBg}`}>
                         <span className={`text-[11px] font-black ${textMuted} uppercase block tracking-wider`}>
-                          TARGET PER STAF HARI INI
+                          TARGET IDEAL RUN RATE
                         </span>
                         <div className="text-xl sm:text-2xl font-black text-sky-700 dark:text-sky-400 mt-1 font-mono">
                           {formatIDR(dailyTargetCalculated.targetPerStaffToday)}
@@ -3725,6 +3852,256 @@ Indosat IM3 : ${isatText}`;
                       </div>
                     </div>
                   </div>
+
+                  {/* DETAIL TARGET VS ACHIEVEMENT PER STAFF */}
+                  {(() => {
+                    const availableStaffNames = Array.from(
+                      new Set([
+                        ...Object.keys(staffDailyTargets),
+                        ...staffList.map((s) => s.name.trim().toLowerCase()),
+                      ])
+                    ).filter(Boolean);
+
+                    const activeName = selectedDailyStaff || availableStaffNames[0] || "";
+
+                    const targetData: StaffDailyTargetDetail = staffDailyTargets[activeName] || 
+                      staffDailyTargets[activeName.split(" ")[0]] || {
+                        total: 0,
+                        apple: 0,
+                        android: 0,
+                        accessories: 0,
+                        vas: 0,
+                      };
+
+                    // Filter transaksi tanggal terpilih untuk staf ini
+                    const staffTodayTrx = transactions.filter((t) => {
+                      const matchDate = t.isoDate === selectedDate;
+                      const sName = (t.salesName || "").trim().toLowerCase();
+                      const matchStaff = sName === activeName || sName.includes(activeName) || activeName.includes(sName);
+                      return matchDate && matchStaff;
+                    });
+
+                    const totalAchv = staffTodayTrx.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+
+                    const getMetrics = (filterFn: (t: RawTransaction) => boolean) => {
+                      const filtered = staffTodayTrx.filter(filterFn);
+                      const qty = filtered.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
+                      const amount = filtered.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+                      return { qty, amount };
+                    };
+
+                    const appleIphone = getMetrics((t) => t.brand === "APPLE" && (t.productName || "").toUpperCase().includes("IPHONE"));
+                    const appleIpad = getMetrics((t) => t.brand === "APPLE" && (t.productName || "").toUpperCase().includes("IPAD"));
+                    const appleMac = getMetrics((t) => t.brand === "APPLE" && ((t.productName || "").toUpperCase().includes("MAC") || (t.productName || "").toUpperCase().includes("BOOK")));
+                    const appleWatch = getMetrics((t) => t.brand === "APPLE" && (t.productName || "").toUpperCase().includes("WATCH"));
+
+                    const androidSamsung = getMetrics((t) => t.brand === "SAMSUNG" && t.groupCategory === "DEVICES");
+                    const androidOppo = getMetrics((t) => t.brand === "OPPO" && t.groupCategory === "DEVICES");
+                    const androidHuawei = getMetrics((t) => t.brand === "HUAWEI" && t.groupCategory === "DEVICES");
+                    const androidXiaomi = getMetrics((t) => (t.brand === "XIAOMI" || t.brand === "REDMI") && t.groupCategory === "DEVICES");
+                    const androidMoto = getMetrics((t) => t.brand === "MOTOROLA" && t.groupCategory === "DEVICES");
+                    const androidInfinix = getMetrics((t) => t.brand === "INFINIX" && t.groupCategory === "DEVICES");
+
+                    const accTotal = getMetrics((t) => t.groupCategory === "ACCESSORIES");
+
+                    const vasQoala = getMetrics((t) => t.groupCategory === "VAS" && (t.brand === "QOALA" || (t.productName || "").toUpperCase().includes("QOALA") || (t.productName || "").toUpperCase().includes("PROTEKSI")));
+                    const vasTsel = getMetrics((t) => t.groupCategory === "VAS" && (t.brand.includes("TELKOMSEL") || (t.productName || "").toUpperCase().includes("TELKOMSEL")));
+                    const vasXl = getMetrics((t) => t.groupCategory === "VAS" && (t.brand.includes("XL") || (t.productName || "").toUpperCase().includes("MYPRIO")));
+                    const vasIsat = getMetrics((t) => t.groupCategory === "VAS" && (t.brand.includes("INDOSAT") || (t.productName || "").toUpperCase().includes("INDOSAT")));
+
+                    const displayName = activeName.toUpperCase();
+
+                    return (
+                      <div className={`p-5 sm:p-7 ${cardBg} border-2 rounded-3xl shadow-2xl space-y-6`}>
+                        <div className="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-inherit">
+                          <div>
+                            <span className="text-xs font-black uppercase tracking-wider text-sky-600 dark:text-sky-400 block">
+                              Target &amp; Realisasi Per Staf
+                            </span>
+                            <h3 className="text-xl font-black text-slate-950 dark:text-white mt-1">
+                              - Daily Target -
+                            </h3>
+                            <h4 className="text-lg font-black text-slate-800 dark:text-slate-200 mt-0.5">
+                              {displayName}
+                            </h4>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-3">
+                            <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
+                              <span className="text-xs font-bold text-slate-500">Pilih Staf:</span>
+                              <select
+                                value={activeName}
+                                onChange={(e) => setSelectedDailyStaff(e.target.value)}
+                                className="bg-transparent font-black text-xs text-slate-900 dark:text-white focus:outline-none cursor-pointer uppercase"
+                              >
+                                {availableStaffNames.map((name) => (
+                                  <option key={name} value={name} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
+                                    {name.toUpperCase()}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleShareDailyTargetStaffWA(displayName, targetData, staffTodayTrx)}
+                              className="px-4 py-2 rounded-xl bg-[#25D366] hover:bg-emerald-600 text-white text-xs font-black transition flex items-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95"
+                            >
+                              <span>📲</span>
+                              <span>Share WA Daily Target</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* TOTAL TARGET */}
+                        <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-3`}>
+                          <div className="flex justify-between items-center pb-2 border-b border-inherit/40">
+                            <span className="text-xs font-black text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                              Target Harian (Catch-up Sheet)
+                            </span>
+                            <strong className="text-sm sm:text-base font-black font-mono text-slate-950 dark:text-white">
+                              Total Target : {formatIDR(targetData.total)}
+                            </strong>
+                          </div>
+
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                            <div className={`p-3 rounded-xl border ${cardBg}`}>
+                              <span className="text-slate-500 block text-[11px] font-bold">Apple Devices :</span>
+                              <strong className="text-sky-600 dark:text-sky-400 font-black font-mono text-xs sm:text-sm">
+                                {formatIDR(targetData.apple)}
+                              </strong>
+                            </div>
+                            <div className={`p-3 rounded-xl border ${cardBg}`}>
+                              <span className="text-slate-500 block text-[11px] font-bold">Android Device :</span>
+                              <strong className="text-indigo-600 dark:text-indigo-400 font-black font-mono text-xs sm:text-sm">
+                                {formatIDR(targetData.android)}
+                              </strong>
+                            </div>
+                            <div className={`p-3 rounded-xl border ${cardBg}`}>
+                              <span className="text-slate-500 block text-[11px] font-bold">Accessories :</span>
+                              <strong className="text-amber-600 dark:text-amber-400 font-black font-mono text-xs sm:text-sm">
+                                {formatIDR(targetData.accessories)}
+                              </strong>
+                            </div>
+                            <div className={`p-3 rounded-xl border ${cardBg}`}>
+                              <span className="text-slate-500 block text-[11px] font-bold">VAS :</span>
+                              <strong className="text-purple-600 dark:text-purple-400 font-black font-mono text-xs sm:text-sm">
+                                {formatIDR(targetData.vas)}
+                              </strong>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* TOTAL ACHIEVEMENT */}
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center pb-2 border-b border-inherit/40">
+                            <h4 className="text-sm font-black uppercase tracking-wider text-slate-950 dark:text-white flex items-center gap-2">
+                              <span>📦</span>
+                              <span>Total Achievement :</span>
+                            </h4>
+                            <span className="text-base font-black font-mono text-emerald-600 dark:text-emerald-400">
+                              {formatIDR(totalAchv)}
+                            </span>
+                          </div>
+
+                          {/* 1. Apple Devices */}
+                          <div className={`p-4 rounded-2xl border ${innerBg} space-y-2.5`}>
+                            <span className="text-xs font-black text-sky-600 dark:text-sky-400 flex items-center gap-1.5 uppercase">
+                              <span>🍎</span> 1. Apple Devices :
+                            </span>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs font-semibold">
+                              <div className={`p-2.5 rounded-xl border ${cardBg} flex justify-between items-center`}>
+                                <span className="text-slate-700 dark:text-slate-300">- iPhone :</span>
+                                <strong className="font-mono text-slate-950 dark:text-white">{appleIphone.qty} / {formatIDR(appleIphone.amount)}</strong>
+                              </div>
+                              <div className={`p-2.5 rounded-xl border ${cardBg} flex justify-between items-center`}>
+                                <span className="text-slate-700 dark:text-slate-300">- iPad :</span>
+                                <strong className="font-mono text-slate-950 dark:text-white">{appleIpad.qty} / {formatIDR(appleIpad.amount)}</strong>
+                              </div>
+                              <div className={`p-2.5 rounded-xl border ${cardBg} flex justify-between items-center`}>
+                                <span className="text-slate-700 dark:text-slate-300">- MacBook :</span>
+                                <strong className="font-mono text-slate-950 dark:text-white">{appleMac.qty} / {formatIDR(appleMac.amount)}</strong>
+                              </div>
+                              <div className={`p-2.5 rounded-xl border ${cardBg} flex justify-between items-center`}>
+                                <span className="text-slate-700 dark:text-slate-300">- Apple Watch :</span>
+                                <strong className="font-mono text-slate-950 dark:text-white">{appleWatch.qty} / {formatIDR(appleWatch.amount)}</strong>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 1. Android Device */}
+                          <div className={`p-4 rounded-2xl border ${innerBg} space-y-2.5`}>
+                            <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5 uppercase">
+                              <span>🤖</span> 1. Android Device :
+                            </span>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 text-xs font-semibold">
+                              <div className={`p-2.5 rounded-xl border ${cardBg} flex justify-between items-center`}>
+                                <span className="text-slate-700 dark:text-slate-300">- Samsung :</span>
+                                <strong className="font-mono text-slate-950 dark:text-white">{androidSamsung.qty} / {formatIDR(androidSamsung.amount)}</strong>
+                              </div>
+                              <div className={`p-2.5 rounded-xl border ${cardBg} flex justify-between items-center`}>
+                                <span className="text-slate-700 dark:text-slate-300">- Oppo :</span>
+                                <strong className="font-mono text-slate-950 dark:text-white">{androidOppo.qty} / {formatIDR(androidOppo.amount)}</strong>
+                              </div>
+                              <div className={`p-2.5 rounded-xl border ${cardBg} flex justify-between items-center`}>
+                                <span className="text-slate-700 dark:text-slate-300">- Huawei :</span>
+                                <strong className="font-mono text-slate-950 dark:text-white">{androidHuawei.qty} / {formatIDR(androidHuawei.amount)}</strong>
+                              </div>
+                              <div className={`p-2.5 rounded-xl border ${cardBg} flex justify-between items-center`}>
+                                <span className="text-slate-700 dark:text-slate-300">- Xiaomi :</span>
+                                <strong className="font-mono text-slate-950 dark:text-white">{androidXiaomi.qty} / {formatIDR(androidXiaomi.amount)}</strong>
+                              </div>
+                              <div className={`p-2.5 rounded-xl border ${cardBg} flex justify-between items-center`}>
+                                <span className="text-slate-700 dark:text-slate-300">- Motorola :</span>
+                                <strong className="font-mono text-slate-950 dark:text-white">{androidMoto.qty} / {formatIDR(androidMoto.amount)}</strong>
+                              </div>
+                              <div className={`p-2.5 rounded-xl border ${cardBg} flex justify-between items-center`}>
+                                <span className="text-slate-700 dark:text-slate-300">- Infinix :</span>
+                                <strong className="font-mono text-slate-950 dark:text-white">{androidInfinix.qty} / {formatIDR(androidInfinix.amount)}</strong>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 1. Accessories & 2. VAS */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className={`p-4 rounded-2xl border ${innerBg} space-y-2.5`}>
+                              <span className="text-xs font-black text-amber-600 dark:text-amber-400 flex items-center gap-1.5 uppercase">
+                                <span>🔌</span> 1. Accessories :
+                              </span>
+                              <div className={`p-3 rounded-xl border ${cardBg} flex justify-between items-center text-xs font-semibold`}>
+                                <span className="text-slate-700 dark:text-slate-300">Total Accessories Terjual:</span>
+                                <strong className="font-mono text-slate-950 dark:text-white">{accTotal.qty} Unit / {formatIDR(accTotal.amount)}</strong>
+                              </div>
+                            </div>
+
+                            <div className={`p-4 rounded-2xl border ${innerBg} space-y-2.5`}>
+                              <span className="text-xs font-black text-purple-600 dark:text-purple-400 flex items-center gap-1.5 uppercase">
+                                <span>🛡️</span> 2. VAS :
+                              </span>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-semibold">
+                                <div className={`p-2 rounded-xl border ${cardBg} flex justify-between items-center`}>
+                                  <span className="text-slate-700 dark:text-slate-300">- Qoala :</span>
+                                  <strong className="font-mono text-slate-950 dark:text-white">{vasQoala.qty} / {formatIDR(vasQoala.amount)}</strong>
+                                </div>
+                                <div className={`p-2 rounded-xl border ${cardBg} flex justify-between items-center`}>
+                                  <span className="text-slate-700 dark:text-slate-300">- Telkomsel :</span>
+                                  <strong className="font-mono text-slate-950 dark:text-white">{vasTsel.qty} / {formatIDR(vasTsel.amount)}</strong>
+                                </div>
+                                <div className={`p-2 rounded-xl border ${cardBg} flex justify-between items-center`}>
+                                  <span className="text-slate-700 dark:text-slate-300">- Xl :</span>
+                                  <strong className="font-mono text-slate-950 dark:text-white">{vasXl.qty} / {formatIDR(vasXl.amount)}</strong>
+                                </div>
+                                <div className={`p-2 rounded-xl border ${cardBg} flex justify-between items-center`}>
+                                  <span className="text-slate-700 dark:text-slate-300">- Indosat :</span>
+                                  <strong className="font-mono text-slate-950 dark:text-white">{vasIsat.qty} / {formatIDR(vasIsat.amount)}</strong>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 
