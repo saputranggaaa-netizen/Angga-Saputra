@@ -80,7 +80,7 @@ html.dark #root .shadow-xl, html.dark #root .shadow-lg, html.dark #root .shadow-
 #root :focus-visible { outline: 3px solid #2585ed; outline-offset: 2px; }
 ::selection { background: #cde6ff; color: #123452; }
 /* Light: explicitly remap pale Tailwind utilities to readable colors. */
-html:not(.dark) #root .text-white:not([class*="dark:"]) { color: inherit; }
+html:not(.dark) #root main [class*="bg-slate-100"] .text-white,\nhtml:not(.dark) #root main [class*="bg-slate-50"] .text-white,\nhtml:not(.dark) #root main [class*="bg-slate-200"] .text-white { color: #17212f; }
 html:not(.dark) #root .text-slate-950,
 html:not(.dark) #root .text-slate-900,
 html:not(.dark) #root .text-slate-800 { color: #17212f; }
