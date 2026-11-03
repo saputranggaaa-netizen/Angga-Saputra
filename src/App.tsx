@@ -11,75 +11,7 @@ export const UploadRawSalesModal = ({ isOpen, onClose, selectedInvoice, defaultS
 
   if (!isOpen) return null;
 
-  const handleUpload = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedFile) {
-      alert("Silakan pilih file terlebih dahulu.");
-      return;
-    }
-
-    setIsUploading(true);
-
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const base64Data = (reader.result as string).split(",")[1];
-
-      const payload = {
-        fileName: selectedFile.name,
-        mimeType: selectedFile.type,
-        fileBase64: base64Data,
-        searchKey: selectedInvoice || "", 
-        colN_Value: defaultSalesName || "Staf Grand Indonesia", 
-        colO_Value: catatan || "Bukti Transaksi",                 
-      };
-
-      try {
-        await fetch(LOG_API_URL, {
-          method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        alert("File berhasil diunggah! Link file dan data tercatat di Kolom M–O.");
-        setSelectedFile(null);
-        setCatatan("");
-        onClose();
-      } catch (err) {
-        console.error("Gagal upload file:", err);
-        alert("Terjadi kesalahan saat upload.");
-      } finally {
-        setIsUploading(false);
-      }
-    };
-
-    reader.readAsDataURL(selectedFile);
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="w-full max-w-md rounded-3xl bg-white dark:bg-[#09122A] border border-slate-300 dark:border-white/15 p-6 space-y-4 shadow-2xl">
-        <div className="flex justify-between items-center border-b border-slate-200 dark:border-white/10 pb-3">
-          <h3 className="text-sm font-black text-slate-950 dark:text-white">Upload Bukti Transaksi (RAW SalesPerson)</h3>
-          <button type="button" onClick={onClose} className="text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white text-xs font-bold p-1">✕</button>
-        </div>
-
-        <form onSubmit={handleUpload} className="space-y-4">
-          <div>
-            <label className="text-[11px] font-bold text-slate-800 dark:text-slate-200 block mb-1">Pilih File / Foto Bukti:</label>
-            <input
-              type="file"
-              onChange={(e) => setSelectedFile(e.target.files ? e.target.files[0] : null)}
-              className="w-full text-xs text-slate-900 dark:text-slate-200 font-semibold file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:bg-sky-600 file:text-white file:font-bold"
-            />
-          </div>
-
-          <div>
-            <label className="text-[11px] font-bold text-slate-800 dark:text-slate-200 block mb-1">Catatan Tambahan (Kolom O):</label>
-            <input
-              type="text"
-              value={catatan}
-              onChange={(e) => setCatatan(e.target.value)}
+ 
             
 type MenuTab = 
   | "store-overview"
