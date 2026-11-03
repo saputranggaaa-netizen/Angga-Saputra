@@ -207,6 +207,10 @@ const calcUpt = (qty: number, invoices: number): number => {
   if (invoices <= 0) return 0;
   return Number((qty / invoices).toFixed(2));
 };
+interface RawTransaction {
+  // ... field lainnya ...
+  supplier?: string;
+}
 
 const INITIAL_SCHEDULE: StaffScheduleItem[] = [
   { id: "1", name: "Angga", role: "Store Supervisor", mon: "OFF", tue: "D103", wed: "D047", thu: "D047", fri: "D103", sat: "D103", sun: "D047" },
@@ -398,6 +402,16 @@ export default function DigiplusOperationalEngine() {
       
       // 1. Tambahkan baris URL sheet daily target ini:
       const dailyTargetSheetUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=789142551`;
+      // Kolom P = indeks 15 (Supplier)
+const supplier = String(c[15]?.v || c[15]?.f || "").trim().toUpperCase();
+
+parsedTrx.push({
+  // ... field lainnya ...
+  salesName: String(c[2]?.v || c[2]?.f || "").trim(), // Kolom C = Nama Staff
+  qty: Number(c[7]?.v || c[7]?.f || 1),              // Kolom H = Qty
+  amount: Number(c[8]?.v || c[8]?.f || 0),           // Kolom I = Amount
+  supplier: supplier,                               // Kolom P = Supplier
+});
 
       // 2. Ganti blok Promise.all menjadi ini:
       const [resDb, resBnpl, resTarget, resDailyTarget] = await Promise.all([
@@ -4133,6 +4147,242 @@ Indosat IM3 : ${isatText}`;
                   })()}
                 </div>
               )}
+              <button
+  onClick={() => setActiveTab("brand-focus")}
+  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl font-bold text-xs transition-all ${
+    activeTab === "brand-focus"
+      ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-orange-500/25"
+      : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60"
+  }`}
+>
+  <span className="text-base">🏷️</span>
+  <span>Brand Focus</span>
+</button>
+              {/* ========================================================= */}
+{/* TAB: BRAND FOCUS (SUPPLIER DINO, IGA, MEDPOIN, HASTAG, IBACKS, KAIZEN) */}
+{/* ========================================================= */}
+{activeTab === "brand-focus" && (() => {
+  const TARGET_SUPPLIERS = ["DINO", "IGA", "MEDPOIN", "HASTAG", "IBACKS", "KAIZEN"];
+
+  // 1. Filter transaksi berdasarkan periode aktif (Daily / Weekly / Monthly)
+  const currentFilteredTrx = filteredTransactions || [];
+
+  // 2. Hitung total pencapaian Accessories secara keseluruhan pada periode ini untuk kalkulasi kontribusi (%)
+  const totalAccAmount = currentFilteredTrx
+    .filter((t) => t.groupCategory === "ACCESSORIES" || (t.brand || "").includes("ACC"))
+    .reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+
+  // 3. Normalisasi & kelompokkan transaksi supplier fokus
+  const supplierDataMap: Record<string, { qty: number; amount: number; items: RawTransaction[] }> = {};
+  TARGET_SUPPLIERS.forEach((sup) => {
+    supplierDataMap[sup] = { qty: 0, amount: 0, items: [] };
+  });
+
+  currentFilteredTrx.forEach((t) => {
+    const rawSup = (t.supplier || "").toUpperCase();
+    const matchedSup = TARGET_SUPPLIERS.find((s) => rawSup.includes(s));
+    if (matchedSup) {
+      supplierDataMap[matchedSup].qty += Number(t.qty) || 1;
+      supplierDataMap[matchedSup].amount += Number(t.amount) || 0;
+      supplierDataMap[matchedSup].items.push(t);
+    }
+  });
+
+  // 4. Hitung rincian per staf untuk masing-masing supplier
+  const staffSupplierMap: Record<string, Record<string, { qty: number; amount: number }>> = {};
+  currentFilteredTrx.forEach((t) => {
+    const sName = (t.salesName || "").trim().toUpperCase();
+    const rawSup = (t.supplier || "").toUpperCase();
+    const matchedSup = TARGET_SUPPLIERS.find((s) => rawSup.includes(s));
+
+    if (sName && matchedSup) {
+      if (!staffSupplierMap[sName]) {
+        staffSupplierMap[sName] = {};
+        TARGET_SUPPLIERS.forEach((s) => {
+          staffSupplierMap[sName][s] = { qty: 0, amount: 0 };
+        });
+      }
+      staffSupplierMap[sName][matchedSup].qty += Number(t.qty) || 1;
+      staffSupplierMap[sName][matchedSup].amount += Number(t.amount) || 0;
+    }
+  });
+
+  return (
+    <div className="space-y-6 sm:space-y-8 animate-fade-in">
+      {/* HEADER SECTION & PERIODE INFO */}
+      <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl flex flex-wrap justify-between items-center gap-4`}>
+        <div>
+          <span className="text-xs font-black uppercase tracking-wider text-amber-500 block">
+            Supplier Monitoring &amp; Contribution
+          </span>
+          <h2 className="text-lg sm:text-2xl font-black text-slate-950 dark:text-white mt-0.5 flex items-center gap-2">
+            <span>🏷️</span>
+            <span>BRAND FOCUS ACCESSORIES</span>
+          </h2>
+          <p className="text-xs text-slate-500 mt-1">
+            Data penjualan supplier: DINO, IGA, MEDPOIN, HASTAG, IBACKS, KAIZEN (Filter: {timeFilter.toUpperCase()})
+          </p>
+        </div>
+
+        <div className={`px-4 py-2.5 rounded-2xl border ${innerBg} text-right`}>
+          <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">
+            Total Achievement Accessories
+          </span>
+          <span className="text-base sm:text-lg font-black font-mono text-amber-600 dark:text-amber-400">
+            {formatIDR(totalAccAmount)}
+          </span>
+        </div>
+      </div>
+
+      {/* 1. CUPCARDS PALING ATAS (6 KARTU SUPPLIER) */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+        {TARGET_SUPPLIERS.map((sup) => {
+          const s = supplierDataMap[sup];
+          const contribPercent = totalAccAmount > 0 ? ((s.amount / totalAccAmount) * 100).toFixed(1) : "0.0";
+
+          return (
+            <div
+              key={sup}
+              className={`p-4 rounded-2xl border-2 ${cardBg} hover:border-amber-500/50 transition-all shadow-md relative overflow-hidden`}
+            >
+              <div className="flex justify-between items-center mb-1.5">
+                <h3 className="font-black text-sm text-slate-900 dark:text-white tracking-wide">
+                  {sup}
+                </h3>
+                <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                  {contribPercent}%
+                </span>
+              </div>
+              <div className="text-xs text-slate-500 font-bold">Qty: <span className="font-mono text-slate-900 dark:text-white">{s.qty} Unit</span></div>
+              <div className="text-xs sm:text-sm font-black font-mono text-amber-600 dark:text-amber-400 mt-0.5">
+                {formatIDR(s.amount)}
+              </div>
+              <div className="text-[9px] text-slate-400 mt-1 font-semibold">
+                Kontribusi Sales Acc
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 2. DETAIL PER SUPPLIER (DINO, IGA, HASTAG, MEDPOIN, IBACKS, KAIZEN) */}
+      <div className="space-y-5">
+        <h3 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2">
+          <span>📋</span>
+          <span>Rincian Transaksi Produk Per Supplier</span>
+        </h3>
+
+        <div className="grid grid-cols-1 gap-5">
+          {TARGET_SUPPLIERS.map((sup, idx) => {
+            const s = supplierDataMap[sup];
+            const contrib = totalAccAmount > 0 ? ((s.amount / totalAccAmount) * 100).toFixed(1) : "0.0";
+
+            return (
+              <div key={sup} className={`p-5 rounded-3xl border-2 ${cardBg} shadow-lg space-y-4`}>
+                <div className="flex flex-wrap justify-between items-center pb-3 border-b border-inherit gap-3">
+                  <div>
+                    <h4 className="text-base font-black text-slate-900 dark:text-white">
+                      {idx + 1}. {sup}
+                    </h4>
+                    <span className="text-xs text-slate-500">
+                      Total: <strong className="font-mono text-slate-900 dark:text-white">{s.qty} Unit</strong> / <strong className="font-mono text-amber-600 dark:text-amber-400">{formatIDR(s.amount)}</strong> • Kontribusi Acc: <strong className="text-amber-500">{contrib}%</strong>
+                    </span>
+                  </div>
+                </div>
+
+                {/* TABEL DETAIL BARANG TERJUAL */}
+                {s.items.length === 0 ? (
+                  <div className={`p-4 rounded-xl text-center text-xs font-semibold text-slate-400 ${innerBg}`}>
+                    Belum ada penjualan untuk supplier {sup} pada periode ini.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-inherit">
+                    <table className="w-full text-left text-xs">
+                      <thead className={`text-[10px] uppercase font-black tracking-wider ${innerBg} text-slate-500`}>
+                        <tr>
+                          <th className="p-2.5">Tanggal</th>
+                          <th className="p-2.5">Invoice</th>
+                          <th className="p-2.5">Nama Produk</th>
+                          <th className="p-2.5">Nama Staff</th>
+                          <th className="p-2.5 text-center">Qty</th>
+                          <th className="p-2.5 text-right">Value (Amount)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-inherit">
+                        {s.items.map((item, itemIdx) => (
+                          <tr key={itemIdx} className="hover:bg-slate-500/5 transition">
+                            <td className="p-2.5 font-mono text-slate-500">{item.isoDate || item.date}</td>
+                            <td className="p-2.5 font-mono font-bold text-slate-700 dark:text-slate-300">{item.invoiceNo || "-"}</td>
+                            <td className="p-2.5 font-bold text-slate-900 dark:text-white">{item.productName}</td>
+                            <td className="p-2.5 uppercase font-semibold text-sky-600 dark:text-sky-400">{item.salesName || "-"}</td>
+                            <td className="p-2.5 text-center font-mono font-bold">{item.qty || 1}</td>
+                            <td className="p-2.5 text-right font-mono font-black text-amber-600 dark:text-amber-400">
+                              {formatIDR(item.amount)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 3. PENJUALAN PER STAFF */}
+      <div className={`p-5 sm:p-7 rounded-3xl border-2 ${cardBg} shadow-xl space-y-6`}>
+        <div className="border-b border-inherit pb-3">
+          <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <span>👤</span>
+            <span>Penjualan Supplier Per Staff</span>
+          </h3>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Pencapaian penjualan masing-masing brand focus per anggota staf
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Object.keys(staffSupplierMap).length === 0 ? (
+            <div className={`col-span-full p-4 rounded-xl text-center text-xs text-slate-400 ${innerBg}`}>
+              Tidak ada data penjualan staf untuk brand focus pada periode ini.
+            </div>
+          ) : (
+            Object.entries(staffSupplierMap).map(([staffName, sups]) => {
+              const staffTotalAmt = Object.values(sups).reduce((a, b) => a + b.amount, 0);
+              const staffTotalQty = Object.values(sups).reduce((a, b) => a + b.qty, 0);
+
+              return (
+                <div key={staffName} className={`p-4 rounded-2xl border ${innerBg} space-y-3`}>
+                  <div className="flex justify-between items-center pb-2 border-b border-inherit">
+                    <span className="font-black text-sm uppercase text-slate-900 dark:text-white">
+                      {staffName}
+                    </span>
+                    <span className="text-xs font-mono font-black text-amber-600 dark:text-amber-400">
+                      {staffTotalQty} Unit / {formatIDR(staffTotalAmt)}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5 text-xs">
+                    {TARGET_SUPPLIERS.map((sup) => (
+                      <div key={sup} className="flex justify-between items-center py-0.5">
+                        <span className="text-slate-500 font-bold">{sup} :</span>
+                        <span className="font-mono font-semibold text-slate-800 dark:text-slate-200">
+                          {sups[sup]?.qty || 0} Unit / {formatIDR(sups[sup]?.amount || 0)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </div>
+  );
+})()}
 
               {/* TAB 5: SCHEDULE */}
               {activeTab === "schedule" && (
