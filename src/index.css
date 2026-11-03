@@ -1,19 +1,67 @@
+/* Apple-inspired operational dashboard visual system.
+   Presentation-only: data, calculations, authentication and integrations are unchanged. */
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-  color-scheme: dark;
-  background-color: #0b0f19;
-  color: rgba(255, 255, 255, 0.87);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", Inter, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  color-scheme: light;
+  background: #f5f5f7;
+  color: #1d1d1f;
 }
-
-body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
-  background-color: #0b0f19;
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; min-width: 320px; min-height: 100vh; background: #f5f5f7; }
+button, input, select, textarea { font: inherit; }
+button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+:focus-visible { outline: 3px solid #007aff; outline-offset: 3px; }
+::selection { background: #cde6ff; color: #153c63; }
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-thumb { background: #c7c7cc; border: 2px solid transparent; border-radius: 99px; background-clip: padding-box; }
+::-webkit-scrollbar-track { background: transparent; }
+#root { min-height: 100vh; }
+#root h1, #root h2, #root h3, #root h4 { letter-spacing: -.025em; }
+#root .font-black { font-weight: 700; }
+#root .font-mono { font-variant-numeric: tabular-nums; }
+#root .shadow-xl, #root .shadow-lg, #root .shadow-2xl { box-shadow: 0 3px 18px rgba(0,0,0,.055), 0 1px 3px rgba(0,0,0,.035); }
+#root .rounded-3xl { border-radius: 22px; }
+#root .rounded-2xl { border-radius: 16px; }
+#root .rounded-xl { border-radius: 12px; }
+#root aside { backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
+#root aside button { transition: background-color .2s ease, color .2s ease, transform .2s ease; }
+#root aside button:hover { transform: translateX(2px); }
+#root main { min-width: 0; }
+#root main > div { min-width: 0; }
+#root main .border-2 { border-width: 1px; }
+#root main table { border-collapse: separate; border-spacing: 0; }
+#root main th { font-weight: 650; letter-spacing: .035em; }
+#root main td, #root main th { border-bottom: 1px solid rgba(128,128,128,.10); }
+#root main tbody tr { transition: background-color .18s ease; }
+#root main tbody tr:hover { background: rgba(0,122,255,.045); }
+#root input, #root select, #root textarea { transition: border-color .2s ease, box-shadow .2s ease; }
+#root input:focus, #root select:focus, #root textarea:focus { outline: none; border-color: #007aff; box-shadow: 0 0 0 3px rgba(0,122,255,.12); }
+#root button { transition: background-color .2s ease, border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
+#root button:active { transform: scale(.985); }
+#root .bg-sky-500, #root .bg-sky-600 { background-color: #007aff; }
+#root .text-sky-600 { color: #007aff; }
+#root .bg-sky-50 { background-color: #eaf4ff; }
+#root .border-sky-300 { border-color: #c9e4ff; }
+html.dark { color-scheme: dark; background: #101114; color: #f5f5f7; }
+html.dark body { background: #101114; }
+html.dark #root .shadow-xl, html.dark #root .shadow-lg, html.dark #root .shadow-2xl { box-shadow: 0 4px 20px rgba(0,0,0,.20); }
+html.dark #root main tbody tr:hover { background: rgba(100,180,255,.07); }
+html.dark ::selection { background: #245a91; color: white; }
+@media (max-width: 640px) {
+  #root main { padding-bottom: 85px; }
+  #root .rounded-3xl { border-radius: 18px; }
+  #root table { font-size: 12px; }
 }
-
-* {
-  box-sizing: border-box;
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+@media print {
+  body { background: white !important; }
+  #root .shadow-xl, #root .shadow-lg, #root .shadow-2xl { box-shadow: none !important; }
 }
