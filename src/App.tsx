@@ -1,6 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+export const UploadRawSalesModal = ({ isOpen, onClose }: any) => {
+  return null;
+};
 
 
             
@@ -305,16 +308,19 @@ const fetchLiveGoogleSheets = async () => {
  const dbUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=602901290';
     const bnplUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=2697970';
     const targetUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=685849318';
+    const dailyTargetSheetUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=789142551';
 
-    const [resDb, resBnpl, resTarget] = await Promise.all([
+    const [resDb, resBnpl, resTarget, resDailyTarget] = await Promise.all([
       fetch(dbUrl),
       fetch(bnplUrl),
-      fetch(targetUrl)
+      fetch(targetUrl),
+      fetch(dailyTargetSheetUrl),
     ]);
 
     const textDb = await resDb.text();
     const textBnpl = await resBnpl.text();
     const textTarget = await resTarget.text();
+    const textDailyTarget = await resDailyTarget.text();
 
      
 
