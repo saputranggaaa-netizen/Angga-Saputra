@@ -161,3 +161,68 @@ html.dark #root main [class*="bg-sky-500/15"] { color: #64b5ff; background-color
   #root button, #root a { touch-action: manipulation; }
   #root aside button:hover { transform: none; }
 }
+
+
+/* Readability pass: accessible neutral surfaces in both color schemes.
+   Applies to every operational page without changing business logic. */
+:root {
+  --ui-bg: #f5f6f8;
+  --ui-surface: #ffffff;
+  --ui-subtle: #f2f4f7;
+  --ui-text: #20232a;
+  --ui-muted: #525866;
+  --ui-border: #dce1e8;
+  --ui-accent: #075bb5;
+}
+html:not(.dark) body { background: var(--ui-bg); color: var(--ui-text); }
+html:not(.dark) #root > div { background: var(--ui-bg) !important; color: var(--ui-text); }
+html:not(.dark) #root aside { background: rgba(255,255,255,.97); border-color: var(--ui-border); }
+html:not(.dark) #root main [class*="bg-white"] { background-color: var(--ui-surface); }
+html:not(.dark) #root main [class*="bg-slate-50"] { background-color: var(--ui-subtle); }
+html:not(.dark) #root main .text-slate-500,
+html:not(.dark) #root main .text-slate-400 { color: var(--ui-muted); }
+html:not(.dark) #root main .text-sky-400 { color: #075bb5; }
+html:not(.dark) #root main .text-emerald-400 { color: #087342; }
+html:not(.dark) #root main .text-amber-500 { color: #865500; }
+html:not(.dark) #root main .text-sky-600 { color: #075bb5; }
+html:not(.dark) #root main input,
+html:not(.dark) #root main select,
+html:not(.dark) #root main textarea { color: var(--ui-text); }
+html:not(.dark) #root main input::placeholder,
+html:not(.dark) #root main textarea::placeholder { color: #687181; opacity: 1; }
+html.dark {
+  --ui-bg: #121417;
+  --ui-surface: #1d2127;
+  --ui-subtle: #282d35;
+  --ui-text: #f3f5f8;
+  --ui-muted: #b7c0cc;
+  --ui-border: #414955;
+  --ui-accent: #77b8ff;
+  background: var(--ui-bg);
+  color: var(--ui-text);
+}
+html.dark body { background: var(--ui-bg); color: var(--ui-text); }
+html.dark #root > div { background: var(--ui-bg) !important; color: var(--ui-text); }
+html.dark #root aside { background: rgba(29,33,39,.97); border-color: var(--ui-border); }
+html.dark #root main [class*="bg-[#0B1528]"] { background-color: var(--ui-surface); border-color: var(--ui-border); }
+html.dark #root main [class*="bg-[#111F38]"] { background-color: var(--ui-subtle); border-color: var(--ui-border); }
+html.dark #root main .text-slate-400,
+html.dark #root main .text-slate-500 { color: var(--ui-muted); }
+html.dark #root main .text-sky-400 { color: var(--ui-accent); }
+html.dark #root main .text-emerald-400 { color: #69e0a3; }
+html.dark #root main .text-amber-400 { color: #ffd078; }
+html.dark #root main input,
+html.dark #root main select,
+html.dark #root main textarea { color: var(--ui-text); }
+html.dark #root main input::placeholder,
+html.dark #root main textarea::placeholder { color: #b1bac7; opacity: 1; }
+html.dark #root main thead th { color: #c4ccd7; }
+#root main .text-xs { line-height: 1.5; }
+#root main .text-sm { line-height: 1.5; }
+#root main button:focus-visible,
+#root main input:focus-visible,
+#root aside button:focus-visible { outline: 3px solid #3489ed; outline-offset: 2px; }
+@media (prefers-contrast: more) {
+  #root main [class*="border"] { border-color: var(--ui-border); }
+  #root main .text-slate-500 { color: var(--ui-muted); }
+}
