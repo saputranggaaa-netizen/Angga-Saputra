@@ -207,6 +207,7 @@ export default function DigiplusOperationalEngine() {
   const [currentSalesId, setCurrentSalesId] = useState<string>("");
   const [currentSalesName, setCurrentSalesName] = useState<string>("");
   const [accessRows, setAccessRows] = useState<string[][]>([]);
+  const [activityRows, setActivityRows] = useState<string[][]>([]);
   const [accessPassword, setAccessPassword] = useState("");
   const [accessError, setAccessError] = useState("");
   const [accessSearch, setAccessSearch] = useState("");
@@ -218,11 +219,78 @@ export default function DigiplusOperationalEngine() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Tidak dapat memuat Access Log");
       setAccessRows((data.rows || []).slice(1).reverse());
+      setActivityRows((data.activityRows || []).slice(1));
     } catch (error) {
       setAccessRows([]);
       setAccessError(error instanceof Error ? error.message : "Gagal memuat data");
     } finally { setAccessLoading(false); }
   };
+  // Session duration is estimated from 60-second heartbeats while the tab is visible
+  // and the user has interacted within the last five minutes.
+  useEffect(() => {
+    if (!isLoggedIn || !currentSalesId) return;
+    const sessionId = crypto.randomUUID();
+    let lastInteraction = Date.now();
+    let lastTick = Date.now();
+    const onInteraction = () => { lastInteraction = Date.now(); };
+    const post = (event: string, activeSeconds = 0) => {
+      const payload = JSON.stringify({
+        event, sessionId, salesId: currentSalesId, salesName: currentSalesName,
+        activeSeconds, tabStatus: document.visibilityState
+      });
+      if (event === "end" && navigator.sendBeacon) {
+        navigator.sendBeacon("/api/access-log", new Blob([payload], { type: "application/json" }));
+      } else {
+        void fetch("/api/access-log", { method: "POST", headers: { "content-type": "application/json" }, body: payload, keepalive: event === "end" }).catch(() => {});
+      }
+    };
+    const tick = () => {
+      const now = Date.now();
+      const elapsed = Math.min(60, Math.max(0, Math.round((now - lastTick) / 1000)));
+      const active = document.visibilityState === "visible" && now - lastInteraction < 5 * 60 * 1000;
+      post("heartbeat", active ? elapsed : 0);
+      lastTick = now;
+    };
+    const events = ["pointerdown", "keydown", "scroll", "touchstart"];
+    events.forEach(name => window.addEventListener(name, onInteraction, { passive: true }));
+    const onVisibility = () => { if (document.visibilityState === "visible") { lastInteraction = Date.now(); lastTick = Date.now(); } };
+    document.addEventListener("visibilitychange", onVisibility);
+    post("start");
+    const timer = window.setInterval(tick, 60000);
+    const onPageHide = () => post("end");
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      window.clearInterval(timer);
+      events.forEach(name => window.removeEventListener(name, onInteraction));
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", onPageHide);
+      post("end");
+    };
+  }, [isLoggedIn, currentSalesId, currentSalesName]);
+
+  const staffActivity = useMemo(() => {
+    const sessions = new Map<string, { id: string; name: string; duration: number; last: number; ended: boolean }>();
+    for (const row of activityRows) {
+      const [timestamp, session, id, name, event, seconds] = row;
+      if (!session || !id) continue;
+      const time = Date.parse(timestamp);
+      if (!Number.isFinite(time)) continue;
+      const prev = sessions.get(session) || { id, name, duration: 0, last: 0, ended: false };
+      if (event === "heartbeat") prev.duration += Math.min(60, Math.max(0, Number(seconds) || 0));
+      if (time >= prev.last) { prev.last = time; prev.ended = event === "end"; }
+      sessions.set(session, prev);
+    }
+    const staff = new Map<string, { id: string; name: string; duration: number; last: number; online: boolean }>();
+    for (const session of sessions.values()) {
+      const prev = staff.get(session.id) || { id: session.id, name: session.name, duration: 0, last: 0, online: false };
+      prev.duration += session.duration;
+      if (session.last >= prev.last) { prev.last = session.last; prev.name = session.name; }
+      if (!session.ended && Date.now() - session.last < 150000) prev.online = true;
+      staff.set(session.id, prev);
+    }
+    return [...staff.values()].sort((a, b) => b.last - a.last);
+  }, [activityRows]);
+
   const recordAccess = async (salesId: string, salesName: string) => {
     let location = "Tidak dibagikan";
     let locationStatus = "Tidak diizinkan";
@@ -2270,6 +2338,19 @@ Indosat IM3 : ${isatText}`;
                     <button disabled={!accessPassword || accessLoading} onClick={()=>void loadAccessLog()} className="px-4 py-2 rounded-lg bg-indigo-600 text-white font-bold disabled:opacity-50">{accessLoading ? "Memuat..." : "Buka / Refresh"}</button>
                   </div>
                   {accessError && <p className="text-rose-600 text-sm">{accessError}</p>}
+                  <div className="space-y-2">
+                    <h3 className="font-black text-slate-950 dark:text-white">📡 Staff Activity Monitor</h3>
+                    <p className="text-xs text-slate-700 dark:text-slate-300">Estimasi durasi aktif berdasarkan heartbeat 60 detik saat tab terlihat dan tidak idle. Klik Refresh untuk memperbarui status.</p>
+                    <div className="overflow-x-auto"><table className="w-full min-w-[550px] text-xs text-slate-900 dark:text-slate-100">
+                      <thead><tr>{["Sales ID", "Nama Staff", "Durasi Aktif", "Terakhir Aktif (WIB)", "Status"].map(h => <th key={h} className="p-2 text-left">{h}</th>)}</tr></thead>
+                      <tbody>{staffActivity.filter(item => (item.id + " " + item.name).toLowerCase().includes(accessSearch.toLowerCase())).map(item => <tr key={item.id} className="border-t border-slate-300 dark:border-slate-700">
+                        <td className="p-2">{item.id}</td><td className="p-2">{item.name}</td>
+                        <td className="p-2">{Math.floor(item.duration / 3600)}j {Math.floor(item.duration % 3600 / 60)}m</td>
+                        <td className="p-2">{new Date(item.last).toLocaleString("id-ID", {timeZone:"Asia/Jakarta"})}</td>
+                        <td className="p-2">{item.online ? "🟢 Online" : "⚪ Offline"}</td>
+                      </tr>)}</tbody>
+                    </table></div>
+                  </div>
                   <input placeholder="Cari Sales ID / Nama" value={accessSearch} onChange={e=>setAccessSearch(e.target.value)} className="p-2 rounded-lg border bg-white text-slate-950 dark:bg-slate-800 dark:text-white" />
                   <div className="overflow-x-auto"><table className="w-full min-w-[700px] text-xs text-slate-900 dark:text-slate-100">
                     <thead><tr>{["Tanggal","Waktu WIB","Sales ID","Nama Sales","Lokasi","Status Lokasi"].map(h=><th key={h} className="p-3 text-left">{h}</th>)}</tr></thead>
