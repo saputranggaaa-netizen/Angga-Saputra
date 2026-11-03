@@ -17,6 +17,7 @@ type MenuTab =
   | "bnpl"
   | "sales-detail"
   | "admin-audit"
+  | "access-log"
   | "product-search"
   | "qoala-ar"
   | "mom-comparison";
@@ -205,6 +206,40 @@ export default function DigiplusOperationalEngine() {
   const [loginErr, setLoginErr] = useState<string>("");
   const [currentSalesId, setCurrentSalesId] = useState<string>("");
   const [currentSalesName, setCurrentSalesName] = useState<string>("");
+  const [accessRows, setAccessRows] = useState<string[][]>([]);
+  const [accessPassword, setAccessPassword] = useState("");
+  const [accessError, setAccessError] = useState("");
+  const [accessSearch, setAccessSearch] = useState("");
+  const [accessLoading, setAccessLoading] = useState(false);
+  const loadAccessLog = async () => {
+    setAccessLoading(true); setAccessError("");
+    try {
+      const response = await fetch("/api/access-log", { headers: { "x-admin-access-password": accessPassword } });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Tidak dapat memuat Access Log");
+      setAccessRows((data.rows || []).slice(1).reverse());
+    } catch (error) {
+      setAccessRows([]);
+      setAccessError(error instanceof Error ? error.message : "Gagal memuat data");
+    } finally { setAccessLoading(false); }
+  };
+  const recordAccess = async (salesId: string, salesName: string) => {
+    let location = "Tidak dibagikan";
+    let locationStatus = "Tidak diizinkan";
+    if (window.confirm("Izinkan pencatatan lokasi perkiraan saat login untuk Access Log? Pilih Batal untuk login tanpa lokasi.")) {
+      if (navigator.geolocation) {
+        try {
+          const position = await new Promise<GeolocationPosition>((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, {enableHighAccuracy:false, timeout:9000}));
+          location = position.coords.latitude.toFixed(2) + ", " + position.coords.longitude.toFixed(2);
+          locationStatus = "Diizinkan";
+        } catch { locationStatus = "Izin ditolak / lokasi tidak tersedia"; }
+      } else locationStatus = "Perangkat tidak mendukung lokasi";
+    }
+    try {
+      await fetch("/api/access-log", { method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({salesId,salesName,location,locationStatus}) });
+    } catch { /* Optional log must not block login */ }
+  };
+
 
   // Live Spreadsheet Data & Targets
   const [transactions, setTransactions] = useState<RawTransaction[]>([]);
@@ -573,6 +608,7 @@ export default function DigiplusOperationalEngine() {
     setCurrentSalesName(detectedName);
     setIsLoggedIn(true);
     setLoginErr("");
+    void recordAccess(cleanId, detectedName);
   };
 
   const handleLogout = () => {
@@ -1677,6 +1713,7 @@ Indosat IM3 : ${isatText}`;
     { id: "bnpl", label: "BNPL Transactions", icon: "💳", color: "bg-purple-500", shadow: "shadow-purple-500/30" },
     { id: "product-search", label: "Cari Produk Terjual", icon: "🔍", color: "bg-pink-500", shadow: "shadow-pink-500/30" },
     { id: "sales-detail", label: "Rincian Transaksi Log", icon: "📋", color: "bg-slate-600", shadow: "shadow-slate-600/30" },
+    ...(currentSalesId === ADMIN_ID ? [{ id: "access-log", label: "Access Log (Admin)", icon: "🔐", color: "bg-indigo-600", shadow: "shadow-indigo-600/30" }] : []),
   ];
 
   const renderComparisonSection = (data: typeof momAnalytics) => {
@@ -2224,6 +2261,22 @@ Indosat IM3 : ${isatText}`;
           ) : (
             <>
               {/* TAB 1: OVERVIEW STORE */}
+              {activeTab === "access-log" && currentSalesId === ADMIN_ID && (
+                <div className={cardBg + " p-5 rounded-3xl border space-y-4"}>
+                  <h2 className="font-black text-lg text-slate-950 dark:text-white">🔐 Access Log — Riwayat Login</h2>
+                  <p className="text-sm text-slate-700 dark:text-slate-300">Khusus admin. Masukkan password Access Log yang berbeda dari password login sales.</p>
+                  <div className="flex flex-wrap gap-2">
+                    <input type="password" placeholder="Password khusus Access Log" value={accessPassword} onChange={e=>setAccessPassword(e.target.value)} className="p-2 rounded-lg border bg-white text-slate-950 dark:bg-slate-800 dark:text-white" />
+                    <button disabled={!accessPassword || accessLoading} onClick={()=>void loadAccessLog()} className="px-4 py-2 rounded-lg bg-indigo-600 text-white font-bold disabled:opacity-50">{accessLoading ? "Memuat..." : "Buka / Refresh"}</button>
+                  </div>
+                  {accessError && <p className="text-rose-600 text-sm">{accessError}</p>}
+                  <input placeholder="Cari Sales ID / Nama" value={accessSearch} onChange={e=>setAccessSearch(e.target.value)} className="p-2 rounded-lg border bg-white text-slate-950 dark:bg-slate-800 dark:text-white" />
+                  <div className="overflow-x-auto"><table className="w-full min-w-[700px] text-xs text-slate-900 dark:text-slate-100">
+                    <thead><tr>{["Tanggal","Waktu WIB","Sales ID","Nama Sales","Lokasi","Status Lokasi"].map(h=><th key={h} className="p-3 text-left">{h}</th>)}</tr></thead>
+                    <tbody>{accessRows.filter(row=>row.slice(3,5).join(" ").toLowerCase().includes(accessSearch.toLowerCase())).map((row,i)=><tr key={i} className="border-t border-slate-300 dark:border-slate-700">{[row[1],row[2],row[3],row[4],row[5],row[6]].map((v,j)=><td key={j} className="p-3">{v || "—"}</td>)}</tr>)}</tbody>
+                  </table></div>
+                </div>
+              )}
               {activeTab === "store-overview" && (
                 <div className="space-y-6 sm:space-y-8">
                   <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl relative overflow-hidden`}>
