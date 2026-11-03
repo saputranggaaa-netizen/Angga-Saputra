@@ -226,3 +226,46 @@ html.dark #root main thead th { color: #c4ccd7; }
   #root main [class*="border"] { border-color: var(--ui-border); }
   #root main .text-slate-500 { color: var(--ui-muted); }
 }
+
+
+/* Contrast hotfix 2026-11-04: readable staff leaderboard and KPI tiles.
+   Earlier broad gradient removal made white avatar initials disappear. */
+#root main [class*="bg-gradient-to-br"] { background-image: revert-layer; }
+#root main [class*="bg-gradient-to-br"][class*="from-sky-600"] {
+  background-image: linear-gradient(135deg,#007aff,#0054b8);
+  background-color: #007aff;
+  color: #fff;
+}
+html:not(.dark) #root main [class*="bg-slate-100"] { background-color: #eef1f5; }
+html:not(.dark) #root main [class*="bg-slate-200"] { background-color: #e8edf3; }
+html:not(.dark) #root main .text-blue-700 { color: #134f9b; }
+html:not(.dark) #root main .text-slate-600 { color: #414b59; }
+html:not(.dark) #root main .text-slate-700 { color: #343d4a; }
+html:not(.dark) #root main .text-slate-900,
+html:not(.dark) #root main .text-slate-950 { color: #18202b; }
+html:not(.dark) #root main .text-rose-600 { color: #b42342; }
+html:not(.dark) #root main .text-emerald-700 { color: #087443; }
+html:not(.dark) #root main .text-amber-700 { color: #8a5400; }
+html:not(.dark) #root main [class*="bg-rose-50"] { background-color: #fff0f2; }
+html:not(.dark) #root main [class*="bg-emerald-50"] { background-color: #e8f8ee; }
+html:not(.dark) #root main [class*="bg-amber-50"] { background-color: #fff5dd; }
+html:not(.dark) #root main .text-rose-800 { color: #92203a; }
+html:not(.dark) #root main .text-emerald-800 { color: #086638; }
+html:not(.dark) #root main .text-amber-900 { color: #754700; }
+html:not(.dark) #root main [class*="bg-slate-100"] strong,
+html:not(.dark) #root main [class*="bg-slate-100"] .font-mono { opacity: 1; }
+html.dark #root main .text-slate-950,
+html.dark #root main .text-slate-900 { color: #f3f5f8; }
+html.dark #root main .text-slate-700,
+html.dark #root main .text-slate-600 { color: #c4cbd5; }
+html.dark #root main .text-blue-700 { color: #80bdff; }
+html.dark #root main .text-rose-600 { color: #ff8199; }
+html.dark #root main .text-emerald-700 { color: #71e5a6; }
+html.dark #root main .text-amber-700 { color: #ffd17e; }
+#root main .text-\[10px\] { font-size: 11px; }
+#root main .text-\[11px\] { font-size: 12px; }
+#root main strong { opacity: 1; }
+@media (max-width: 767px) {
+  #root main .text-\[10px\] { font-size: 11px; }
+  #root main .text-\[11px\] { font-size: 12px; }
+}
