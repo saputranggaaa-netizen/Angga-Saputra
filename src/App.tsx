@@ -327,7 +327,11 @@ export default function DigiplusOperationalEngine() {
 
   // Period Filters
   const [periodType, setPeriodType] = useState<PeriodType>("monthly");
-  const [selectedMonth, setSelectedMonth] = useState<string>("Oktober2026");
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const today = new Intl.DateTimeFormat("sv-SE", {timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+    const names = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+    return names[Number(today.slice(5,7))-1] + today.slice(0,4);
+  });
   const [momBaseMonth, setMomBaseMonth] = useState<string>("November2026");
   const [momCompareMonth, setMomCompareMonth] = useState<string>("Oktober2026");
   const [momMode, setMomMode] = useState<"mtd" | "full">("mtd");
@@ -337,7 +341,9 @@ export default function DigiplusOperationalEngine() {
   const [selectedWeek, setSelectedWeek] = useState<string>("ALL");
   const [w1Filter, setW1Filter] = useState<string>("");
   const [w2Filter, setW2Filter] = useState<string>("");
-  const [selectedDate, setSelectedDate] = useState<string>("2026-11-01");
+  const [selectedDate, setSelectedDate] = useState<string>(() => new Intl.DateTimeFormat("sv-SE", {timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()));
+  const [dateManuallySelected, setDateManuallySelected] = useState(false);
+  useEffect(() => { if (!dateManuallySelected) setSelectedDate(momToday); }, [momToday, dateManuallySelected]);
 
   const [selectedStaffId, setSelectedStaffId] = useState<string>("");
   const [bottomSheetOpen, setBottomSheetOpen] = useState<boolean>(false);
@@ -1341,7 +1347,12 @@ export default function DigiplusOperationalEngine() {
   }, [transactions,w1Filter,w2Filter]);
 
   const timeGoneStats = useMemo(() => {
-    const targetDateStr = selectedDate || new Date().toISOString().split("T")[0];
+    const monthNames = ["januari","februari","maret","april","mei","juni","juli","agustus","september","oktober","november","desember"];
+    const match = selectedMonth.match(/^(.*?)(20\\d{2})$/);
+    const monthIndexFromFilter = match ? monthNames.indexOf(match[1].trim().toLowerCase()) : -1;
+    const targetDateStr = periodType === "monthly" && monthIndexFromFilter >= 0
+      ? `${match![2]}-${String(monthIndexFromFilter + 1).padStart(2,"0")}-${momToday.slice(-2)}`
+      : periodType === "daily" ? selectedDate : momToday;
     const [yearStr, monthStr, dayStr] = targetDateStr.split("-");
     const year = parseInt(yearStr, 10);
     const monthIndex = parseInt(monthStr, 10) - 1;
@@ -1363,14 +1374,14 @@ export default function DigiplusOperationalEngine() {
       remainingDays,
       timeElapsedPct,
     };
-  }, [selectedDate]);
+  }, [selectedDate, selectedMonth, periodType, momToday]);
 
   const dailyTrendStats = useMemo(() => {
     const daysInMonth = timeGoneStats.totalDays || 31;
     const idealDaily = Math.round((storeTotalTarget || 8728667173) / daysInMonth);
     const arr = [];
 
-    const datePrefix = selectedDate ? selectedDate.substring(0, 7) : "2026-10";
+    const datePrefix = periodType === "monthly" ? (() => { const m = selectedMonth.match(/^(.*?)(20\\d{2})$/); const idx = m ? ["januari","februari","maret","april","mei","juni","juli","agustus","september","oktober","november","desember"].indexOf(m[1].toLowerCase()) : -1; return idx >= 0 ? `${m![2]}-${String(idx+1).padStart(2,"0")}` : momToday.slice(0,7); })() : selectedDate.slice(0,7);
 
     for (let i = 1; i <= daysInMonth; i++) {
       const dStr = String(i).padStart(2, "0");
@@ -1385,7 +1396,7 @@ export default function DigiplusOperationalEngine() {
       });
     }
     return arr;
-  }, [transactions, storeTotalTarget, selectedDate, timeGoneStats]);
+  }, [transactions, storeTotalTarget, selectedDate, selectedMonth, periodType, momToday, timeGoneStats]);
 
   const dailyTargetCalculated = useMemo(() => {
     const activeStaffNames = (staffList || [])
@@ -1410,12 +1421,12 @@ export default function DigiplusOperationalEngine() {
     const todayTrx = transactions.filter((t) => t.isoDate === selectedDate);
     const actualToday = todayTrx.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
 
-    const now = new Date(selectedDate || Date.now());
-    const year = now.getFullYear();
-    const month = now.getMonth();
+    const [yearText, monthText, dayText] = (selectedDate || momToday).split("-");
+    const year = Number(yearText);
+    const month = Number(monthText) - 1;
     const totalDaysInMonth = new Date(year, month + 1, 0).getDate();
-    const daysPassed = now.getDate();
-    const daysLeft = Math.max(1, totalDaysInMonth - daysPassed);
+    const daysPassed = Number(dayText);
+    const daysLeft = Math.max(0, totalDaysInMonth - daysPassed);
 
     const targetStoreToday = totalStaffDailyCatchup;
     const activeStaffCount = activeStaffNames.length || 1;
@@ -2361,7 +2372,7 @@ Indosat IM3 : ${isatText}`;
                     <input
                       type="date"
                       value={selectedDate}
-                      onChange={(e) => setSelectedDate(e.target.value)}
+                      onChange={(e) => { setDateManuallySelected(true); setSelectedDate(e.target.value); }}
                       className={`${innerBg} border rounded-xl px-2.5 py-1 font-black focus:outline-none text-slate-950 dark:text-white`}
                     >
                     </input>
