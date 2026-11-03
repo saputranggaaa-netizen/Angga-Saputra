@@ -332,6 +332,7 @@ export default function DigiplusOperationalEngine() {
   const [momCompareMonth, setMomCompareMonth] = useState<string>("Oktober2026");
   const [momMode, setMomMode] = useState<"mtd" | "full">("mtd");
   const [showAllQoalaDevices, setShowAllQoalaDevices] = useState(false);
+  const [overviewStaffPopupId, setOverviewStaffPopupId] = useState<string | null>(null);
   const [momToday, setMomToday] = useState(() => new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()));
   const [selectedWeek, setSelectedWeek] = useState<string>("ALL");
   const [w1Filter, setW1Filter] = useState<string>("");
@@ -2455,6 +2456,64 @@ Indosat IM3 : ${isatText}`;
               )}
               {activeTab === "store-overview" && (
                 <div className="space-y-6 sm:space-y-8">
+                  <section className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl`}>
+                    <div className="mb-4">
+                      <h2 className="text-base sm:text-lg font-black text-slate-950 dark:text-white">🏆 STAFF RANKING — TARGET VS ACHIEVEMENT</h2>
+                      <p className={`text-xs ${textMuted}`}>Diurutkan berdasarkan achievement % tertinggi, kemudian sales value. Klik avatar atau More Details untuk rincian kategori.</p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                      {[...staffList].sort((a,b) => b.achvPct - a.achvPct || b.totalAmount - a.totalAmount).map((st, index) => (
+                        <button type="button" key={st.salesId} onClick={() => setOverviewStaffPopupId(st.salesId)} className={`text-left p-4 rounded-2xl border ${innerBg} hover:border-sky-400 transition-colors`}>
+                          <div className="flex items-center gap-3">
+                            <span className="font-black text-sm text-amber-500 w-7">#{index + 1}</span>
+                            <span className="h-12 w-12 shrink-0 rounded-full bg-gradient-to-br from-sky-500 to-indigo-700 text-white font-black flex items-center justify-center ring-2 ring-sky-400/30">{st.initials}</span>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-black text-sm text-slate-950 dark:text-white truncate">{st.name}</p>
+                              <p className={`text-[11px] ${textMuted}`}>Sales ID: {st.salesId}</p>
+                            </div>
+                            <span className={`text-sm font-black ${st.achvPct >= 100 ? "text-emerald-500" : "text-sky-500"}`}>{st.achvPct}%</span>
+                          </div>
+                          <div className="mt-3 space-y-1 text-xs">
+                            <div className="flex justify-between gap-2"><span className={textMuted}>Achievement</span><strong className="text-slate-950 dark:text-white">{formatIDR(st.totalAmount)}</strong></div>
+                            <div className="flex justify-between gap-2"><span className={textMuted}>Target</span><strong className="text-slate-950 dark:text-white">{formatIDR(st.targetAmount)}</strong></div>
+                            <div className="h-2 rounded-full bg-slate-300/40 overflow-hidden"><div className="h-full bg-sky-500 rounded-full" style={{width: `${Math.min(100, Math.max(0, st.achvPct))}%`}} /></div>
+                          </div>
+                          <p className="text-right mt-2 text-xs font-bold text-sky-600 dark:text-sky-300">More Details ↗</p>
+                        </button>
+                      ))}
+                    </div>
+                    {staffList.length === 0 && <p className={`text-sm ${textMuted}`}>Belum ada data transaksi untuk periode yang dipilih.</p>}
+                  </section>
+                  {overviewStaffPopupId && (() => {
+                    const st = staffList.find(item => item.salesId === overviewStaffPopupId);
+                    if (!st) return null;
+                    const cats = [
+                      {label:"Apple Devices",value:st.appleAmount},
+                      {label:"Android Devices",value:st.androidAmount},
+                      {label:"Accessories",value:st.accAmount},
+                      {label:"VAS",value:st.vasAmount}
+                    ];
+                    return <div className="fixed inset-0 z-[100] bg-black/70 flex items-center justify-center p-4" onClick={() => setOverviewStaffPopupId(null)}>
+                      <div role="dialog" aria-modal="true" aria-label={`Detail pencapaian ${st.name}`} className={`w-full max-w-md p-5 sm:p-6 rounded-3xl border-2 ${cardBg} shadow-2xl`} onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between gap-3 mb-4">
+                          <div className="flex items-center gap-3">
+                            <span className="w-12 h-12 rounded-full bg-gradient-to-br from-sky-500 to-indigo-700 text-white flex items-center justify-center font-black">{st.initials}</span>
+                            <div><h3 className="font-black text-slate-950 dark:text-white">{st.name}</h3><p className={`text-xs ${textMuted}`}>Achievement {st.achvPct}%</p></div>
+                          </div>
+                          <button type="button" onClick={() => setOverviewStaffPopupId(null)} aria-label="Tutup" className="px-3 py-2 rounded-lg border text-slate-900 dark:text-white">✕</button>
+                        </div>
+                        <div className="space-y-3">
+                          {cats.map(cat => <div key={cat.label} className={`rounded-xl p-3 border ${innerBg}`}>
+                            <div className="flex justify-between gap-3 text-xs"><span className="font-bold text-slate-900 dark:text-white">{cat.label}</span><strong className="text-sky-600 dark:text-sky-300">{formatIDR(cat.value)}</strong></div>
+                            <div className="mt-2 h-1.5 bg-slate-300/30 rounded-full overflow-hidden"><div className="h-full bg-sky-500 rounded-full" style={{width: `${st.totalAmount > 0 ? Math.min(100, cat.value / st.totalAmount * 100) : 0}%`}} /></div>
+                          </div>)}
+                          <div className="flex justify-between text-sm font-black text-slate-950 dark:text-white pt-2 border-t"><span>Total Achievement</span><span>{formatIDR(st.totalAmount)}</span></div>
+                          <div className="flex justify-between text-xs text-slate-900 dark:text-white"><span>Target</span><span>{formatIDR(st.targetAmount)}</span></div>
+                        </div>
+                      </div>
+                    </div>;
+                  })()}
+
                   <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl relative overflow-hidden`}>
                     <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
                       <div className="flex items-center gap-3">
