@@ -300,25 +300,21 @@ export default function DigiplusOperationalEngine() {
     return { isoDate, monthKey };
   };
 
-  const fetchLiveGoogleSheets = async () => {
-    setIsLoading(true);
-    try {
-      const dbUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=602901290`;
-      const bnplUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=2697970`;
-      const targetUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=685849310`;
-      const dailyTargetSheetUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=789142551';
-      
+ const dbUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=602901290';
+    const bnplUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=2697970';
+    const targetUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=685849318';
 
-      // 2. Ganti blok Promise.all menjadi ini:
-      const [resDb, resBnpl, resTarget, resDailyTarget] = await Promise.all([
-        fetch(dbUrl),
-        fetch(bnplUrl),
-        fetch(targetUrl),
-        fetch(dailyTargetSheetUrl),
-      ]);
-      const textDb = await resDb.text();
-      const textBnpl = await resBnpl.text();
-      const textTarget = await resTarget.text();
+    const [resDb, resBnpl, resTarget] = await Promise.all([
+      fetch(dbUrl),
+      fetch(bnplUrl),
+      fetch(targetUrl)
+    ]);
+
+    const textDb = await resDb.text();
+    const textBnpl = await resBnpl.text();
+    const textTarget = await resTarget.text();
+
+     
 
       const jsonDb = JSON.parse(textDb.substring(textDb.indexOf("{"), textDb.lastIndexOf("}") + 1));
       const parsedTrx: RawTransaction[] = [];
