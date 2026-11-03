@@ -890,6 +890,68 @@ export default function DigiplusOperationalEngine() {
     return { totalDeviceQty, totalQoalaQty, totalQoalaAmount, storeAR };
   }, [activeTransactions]);
 
+  const qoalaDetails = useMemo(() => {
+    const tx = activeTransactions || [];
+    const isQoala = (t: RawTransaction) => t.brand === "QOALA" || /QOALA|PROTEKSI/i.test(t.productName || "");
+    const devices = tx.filter(t => t.groupCategory === "DEVICES");
+    const policies = tx.filter(isQoala);
+    const staff = new Map<string, { id: string; name: string; devices: number; qoala: number; amount: number }>();
+    for (const t of [...devices, ...policies]) {
+      const id = t.salesId || "UNKNOWN";
+      const item = staff.get(id) || { id, name: t.salesName || id, devices: 0, qoala: 0, amount: 0 };
+      if (t.salesName) item.name = t.salesName;
+      if (t.groupCategory === "DEVICES") item.devices += Math.max(0, Number(t.qty) || 0);
+      if (isQoala(t)) {
+        item.qoala += Math.max(0, Number(t.qty) || 0);
+        item.amount += Number(t.amount) || 0;
+      }
+      staff.set(id, item);
+    }
+    const ranking = [...staff.values()].filter(item => item.devices > 0 || item.qoala > 0)
+      .map(item => ({ ...item, ar: item.devices ? item.qoala / item.devices * 100 : 0 }))
+      .sort((a, b) => b.ar - a.ar || b.qoala - a.qoala || a.name.localeCompare(b.name));
+    const productMap = new Map<string, { name: string; qty: number; amount: number }>();
+    const deviceMap = new Map<string, { name: string; qty: number; attached: number }>();
+    const invoiceDevices = new Map<string, RawTransaction[]>();
+    for (const t of devices) {
+      const key = (t.invoice || "").trim().toUpperCase();
+      if (key) invoiceDevices.set(key, [...(invoiceDevices.get(key) || []), t]);
+      const name = t.productName || "Device tidak diketahui";
+      const current = deviceMap.get(name) || { name, qty: 0, attached: 0 };
+      current.qty += Math.max(0, Number(t.qty) || 0);
+      deviceMap.set(name, current);
+    }
+    const matched = new Set<string>();
+    let unmatchedQty = 0;
+    for (const t of policies) {
+      const name = t.productName || "Qoala tidak diketahui";
+      const item = productMap.get(name) || { name, qty: 0, amount: 0 };
+      item.qty += Math.max(0, Number(t.qty) || 0);
+      item.amount += Number(t.amount) || 0;
+      productMap.set(name, item);
+      const invoice = (t.invoice || "").trim().toUpperCase();
+      const matches = invoice ? invoiceDevices.get(invoice) || [] : [];
+      if (!matches.length) { unmatchedQty += Math.max(0, Number(t.qty) || 0); continue; }
+      // Assign a policy to one device unit on the same invoice, without double counting.
+      let remaining = Math.max(0, Number(t.qty) || 0);
+      for (const device of matches) {
+        const key = [invoice, device.sapArticle, device.productName].join("|");
+        const used = [...matched].filter(k => k.startsWith(key + "|")).length;
+        const capacity = Math.max(0, (Number(device.qty) || 0) - used);
+        const attach = Math.min(remaining, capacity);
+        const detail = deviceMap.get(device.productName || "Device tidak diketahui");
+        if (detail) detail.attached += attach;
+        for (let i = 0; i < attach; i++) matched.add(key + "|" + (used + i));
+        remaining -= attach;
+        if (!remaining) break;
+      }
+      unmatchedQty += remaining;
+    }
+    return { ranking, products: [...productMap.values()].sort((a,b) => b.qty - a.qty),
+      devices: [...deviceMap.values()].sort((a,b) => b.attached - a.attached || b.qty - a.qty),
+      unmatchedQty };
+  }, [activeTransactions]);
+
   const staffList = useMemo(() => {
     const map: Record<string, {
       salesId: string;
@@ -2937,6 +2999,43 @@ Indosat IM3 : ${isatText}`;
                           {formatIDR(qoalaAnalytics.totalQoalaAmount)}
                         </div>
                       </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* QOALA RANKING AND PRODUCT DETAIL */}
+              {activeTab === "qoala-ar" && (
+                <div className="space-y-6">
+                  <div className={cardBg + " p-5 sm:p-6 border rounded-3xl space-y-3"}>
+                    <h3 className="text-base font-black text-slate-950 dark:text-white">🏆 Top to Bottom Staff — Qoala AR %</h3>
+                    <p className={textMuted + " text-xs"}>AR = Qty Qoala ÷ Qty device terjual × 100%. Staff tanpa penjualan device ditampilkan tanpa AR.</p>
+                    <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-xs text-slate-900 dark:text-slate-100">
+                      <thead><tr className="border-b border-slate-300 dark:border-slate-700">{["Rank","Staff / Sales ID","Device Qty","Qoala Qty","AR %","Omset Qoala"].map(h=><th key={h} className="p-3 text-left">{h}</th>)}</tr></thead>
+                      <tbody>{qoalaDetails.ranking.map((staff,i)=><tr key={staff.id} className="border-b border-slate-200 dark:border-slate-700">
+                        <td className="p-3 font-black">{i+1}</td><td className="p-3">{staff.name}<div className="opacity-60">{staff.id}</div></td>
+                        <td className="p-3">{staff.devices}</td><td className="p-3">{staff.qoala}</td>
+                        <td className="p-3 font-black">{staff.devices ? staff.ar.toFixed(1)+"%" : "N/A"}</td>
+                        <td className="p-3">{formatIDR(staff.amount)}</td>
+                      </tr>)}</tbody>
+                    </table></div>
+                  </div>
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    <div className={cardBg + " p-5 border rounded-3xl space-y-3"}>
+                      <h3 className="font-black text-slate-950 dark:text-white">🛡️ Detail Produk Qoala Terjual</h3>
+                      <div className="overflow-x-auto"><table className="w-full text-xs text-slate-900 dark:text-slate-100">
+                        <thead><tr><th className="p-2 text-left">Produk Qoala</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Omset</th></tr></thead>
+                        <tbody>{qoalaDetails.products.map(p=><tr key={p.name} className="border-t border-slate-200 dark:border-slate-700"><td className="p-2">{p.name}</td><td className="p-2 text-right">{p.qty}</td><td className="p-2 text-right">{formatIDR(p.amount)}</td></tr>)}</tbody>
+                      </table></div>
+                    </div>
+                    <div className={cardBg + " p-5 border rounded-3xl space-y-3"}>
+                      <h3 className="font-black text-slate-950 dark:text-white">📱 Detail Device Terjual &amp; Attachment</h3>
+                      <p className={textMuted + " text-xs"}>Attachment diestimasi dari kecocokan nomor invoice antara Qoala dan device.</p>
+                      <div className="overflow-x-auto"><table className="w-full text-xs text-slate-900 dark:text-slate-100">
+                        <thead><tr><th className="p-2 text-left">Device</th><th className="p-2 text-right">Terjual</th><th className="p-2 text-right">Qoala Attached</th></tr></thead>
+                        <tbody>{qoalaDetails.devices.map(p=><tr key={p.name} className="border-t border-slate-200 dark:border-slate-700"><td className="p-2">{p.name}</td><td className="p-2 text-right">{p.qty}</td><td className="p-2 text-right">{p.attached}</td></tr>)}</tbody>
+                      </table></div>
+                      {qoalaDetails.unmatchedQty > 0 && <p className="text-xs text-amber-600">Sebanyak {qoalaDetails.unmatchedQty} polis belum dapat dipasangkan dengan device berdasarkan invoice.</p>}
                     </div>
                   </div>
                 </div>
