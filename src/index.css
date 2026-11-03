@@ -174,3 +174,57 @@ html.dark #root main [class*="bg-[#111F38]"] { background-color: #29313c; border
 @media (hover:none) and (pointer:coarse) { #root button, #root a { touch-action: manipulation; } }
 @media (prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto !important; animation-duration:.01ms !important; transition-duration:.01ms !important; } }
 @media print { #root .shadow-xl,#root .shadow-lg,#root .shadow-2xl { box-shadow:none !important; } }
+
+
+/* Site-wide readability pass: all menus, dashboard panels, sheets, tables, and forms.
+   Deliberately scope foreground correction to neutral card surfaces, preserving
+   white text on colored actions and status indicators. */
+html:not(.dark) #root main,
+html:not(.dark) #root aside { --content-primary:#17212f; --content-secondary:#39495c; --content-muted:#526176; }
+html.dark #root main,
+html.dark #root aside { --content-primary:#f4f7fb; --content-secondary:#d3dce7; --content-muted:#b9c6d6; }
+#root main h1, #root main h2, #root main h3, #root main h4,
+#root aside h1, #root aside h2 { color: var(--content-primary); }
+#root main [class*="text-slate-950"],
+#root main [class*="text-slate-900"],
+#root main [class*="text-slate-800"],
+#root main [class*="text-slate-700"] { color: var(--content-primary); }
+#root main [class*="text-slate-600"] { color: var(--content-secondary); }
+#root main [class*="text-slate-500"],
+#root main [class*="text-slate-400"],
+#root main [class*="text-slate-300"] { color: var(--content-muted); }
+#root main [class*="bg-slate-100"] [class*="text-white"],
+#root main [class*="bg-slate-50"] [class*="text-white"],
+#root main [class*="bg-slate-200"] [class*="text-white"],
+#root main [class*="bg-[#edf1f5]"] [class*="text-white"] { color: var(--content-primary); }
+#root main [class*="bg-slate-100"] [class*="text-slate-100"],
+#root main [class*="bg-slate-50"] [class*="text-slate-100"] { color: var(--content-primary); }
+#root main [class*="bg-slate-100"] [class*="text-slate-200"],
+#root main [class*="bg-slate-50"] [class*="text-slate-200"] { color: var(--content-secondary); }
+#root main [class*="bg-white"] [class*="text-white"]:not(button):not([class*="bg-"]) { color: #17212f; }
+html.dark #root main [class*="bg-white"] [class*="text-white"]:not(button):not([class*="bg-"]) { color: #f4f7fb; }
+#root main button[class*="text-sky"],
+#root main a[class*="text-sky"] { color: var(--blue); }
+#root main button[class*="text-sky"]:hover,
+#root main a[class*="text-sky"]:hover { text-decoration-color: currentColor; }
+#root main [class*="text-amber-500"],
+#root main [class*="text-amber-600"] { color: var(--orange); }
+#root main [class*="text-rose-500"],
+#root main [class*="text-rose-600"] { color: var(--red); }
+#root main [class*="text-emerald-500"],
+#root main [class*="text-emerald-600"] { color: var(--green); }
+#root main .font-mono { letter-spacing: -.01em; overflow-wrap: anywhere; }
+#root main table { font-variant-numeric: tabular-nums; }
+#root main thead th { color: var(--content-secondary); }
+#root main tbody td { color: var(--content-primary); }
+#root main label { color: var(--content-secondary); }
+#root main input, #root main select, #root main textarea { caret-color: var(--blue); }
+#root main input:focus, #root main select:focus, #root main textarea:focus { outline: 2px solid var(--blue); outline-offset: 1px; }
+#root main [class*="rounded-2xl"] strong,
+#root main [class*="rounded-xl"] strong { opacity: 1; }
+@media (max-width:767px) {
+  #root main .font-mono { overflow-wrap: anywhere; }
+  #root main [class*="grid-cols-3"] > * { min-width: 0; }
+  #root main button { touch-action: manipulation; }
+  #root main .overflow-x-auto { scrollbar-width: thin; }
+}
