@@ -562,7 +562,7 @@ export default function DigiplusOperationalEngine() {
           if(!activeSection[idx] || !rawName || /^(staff name|target|position|amount)$/i.test(rawName))return;
           const amount=parseMoney(c[block.value]);
           if(amount<0)return;
-          const key=lower.replace(/\\s+/g," ").trim();
+          const key=lower.replace(/\s+/g," ").trim();
           if(!categoryByStaff[key])categoryByStaff[key]={};
           categoryByStaff[key][activeSection[idx]]=amount;
           if(activeSection[idx]==="total")targetMap[key]=amount;
@@ -3111,7 +3111,7 @@ Indosat IM3 : ${isatText}`;
                       const value=categoryTarget[category];
                       if(value===undefined)return null;
                       if(periodType==="monthly")return value;
-                      const monthParts=selectedMonth.match(/(20\\d{2})$/);
+                      const monthParts=selectedMonth.match(/(20\d{2})$/);
                       const monthIndex=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"].findIndex(m=>selectedMonth.toLowerCase().startsWith(m.toLowerCase()));
                       const days=monthParts && monthIndex>=0?new Date(Number(monthParts[1]),monthIndex+1,0).getDate():30;
                       if(periodType==="daily")return Math.round(value/days);
