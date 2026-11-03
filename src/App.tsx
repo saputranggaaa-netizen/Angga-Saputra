@@ -1,12 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+
 export const UploadRawSalesModal = ({ isOpen, onClose }: any) => {
   return null;
 };
 
-
-            
 type MenuTab = 
   | "store-overview"
   | "weekly-sales"
@@ -21,8 +20,10 @@ type MenuTab =
   | "product-search"
   | "qoala-ar"
   | "mom-comparison";
+
 type ThemeMode = "dark" | "light";
 type PeriodType = "daily" | "weekly" | "monthly";
+
 interface RawTransaction {
   date: string;
   isoDate: string;
@@ -42,7 +43,6 @@ interface RawTransaction {
   weekLabel: string;
   supplier?: string;
 }
-
 
 interface BnplRecord {
   date: string;
@@ -85,6 +85,7 @@ interface FeedbackItem {
   };
   userReactions: string[];
 }
+
 interface StaffDailyTargetDetail {
   total: number;
   apple: number;
@@ -117,10 +118,6 @@ const calcUpt = (qty: number, invoices: number): number => {
   if (invoices <= 0) return 0;
   return Number((qty / invoices).toFixed(2));
 };
-interface RawTransaction {
-  // ... field lainnya ...
-  supplier?: string;
-}
 
 const INITIAL_SCHEDULE: StaffScheduleItem[] = [
   { id: "1", name: "Angga", role: "Store Supervisor", mon: "OFF", tue: "D103", wed: "D047", thu: "D047", fri: "D103", sat: "D103", sun: "D047" },
@@ -222,7 +219,6 @@ export default function DigiplusOperationalEngine() {
   });
   const [scheduleData, setScheduleData] = useState<StaffScheduleItem[]>(INITIAL_SCHEDULE);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  // State target harian per staf dari gid 789142551
   const [staffDailyTargets, setStaffDailyTargets] = useState<Record<string, StaffDailyTargetDetail>>({});
   const [selectedDailyStaff, setSelectedDailyStaff] = useState<string>("");
 
@@ -236,22 +232,12 @@ export default function DigiplusOperationalEngine() {
   const [w2Filter, setW2Filter] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<string>("2026-11-01");
 
-  // State untuk memilih staf di menu Target Vs Achievement Per Staff
   const [selectedStaffId, setSelectedStaffId] = useState<string>("");
-
-  
-  // Modal State
   const [bottomSheetOpen, setBottomSheetOpen] = useState<boolean>(false);
   const [sheetTitle, setSheetTitle] = useState<string>("");
   const [sheetContent, setSheetContent] = useState<React.ReactNode>(null);
-
-  // Feedback State
   const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>(DEFAULT_FEEDBACKS);
-  
-
-  // Export State
   const [isExportingPptx, setIsExportingPptx] = useState<boolean>(false);
- 
 
   const SPREADSHEET_ID = "1v_QCLTDKORjVnByrzo9qRiivdU8CGO99nJri9jBETWM";
   const ADMIN_ID = "22008089";
@@ -302,26 +288,26 @@ export default function DigiplusOperationalEngine() {
 
     return { isoDate, monthKey };
   };
-const fetchLiveGoogleSheets = async () => {
+
+  const fetchLiveGoogleSheets = async () => {
     setIsLoading(true);
     try {
       const dbUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=602901290';
-    const bnplUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=2697970';
-    const targetUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=685849318';
-    const dailyTargetSheetUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=789142551';
+      const bnplUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=2697970';
+      const targetUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=685849318';
+      const dailyTargetSheetUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=789142551';
 
-    const [resDb, resBnpl, resTarget, resDailyTarget] = await Promise.all([
-      fetch(dbUrl),
-      fetch(bnplUrl),
-      fetch(targetUrl),
-      fetch(dailyTargetSheetUrl)
-    ]);
+      const [resDb, resBnpl, resTarget, resDailyTarget] = await Promise.all([
+        fetch(dbUrl),
+        fetch(bnplUrl),
+        fetch(targetUrl),
+        fetch(dailyTargetSheetUrl)
+      ]);
 
-    const textDb = await resDb.text();
-    const textBnpl = await resBnpl.text();
-    const textTarget = await resTarget.text();
-    const textDailyTarget = await resDailyTarget.text();
-     
+      const textDb = await resDb.text();
+      const textBnpl = await resBnpl.text();
+      const textTarget = await resTarget.text();
+      const textDailyTarget = await resDailyTarget.text();
 
       const jsonDb = JSON.parse(textDb.substring(textDb.indexOf("{"), textDb.lastIndexOf("}") + 1));
       const parsedTrx: RawTransaction[] = [];
@@ -380,6 +366,7 @@ const fetchLiveGoogleSheets = async () => {
             brand,
             groupCategory,
             weekLabel,
+            supplier,
           });
         }
       });
@@ -447,6 +434,7 @@ const fetchLiveGoogleSheets = async () => {
         apple: targetApple || prev.apple,
         android: targetAndroid || prev.android,
       }));
+
       // Parsing Sheet Daily Target (gid: 789142551)
       const jsonDailyTarget = JSON.parse(
         textDailyTarget.substring(textDailyTarget.indexOf("{"), textDailyTarget.lastIndexOf("}") + 1)
@@ -458,30 +446,27 @@ const fetchLiveGoogleSheets = async () => {
         const c = r.c;
         if (!c) return;
 
-        // Kolom A (indeks 0) = Nama Staff, Kolom B (indeks 1) = Kategori, Kolom H (indeks 7) = Catch-up Target
         const rawStaffName = String(c[0]?.v || c[0]?.f || "").trim().toLowerCase();
         const rawCategory = String(c[1]?.v || c[1]?.f || "").trim().toUpperCase();
         const rawTargetVal = c[7]?.v;
         const targetVal = typeof rawTargetVal === "number" 
           ? rawTargetVal 
           : Number(String(rawTargetVal || 0).replace(/[^0-9]/g, ""));
-        // Abaikan header, baris total, grand total, month, summary, atau target toko
-if (
-  !rawStaffName ||
-  rawStaffName.includes("staff") ||
-  rawStaffName.includes("nama") ||
-  rawStaffName.includes("total") ||
-  rawStaffName.includes("grand") ||
-  rawStaffName.includes("month") ||
-  rawStaffName.includes("target") ||
-  rawStaffName.includes("all") ||
-  rawStaffName.length <= 2 ||
-  isNaN(targetVal)
-) {
-  return;
-}
 
-        
+        if (
+          !rawStaffName ||
+          rawStaffName.includes("staff") ||
+          rawStaffName.includes("nama") ||
+          rawStaffName.includes("total") ||
+          rawStaffName.includes("grand") ||
+          rawStaffName.includes("month") ||
+          rawStaffName.includes("target") ||
+          rawStaffName.includes("all") ||
+          rawStaffName.length <= 2 ||
+          isNaN(targetVal)
+        ) {
+          return;
+        }
 
         if (!parsedStaffDailyTargets[rawStaffName]) {
           parsedStaffDailyTargets[rawStaffName] = { total: 0, apple: 0, android: 0, accessories: 0, vas: 0 };
@@ -501,7 +486,6 @@ if (
       });
 
       setStaffDailyTargets(parsedStaffDailyTargets);
-
       setTransactions(parsedTrx);
       setBnplRecords(parsedBnpl);
 
@@ -802,7 +786,6 @@ if (
     return { totalDeviceQty, totalQoalaQty, totalQoalaAmount, storeAR };
   }, [activeTransactions]);
 
-  // Perhitungan Leaderboard Staf dengan format UPT desimal pasti
   const staffList = useMemo(() => {
     const map: Record<string, {
       salesId: string;
@@ -890,7 +873,7 @@ if (
       };
     });
   }, [activeTransactions, staffTargets, storeTotalTarget]);
-  // Otomatis pilih staf pertama saat daftar staf sudah dihitung
+
   useEffect(() => {
     if (!selectedStaffId && staffList && staffList.length > 0) {
       setSelectedStaffId(staffList[0].salesId);
@@ -1107,7 +1090,6 @@ if (
       .sort((a, b) => a.diff - b.diff);
   };
 
-  // Komparasi MoM
   const momAnalytics = useMemo(() => {
     const trxM1 = transactions.filter((t) => (t.monthKey || t.month || "").trim() === momCompareMonth);
     const trxM2 = transactions.filter((t) => (t.monthKey || t.month || "").trim() === momBaseMonth);
@@ -1144,7 +1126,6 @@ if (
     };
   }, [transactions, momBaseMonth, momCompareMonth]);
 
-  // Komparasi WoW
   const weeklyComparisonData = useMemo(() => {
     const getTrxForWeek = (selectedVal: string) => {
       if (!selectedVal) return [];
@@ -1257,22 +1238,18 @@ if (
   }, [transactions, storeTotalTarget, selectedDate, timeGoneStats]);
 
   const dailyTargetCalculated = useMemo(() => {
-    // 1. Ambil daftar nama staf aktif toko (QF01)
     const activeStaffNames = (staffList || [])
       .map((s) => s.name.trim().toLowerCase())
       .filter((name) => !name.includes("admin") && !name.includes("leader"));
 
-    // 2. Hitung target harian KHUSUS untuk staf aktif toko
     let totalStaffDailyCatchup = 0;
     activeStaffNames.forEach((name) => {
-      // Cocokkan nama staf
       const targetDetail = staffDailyTargets[name] || staffDailyTargets[name.split(" ")[0]];
       if (targetDetail && targetDetail.total > 0) {
         totalStaffDailyCatchup += Number(targetDetail.total) || 0;
       }
     });
 
-    // Fallback: Jika staffList kosong, gunakan total dari staffDailyTargets yang wajar (< Rp 500 jt)
     if (totalStaffDailyCatchup === 0) {
       totalStaffDailyCatchup = Object.values(staffDailyTargets || {}).reduce(
         (acc, curr) => acc + (Number(curr.total) || 0),
@@ -1280,11 +1257,9 @@ if (
       );
     }
 
-    // 3. Transaksi aktual toko hari ini
     const todayTrx = transactions.filter((t) => t.isoDate === selectedDate);
     const actualToday = todayTrx.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
 
-    // 4. Hitung hari dalam bulan berjalan
     const now = new Date(selectedDate || Date.now());
     const year = now.getFullYear();
     const month = now.getMonth();
@@ -1312,6 +1287,7 @@ if (
       achvToday: targetStoreToday > 0 ? Math.round((actualToday / targetStoreToday) * 100) : 0,
     };
   }, [staffDailyTargets, staffList, transactions, selectedDate, storeTotalTarget]);
+
   const scheduleDaySummary = useMemo(() => {
     const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
     return days.map((day) => {
@@ -1379,6 +1355,7 @@ _Diperbarui otomatis via Store Performance Engine._`;
 
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   };
+
   const handleShareDailyTargetStaffWA = (staffName: string, targetData: StaffDailyTargetDetail, todayTrx: RawTransaction[]) => {
     const calcSub = (filterFn: (t: RawTransaction) => boolean) => {
       const filtered = todayTrx.filter(filterFn);
@@ -1387,13 +1364,11 @@ _Diperbarui otomatis via Store Performance Engine._`;
       return `${qty} / ${formatIDR(amt)}`;
     };
 
-    // Sub Apple
     const iphoneStr = calcSub((t) => t.brand === "APPLE" && (t.productName || "").toUpperCase().includes("IPHONE"));
     const ipadStr = calcSub((t) => t.brand === "APPLE" && (t.productName || "").toUpperCase().includes("IPAD"));
     const macbookStr = calcSub((t) => t.brand === "APPLE" && ((t.productName || "").toUpperCase().includes("MAC") || (t.productName || "").toUpperCase().includes("BOOK")));
     const watchStr = calcSub((t) => t.brand === "APPLE" && (t.productName || "").toUpperCase().includes("WATCH"));
 
-    // Sub Android
     const samsungStr = calcSub((t) => t.brand === "SAMSUNG" && t.groupCategory === "DEVICES");
     const oppoStr = calcSub((t) => t.brand === "OPPO" && t.groupCategory === "DEVICES");
     const huaweiStr = calcSub((t) => t.brand === "HUAWEI" && t.groupCategory === "DEVICES");
@@ -1401,7 +1376,6 @@ _Diperbarui otomatis via Store Performance Engine._`;
     const motorolaStr = calcSub((t) => t.brand === "MOTOROLA" && t.groupCategory === "DEVICES");
     const infinixStr = calcSub((t) => t.brand === "INFINIX" && t.groupCategory === "DEVICES");
 
-    // Accessories & VAS
     const accStr = calcSub((t) => t.groupCategory === "ACCESSORIES");
     const qoalaStr = calcSub((t) => t.groupCategory === "VAS" && (t.brand === "QOALA" || (t.productName || "").toUpperCase().includes("QOALA") || (t.productName || "").toUpperCase().includes("PROTEKSI")));
     const tselStr = calcSub((t) => t.groupCategory === "VAS" && (t.brand.includes("TELKOMSEL") || (t.productName || "").toUpperCase().includes("TELKOMSEL")));
@@ -1450,7 +1424,7 @@ Total Achievement : ${formatIDR(totalAchvAmount)}
 
   const handleShareTargetWA = () => {
     const staffListMsg = dailyTargetCalculated.staffOnDuty
-      .map((s) => `• ${s.name} : ${formatIDR(dailyTargetCalculated.targetPerStaffToday)}`)
+      .map((s: any) => `• ${s.name} : ${formatIDR(dailyTargetCalculated.targetPerStaffToday)}`)
       .join("\n");
 
     const text = 
@@ -1494,13 +1468,11 @@ _Diperbarui via Digiplus Store Operations Engine._`;
       return `${qty} Unit / ${formatIDR(amt)}`;
     };
 
-    // Sub-item Apple
     const iphoneText = calcSub((t) => t.brand === "APPLE" && (t.productName || "").toUpperCase().includes("IPHONE"));
     const ipadText = calcSub((t) => t.brand === "APPLE" && (t.productName || "").toUpperCase().includes("IPAD"));
     const macbookText = calcSub((t) => t.brand === "APPLE" && ((t.productName || "").toUpperCase().includes("MAC") || (t.productName || "").toUpperCase().includes("BOOK")));
     const watchText = calcSub((t) => t.brand === "APPLE" && (t.productName || "").toUpperCase().includes("WATCH"));
 
-    // Sub-item Android
     const samsungText = calcSub((t) => t.brand === "SAMSUNG" && t.groupCategory === "DEVICES");
     const oppoText = calcSub((t) => t.brand === "OPPO" && t.groupCategory === "DEVICES");
     const huaweiText = calcSub((t) => t.brand === "HUAWEI" && t.groupCategory === "DEVICES");
@@ -1508,10 +1480,8 @@ _Diperbarui via Digiplus Store Operations Engine._`;
     const motoText = calcSub((t) => t.brand === "MOTOROLA" && t.groupCategory === "DEVICES");
     const infinixText = calcSub((t) => t.brand === "INFINIX" && t.groupCategory === "DEVICES");
 
-    // Accessories
     const accText = calcSub((t) => t.groupCategory === "ACCESSORIES");
 
-    // VAS
     const qoalaText = calcSub((t) => t.groupCategory === "VAS" && (t.brand === "QOALA" || (t.productName || "").toUpperCase().includes("QOALA") || (t.productName || "").toUpperCase().includes("PROTEKSI")));
     const tselText = calcSub((t) => t.groupCategory === "VAS" && (t.brand.includes("TELKOMSEL") || (t.productName || "").toUpperCase().includes("TELKOMSEL")));
     const xlText = calcSub((t) => t.groupCategory === "VAS" && (t.brand.includes("XL") || (t.productName || "").toUpperCase().includes("MYPRIO")));
@@ -1700,7 +1670,6 @@ Indosat IM3 : ${isatText}`;
     { id: "qoala-ar", label: "Qoala Protection (AR %)", icon: "🛡️", color: "bg-rose-500", shadow: "shadow-rose-500/30" },
     { id: "mom-comparison", label: "MoM Growth Analysis", icon: "⚖️", color: "bg-indigo-500", shadow: "shadow-indigo-500/30" },
     { id: "staff-performance", label: "Staff Performance", icon: "🏆", color: "bg-amber-500", shadow: "shadow-amber-500/30" },
-    { id: "daily-target", label: "Daily Target & Run Rate", icon: "🎯", color: "bg-orange-500", shadow: "shadow-orange-500/30" },
     { id: "daily-target", label: "Daily Target & Run Rate", icon: "🎯", color: "bg-orange-500", shadow: "shadow-orange-500/30" },
     { id: "brand-focus", label: "Brand Focus", icon: "🏷️", color: "bg-amber-500", shadow: "shadow-amber-500/30" },
     { id: "schedule", label: "Jadwal Shift 1 Minggu", icon: "📅", color: "bg-sky-500", shadow: "shadow-sky-500/30" },
@@ -2235,7 +2204,8 @@ Indosat IM3 : ${isatText}`;
                       value={selectedDate}
                       onChange={(e) => setSelectedDate(e.target.value)}
                       className={`${innerBg} border rounded-xl px-2.5 py-1 font-black focus:outline-none text-slate-950 dark:text-white`}
-                    />
+                    >
+                    </input>
                   </div>
                 )}
               </div>
@@ -2256,7 +2226,6 @@ Indosat IM3 : ${isatText}`;
               {/* TAB 1: OVERVIEW STORE */}
               {activeTab === "store-overview" && (
                 <div className="space-y-6 sm:space-y-8">
-                  {/* TIME GONE ANALYTICS */}
                   <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl relative overflow-hidden`}>
                     <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
                       <div className="flex items-center gap-3">
@@ -2309,7 +2278,6 @@ Indosat IM3 : ${isatText}`;
                     </div>
                   </div>
 
-                  {/* TREND DAILY SALES */}
                   <div className={`p-5 rounded-3xl border ${cardBg} space-y-3 overflow-hidden`}>
                     <div className="flex justify-between items-center">
                       <div>
@@ -2348,7 +2316,6 @@ Indosat IM3 : ${isatText}`;
                     </div>
                   </div>
 
-                  {/* TARGET VS ACHIEVEMENT (T/A) & DRILLDOWN PRODUK */}
                   <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-6`}>
                     <div className="flex flex-wrap justify-between items-center pb-4 border-b border-inherit gap-3">
                       <div>
@@ -2693,7 +2660,7 @@ Indosat IM3 : ${isatText}`;
                 </div>
               )}
 
-              {/* TAB 2: WEEKLY SALES (WoW) + TARGET VS ACHIEVEMENT (T/A) */}
+              {/* TAB 2: WEEKLY SALES (WoW) */}
               {activeTab === "weekly-sales" && (
                 <div className="space-y-6 sm:space-y-8">
                   <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl flex flex-wrap items-center justify-between gap-4`}>
@@ -2792,380 +2759,6 @@ Indosat IM3 : ${isatText}`;
                       </div>
                     </div>
                   </div>
-
-                  {/* TARGET VS ACHIEVEMENT (T/A) MINGGUAN */}
-                  {(() => {
-                    const w2Trx = weeklyComparisonData.trxW2 || [];
-                    const weeklyStoreTarget = Math.round(((storeTotalTarget || 8728667173) / 31) * 7);
-                    const weeklyAppleTarget = Math.round(weeklyStoreTarget * 0.794);
-                    const weeklyAndroidTarget = Math.round(weeklyStoreTarget * 0.108);
-                    const weeklyAccTarget = Math.round(weeklyStoreTarget * 0.05);
-                    const weeklyVasTarget = Math.round(weeklyStoreTarget * 0.045);
-
-                    const appleW2Items = w2Trx.filter((t) => {
-                      const p = (t.productName || "").toUpperCase();
-                      const isAcc = p.includes("CASE") || p.includes("GLASS") || p.includes("ADAPTER") || p.includes("CABLE");
-                      return t.brand === "APPLE" && !isAcc && (t.groupCategory === "DEVICES" || p.includes("IPHONE") || p.includes("IPAD") || p.includes("MAC") || p.includes("WATCH") || p.includes("AIRPOD"));
-                    });
-
-                    const androidW2Items = w2Trx.filter((t) => {
-                      const p = (t.productName || "").toUpperCase();
-                      const isAcc = p.includes("CASE") || p.includes("GLASS") || p.includes("ADAPTER") || p.includes("CABLE");
-                      return t.groupCategory === "DEVICES" && t.brand !== "APPLE" && !isAcc;
-                    });
-
-                    const accW2Items = w2Trx.filter((t) => t.groupCategory === "ACCESSORIES");
-                    const vasW2Items = w2Trx.filter((t) => {
-                      const p = (t.productName || "").toUpperCase();
-                      return t.groupCategory === "VAS" || t.brand === "QOALA" || p.includes("QOALA") || p.includes("PROTEKSI") || p.includes("TELKOMSEL") || p.includes("MYPRIO");
-                    });
-
-                    return (
-                      <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-6`}>
-                        <div className="flex flex-wrap justify-between items-center pb-4 border-b border-inherit gap-3">
-                          <div>
-                            <h3 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
-                              <span>🎯</span>
-                              <span>TARGET VS ACHIEVEMENT (T/A) MINGGUAN — {w2Filter || "Minggu Berjalan"}</span>
-                            </h3>
-                            <p className={`text-xs ${textMuted} mt-0.5`}>
-                              Kalkulasi Target Proporsional 7 Hari vs Penjualan Realisasi Periode Terpilih
-                            </p>
-                          </div>
-                          <span className="text-xs font-bold text-slate-500">
-                            Klik &quot;More Details ➔&quot; untuk audit nota &amp; rincian produk
-                          </span>
-                        </div>
-
-                        <div className="space-y-6">
-                          {/* 1. Apple Devices */}
-                          {(() => {
-                            const actual = appleW2Items.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-                            const target = weeklyAppleTarget;
-                            const achv = calcAchv(actual, target);
-                            const gap = actual - target;
-
-                            const appleSubList = [
-                              { label: "iPhone", filterKey: "IPHONE", targetWeight: 0.72 },
-                              { label: "iPad", filterKey: "IPAD", targetWeight: 0.12 },
-                              { label: "MacBook", filterKey: "MAC", targetWeight: 0.08 },
-                              { label: "Apple Watch", filterKey: "WATCH", targetWeight: 0.05 },
-                              { label: "AirPods", filterKey: "AIRPOD", targetWeight: 0.03 },
-                            ];
-
-                            return (
-                              <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-4`}>
-                                <div className="flex flex-wrap justify-between items-center gap-3 pb-3 border-b border-inherit/50">
-                                  <div className="flex items-center gap-3">
-                                    <span className="text-2xl">🍎</span>
-                                    <div>
-                                      <h4 className="text-sm sm:text-base font-black text-sky-600 dark:text-sky-400">
-                                        Apple Devices
-                                      </h4>
-                                      <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-0.5">
-                                        <strong>T/A:</strong> {formatIDR(target)} / <strong className="text-emerald-600 dark:text-emerald-400">{formatIDR(actual)}</strong>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  <div className="flex items-center gap-4 text-right">
-                                    <div>
-                                      <div className={`text-sm sm:text-base font-black font-mono ${achv >= 100 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
-                                        {achv}% ({gap >= 0 ? `+${formatIDR(gap)}` : formatIDR(gap)})
-                                      </div>
-                                      <span className="text-[11px] text-slate-500 font-bold block">
-                                        Estimate: <strong className="text-slate-800 dark:text-slate-200">{formatIDR(calcEst(actual))}</strong>
-                                      </span>
-                                    </div>
-
-                                    <button
-                                      type="button"
-                                      onClick={() => openLobDetailSheet(`Seluruh Apple Devices Terjual (${w2Filter})`, appleW2Items)}
-                                      className="px-3 py-1.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 text-sky-700 dark:text-sky-400 border border-sky-400/30 text-xs font-black transition active:scale-95"
-                                    >
-                                      More Details ➔
-                                    </button>
-                                  </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
-                                  {appleSubList.map((sub, idx) => {
-                                    const subItems = appleW2Items.filter((t) => (t.productName || "").toUpperCase().includes(sub.filterKey));
-                                    const subActual = subItems.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-                                    const subTarget = Math.round(target * sub.targetWeight);
-                                    const subAchv = calcAchv(subActual, subTarget);
-                                    const subGap = subActual - subTarget;
-
-                                    return (
-                                      <div key={idx} className={`p-3.5 rounded-xl border ${cardBg} text-xs space-y-2 shadow-sm`}>
-                                        <div className="flex justify-between items-center">
-                                          <span className="font-black text-slate-900 dark:text-white uppercase tracking-wider">{sub.label}</span>
-                                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${subAchv >= 100 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"}`}>
-                                            {subAchv}%
-                                          </span>
-                                        </div>
-                                        <div className="text-[11px] font-mono text-slate-600 dark:text-slate-400 space-y-0.5">
-                                          <div><strong>T/A:</strong> {formatIDR(subTarget)} / <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatIDR(subActual)}</span></div>
-                                          <div><strong>-/+:</strong> <span className={subGap >= 0 ? "text-emerald-600" : "text-rose-600"}>{subGap >= 0 ? `+${formatIDR(subGap)}` : formatIDR(subGap)}</span></div>
-                                          <div><strong>Estimate:</strong> {formatIDR(calcEst(subActual))}</div>
-                                        </div>
-                                        <div className="pt-1 border-t border-inherit/40 flex justify-end">
-                                          <button
-                                            type="button"
-                                            onClick={() => openLobDetailSheet(`Daftar ${sub.label} Terjual (${w2Filter})`, subItems)}
-                                            className="text-[10px] font-black text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-1"
-                                          >
-                                            <span>More Details</span>
-                                            <span>➔</span>
-                                          </button>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            );
-                          })()}
-
-                          {/* 2. Android Devices */}
-                          {(() => {
-                            const actual = androidW2Items.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-                            const target = weeklyAndroidTarget;
-                            const achv = calcAchv(actual, target);
-                            const gap = actual - target;
-
-                            const androidBrands = [
-                              { label: "Samsung Device", brandKey: "SAMSUNG", icon: "📱", weight: 0.55 },
-                              { label: "Huawei Device", brandKey: "HUAWEI", icon: "🔴", weight: 0.18 },
-                              { label: "Xiaomi / Redmi Device", brandKey: "XIAOMI", icon: "🟠", weight: 0.14 },
-                              { label: "Oppo Device", brandKey: "OPPO", icon: "🟢", weight: 0.08 },
-                              { label: "Motorola & Lainnya", brandKey: "OTHER", icon: "🤖", weight: 0.05 },
-                            ];
-
-                            return (
-                              <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-4`}>
-                                <div className="flex flex-wrap justify-between items-center gap-3 pb-3 border-b border-inherit/50">
-                                  <div className="flex items-center gap-3">
-                                    <span className="text-2xl">🤖</span>
-                                    <div>
-                                      <h4 className="text-sm sm:text-base font-black text-indigo-600 dark:text-indigo-400">
-                                        Android Devices
-                                      </h4>
-                                      <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-0.5">
-                                        <strong>T/A:</strong> {formatIDR(target)} / <strong className="text-emerald-600 dark:text-emerald-400">{formatIDR(actual)}</strong>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  <div className="flex items-center gap-4 text-right">
-                                    <div>
-                                      <div className={`text-sm sm:text-base font-black font-mono ${achv >= 100 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
-                                        {achv}% ({gap >= 0 ? `+${formatIDR(gap)}` : formatIDR(gap)})
-                                      </div>
-                                      <span className="text-[11px] text-slate-500 font-bold block">
-                                        Estimate: <strong className="text-slate-800 dark:text-slate-200">{formatIDR(calcEst(actual))}</strong>
-                                      </span>
-                                    </div>
-
-                                    <button
-                                      type="button"
-                                      onClick={() => openLobDetailSheet(`Seluruh Android Devices Terjual (${w2Filter})`, androidW2Items)}
-                                      className="px-3 py-1.5 rounded-xl bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-700 dark:text-indigo-400 border border-indigo-400/30 text-xs font-black transition active:scale-95"
-                                    >
-                                      More Details ➔
-                                    </button>
-                                  </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
-                                  {androidBrands.map((b, idx) => {
-                                    const brandItems = b.brandKey === "OTHER"
-                                      ? androidW2Items.filter((t) => !["SAMSUNG", "HUAWEI", "XIAOMI", "OPPO"].includes((t.brand || "").toUpperCase()))
-                                      : androidW2Items.filter((t) => (t.brand || "").toUpperCase().includes(b.brandKey));
-
-                                    const bActual = brandItems.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-                                    const bTarget = Math.round(target * b.weight);
-                                    const bAchv = calcAchv(bActual, bTarget);
-                                    const bGap = bActual - bTarget;
-
-                                    return (
-                                      <div key={idx} className={`p-3.5 rounded-xl border ${cardBg} text-xs space-y-2 shadow-sm`}>
-                                        <div className="flex justify-between items-center">
-                                          <span className="font-black text-slate-900 dark:text-white flex items-center gap-1.5">
-                                            <span>{b.icon}</span>
-                                            <span>{b.label}</span>
-                                          </span>
-                                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${bAchv >= 100 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"}`}>
-                                            {bAchv}%
-                                          </span>
-                                        </div>
-                                        <div className="text-[11px] font-mono text-slate-600 dark:text-slate-400 space-y-0.5">
-                                          <div><strong>T/A:</strong> {formatIDR(bTarget)} / <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatIDR(bActual)}</span></div>
-                                          <div><strong>-/+:</strong> <span className={bGap >= 0 ? "text-emerald-600" : "text-rose-600"}>{bGap >= 0 ? `+${formatIDR(bGap)}` : formatIDR(bGap)}</span></div>
-                                          <div><strong>Estimate:</strong> {formatIDR(calcEst(bActual))}</div>
-                                        </div>
-                                        <div className="pt-1 border-t border-inherit/40 flex justify-end">
-                                          <button
-                                            type="button"
-                                            onClick={() => openLobDetailSheet(`Daftar ${b.label} Terjual (${w2Filter})`, brandItems)}
-                                            className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
-                                          >
-                                            <span>More Details</span>
-                                            <span>➔</span>
-                                          </button>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            );
-                          })()}
-
-                          {/* 3. Accessories */}
-                          {(() => {
-                            const actual = accW2Items.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-                            const target = weeklyAccTarget;
-                            const achv = calcAchv(actual, target);
-                            const gap = actual - target;
-
-                            return (
-                              <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-4`}>
-                                <div className="flex flex-wrap justify-between items-center gap-3">
-                                  <div className="flex items-center gap-3">
-                                    <span className="text-2xl">🔌</span>
-                                    <div>
-                                      <h4 className="text-sm sm:text-base font-black text-amber-600 dark:text-amber-400">
-                                        Accessories (Cases, Chargers &amp; Audio)
-                                      </h4>
-                                      <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-0.5">
-                                        <strong>T/A:</strong> {formatIDR(target)} / <strong className="text-emerald-600 dark:text-emerald-400">{formatIDR(actual)}</strong>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  <div className="flex items-center gap-4 text-right">
-                                    <div>
-                                      <div className={`text-sm sm:text-base font-black font-mono ${achv >= 100 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
-                                        {achv}% ({gap >= 0 ? `+${formatIDR(gap)}` : formatIDR(gap)})
-                                      </div>
-                                      <span className="text-[11px] text-slate-500 font-bold block">
-                                        Estimate: <strong className="text-slate-800 dark:text-slate-200">{formatIDR(calcEst(actual))}</strong>
-                                      </span>
-                                    </div>
-
-                                    <button
-                                      type="button"
-                                      onClick={() => openLobDetailSheet(`Seluruh Aksesoris Supplier Terjual (${w2Filter})`, accW2Items)}
-                                      className="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-400 border border-amber-400/30 text-xs font-black transition active:scale-95"
-                                    >
-                                      More Details ➔
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })()}
-
-                          {/* 4. VAS */}
-                          {(() => {
-                            const actual = vasW2Items.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-                            const target = weeklyVasTarget;
-                            const achv = calcAchv(actual, target);
-                            const gap = actual - target;
-
-                            const vasSubs = [
-                              { label: "Qoala Protection", filterKey: "QOALA", icon: "🛡️", weight: 0.65 },
-                              { label: "Telkomsel Halo/Data", filterKey: "TELKOMSEL", icon: "🔴", weight: 0.15 },
-                              { label: "XL Prioritas (MyPrio)", filterKey: "XL", icon: "🔵", weight: 0.12 },
-                              { label: "Indosat IM3", filterKey: "INDOSAT", icon: "🟡", weight: 0.08 },
-                            ];
-
-                            return (
-                              <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-4`}>
-                                <div className="flex flex-wrap justify-between items-center gap-3 pb-3 border-b border-inherit/50">
-                                  <div className="flex items-center gap-3">
-                                    <span className="text-2xl">🛡️</span>
-                                    <div>
-                                      <h4 className="text-sm sm:text-base font-black text-purple-600 dark:text-purple-400">
-                                        Value-Added Services (VAS &amp; Warranty)
-                                      </h4>
-                                      <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-0.5">
-                                        <strong>T/A:</strong> {formatIDR(target)} / <strong className="text-emerald-600 dark:text-emerald-400">{formatIDR(actual)}</strong>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  <div className="flex items-center gap-4 text-right">
-                                    <div>
-                                      <div className={`text-sm sm:text-base font-black font-mono ${achv >= 100 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
-                                        {achv}% ({gap >= 0 ? `+${formatIDR(gap)}` : formatIDR(gap)})
-                                      </div>
-                                      <span className="text-[11px] text-slate-500 font-bold block">
-                                        Estimate: <strong className="text-slate-800 dark:text-slate-200">{formatIDR(calcEst(actual))}</strong>
-                                      </span>
-                                    </div>
-
-                                    <button
-                                      type="button"
-                                      onClick={() => openLobDetailSheet(`Seluruh Layanan VAS Terjual (${w2Filter})`, vasW2Items)}
-                                      className="px-3 py-1.5 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-700 dark:text-purple-400 border border-purple-400/30 text-xs font-black transition active:scale-95"
-                                    >
-                                      More Details ➔
-                                    </button>
-                                  </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
-                                  {vasSubs.map((vs, idx) => {
-                                    const vsItems = vasW2Items.filter((t) => {
-                                      const pUpper = (t.productName || "").toUpperCase();
-                                      const bUpper = (t.brand || "").toUpperCase();
-                                      return bUpper.includes(vs.filterKey) || pUpper.includes(vs.filterKey);
-                                    });
-
-                                    const vsActual = vsItems.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-                                    const vsTarget = Math.round(target * vs.weight);
-                                    const vsAchv = calcAchv(vsActual, vsTarget);
-                                    const vsGap = vsActual - vsTarget;
-
-                                    return (
-                                      <div key={idx} className={`p-3.5 rounded-xl border ${cardBg} text-xs space-y-2 shadow-sm`}>
-                                        <div className="flex justify-between items-center">
-                                          <span className="font-black text-slate-900 dark:text-white flex items-center gap-1.5">
-                                            <span>{vs.icon}</span>
-                                            <span>{vs.label}</span>
-                                          </span>
-                                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${vsAchv >= 100 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"}`}>
-                                            {vsAchv}%
-                                          </span>
-                                        </div>
-                                        <div className="text-[11px] font-mono text-slate-600 dark:text-slate-400 space-y-0.5">
-                                          <div><strong>T/A:</strong> {formatIDR(vsTarget)} / <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatIDR(vsActual)}</span></div>
-                                          <div><strong>-/+:</strong> <span className={vsGap >= 0 ? "text-emerald-600" : "text-rose-600"}>{vsGap >= 0 ? `+${formatIDR(vsGap)}` : formatIDR(vsGap)}</span></div>
-                                          <div><strong>Estimate:</strong> {formatIDR(calcEst(vsActual))}</div>
-                                        </div>
-                                        <div className="pt-1 border-t border-inherit/40 flex justify-end">
-                                          <button
-                                            type="button"
-                                            onClick={() => openLobDetailSheet(`Daftar ${vs.label} Terjual (${w2Filter})`, vsItems)}
-                                            className="text-[10px] font-black text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1"
-                                          >
-                                            <span>More Details</span>
-                                            <span>➔</span>
-                                          </button>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      </div>
-                    );
-                  })()}
                 </div>
               )}
 
@@ -3215,13 +2808,12 @@ Indosat IM3 : ${isatText}`;
                 </div>
               )}
 
-              {/* TAB 10: MoM GROWTH ANALYSIS */}
+              {/* TAB: MoM GROWTH ANALYSIS */}
               {activeTab === "mom-comparison" && renderComparisonSection(momAnalytics)}
 
-              {/* TAB 3: STAFF PERFORMANCE & TARGET VS ACHIEVEMENT PER STAFF */}
+              {/* TAB 3: STAFF PERFORMANCE */}
               {activeTab === "staff-performance" && (
                 <div className="space-y-8">
-                  {/* BAGIAN 1: LEADERBOARD OVERVIEW */}
                   <div className="space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-4">
                       <div>
@@ -3250,7 +2842,6 @@ Indosat IM3 : ${isatText}`;
                                 : "bg-white border-slate-300 shadow-md shadow-slate-200/80 hover:border-sky-400"
                           }`}
                         >
-                          {/* Header Kartu */}
                           <div className={`flex items-center justify-between pb-3.5 border-b ${isDark ? "border-slate-700/60" : "border-slate-200"}`}>
                             <div className="flex items-center gap-3">
                               <div className="w-11 h-11 rounded-2xl flex items-center justify-center font-black text-sm text-white shadow-md bg-gradient-to-br from-sky-600 to-blue-700">
@@ -3279,7 +2870,6 @@ Indosat IM3 : ${isatText}`;
                             </span>
                           </div>
 
-                          {/* Nominal & Persen */}
                           <div className="py-4 flex justify-between items-end">
                             <div>
                               <span className="text-[10px] font-black uppercase tracking-wider block text-slate-500 dark:text-slate-400">
@@ -3305,7 +2895,6 @@ Indosat IM3 : ${isatText}`;
                             </div>
                           </div>
 
-                          {/* Progress Bar */}
                           <div className={`w-full h-2 rounded-full overflow-hidden mb-4 border ${isDark ? "bg-slate-800 border-slate-700/50" : "bg-slate-200 border-slate-300"}`}>
                             <div
                               className={`h-full rounded-full transition-all duration-500 ${
@@ -3319,7 +2908,6 @@ Indosat IM3 : ${isatText}`;
                             />
                           </div>
 
-                          {/* Grid Metrik UPT, ATV, TRX */}
                           <div className={`grid grid-cols-3 gap-2 py-3 px-3 rounded-2xl border ${
                             isDark ? "bg-slate-900/60 border-slate-700/80" : "bg-slate-100/90 border-slate-300 shadow-inner"
                           }`}>
@@ -3346,407 +2934,12 @@ Indosat IM3 : ${isatText}`;
                       ))}
                     </div>
                   </div>
-
-                  {/* ========================================================
-                      BAGIAN 2: TARGET VS ACHIEVEMENT PER STAFF (DRILLDOWN)
-                  ======================================================== */}
-                  {(() => {
-                    const activeStaff = staffList.find((s) => s.salesId === selectedStaffId) || staffList[0];
-                    if (!activeStaff) return null;
-
-                    // Filter transaksi hanya milik staf yang dipilih pada periode aktif
-                    const currentStaffTrx = activeTransactions.filter((t) => t.salesId === activeStaff.salesId);
-
-                    const targetStaffTotal = activeStaff.targetAmount || 1;
-                    const targetApple = Math.round(targetStaffTotal * 0.794);
-                    const targetAndroid = Math.round(targetStaffTotal * 0.108);
-                    const targetAccessories = Math.round(targetStaffTotal * 0.05);
-                    const targetVas = Math.round(targetStaffTotal * 0.045);
-
-                    // Filter LOB items
-                    const staffAppleItems = currentStaffTrx.filter((t) => {
-                      const p = (t.productName || "").toUpperCase();
-                      const isAcc = p.includes("CASE") || p.includes("GLASS") || p.includes("ADAPTER") || p.includes("CABLE");
-                      return t.brand === "APPLE" && !isAcc && (t.groupCategory === "DEVICES" || p.includes("IPHONE") || p.includes("IPAD") || p.includes("MAC") || p.includes("WATCH") || p.includes("AIRPOD"));
-                    });
-
-                    const staffAndroidItems = currentStaffTrx.filter((t) => {
-                      const p = (t.productName || "").toUpperCase();
-                      const isAcc = p.includes("CASE") || p.includes("GLASS") || p.includes("ADAPTER") || p.includes("CABLE");
-                      return t.groupCategory === "DEVICES" && t.brand !== "APPLE" && !isAcc;
-                    });
-
-                    const staffAccItems = currentStaffTrx.filter((t) => t.groupCategory === "ACCESSORIES");
-
-                    const staffVasItems = currentStaffTrx.filter((t) => {
-                      const p = (t.productName || "").toUpperCase();
-                      return t.groupCategory === "VAS" || t.brand === "QOALA" || p.includes("QOALA") || p.includes("PROTEKSI") || p.includes("TELKOMSEL") || p.includes("MYPRIO");
-                    });
-
-                    const appleActual = staffAppleItems.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-                    const appleAchv = calcAchv(appleActual, targetApple);
-                    const appleGap = appleActual - targetApple;
-
-                    const androidActual = staffAndroidItems.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-                    const androidAchv = calcAchv(androidActual, targetAndroid);
-                    const androidGap = androidActual - targetAndroid;
-
-                    const accActual = staffAccItems.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-                    const accAchv = calcAchv(accActual, targetAccessories);
-                    const accGap = accActual - targetAccessories;
-
-                    const vasActual = staffVasItems.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-                    const vasAchv = calcAchv(vasActual, targetVas);
-                    const vasGap = vasActual - targetVas;
-
-                    return (
-                      <div className={`p-5 sm:p-7 ${cardBg} border-2 rounded-3xl shadow-2xl space-y-7`}>
-                        {/* Header Section Per Staff & Tombol WA */}
-                        <div className="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-inherit">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xl">👤</span>
-                              <h3 className="text-lg sm:text-xl font-black text-slate-950 dark:text-white">
-                                Target Vs Achievement Per Staff
-                              </h3>
-                            </div>
-                            <p className={`text-xs ${textMuted} mt-1`}>
-                              Menampilkan rincian pencapaian &amp; drilldown produk untuk: <strong className="text-sky-600 dark:text-sky-400">{activeStaff.name} ({activeStaff.salesId})</strong>
-                            </p>
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-3">
-                            {/* Dropdown Pemilihan Staf */}
-                            <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
-                              <span className="text-xs font-bold text-slate-500">Pilih Staf:</span>
-                              <select
-                                value={selectedStaffId}
-                                onChange={(e) => setSelectedStaffId(e.target.value)}
-                                className="bg-transparent font-black text-xs text-slate-900 dark:text-white focus:outline-none cursor-pointer"
-                              >
-                                {staffList.map((s) => (
-                                  <option key={s.salesId} value={s.salesId} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
-                                    {s.name} ({formatCompactIDR(s.totalAmount)})
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-
-                            {/* Tombol Share WhatsApp Sesuai Format Auto-Text */}
-                            <button
-                              type="button"
-                              onClick={() => handleShareStaffWA(activeStaff, currentStaffTrx)}
-                              className="px-4 py-2 rounded-xl bg-[#25D366] hover:bg-emerald-600 text-white text-xs font-black transition flex items-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95"
-                            >
-                              <span>📲</span>
-                              <span>Share WA Staff</span>
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* LIST 4 KATEGORI (LOB) */}
-                        <div className="space-y-6">
-                          {/* 1. APPLE DEVICES */}
-                          <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-4`}>
-                            <div className="flex flex-wrap justify-between items-center gap-3 pb-3 border-b border-inherit/50">
-                              <div className="flex items-center gap-3">
-                                <span className="text-2xl">🍎</span>
-                                <div>
-                                  <h4 className="text-sm sm:text-base font-black text-sky-600 dark:text-sky-400">
-                                    Apple Devices
-                                  </h4>
-                                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-0.5">
-                                    <strong>T/A:</strong> {formatIDR(targetApple)} / <strong className="text-emerald-600 dark:text-emerald-400">{formatIDR(appleActual)}</strong>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-4 text-right">
-                                <div>
-                                  <div className={`text-sm sm:text-base font-black font-mono ${appleAchv >= 100 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
-                                    {appleAchv}% ({appleGap >= 0 ? `+${formatIDR(appleGap)}` : formatIDR(appleGap)})
-                                  </div>
-                                  <span className="text-[11px] text-slate-500 font-bold block">
-                                    Estimate: <strong className="text-slate-800 dark:text-slate-200">{formatIDR(calcEst(appleActual))}</strong>
-                                  </span>
-                                </div>
-
-                                <button
-                                  type="button"
-                                  onClick={() => openLobDetailSheet(`Apple Devices Terjual - ${activeStaff.name}`, staffAppleItems)}
-                                  className="px-3 py-1.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 text-sky-700 dark:text-sky-400 border border-sky-400/30 text-xs font-black transition active:scale-95"
-                                >
-                                  More Details ➔
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* Sub-item Apple: iPhone, iPad, MacBook, Watch, AirPods */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
-                              {[
-                                { label: "iPhone", filterKey: "IPHONE", weight: 0.72 },
-                                { label: "iPad", filterKey: "IPAD", weight: 0.12 },
-                                { label: "MacBook", filterKey: "MAC", weight: 0.08 },
-                                { label: "Apple Watch", filterKey: "WATCH", weight: 0.05 },
-                                { label: "AirPods", filterKey: "AIRPOD", weight: 0.03 },
-                              ].map((sub, idx) => {
-                                const subItems = staffAppleItems.filter((t) => (t.productName || "").toUpperCase().includes(sub.filterKey));
-                                const subActual = subItems.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-                                const subTarget = Math.round(targetApple * sub.weight);
-                                const subAchv = calcAchv(subActual, subTarget);
-                                const subGap = subActual - subTarget;
-
-                                return (
-                                  <div key={idx} className={`p-3.5 rounded-xl border ${cardBg} text-xs space-y-2 shadow-sm`}>
-                                    <div className="flex justify-between items-center">
-                                      <span className="font-black text-slate-900 dark:text-white uppercase tracking-wider">{sub.label}</span>
-                                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${subAchv >= 100 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"}`}>
-                                        {subAchv}%
-                                      </span>
-                                    </div>
-                                    <div className="text-[11px] font-mono text-slate-600 dark:text-slate-400 space-y-0.5">
-                                      <div><strong>T/A:</strong> {formatIDR(subTarget)} / <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatIDR(subActual)}</span></div>
-                                      <div><strong>-/+:</strong> <span className={subGap >= 0 ? "text-emerald-600" : "text-rose-600"}>{subGap >= 0 ? `+${formatIDR(subGap)}` : formatIDR(subGap)}</span></div>
-                                      <div><strong>Estimate:</strong> {formatIDR(calcEst(subActual))}</div>
-                                    </div>
-                                    <div className="pt-1 border-t border-inherit/40 flex justify-end">
-                                      <button
-                                        type="button"
-                                        onClick={() => openLobDetailSheet(`${sub.label} Terjual - ${activeStaff.name}`, subItems)}
-                                        className="text-[10px] font-black text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-1"
-                                      >
-                                        <span>More Details</span>
-                                        <span>➔</span>
-                                      </button>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                          {/* 2. ANDROID DEVICES */}
-                          <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-4`}>
-                            <div className="flex flex-wrap justify-between items-center gap-3 pb-3 border-b border-inherit/50">
-                              <div className="flex items-center gap-3">
-                                <span className="text-2xl">🤖</span>
-                                <div>
-                                  <h4 className="text-sm sm:text-base font-black text-indigo-600 dark:text-indigo-400">
-                                    Android Devices
-                                  </h4>
-                                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-0.5">
-                                    <strong>T/A:</strong> {formatIDR(targetAndroid)} / <strong className="text-emerald-600 dark:text-emerald-400">{formatIDR(androidActual)}</strong>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-4 text-right">
-                                <div>
-                                  <div className={`text-sm sm:text-base font-black font-mono ${androidAchv >= 100 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
-                                    {androidAchv}% ({androidGap >= 0 ? `+${formatIDR(androidGap)}` : formatIDR(androidGap)})
-                                  </div>
-                                  <span className="text-[11px] text-slate-500 font-bold block">
-                                    Estimate: <strong className="text-slate-800 dark:text-slate-200">{formatIDR(calcEst(androidActual))}</strong>
-                                  </span>
-                                </div>
-
-                                <button
-                                  type="button"
-                                  onClick={() => openLobDetailSheet(`Android Devices Terjual - ${activeStaff.name}`, staffAndroidItems)}
-                                  className="px-3 py-1.5 rounded-xl bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-700 dark:text-indigo-400 border border-indigo-400/30 text-xs font-black transition active:scale-95"
-                                >
-                                  More Details ➔
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* Sub-item Brand Android: Samsung, Oppo, Huawei, Xiaomi, Motorola, Infinix */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
-                              {[
-                                { label: "Samsung Device", brandKey: "SAMSUNG", icon: "📱", weight: 0.50 },
-                                { label: "Oppo Device", brandKey: "OPPO", icon: "🟢", weight: 0.15 },
-                                { label: "Huawei Device", brandKey: "HUAWEI", icon: "🔴", weight: 0.15 },
-                                { label: "Xiaomi / Redmi", brandKey: "XIAOMI", icon: "🟠", weight: 0.10 },
-                                { label: "Motorola", brandKey: "MOTOROLA", icon: "🔷", weight: 0.05 },
-                                { label: "Infinix & Lainnya", brandKey: "INFINIX", icon: "⚡", weight: 0.05 },
-                              ].map((b, idx) => {
-                                const brandItems = staffAndroidItems.filter((t) => {
-                                  const br = (t.brand || "").toUpperCase();
-                                  if (b.brandKey === "INFINIX") {
-                                    return br.includes("INFINIX") || (!["SAMSUNG", "OPPO", "HUAWEI", "XIAOMI", "MOTOROLA"].includes(br));
-                                  }
-                                  return br.includes(b.brandKey);
-                                });
-
-                                const bActual = brandItems.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-                                const bTarget = Math.round(targetAndroid * b.weight);
-                                const bAchv = calcAchv(bActual, bTarget);
-                                const bGap = bActual - bTarget;
-
-                                return (
-                                  <div key={idx} className={`p-3.5 rounded-xl border ${cardBg} text-xs space-y-2 shadow-sm`}>
-                                    <div className="flex justify-between items-center">
-                                      <span className="font-black text-slate-900 dark:text-white flex items-center gap-1.5">
-                                        <span>{b.icon}</span>
-                                        <span>{b.label}</span>
-                                      </span>
-                                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${bAchv >= 100 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"}`}>
-                                        {bAchv}%
-                                      </span>
-                                    </div>
-                                    <div className="text-[11px] font-mono text-slate-600 dark:text-slate-400 space-y-0.5">
-                                      <div><strong>T/A:</strong> {formatIDR(bTarget)} / <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatIDR(bActual)}</span></div>
-                                      <div><strong>-/+:</strong> <span className={bGap >= 0 ? "text-emerald-600" : "text-rose-600"}>{bGap >= 0 ? `+${formatIDR(bGap)}` : formatIDR(bGap)}</span></div>
-                                      <div><strong>Estimate:</strong> {formatIDR(calcEst(bActual))}</div>
-                                    </div>
-                                    <div className="pt-1 border-t border-inherit/40 flex justify-end">
-                                      <button
-                                        type="button"
-                                        onClick={() => openLobDetailSheet(`${b.label} Terjual - ${activeStaff.name}`, brandItems)}
-                                        className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
-                                      >
-                                        <span>More Details</span>
-                                        <span>➔</span>
-                                      </button>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                          {/* 3. ACCESSORIES */}
-                          <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-4`}>
-                            <div className="flex flex-wrap justify-between items-center gap-3">
-                              <div className="flex items-center gap-3">
-                                <span className="text-2xl">🔌</span>
-                                <div>
-                                  <h4 className="text-sm sm:text-base font-black text-amber-600 dark:text-amber-400">
-                                    Accessories (Database Supplier)
-                                  </h4>
-                                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-0.5">
-                                    <strong>T/A:</strong> {formatIDR(targetAccessories)} / <strong className="text-emerald-600 dark:text-emerald-400">{formatIDR(accActual)}</strong>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-4 text-right">
-                                <div>
-                                  <div className={`text-sm sm:text-base font-black font-mono ${accAchv >= 100 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
-                                    {accAchv}% ({accGap >= 0 ? `+${formatIDR(accGap)}` : formatIDR(accGap)})
-                                  </div>
-                                  <span className="text-[11px] text-slate-500 font-bold block">
-                                    Estimate: <strong className="text-slate-800 dark:text-slate-200">{formatIDR(calcEst(accActual))}</strong>
-                                  </span>
-                                </div>
-
-                                <button
-                                  type="button"
-                                  onClick={() => openLobDetailSheet(`Accessories Terjual - ${activeStaff.name}`, staffAccItems)}
-                                  className="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-400 border border-amber-400/30 text-xs font-black transition active:scale-95"
-                                >
-                                  More Details ➔
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* 4. VALUE-ADDED SERVICES (VAS) */}
-                          <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-4`}>
-                            <div className="flex flex-wrap justify-between items-center gap-3 pb-3 border-b border-inherit/50">
-                              <div className="flex items-center gap-3">
-                                <span className="text-2xl">🛡️</span>
-                                <div>
-                                  <h4 className="text-sm sm:text-base font-black text-purple-600 dark:text-purple-400">
-                                    Value-Added Services (VAS &amp; Warranty)
-                                  </h4>
-                                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-0.5">
-                                    <strong>T/A:</strong> {formatIDR(targetVas)} / <strong className="text-emerald-600 dark:text-emerald-400">{formatIDR(vasActual)}</strong>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-4 text-right">
-                                <div>
-                                  <div className={`text-sm sm:text-base font-black font-mono ${vasAchv >= 100 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
-                                    {vasAchv}% ({vasGap >= 0 ? `+${formatIDR(vasGap)}` : formatIDR(vasGap)})
-                                  </div>
-                                  <span className="text-[11px] text-slate-500 font-bold block">
-                                    Estimate: <strong className="text-slate-800 dark:text-slate-200">{formatIDR(calcEst(vasActual))}</strong>
-                                  </span>
-                                </div>
-
-                                <button
-                                  type="button"
-                                  onClick={() => openLobDetailSheet(`Layanan VAS Terjual - ${activeStaff.name}`, staffVasItems)}
-                                  className="px-3 py-1.5 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-700 dark:text-purple-400 border border-purple-400/30 text-xs font-black transition active:scale-95"
-                                >
-                                  More Details ➔
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* Sub-item VAS: Qoala, Telkomsel, XL, Indosat */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
-                              {[
-                                { label: "Qoala Protection", filterKey: "QOALA", icon: "🛡️", weight: 0.65 },
-                                { label: "Telkomsel Halo/Data", filterKey: "TELKOMSEL", icon: "🔴", weight: 0.15 },
-                                { label: "XL Prioritas (MyPrio)", filterKey: "XL", icon: "🔵", weight: 0.12 },
-                                { label: "Indosat IM3", filterKey: "INDOSAT", icon: "🟡", weight: 0.08 },
-                              ].map((vs, idx) => {
-                                const vsItems = staffVasItems.filter((t) => {
-                                  const pUpper = (t.productName || "").toUpperCase();
-                                  const bUpper = (t.brand || "").toUpperCase();
-                                  return bUpper.includes(vs.filterKey) || pUpper.includes(vs.filterKey);
-                                });
-
-                                const vsActual = vsItems.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-                                const vsTarget = Math.round(targetVas * vs.weight);
-                                const vsAchv = calcAchv(vsActual, vsTarget);
-                                const vsGap = vsActual - vsTarget;
-
-                                return (
-                                  <div key={idx} className={`p-3.5 rounded-xl border ${cardBg} text-xs space-y-2 shadow-sm`}>
-                                    <div className="flex justify-between items-center">
-                                      <span className="font-black text-slate-900 dark:text-white flex items-center gap-1.5">
-                                        <span>{vs.icon}</span>
-                                        <span>{vs.label}</span>
-                                      </span>
-                                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${vsAchv >= 100 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"}`}>
-                                        {vsAchv}%
-                                      </span>
-                                    </div>
-                                    <div className="text-[11px] font-mono text-slate-600 dark:text-slate-400 space-y-0.5">
-                                      <div><strong>T/A:</strong> {formatIDR(vsTarget)} / <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatIDR(vsActual)}</span></div>
-                                      <div><strong>-/+:</strong> <span className={vsGap >= 0 ? "text-emerald-600" : "text-rose-600"}>{vsGap >= 0 ? `+${formatIDR(vsGap)}` : formatIDR(vsGap)}</span></div>
-                                      <div><strong>Estimate:</strong> {formatIDR(calcEst(vsActual))}</div>
-                                    </div>
-                                    <div className="pt-1 border-t border-inherit/40 flex justify-end">
-                                      <button
-                                        type="button"
-                                        onClick={() => openLobDetailSheet(`${vs.label} Terjual - ${activeStaff.name}`, vsItems)}
-                                        className="text-[10px] font-black text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1"
-                                      >
-                                        <span>More Details</span>
-                                        <span>➔</span>
-                                      </button>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
                 </div>
               )}
 
               {/* TAB 4: DAILY TARGET & RUN RATE PER STAFF */}
               {activeTab === "daily-target" && (
                 <div className="space-y-6 sm:space-y-8">
-                  {/* RINGKASAN TOKO HARIAN */}
                   <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-5 overflow-hidden`}>
                     <div className="flex flex-wrap justify-between items-center gap-4">
                       <div>
@@ -3802,9 +2995,9 @@ Indosat IM3 : ${isatText}`;
 
                   {/* DETAIL TARGET VS ACHIEVEMENT PER STAFF */}
                   {(() => {
-                  const availableStaffNames = (staffList || [])
-  .map((s) => s.name.trim().toLowerCase())
-  .filter((name) => !name.includes("admin") && !name.includes("leader") && Boolean(staffDailyTargets[name] || staffDailyTargets[name.split(" ")[0]]));
+                    const availableStaffNames = (staffList || [])
+                      .map((s) => s.name.trim().toLowerCase())
+                      .filter((name) => !name.includes("admin") && !name.includes("leader") && Boolean(staffDailyTargets[name] || staffDailyTargets[name.split(" ")[0]]));
                     
                     const activeName = selectedDailyStaff || availableStaffNames[0] || "";
 
@@ -3817,7 +3010,6 @@ Indosat IM3 : ${isatText}`;
                         vas: 0,
                       };
 
-                    // Filter transaksi tanggal terpilih untuk staf ini
                     const staffTodayTrx = transactions.filter((t) => {
                       const matchDate = t.isoDate === selectedDate;
                       const sName = (t.salesName || "").trim().toLowerCase();
@@ -3897,7 +3089,6 @@ Indosat IM3 : ${isatText}`;
                           </div>
                         </div>
 
-                        {/* TOTAL TARGET */}
                         <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-3`}>
                           <div className="flex justify-between items-center pb-2 border-b border-inherit/40">
                             <span className="text-xs font-black text-slate-600 dark:text-slate-400 uppercase tracking-wider">
@@ -3936,7 +3127,6 @@ Indosat IM3 : ${isatText}`;
                           </div>
                         </div>
 
-                        {/* TOTAL ACHIEVEMENT */}
                         <div className="space-y-4">
                           <div className="flex justify-between items-center pb-2 border-b border-inherit/40">
                             <h4 className="text-sm font-black uppercase tracking-wider text-slate-950 dark:text-white flex items-center gap-2">
@@ -3948,7 +3138,6 @@ Indosat IM3 : ${isatText}`;
                             </span>
                           </div>
 
-                          {/* 1. Apple Devices */}
                           <div className={`p-4 rounded-2xl border ${innerBg} space-y-2.5`}>
                             <span className="text-xs font-black text-sky-600 dark:text-sky-400 flex items-center gap-1.5 uppercase">
                               <span>🍎</span> 1. Apple Devices :
@@ -3973,7 +3162,6 @@ Indosat IM3 : ${isatText}`;
                             </div>
                           </div>
 
-                          {/* 1. Android Device */}
                           <div className={`p-4 rounded-2xl border ${innerBg} space-y-2.5`}>
                             <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5 uppercase">
                               <span>🤖</span> 1. Android Device :
@@ -4006,7 +3194,6 @@ Indosat IM3 : ${isatText}`;
                             </div>
                           </div>
 
-                          {/* 1. Accessories & 2. VAS */}
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className={`p-4 rounded-2xl border ${innerBg} space-y-2.5`}>
                               <span className="text-xs font-black text-amber-600 dark:text-amber-400 flex items-center gap-1.5 uppercase">
@@ -4048,242 +3235,225 @@ Indosat IM3 : ${isatText}`;
                   })()}
                 </div>
               )}
-              <button
-  onClick={() => setActiveTab("brand-focus")}
-  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl font-bold text-xs transition-all ${
-    activeTab === "brand-focus"
-      ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-orange-500/25"
-      : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60"
-  }`}
->
-  <span className="text-base">🏷️</span>
-  <span>Brand Focus</span>
-</button>
+
               {/* ========================================================= */}
-{/* TAB: BRAND FOCUS (SUPPLIER DINO, IGA, MEDPOIN, HASTAG, IBACKS, KAIZEN) */}
-{/* ========================================================= */}
-{activeTab === "brand-focus" && (() => {
-  const TARGET_SUPPLIERS = ["DINO", "IGA", "MEDPOIN", "HASTAG", "IBACKS", "KAIZEN"];
+              {/* TAB: BRAND FOCUS (SUPPLIER DINO, IGA, MEDPOIN, HASTAG, IBACKS, KAIZEN) */}
+              {/* ========================================================= */}
+              {activeTab === "brand-focus" && (() => {
+                const TARGET_SUPPLIERS = ["DINO", "IGA", "MEDPOIN", "HASTAG", "IBACKS", "KAIZEN"];
+                const currentFilteredTrx = activeTransactions || [];
 
-  // 1. Filter transaksi berdasarkan periode aktif (Daily / Weekly / Monthly)
-  const currentFilteredTrx = (typeof filteredTrx !== "undefined" ? filteredTrx : transactions) || [];
+                const totalAccAmount = currentFilteredTrx
+                  .filter((t) => t.groupCategory === "ACCESSORIES" || (t.brand || "").includes("ACC"))
+                  .reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
 
-  // 2. Hitung total pencapaian Accessories secara keseluruhan pada periode ini untuk kalkulasi kontribusi (%)
-  const totalAccAmount = currentFilteredTrx
-    .filter((t) => t.groupCategory === "ACCESSORIES" || (t.brand || "").includes("ACC"))
-    .reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+                const supplierDataMap: Record<string, { qty: number; amount: number; items: RawTransaction[] }> = {};
+                TARGET_SUPPLIERS.forEach((sup) => {
+                  supplierDataMap[sup] = { qty: 0, amount: 0, items: [] };
+                });
 
-  // 3. Normalisasi & kelompokkan transaksi supplier fokus
-  const supplierDataMap: Record<string, { qty: number; amount: number; items: RawTransaction[] }> = {};
-  TARGET_SUPPLIERS.forEach((sup) => {
-    supplierDataMap[sup] = { qty: 0, amount: 0, items: [] };
-  });
+                currentFilteredTrx.forEach((t) => {
+                  const rawSup = (t.supplier || "").toUpperCase();
+                  const matchedSup = TARGET_SUPPLIERS.find((s) => rawSup.includes(s));
+                  if (matchedSup) {
+                    supplierDataMap[matchedSup].qty += Number(t.qty) || 1;
+                    supplierDataMap[matchedSup].amount += Number(t.amount) || 0;
+                    supplierDataMap[matchedSup].items.push(t);
+                  }
+                });
 
-  currentFilteredTrx.forEach((t) => {
-    const rawSup = (t.supplier || "").toUpperCase();
-    const matchedSup = TARGET_SUPPLIERS.find((s) => rawSup.includes(s));
-    if (matchedSup) {
-      supplierDataMap[matchedSup].qty += Number(t.qty) || 1;
-      supplierDataMap[matchedSup].amount += Number(t.amount) || 0;
-      supplierDataMap[matchedSup].items.push(t);
-    }
-  });
+                const staffSupplierMap: Record<string, Record<string, { qty: number; amount: number }>> = {};
+                currentFilteredTrx.forEach((t) => {
+                  const sName = (t.salesName || "").trim().toUpperCase();
+                  const rawSup = (t.supplier || "").toUpperCase();
+                  const matchedSup = TARGET_SUPPLIERS.find((s) => rawSup.includes(s));
 
-  // 4. Hitung rincian per staf untuk masing-masing supplier
-  const staffSupplierMap: Record<string, Record<string, { qty: number; amount: number }>> = {};
-  currentFilteredTrx.forEach((t) => {
-    const sName = (t.salesName || "").trim().toUpperCase();
-    const rawSup = (t.supplier || "").toUpperCase();
-    const matchedSup = TARGET_SUPPLIERS.find((s) => rawSup.includes(s));
+                  if (sName && matchedSup) {
+                    if (!staffSupplierMap[sName]) {
+                      staffSupplierMap[sName] = {};
+                      TARGET_SUPPLIERS.forEach((s) => {
+                        staffSupplierMap[sName][s] = { qty: 0, amount: 0 };
+                      });
+                    }
+                    staffSupplierMap[sName][matchedSup].qty += Number(t.qty) || 1;
+                    staffSupplierMap[sName][matchedSup].amount += Number(t.amount) || 0;
+                  }
+                });
 
-    if (sName && matchedSup) {
-      if (!staffSupplierMap[sName]) {
-        staffSupplierMap[sName] = {};
-        TARGET_SUPPLIERS.forEach((s) => {
-          staffSupplierMap[sName][s] = { qty: 0, amount: 0 };
-        });
-      }
-      staffSupplierMap[sName][matchedSup].qty += Number(t.qty) || 1;
-      staffSupplierMap[sName][matchedSup].amount += Number(t.amount) || 0;
-    }
-  });
+                return (
+                  <div className="space-y-6 sm:space-y-8 animate-fade-in">
+                    <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl flex flex-wrap justify-between items-center gap-4`}>
+                      <div>
+                        <span className="text-xs font-black uppercase tracking-wider text-amber-500 block">
+                          Supplier Monitoring &amp; Contribution
+                        </span>
+                        <h2 className="text-lg sm:text-2xl font-black text-slate-950 dark:text-white mt-0.5 flex items-center gap-2">
+                          <span>🏷️</span>
+                          <span>BRAND FOCUS ACCESSORIES</span>
+                        </h2>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Data penjualan supplier: DINO, IGA, MEDPOIN, HASTAG, IBACKS, KAIZEN (Filter: {periodType.toUpperCase()})
+                        </p>
+                      </div>
 
-  return (
-    <div className="space-y-6 sm:space-y-8 animate-fade-in">
-      {/* HEADER SECTION & PERIODE INFO */}
-      <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl flex flex-wrap justify-between items-center gap-4`}>
-        <div>
-          <span className="text-xs font-black uppercase tracking-wider text-amber-500 block">
-            Supplier Monitoring &amp; Contribution
-          </span>
-          <h2 className="text-lg sm:text-2xl font-black text-slate-950 dark:text-white mt-0.5 flex items-center gap-2">
-            <span>🏷️</span>
-            <span>BRAND FOCUS ACCESSORIES</span>
-          </h2>
-          <p className="text-xs text-slate-500 mt-1">
-            Data penjualan supplier: DINO, IGA, MEDPOIN, HASTAG, IBACKS, KAIZEN (Filter: {timeFilter.toUpperCase()})
-          </p>
-        </div>
-
-        <div className={`px-4 py-2.5 rounded-2xl border ${innerBg} text-right`}>
-          <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">
-            Total Achievement Accessories
-          </span>
-          <span className="text-base sm:text-lg font-black font-mono text-amber-600 dark:text-amber-400">
-            {formatIDR(totalAccAmount)}
-          </span>
-        </div>
-      </div>
-
-      {/* 1. CUPCARDS PALING ATAS (6 KARTU SUPPLIER) */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-        {TARGET_SUPPLIERS.map((sup) => {
-          const s = supplierDataMap[sup];
-          const contribPercent = totalAccAmount > 0 ? ((s.amount / totalAccAmount) * 100).toFixed(1) : "0.0";
-
-          return (
-            <div
-              key={sup}
-              className={`p-4 rounded-2xl border-2 ${cardBg} hover:border-amber-500/50 transition-all shadow-md relative overflow-hidden`}
-            >
-              <div className="flex justify-between items-center mb-1.5">
-                <h3 className="font-black text-sm text-slate-900 dark:text-white tracking-wide">
-                  {sup}
-                </h3>
-                <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                  {contribPercent}%
-                </span>
-              </div>
-              <div className="text-xs text-slate-500 font-bold">Qty: <span className="font-mono text-slate-900 dark:text-white">{s.qty} Unit</span></div>
-              <div className="text-xs sm:text-sm font-black font-mono text-amber-600 dark:text-amber-400 mt-0.5">
-                {formatIDR(s.amount)}
-              </div>
-              <div className="text-[9px] text-slate-400 mt-1 font-semibold">
-                Kontribusi Sales Acc
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* 2. DETAIL PER SUPPLIER (DINO, IGA, HASTAG, MEDPOIN, IBACKS, KAIZEN) */}
-      <div className="space-y-5">
-        <h3 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2">
-          <span>📋</span>
-          <span>Rincian Transaksi Produk Per Supplier</span>
-        </h3>
-
-        <div className="grid grid-cols-1 gap-5">
-          {TARGET_SUPPLIERS.map((sup, idx) => {
-            const s = supplierDataMap[sup];
-            const contrib = totalAccAmount > 0 ? ((s.amount / totalAccAmount) * 100).toFixed(1) : "0.0";
-
-            return (
-              <div key={sup} className={`p-5 rounded-3xl border-2 ${cardBg} shadow-lg space-y-4`}>
-                <div className="flex flex-wrap justify-between items-center pb-3 border-b border-inherit gap-3">
-                  <div>
-                    <h4 className="text-base font-black text-slate-900 dark:text-white">
-                      {idx + 1}. {sup}
-                    </h4>
-                    <span className="text-xs text-slate-500">
-                      Total: <strong className="font-mono text-slate-900 dark:text-white">{s.qty} Unit</strong> / <strong className="font-mono text-amber-600 dark:text-amber-400">{formatIDR(s.amount)}</strong> • Kontribusi Acc: <strong className="text-amber-500">{contrib}%</strong>
-                    </span>
-                  </div>
-                </div>
-
-                {/* TABEL DETAIL BARANG TERJUAL */}
-                {s.items.length === 0 ? (
-                  <div className={`p-4 rounded-xl text-center text-xs font-semibold text-slate-400 ${innerBg}`}>
-                    Belum ada penjualan untuk supplier {sup} pada periode ini.
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto rounded-xl border border-inherit">
-                    <table className="w-full text-left text-xs">
-                      <thead className={`text-[10px] uppercase font-black tracking-wider ${innerBg} text-slate-500`}>
-                        <tr>
-                          <th className="p-2.5">Tanggal</th>
-                          <th className="p-2.5">Invoice</th>
-                          <th className="p-2.5">Nama Produk</th>
-                          <th className="p-2.5">Nama Staff</th>
-                          <th className="p-2.5 text-center">Qty</th>
-                          <th className="p-2.5 text-right">Value (Amount)</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-inherit">
-                        {s.items.map((item, itemIdx) => (
-                          <tr key={itemIdx} className="hover:bg-slate-500/5 transition">
-                            <td className="p-2.5 font-mono text-slate-500">{item.isoDate || item.date}</td>
-                            <td className="p-2.5 font-mono font-bold text-slate-700 dark:text-slate-300">{item.invoiceNo || "-"}</td>
-                            <td className="p-2.5 font-bold text-slate-900 dark:text-white">{item.productName}</td>
-                            <td className="p-2.5 uppercase font-semibold text-sky-600 dark:text-sky-400">{item.salesName || "-"}</td>
-                            <td className="p-2.5 text-center font-mono font-bold">{item.qty || 1}</td>
-                            <td className="p-2.5 text-right font-mono font-black text-amber-600 dark:text-amber-400">
-                              {formatIDR(item.amount)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 3. PENJUALAN PER STAFF */}
-      <div className={`p-5 sm:p-7 rounded-3xl border-2 ${cardBg} shadow-xl space-y-6`}>
-        <div className="border-b border-inherit pb-3">
-          <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <span>👤</span>
-            <span>Penjualan Supplier Per Staff</span>
-          </h3>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Pencapaian penjualan masing-masing brand focus per anggota staf
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Object.keys(staffSupplierMap).length === 0 ? (
-            <div className={`col-span-full p-4 rounded-xl text-center text-xs text-slate-400 ${innerBg}`}>
-              Tidak ada data penjualan staf untuk brand focus pada periode ini.
-            </div>
-          ) : (
-            Object.entries(staffSupplierMap).map(([staffName, sups]) => {
-              const staffTotalAmt = Object.values(sups).reduce((a, b) => a + b.amount, 0);
-              const staffTotalQty = Object.values(sups).reduce((a, b) => a + b.qty, 0);
-
-              return (
-                <div key={staffName} className={`p-4 rounded-2xl border ${innerBg} space-y-3`}>
-                  <div className="flex justify-between items-center pb-2 border-b border-inherit">
-                    <span className="font-black text-sm uppercase text-slate-900 dark:text-white">
-                      {staffName}
-                    </span>
-                    <span className="text-xs font-mono font-black text-amber-600 dark:text-amber-400">
-                      {staffTotalQty} Unit / {formatIDR(staffTotalAmt)}
-                    </span>
-                  </div>
-
-                  <div className="space-y-1.5 text-xs">
-                    {TARGET_SUPPLIERS.map((sup) => (
-                      <div key={sup} className="flex justify-between items-center py-0.5">
-                        <span className="text-slate-500 font-bold">{sup} :</span>
-                        <span className="font-mono font-semibold text-slate-800 dark:text-slate-200">
-                          {sups[sup]?.qty || 0} Unit / {formatIDR(sups[sup]?.amount || 0)}
+                      <div className={`px-4 py-2.5 rounded-2xl border ${innerBg} text-right`}>
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">
+                          Total Achievement Accessories
+                        </span>
+                        <span className="text-base sm:text-lg font-black font-mono text-amber-600 dark:text-amber-400">
+                          {formatIDR(totalAccAmount)}
                         </span>
                       </div>
-                    ))}
+                    </div>
+
+                    {/* CUPCARDS */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+                      {TARGET_SUPPLIERS.map((sup) => {
+                        const s = supplierDataMap[sup];
+                        const contribPercent = totalAccAmount > 0 ? ((s.amount / totalAccAmount) * 100).toFixed(1) : "0.0";
+
+                        return (
+                          <div
+                            key={sup}
+                            className={`p-4 rounded-2xl border-2 ${cardBg} hover:border-amber-500/50 transition-all shadow-md relative overflow-hidden`}
+                          >
+                            <div className="flex justify-between items-center mb-1.5">
+                              <h3 className="font-black text-sm text-slate-900 dark:text-white tracking-wide">
+                                {sup}
+                              </h3>
+                              <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                                {contribPercent}%
+                              </span>
+                            </div>
+                            <div className="text-xs text-slate-500 font-bold">Qty: <span className="font-mono text-slate-900 dark:text-white">{s.qty} Unit</span></div>
+                            <div className="text-xs sm:text-sm font-black font-mono text-amber-600 dark:text-amber-400 mt-0.5">
+                              {formatIDR(s.amount)}
+                            </div>
+                            <div className="text-[9px] text-slate-400 mt-1 font-semibold">
+                              Kontribusi Sales Acc
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* DETAIL TRANSAKSI PER SUPPLIER */}
+                    <div className="space-y-5">
+                      <h3 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2">
+                        <span>📋</span>
+                        <span>Rincian Transaksi Produk Per Supplier</span>
+                      </h3>
+
+                      <div className="grid grid-cols-1 gap-5">
+                        {TARGET_SUPPLIERS.map((sup, idx) => {
+                          const s = supplierDataMap[sup];
+                          const contrib = totalAccAmount > 0 ? ((s.amount / totalAccAmount) * 100).toFixed(1) : "0.0";
+
+                          return (
+                            <div key={sup} className={`p-5 rounded-3xl border-2 ${cardBg} shadow-lg space-y-4`}>
+                              <div className="flex flex-wrap justify-between items-center pb-3 border-b border-inherit gap-3">
+                                <div>
+                                  <h4 className="text-base font-black text-slate-900 dark:text-white">
+                                    {idx + 1}. {sup}
+                                  </h4>
+                                  <span className="text-xs text-slate-500">
+                                    Total: <strong className="font-mono text-slate-900 dark:text-white">{s.qty} Unit</strong> / <strong className="font-mono text-amber-600 dark:text-amber-400">{formatIDR(s.amount)}</strong> • Kontribusi Acc: <strong className="text-amber-500">{contrib}%</strong>
+                                  </span>
+                                </div>
+                              </div>
+
+                              {s.items.length === 0 ? (
+                                <div className={`p-4 rounded-xl text-center text-xs font-semibold text-slate-400 ${innerBg}`}>
+                                  Belum ada penjualan untuk supplier {sup} pada periode ini.
+                                </div>
+                              ) : (
+                                <div className="overflow-x-auto rounded-xl border border-inherit">
+                                  <table className="w-full text-left text-xs">
+                                    <thead className={`text-[10px] uppercase font-black tracking-wider ${innerBg} text-slate-500`}>
+                                      <tr>
+                                        <th className="p-2.5">Tanggal</th>
+                                        <th className="p-2.5">Invoice</th>
+                                        <th className="p-2.5">Nama Produk</th>
+                                        <th className="p-2.5">Nama Staff</th>
+                                        <th className="p-2.5 text-center">Qty</th>
+                                        <th className="p-2.5 text-right">Value (Amount)</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-inherit">
+                                      {s.items.map((item, itemIdx) => (
+                                        <tr key={itemIdx} className="hover:bg-slate-500/5 transition">
+                                          <td className="p-2.5 font-mono text-slate-500">{item.isoDate || item.date}</td>
+                                          <td className="p-2.5 font-mono font-bold text-slate-700 dark:text-slate-300">{item.invoice || "-"}</td>
+                                          <td className="p-2.5 font-bold text-slate-900 dark:text-white">{item.productName}</td>
+                                          <td className="p-2.5 uppercase font-semibold text-sky-600 dark:text-sky-400">{item.salesName || "-"}</td>
+                                          <td className="p-2.5 text-center font-mono font-bold">{item.qty || 1}</td>
+                                          <td className="p-2.5 text-right font-mono font-black text-amber-600 dark:text-amber-400">
+                                            {formatIDR(item.amount)}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* PENJUALAN PER STAFF */}
+                    <div className={`p-5 sm:p-7 rounded-3xl border-2 ${cardBg} shadow-xl space-y-6`}>
+                      <div className="border-b border-inherit pb-3">
+                        <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                          <span>👤</span>
+                          <span>Penjualan Supplier Per Staff</span>
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Pencapaian penjualan masing-masing brand focus per anggota staf
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {Object.keys(staffSupplierMap).length === 0 ? (
+                          <div className={`col-span-full p-4 rounded-xl text-center text-xs text-slate-400 ${innerBg}`}>
+                            Tidak ada data penjualan staf untuk brand focus pada periode ini.
+                          </div>
+                        ) : (
+                          Object.entries(staffSupplierMap).map(([staffName, sups]) => {
+                            const staffTotalAmt = Object.values(sups).reduce((a, b) => a + b.amount, 0);
+                            const staffTotalQty = Object.values(sups).reduce((a, b) => a + b.qty, 0);
+
+                            return (
+                              <div key={staffName} className={`p-4 rounded-2xl border ${innerBg} space-y-3`}>
+                                <div className="flex justify-between items-center pb-2 border-b border-inherit">
+                                  <span className="font-black text-sm uppercase text-slate-900 dark:text-white">
+                                    {staffName}
+                                  </span>
+                                  <span className="text-xs font-mono font-black text-amber-600 dark:text-amber-400">
+                                    {staffTotalQty} Unit / {formatIDR(staffTotalAmt)}
+                                  </span>
+                                </div>
+
+                                <div className="space-y-1.5 text-xs">
+                                  {TARGET_SUPPLIERS.map((sup) => (
+                                    <div key={sup} className="flex justify-between items-center py-0.5">
+                                      <span className="text-slate-500 font-bold">{sup} :</span>
+                                      <span className="font-mono font-semibold text-slate-800 dark:text-slate-200">
+                                        {sups[sup]?.qty || 0} Unit / {formatIDR(sups[sup]?.amount || 0)}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
-    </div>
-  );
-})()}
+                );
+              })()}
 
               {/* TAB 5: SCHEDULE */}
               {activeTab === "schedule" && (
@@ -4470,7 +3640,7 @@ Indosat IM3 : ${isatText}`;
         </main>
       </div>
 
-      {/* Floating Action Button (FAB) Mobile di Pojok Kanan Bawah */}
+      {/* Floating Action Button (FAB) Mobile */}
       <button
         type="button"
         onClick={() => setMobileDrawerOpen(true)}
@@ -4506,7 +3676,7 @@ Indosat IM3 : ${isatText}`;
         </div>
       )}
 
-      {/* Modal Upload RAW SalesPerson */}
+      {/* Modal Upload RAW */}
       <UploadRawSalesModal
         isOpen={uploadModalOpen}
         onClose={() => setUploadModalOpen(false)}
