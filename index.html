@@ -15,65 +15,6 @@
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            colors: {
-              brand: '#054FF0'
-            }
-          }
-        }
-      }
-    </script>
-    <style>
-      /* 1. Paksa semua teks di area target harian menjadi putih terang */
-      section * {
-        text-shadow: none !important;
-      }
-
-      /* 2. Target Toko Hari Ini (Kotak 1): buat angka Rp 281.569.909 menyala putih/cyan */
-      div[class*="rounded"] > div:nth-child(2),
-      div[class*="rounded"] h2,
-      div[class*="rounded"] h3,
-      div[class*="rounded"] .text-xl,
-      div[class*="rounded"] .text-2xl {
-        color: #38bdf8 !important;
-        opacity: 1 !important;
-      }
-
-      /* 3. Daftar Staf Bertugas: Paksa semua kotak staf menyala terang */
-      div[class*="grid"] div[class*="rounded"] * {
-        color: #ffffff !important;
-        opacity: 1 !important;
-      }
-
-      /* Subtitle role staf (Store Supervisor, Cashier, dll) abu-abu lembut */
-      div[class*="grid"] div[class*="rounded"] span,
-      div[class*="grid"] div[class*="rounded"] p:first-child {
-        color: #94a3b8 !important;
-      }
-
-      /* Nominal target per staf di dalam kotak dibuat kuning/amber menyala */
-      div[class*="grid"] div[class*="rounded"] div:last-child,
-      div[class*="grid"] div[class*="rounded"] p:last-child {
-        color: #fbbf24 !important;
-        font-weight: 800 !important;
-      }
-
-      /* 4. Pertahankan angka hijau pencapaian hari ini */
-      .text-emerald-500,
-      [class*="emerald"] {
-        color: #10b981 !important;
-      }
-
-      /* Label kecil judul kartu atas */
-      div[class*="rounded"] span {
-        color: #94a3b8 !important;
-      }
-    </style>
   </head>
   <body>
     <div id="root"></div>
