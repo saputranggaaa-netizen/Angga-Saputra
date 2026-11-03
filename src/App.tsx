@@ -4061,7 +4061,7 @@ Indosat IM3 : ${isatText}`;
   const TARGET_SUPPLIERS = ["DINO", "IGA", "MEDPOIN", "HASTAG", "IBACKS", "KAIZEN"];
 
   // 1. Filter transaksi berdasarkan periode aktif (Daily / Weekly / Monthly)
-  const currentFilteredTrx = filteredTransactions || [];
+  const currentFilteredTrx = (typeof filteredTrx !== "undefined" ? filteredTrx : transactions) || [];
 
   // 2. Hitung total pencapaian Accessories secara keseluruhan pada periode ini untuk kalkulasi kontribusi (%)
   const totalAccAmount = currentFilteredTrx
