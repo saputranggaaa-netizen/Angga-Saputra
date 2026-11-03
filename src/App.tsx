@@ -703,55 +703,20 @@ export default function DigiplusOperationalEngine() {
     return Array.from(months);
   }, [transactions]);
 
+  // Week labels come strictly from DATABASE column O (weekLabel).
   const AUTO_WEEKS = useMemo(() => {
-    const map = new Map<string, { label: string; minDate: string; maxDate: string; count: number }>();
-
-    (transactions || []).forEach((t) => {
-      let wLabel = t.weekLabel ? String(t.weekLabel).trim() : "";
-
-      if (!wLabel && t.isoDate) {
-        const parts = t.isoDate.split("-");
-        const day = parseInt(parts[2], 10);
-        if (!isNaN(day)) {
-          const wNum = Math.min(Math.ceil(day / 7), 5);
-          wLabel = `W${wNum}`;
-        }
-      }
-
-      if (!wLabel) return;
-
-      if (!map.has(wLabel)) {
-        map.set(wLabel, { label: wLabel, minDate: t.isoDate || "", maxDate: t.isoDate || "", count: 0 });
-      }
-
-      const item = map.get(wLabel)!;
-      item.count++;
-      if (t.isoDate && (!item.minDate || t.isoDate < item.minDate)) item.minDate = t.isoDate;
-      if (t.isoDate && (!item.maxDate || t.isoDate > item.maxDate)) item.maxDate = t.isoDate;
+    const map = new Map<string, { label: string; minDate: string; maxDate: string }>();
+    transactions.forEach(t => {
+      const label = (t.weekLabel || "").trim();
+      if (!label) return;
+      if (!map.has(label)) map.set(label, { label, minDate: t.isoDate || "", maxDate: t.isoDate || "" });
+      const w = map.get(label)!;
+      if (t.isoDate && (!w.minDate || t.isoDate < w.minDate)) w.minDate = t.isoDate;
+      if (t.isoDate && (!w.maxDate || t.isoDate > w.maxDate)) w.maxDate = t.isoDate;
     });
-
-    let sorted = Array.from(map.values()).sort((a, b) => (a.minDate || "").localeCompare(b.minDate || ""));
-
-    if (sorted.length === 0) {
-      sorted = [
-        { label: "W1", minDate: "2026-10-01", maxDate: "2026-10-07", count: 1 },
-        { label: "W2", minDate: "2026-10-08", maxDate: "2026-10-14", count: 1 },
-        { label: "W3", minDate: "2026-10-15", maxDate: "2026-10-21", count: 1 },
-        { label: "W4", minDate: "2026-10-22", maxDate: "2026-10-28", count: 1 },
-        { label: "W5", minDate: "2026-10-29", maxDate: "2026-10-31", count: 1 },
-      ];
-    }
-
-    return sorted.map((w, idx) => {
-      const key = `W${idx + 1}`;
-      const formatNice = (iso: string) => {
-        if (!iso) return "";
-        const p = iso.split("-");
-        return p.length === 3 ? `${p[2]}/${p[1]}` : iso;
-      };
-      const range = (w.minDate && w.maxDate) ? `${formatNice(w.minDate)} s.d. ${formatNice(w.maxDate)}` : "Periode Berjalan";
-      return { key, label: w.label, range, days: 7 };
-    });
+    return [...map.values()].sort((a,b) => a.minDate.localeCompare(b.minDate) || a.label.localeCompare(b.label)).map((w,i) => ({
+      key: String(i), label: w.label, range: w.minDate && w.maxDate ? w.minDate + " s.d. " + w.maxDate : "Tanpa tanggal", days: 7
+    }));
   }, [transactions]);
 
   useEffect(() => {
@@ -1319,68 +1284,61 @@ export default function DigiplusOperationalEngine() {
   }, [transactions, momBaseMonth, momCompareMonth, momMode, momToday]);
 
   const weeklyComparisonData = useMemo(() => {
-    const getTrxForWeek = (selectedVal: string) => {
-      if (!selectedVal) return [];
-
-      const cleanSelected = selectedVal.trim().toLowerCase();
-      const weekMatch = cleanSelected.match(/(?:week|w)\s*(\d+)/i) || cleanSelected.match(/\d+/);
-      const targetNum = weekMatch ? weekMatch[1] : "";
-
-      return transactions.filter((t) => {
-        if (!t.weekLabel) return false;
-        const wl = t.weekLabel.trim().toLowerCase();
-
-        if (wl === cleanSelected || cleanSelected.includes(wl) || wl.includes(cleanSelected)) {
-          return true;
-        }
-
-        if (targetNum) {
-          const rowWeekMatch = wl.match(/(?:week|w)\s*(\d+)/i) || wl.match(/\d+/);
-          const rowNum = rowWeekMatch ? rowWeekMatch[1] : "";
-          if (rowNum && rowNum === targetNum) {
-            return true;
-          }
-        }
-
-        return false;
+    const weekRows = (week: string) => transactions.filter(t => week && (t.weekLabel || "").trim() === week);
+    const w1 = weekRows(w1Filter);
+    const w2 = weekRows(w2Filter);
+    const amount = (rows: RawTransaction[]) => rows.reduce((n,t) => n + (Number(t.amount) || 0),0);
+    const qty = (rows: RawTransaction[]) => rows.reduce((n,t) => n + (Number(t.qty) || 0),0);
+    const totalM1 = amount(w1), totalM2 = amount(w2);
+    const staffIds = [...new Set([...w1,...w2].map(t => t.salesId || t.salesName))];
+    const staffSales = staffIds.map(id => {
+      const a = w1.filter(t => (t.salesId || t.salesName) === id);
+      const b = w2.filter(t => (t.salesId || t.salesName) === id);
+      return { id, name: (b[0] || a[0])?.salesName || id, m1: amount(a), m2: amount(b), growth: calcGrowth(amount(b),amount(a)) };
+    }).sort((a,b) => b.m2 - a.m2);
+    const daily = (rows: RawTransaction[]) => {
+      const m = new Map<string,number>();
+      rows.forEach(t => { if(t.isoDate) m.set(t.isoDate,(m.get(t.isoDate)||0)+(Number(t.amount)||0)); });
+      return [...m.entries()].sort((a,b) => a[0].localeCompare(b[0])).map(([date,value])=>({date,value}));
+    };
+    const appleTypes = ["iPhone","iPad","MacBook","Apple Watch","AirPods"];
+    const categoryOf = (t: RawTransaction) => {
+      const name = (t.productName || "").toUpperCase(), type = (t.productType || "").toUpperCase();
+      const p = name + " " + type;
+      if (t.brand === "APPLE") {
+        if (p.includes("IPHONE")) return "iPhone";
+        if (p.includes("IPAD")) return "iPad";
+        if (p.includes("MAC")) return "MacBook";
+        if (p.includes("WATCH")) return "Apple Watch";
+        if (p.includes("AIRPOD")) return "AirPods";
+        return "Apple Other";
+      }
+      if (p.includes("TABLET") || p.includes("TAB") || p.includes("PAD")) return "Tablet";
+      if (p.includes("WATCH") || p.includes("BAND") || p.includes("FIT")) return "Watch";
+      if (p.includes("PHONE") || p.includes("GALAXY") || p.includes("RENO") || p.includes("NOVA") || p.includes("PURA") || p.includes("MATE") || p.includes("FIND")) return "Phone";
+      return "Other";
+    };
+    const build = (filter: (t: RawTransaction) => boolean, types: string[]) => {
+      const rows = [w1.filter(filter),w2.filter(filter)];
+      const period = rows.map(items => {
+        const ids = [...new Set(items.map(t=>t.salesId || t.salesName))];
+        return { qty:qty(items), amount:amount(items), staff: ids.map(id => {
+          const own = items.filter(t=>(t.salesId || t.salesName)===id);
+          return {id,name:own[0]?.salesName || id,qty:qty(own),amount:amount(own),categories:types.map(type=>{
+            const matching = own.filter(t=>categoryOf(t)===type);
+            return {name:type,qty:qty(matching),amount:amount(matching)};
+          }).filter(c=>c.qty || c.amount)};
+        }).sort((a,b)=>b.amount-a.amount)};
       });
+      return {w1:period[0],w2:period[1],growth:calcGrowth(period[1].amount,period[0].amount),qtyGrowth:calcGrowth(period[1].qty,period[0].qty)};
     };
-
-    const trxW1 = getTrxForWeek(w1Filter);
-    const trxW2 = getTrxForWeek(w2Filter);
-
-    const totalW1 = trxW1.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-    const totalW2 = trxW2.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-    const storeGrowth = calcGrowth(totalW2, totalW1);
-
-    const staffNames = Array.from(new Set([...trxW1.map((t) => t.salesName), ...trxW2.map((t) => t.salesName)])).filter(Boolean);
-    const staffSales = staffNames.map((name) => {
-      const sW1 = trxW1.filter((t) => t.salesName === name).reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-      const sW2 = trxW2.filter((t) => t.salesName === name).reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-      return {
-        name,
-        w1: sW1,
-        w2: sW2,
-        growth: calcGrowth(sW2, sW1),
-      };
-    }).sort((a, b) => b.w2 - a.w2);
-
     return {
-      p1Label: w1Filter || "Minggu 1",
-      p2Label: w2Filter || "Minggu 2",
-      totalM1: totalW1,
-      totalM2: totalW2,
-      storeGrowth,
-      staffSales,
-      appleData: buildAppleSubCategoryData(trxW1, trxW2),
-      samsungData: buildAndroidBrandHierarchy(trxW1, trxW2, "SAMSUNG"),
-      huaweiData: buildAndroidBrandHierarchy(trxW1, trxW2, "HUAWEI"),
-      oppoData: buildAndroidBrandHierarchy(trxW1, trxW2, "OPPO"),
-      androidOtherData: buildAndroidBrandHierarchy(trxW1, trxW2, "ANDROID LAINNYA"),
-      droppedProducts: buildDroppedProductsAnalysis(trxW1, trxW2),
-      trxW2,
+      p1Label:w1Filter,p2Label:w2Filter,totalM1,totalM2,storeGrowth:calcGrowth(totalM2,totalM1),
+      staffSales, daily1:daily(w1),daily2:daily(w2),
+      apple:build(t=>t.brand==="APPLE" && (t.groupCategory==="DEVICES" || (t.productType||"").toUpperCase().includes("AIRPOD")),appleTypes),
+      android:["SAMSUNG","HUAWEI","OPPO"].map(brand=>({brand,...build(t=>t.groupCategory==="DEVICES" && (t.brand || "").toUpperCase()===brand,["Phone","Tablet","Watch","Other"])}))
     };
-  }, [transactions, w1Filter, w2Filter, AUTO_WEEKS]);
+  }, [transactions,w1Filter,w2Filter]);
 
   const timeGoneStats = useMemo(() => {
     const targetDateStr = selectedDate || new Date().toISOString().split("T")[0];
@@ -2950,103 +2908,50 @@ Indosat IM3 : ${isatText}`;
 
               {/* TAB 2: WEEKLY SALES (WoW) */}
               {activeTab === "weekly-sales" && (
-                <div className="space-y-6 sm:space-y-8">
-                  <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl flex flex-wrap items-center justify-between gap-4`}>
-                    <div>
-                      <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
-                        <span>📈</span>
-                        <span>PERBANDINGAN WEEK TO WEEK (WoW) SALES</span>
-                      </h2>
-                      <p className={`text-xs ${textMuted} mt-0.5`}>
-                        Bandingkan pertumbuhan omset, unit (Qty), dan kontribusi sales per produk
-                      </p>
+                <div className="space-y-5">
+                  <section className={`p-5 ${cardBg} border-2 rounded-3xl shadow-xl`}>
+                    <h2 className="text-lg font-black text-slate-950 dark:text-white">📈 WEEK TO WEEK SALES — DATABASE COLUMN O</h2>
+                    <p className={`text-xs mt-1 ${textMuted}`}>Pilih dua label Week sesuai isi kolom O pada sheet DATABASE. Week kosong tidak dihitung.</p>
+                    <div className="flex flex-wrap items-center gap-3 mt-4">
+                      {([{value:w1Filter,set:setW1Filter,label:"WEEK 1 (Baseline)"},{value:w2Filter,set:setW2Filter,label:"WEEK 2 (Pembanding)"}]).map((f,i)=><label key={i} className="flex flex-col gap-1 text-xs font-bold text-slate-950 dark:text-white">{f.label}<select className="rounded-xl border px-3 py-2 bg-white text-slate-950 dark:bg-slate-800 dark:text-white" value={f.value} onChange={e=>f.set(e.target.value)}>{AUTO_WEEKS.map(w=><option key={w.key} value={w.label}>{w.label} ({w.range})</option>)}</select></label>)}
                     </div>
-
-                    <div className="flex flex-wrap items-center gap-3">
-                      <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
-                        <span className="text-[11px] font-black text-slate-600 dark:text-slate-400">Baseline (W1):</span>
-                        <select
-                          value={w1Filter}
-                          onChange={(e) => setW1Filter(e.target.value)}
-                          className="bg-transparent font-black text-xs text-slate-950 dark:text-white focus:outline-none cursor-pointer"
-                        >
-                          {AUTO_WEEKS.map((w) => (
-                            <option key={`w1-${w.key}`} value={w.label} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
-                              {w.label} ({w.range})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <span className="text-xs font-black text-slate-500">VS</span>
-
-                      <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
-                        <span className="text-[11px] font-black text-slate-600 dark:text-slate-400">Pembanding (W2):</span>
-                        <select
-                          value={w2Filter}
-                          onChange={(e) => setW2Filter(e.target.value)}
-                          className="bg-transparent font-black text-xs text-sky-700 dark:text-sky-400 focus:outline-none cursor-pointer"
-                        >
-                          {AUTO_WEEKS.map((w) => (
-                            <option key={`w2-${w.key}`} value={w.label} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
-                              {w.label} ({w.range})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                  </section>
+                  <section className={`p-5 ${cardBg} border-2 rounded-3xl shadow-xl`}>
+                    <h3 className="font-black text-slate-950 dark:text-white mb-3">📅 TREND DAILY SALES (BERDASARKAN TANGGAL)</h3>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      {([{label:weeklyComparisonData.p1Label,rows:weeklyComparisonData.daily1},{label:weeklyComparisonData.p2Label,rows:weeklyComparisonData.daily2}]).map((period,i)=><div key={i} className={`p-3 rounded-xl border ${innerBg}`}>
+                        <h4 className="text-xs font-black text-slate-950 dark:text-white mb-2">{i===0?"WEEK 1":"WEEK 2"} — {period.label}</h4>
+                        {period.rows.length===0 && <p className={`text-xs ${textMuted}`}>Tidak ada transaksi bertanggal.</p>}
+                        {period.rows.map(d=><div key={d.date} className="flex items-center gap-2 py-1.5 text-xs"><span className="w-24 shrink-0 text-slate-700 dark:text-slate-300">{d.date}</span><div className="flex-1 h-3 bg-slate-300/30 rounded-full overflow-hidden"><div className="h-full bg-sky-500" style={{width:`${Math.max(1,d.value/Math.max(...period.rows.map(x=>x.value),1)*100)}%`}} /></div><strong className="text-slate-950 dark:text-white whitespace-nowrap">{formatCompactIDR(d.value)}</strong></div>)}
+                      </div>)}
                     </div>
-                  </div>
-
-                  <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-5`}>
-                    <div className="flex flex-wrap justify-between items-center pb-3 border-b border-inherit gap-3">
-                      <div>
-                        <span className="text-xs font-black uppercase tracking-wider text-slate-500">TOTAL SALES STORE</span>
-                        <div className="flex items-center gap-3 mt-1">
-                          <span className="text-xl sm:text-2xl font-black font-mono text-slate-950 dark:text-white">
-                            {formatIDR(weeklyComparisonData.totalM2)}
-                          </span>
-                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-black flex items-center gap-1 ${
-                            weeklyComparisonData.storeGrowth >= 0 
-                              ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border border-emerald-400/30" 
-                              : "bg-rose-500/15 text-rose-800 dark:text-rose-400 border border-rose-400/30"
-                          }`}>
-                            <span>{weeklyComparisonData.storeGrowth >= 0 ? "▲ +" : "▼ "}</span>
-                            <span>{weeklyComparisonData.storeGrowth}%</span>
-                          </span>
-                        </div>
-                        <span className="text-[11px] font-bold text-slate-500">
-                          {weeklyComparisonData.p1Label}: {formatIDR(weeklyComparisonData.totalM1)} ➔ {weeklyComparisonData.p2Label}: {formatIDR(weeklyComparisonData.totalM2)}
-                        </span>
-                      </div>
+                  </section>
+                  <section className={`p-5 ${cardBg} border-2 rounded-3xl shadow-xl`}>
+                    <h3 className="font-black text-slate-950 dark:text-white">TOTAL SALES STORE & PER STAFF</h3>
+                    <div className="grid md:grid-cols-2 gap-3 mt-3">
+                      {([{label:"WEEK 1",week:weeklyComparisonData.p1Label,value:weeklyComparisonData.totalM1,key:"m1" as const},{label:"WEEK 2",week:weeklyComparisonData.p2Label,value:weeklyComparisonData.totalM2,key:"m2" as const}]).map(p=><div key={p.label} className={`p-4 rounded-xl border ${innerBg}`}>
+                        <h4 className="text-xs font-black text-slate-950 dark:text-white">{p.label} — {p.week}</h4>
+                        <p className="text-xl font-black text-sky-600 dark:text-sky-300 my-2">{formatIDR(p.value)}</p>
+                        {weeklyComparisonData.staffSales.map(st=><div key={st.id} className="flex justify-between gap-2 py-1 border-t border-slate-400/20 text-xs"><span className="text-slate-900 dark:text-white">{st.name}</span><strong className="text-slate-950 dark:text-white">{formatIDR(st[p.key])}</strong></div>)}
+                      </div>)}
                     </div>
-
-                    <div>
-                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-3">
-                        PENCAPAIAN OMSET PER STAF ({weeklyComparisonData.p1Label} VS {weeklyComparisonData.p2Label}):
-                      </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {weeklyComparisonData.staffSales.map((st, idx) => (
-                          <div key={idx} className={`p-3.5 rounded-2xl border ${innerBg} flex justify-between items-center shadow-sm`}>
-                            <div>
-                              <span className="text-xs font-black text-slate-950 dark:text-white block">{st.name}</span>
-                              <div className="text-[11px] font-bold text-slate-500 mt-0.5">
-                                <span>{weeklyComparisonData.p1Label}: {formatIDR(st.m1)}</span>
-                                <span className="mx-1">•</span>
-                                <span className="text-slate-950 dark:text-slate-200">{weeklyComparisonData.p2Label}: {formatIDR(st.m2)}</span>
-                              </div>
-                            </div>
-                            <span className={`px-2 py-0.5 rounded-lg text-xs font-black ${
-                              st.growth >= 0 
-                                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" 
-                                : "bg-rose-500/15 text-rose-700 dark:text-rose-400"
-                            }`}>
-                              {st.growth >= 0 ? `▲ +${st.growth}%` : `▼ ${st.growth}%`}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
+                    <p className={`mt-3 font-black text-sm ${weeklyComparisonData.storeGrowth>=0?"text-emerald-500":"text-rose-500"}`}>{weeklyComparisonData.storeGrowth>=0?"▲ Growth":"▼ Disgrowth"} {weeklyComparisonData.storeGrowth}%</p>
+                    <h4 className="font-black text-xs text-slate-900 dark:text-white mt-4 mb-2">GROWTH PER STAFF</h4>
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">{weeklyComparisonData.staffSales.map(st=><div key={st.id} className={`p-3 border rounded-xl ${innerBg} text-xs flex justify-between gap-2`}><span className="text-slate-900 dark:text-white">{st.name}</span><strong className={st.growth>=0?"text-emerald-500":"text-rose-500"}>{st.growth>=0?"▲ +":"▼ "}{st.growth}%</strong></div>)}</div>
+                  </section>
+                  {([{title:"APPLE DEVICES",data:weeklyComparisonData.apple,brand:"APPLE"},{...weeklyComparisonData.android[0],title:"SAMSUNG DEVICES",data:weeklyComparisonData.android[0]},{...weeklyComparisonData.android[1],title:"HUAWEI DEVICES",data:weeklyComparisonData.android[1]},{...weeklyComparisonData.android[2],title:"OPPO DEVICES",data:weeklyComparisonData.android[2]}]).map(lob=><section key={lob.title} className={`p-5 ${cardBg} border-2 rounded-3xl shadow-xl`}>
+                    <div className="flex flex-wrap justify-between gap-3 items-center mb-4"><h3 className="font-black text-slate-950 dark:text-white">📦 {lob.title}</h3><div className="flex gap-3 text-xs font-black"><span className={lob.data.growth>=0?"text-emerald-500":"text-rose-500"}>{lob.data.growth>=0?"▲ +":"▼ "}{lob.data.growth}% Amount</span><span className={lob.data.qtyGrowth>=0?"text-emerald-500":"text-rose-500"}>{lob.data.qtyGrowth>=0?"▲ +":"▼ "}{lob.data.qtyGrowth}% Qty</span></div></div>
+                    <div className="grid lg:grid-cols-2 gap-4">
+                      {([{label:"WEEK 1",week:weeklyComparisonData.p1Label,data:lob.data.w1},{label:"WEEK 2",week:weeklyComparisonData.p2Label,data:lob.data.w2}]).map(p=><div key={p.label} className={`rounded-2xl border p-3 ${innerBg}`}>
+                        <h4 className="font-black text-sm text-slate-950 dark:text-white">{p.label} — {p.week}</h4><p className="text-xs font-bold text-sky-600 dark:text-sky-300 mt-1 mb-3">{p.data.qty} Qty · {formatIDR(p.data.amount)}</p>
+                        {p.data.staff.length===0 && <p className={`text-xs ${textMuted}`}>Tidak ada penjualan.</p>}
+                        {p.data.staff.map(st=><div key={st.id} className="border-t border-slate-400/20 py-3">
+                          <div className="flex justify-between gap-2 text-xs"><strong className="text-slate-950 dark:text-white">{st.name}</strong><span className="text-slate-900 dark:text-white">{st.qty} Qty · {formatIDR(st.amount)}</span></div>
+                          {st.categories.map(cat=><div key={cat.name} className="flex justify-between gap-2 text-[11px] mt-1 pl-3 text-slate-700 dark:text-slate-300"><span>↳ {lob.brand==="APPLE"?cat.name:lob.brand+" "+cat.name}</span><span>{cat.qty} Qty · {formatIDR(cat.amount)}</span></div>)}
+                        </div>)}
+                      </div>)}
                     </div>
-                  </div>
+                  </section>)}
                 </div>
               )}
 
