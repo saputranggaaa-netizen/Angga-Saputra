@@ -1,305 +1,176 @@
-/* Apple-inspired operational dashboard visual system.
-   Presentation-only: data, calculations, authentication and integrations are unchanged. */
+/* Digiplus — unified responsive light/dark typography and contrast system.
+   This stylesheet replaces the earlier layered contrast patches. */
 :root {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", Inter, "Segoe UI", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, Arial, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  --page: #f4f6f9;
+  --surface: #ffffff;
+  --subtle: #edf1f5;
+  --foreground: #17212f;
+  --secondary: #475569;
+  --muted: #566579;
+  --border: #dce3eb;
+  --blue: #075bb5;
+  --green: #087443;
+  --red: #b42342;
+  --orange: #8b5500;
   color-scheme: light;
-  background: #f5f5f7;
-  color: #1d1d1f;
+  background: var(--page);
+  color: var(--foreground);
+}
+html.dark {
+  --page: #11151b;
+  --surface: #1c222b;
+  --subtle: #29313c;
+  --foreground: #f4f7fb;
+  --secondary: #d3dce7;
+  --muted: #b9c6d6;
+  --border: #414c5a;
+  --blue: #82c2ff;
+  --green: #75e4a9;
+  --red: #ff8da4;
+  --orange: #ffd07d;
+  color-scheme: dark;
+  background: var(--page);
+  color: var(--foreground);
 }
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
-body { margin: 0; min-width: 320px; min-height: 100vh; background: #f5f5f7; }
-button, input, select, textarea { font: inherit; }
-button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
-button { cursor: pointer; }
-button:disabled { cursor: not-allowed; }
-:focus-visible { outline: 3px solid #007aff; outline-offset: 3px; }
-::selection { background: #cde6ff; color: #153c63; }
-::-webkit-scrollbar { width: 9px; height: 9px; }
-::-webkit-scrollbar-thumb { background: #c7c7cc; border: 2px solid transparent; border-radius: 99px; background-clip: padding-box; }
-::-webkit-scrollbar-track { background: transparent; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body { margin: 0; min-width: 320px; min-height: 100vh; background: var(--page); color: var(--foreground); }
 #root { min-height: 100vh; }
-#root h1, #root h2, #root h3, #root h4 { letter-spacing: -.025em; }
+#root > div { background: var(--page) !important; background-image: none !important; color: var(--foreground); }
+#root, #root button, #root input, #root select, #root textarea { font-family: inherit; }
+#root h1, #root h2, #root h3, #root h4 { letter-spacing: -.025em; line-height: 1.3; }
+#root p, #root td, #root th, #root label, #root span { line-height: 1.5; }
 #root .font-black { font-weight: 700; }
 #root .font-mono { font-variant-numeric: tabular-nums; }
-#root .shadow-xl, #root .shadow-lg, #root .shadow-2xl { box-shadow: 0 3px 18px rgba(0,0,0,.055), 0 1px 3px rgba(0,0,0,.035); }
-#root .rounded-3xl { border-radius: 22px; }
-#root .rounded-2xl { border-radius: 16px; }
+#root .text-\[10px\] { font-size: 11px; }
+#root .text-\[11px\] { font-size: 12px; }
+#root .text-xs { font-size: 12px; }
+#root .text-sm { font-size: 14px; }
+#root .text-base { font-size: 16px; }
+#root .text-lg { font-size: 18px; }
+#root .text-xl { font-size: 21px; }
+#root .text-2xl { font-size: 25px; }
+#root .text-3xl { font-size: 29px; }
 #root .rounded-xl { border-radius: 12px; }
-#root aside { backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
-#root aside button { transition: background-color .2s ease, color .2s ease, transform .2s ease; }
-#root aside button:hover { transform: translateX(2px); }
-#root main { min-width: 0; }
-#root main > div { min-width: 0; }
-#root main .border-2 { border-width: 1px; }
-#root main table { border-collapse: separate; border-spacing: 0; }
-#root main th { font-weight: 650; letter-spacing: .035em; }
-#root main td, #root main th { border-bottom: 1px solid rgba(128,128,128,.10); }
-#root main tbody tr { transition: background-color .18s ease; }
-#root main tbody tr:hover { background: rgba(0,122,255,.045); }
-#root input, #root select, #root textarea { transition: border-color .2s ease, box-shadow .2s ease; }
-#root input:focus, #root select:focus, #root textarea:focus { outline: none; border-color: #007aff; box-shadow: 0 0 0 3px rgba(0,122,255,.12); }
-#root button { transition: background-color .2s ease, border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
-#root button:active { transform: scale(.985); }
-#root .bg-sky-500, #root .bg-sky-600 { background-color: #007aff; }
-#root .text-sky-600 { color: #007aff; }
-#root .bg-sky-50 { background-color: #eaf4ff; }
-#root .border-sky-300 { border-color: #c9e4ff; }
-html.dark { color-scheme: dark; background: #101114; color: #f5f5f7; }
-html.dark body { background: #101114; }
-html.dark #root .shadow-xl, html.dark #root .shadow-lg, html.dark #root .shadow-2xl { box-shadow: 0 4px 20px rgba(0,0,0,.20); }
-html.dark #root main tbody tr:hover { background: rgba(100,180,255,.07); }
-html.dark ::selection { background: #245a91; color: white; }
-@media (max-width: 640px) {
-  #root main { padding-bottom: 85px; }
-  #root .rounded-3xl { border-radius: 18px; }
-  #root table { font-size: 12px; }
-}
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
-}
-@media print {
-  body { background: white !important; }
-  #root .shadow-xl, #root .shadow-lg, #root .shadow-2xl { box-shadow: none !important; }
-}
-
-
-/* Unified Apple-style shell, navigation and dashboard components */
-#root > div { background-image: none; }
-#root aside { border-right: 1px solid rgba(142,142,147,.18); }
-#root aside > div { scrollbar-width: thin; }
-#root aside .bg-gradient-to-tr { background-image: none; background-color: #007aff; box-shadow: none; letter-spacing: -.04em; }
-#root aside h1 { font-size: 15px; letter-spacing: -.035em; }
+#root .rounded-2xl { border-radius: 16px; }
+#root .rounded-3xl { border-radius: 22px; }
+#root .shadow-xl, #root .shadow-lg, #root .shadow-2xl { box-shadow: 0 3px 16px rgba(15,23,42,.055); }
+html.dark #root .shadow-xl, html.dark #root .shadow-lg, html.dark #root .shadow-2xl { box-shadow: 0 3px 18px rgba(0,0,0,.20); }
+#root aside { background: var(--surface) !important; border-color: var(--border); backdrop-filter: blur(20px); }
 #root aside button { border-radius: 12px; }
-#root aside button[class*="bg-sky-50"] { background-color: #eaf4ff; color: #0066cc; border-color: transparent; box-shadow: none; }
-#root aside button[class*="bg-sky-500/20"] { background-color: rgba(10,132,255,.16); border-color: transparent; box-shadow: none; }
-#root main { max-width: 1600px; }
-#root main > header { border-color: rgba(142,142,147,.2); }
-#root main > header h1, #root main > header .text-2xl { letter-spacing: -.045em; }
-#root main > div > div, #root main > section { min-width: 0; }
-#root main [class*="rounded-3xl"][class*="border"] { box-shadow: 0 2px 12px rgba(20,20,30,.035); }
-#root main [class*="rounded-3xl"][class*="border-2"] { border-width: 1px; }
-#root main [class*="bg-gradient-to-br"] { background-image: none; }
-#root main [class*="bg-sky-500/15"] { background-color: rgba(0,122,255,.08); color: #0066cc; border-color: rgba(0,122,255,.12); }
-#root main [class*="bg-emerald-500/15"] { background-color: rgba(48,209,88,.09); border-color: rgba(48,209,88,.15); }
-#root main button[class*="font-black"] { font-weight: 650; }
-#root main button:hover { filter: brightness(.985); }
-#root main table { overflow: hidden; }
-#root main thead { background: rgba(142,142,147,.07); }
-#root main thead th { color: #6e6e73; text-transform: none; font-size: 11px; }
-#root main tbody td { line-height: 1.55; }
-#root main .overflow-x-auto { overscroll-behavior-x: contain; }
-#root main input, #root main select, #root main textarea { border-radius: 12px; }
-#root main [class*="tracking-wider"] { letter-spacing: .02em; }
-#root [role="dialog"] { border-radius: 22px; }
-html.dark #root aside { border-color: rgba(255,255,255,.1); }
-html.dark #root main [class*="rounded-3xl"][class*="border"] { box-shadow: 0 3px 16px rgba(0,0,0,.16); }
-html.dark #root main thead { background: rgba(255,255,255,.05); }
-html.dark #root main thead th { color: #a1a1a6; }
-html.dark #root main [class*="bg-sky-500/15"] { color: #64b5ff; background-color: rgba(10,132,255,.12); }
-@media (min-width: 1024px) {
+#root main { min-width: 0; }
+#root main .border-2 { border-width: 1px; }
+#root main .grid > * { min-width: 0; }
+#root main [class*="bg-gradient-to-br"][class*="from-sky-600"] { background-image: linear-gradient(135deg,#1686ec,#075bb5); color: #fff; }
+#root main table { border-collapse: separate; border-spacing: 0; }
+#root main th { font-weight: 650; letter-spacing: .01em; }
+#root main th, #root main td { border-bottom: 1px solid var(--border); }
+#root main tbody tr:hover { background: color-mix(in srgb,var(--blue) 5%,transparent); }
+#root main .overflow-x-auto { max-width: 100%; -webkit-overflow-scrolling: touch; }
+#root button, #root a { -webkit-tap-highlight-color: transparent; }
+#root button { cursor: pointer; transition: background-color .2s, border-color .2s, transform .2s; }
+#root button:active { transform: scale(.985); }
+#root button:disabled { cursor: not-allowed; }
+#root input, #root select, #root textarea { color: var(--foreground); }
+#root input::placeholder, #root textarea::placeholder { color: var(--muted); opacity: 1; }
+#root :focus-visible { outline: 3px solid #2585ed; outline-offset: 2px; }
+::selection { background: #cde6ff; color: #123452; }
+/* Light: explicitly remap pale Tailwind utilities to readable colors. */
+html:not(.dark) #root .text-white:not([class*="dark:"]) { color: inherit; }
+html:not(.dark) #root .text-slate-950,
+html:not(.dark) #root .text-slate-900,
+html:not(.dark) #root .text-slate-800 { color: #17212f; }
+html:not(.dark) #root .text-slate-700,
+html:not(.dark) #root .text-slate-600 { color: #39495c; }
+html:not(.dark) #root .text-slate-500,
+html:not(.dark) #root .text-slate-400,
+html:not(.dark) #root .text-slate-300 { color: #526176; }
+html:not(.dark) #root .text-sky-400,
+html:not(.dark) #root .text-sky-500,
+html:not(.dark) #root .text-sky-600,
+html:not(.dark) #root .text-blue-700 { color: #075bb5; }
+html:not(.dark) #root .text-emerald-400,
+html:not(.dark) #root .text-emerald-600,
+html:not(.dark) #root .text-emerald-700 { color: #087443; }
+html:not(.dark) #root .text-rose-400,
+html:not(.dark) #root .text-rose-600,
+html:not(.dark) #root .text-rose-700 { color: #b42342; }
+html:not(.dark) #root .text-amber-400,
+html:not(.dark) #root .text-amber-500,
+html:not(.dark) #root .text-amber-700 { color: #8b5500; }
+html:not(.dark) #root .text-indigo-400 { color: #5143a5; }
+html:not(.dark) #root .text-purple-400 { color: #7439a8; }
+html:not(.dark) #root [class*="bg-slate-100"] { background-color: #edf1f5; }
+html:not(.dark) #root [class*="bg-slate-200"] { background-color: #e5ebf2; }
+html:not(.dark) #root [class*="bg-slate-50"] { background-color: #f4f6f9; }
+html:not(.dark) #root [class*="bg-white"] { background-color: #fff; }
+/* Restore intentional white foreground on colored buttons and avatar blocks. */
+html:not(.dark) #root button[class*="bg-sky-500"].text-white,
+html:not(.dark) #root button[class*="bg-emerald-500"].text-white,
+html:not(.dark) #root button[class*="bg-blue-600"].text-white,
+html:not(.dark) #root [class*="from-sky-600"].text-white,
+html:not(.dark) #root [class*="bg-gradient-to-br"][class*="from-sky-600"] { color: #fff; }
+html:not(.dark) #root [class*="bg-gradient-to-br"][class*="from-sky-600"] { background-image: linear-gradient(135deg,#1686ec,#075bb5); }
+html:not(.dark) #root .bg-rose-50 { background: #fff0f3; }
+html:not(.dark) #root .bg-emerald-50 { background: #e7f7ee; }
+html:not(.dark) #root .bg-amber-50 { background: #fff4d9; }
+/* Dark: avoid dark-on-dark and faint KPI figures. */
+html.dark #root .text-slate-950,
+html.dark #root .text-slate-900,
+html.dark #root .text-slate-800 { color: #f4f7fb; }
+html.dark #root .text-slate-700,
+html.dark #root .text-slate-600,
+html.dark #root .text-slate-500,
+html.dark #root .text-slate-400,
+html.dark #root .text-slate-300 { color: #b9c6d6; }
+html.dark #root .text-sky-400,
+html.dark #root .text-sky-600,
+html.dark #root .text-blue-700 { color: #82c2ff; }
+html.dark #root .text-emerald-400,
+html.dark #root .text-emerald-700 { color: #75e4a9; }
+html.dark #root .text-rose-400,
+html.dark #root .text-rose-600 { color: #ff8da4; }
+html.dark #root .text-amber-400,
+html.dark #root .text-amber-700 { color: #ffd07d; }
+html.dark #root [class*="bg-slate-900"] { background-color: #242c36; }
+html.dark #root [class*="bg-slate-800"] { background-color: #29313c; }
+html.dark #root [class*="bg-slate-100"] { background-color: #29313c; }
+html.dark #root [class*="bg-slate-50"] { background-color: #29313c; }
+html.dark #root main thead th { color: #c6d1de; }
+/* Source-defined dashboard surfaces, including hex-based class utilities. */
+html:not(.dark) #root main [class*="bg-[#0B1528]"],
+html:not(.dark) #root main [class*="bg-[#111F38]"] { background-color: #fff; }
+html.dark #root main [class*="bg-[#0B1528]"] { background-color: #1c222b; border-color: #414c5a; }
+html.dark #root main [class*="bg-[#111F38]"] { background-color: #29313c; border-color: #414c5a; }
+@media (min-width:1024px) {
   #root aside { width: 264px; }
-  #root main { padding: 30px 34px 42px; }
+  #root main { padding: 28px 32px 42px; max-width: 1600px; margin-inline: auto; }
 }
-@media (max-width: 1023px) {
-  #root main { padding-top: 22px; }
-  #root header.sticky { box-shadow: 0 1px 10px rgba(0,0,0,.025); }
+@media (max-width:1023px) {
+  #root main { padding: 20px 14px calc(96px + env(safe-area-inset-bottom,0px)); }
+  #root header.sticky { padding-top: max(12px,env(safe-area-inset-top,0px)); }
 }
-@media (max-width: 640px) {
-  #root main { padding-left: 14px; padding-right: 14px; }
-  #root main [class*="rounded-3xl"] { padding-left: 14px; padding-right: 14px; }
-  #root main table { min-width: 560px; }
-}
-
-
-/* Phone-first usability refinements: compact cards, comfortable touch targets,
-   safe areas, horizontal table scrolling, and accessible mobile navigation. */
-@media (max-width: 767px) {
-  html { -webkit-text-size-adjust: 100%; }
-  #root { width: 100%; overflow-x: clip; }
-  #root main { width: 100%; min-width: 0; padding: 18px 12px calc(102px + env(safe-area-inset-bottom, 0px)); }
-  #root main > header { margin-bottom: 18px; padding-bottom: 14px; }
-  #root main > header .text-2xl { font-size: clamp(20px, 5.5vw, 26px); line-height: 1.2; }
-  #root main .grid { min-width: 0; }
-  #root main .grid > * { min-width: 0; }
+@media (max-width:767px) {
+  #root main { padding: 16px 12px calc(100px + env(safe-area-inset-bottom,0px)); }
   #root main .rounded-3xl { border-radius: 18px; }
-  #root main .rounded-2xl { border-radius: 14px; }
-  #root main [class*="rounded-3xl"][class*="p-6"] { padding: 16px; }
-  #root main [class*="rounded-3xl"][class*="p-5"] { padding: 15px; }
-  #root main .overflow-x-auto { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
-  #root main table { min-width: 560px; }
-  #root main th, #root main td { padding: 10px 9px; white-space: normal; }
-  #root main th { white-space: nowrap; }
+  #root main [class*="rounded-3xl"][class*="p-6"] { padding: 15px; }
+  #root main .text-2xl { font-size: 22px; }
+  #root main .text-3xl { font-size: 26px; }
   #root main input, #root main select, #root main textarea { min-height: 44px; font-size: 16px; }
   #root main button { min-height: 38px; }
-  #root main button[class*="px-3"] { min-height: 42px; }
-  #root header.sticky { padding-top: max(12px, env(safe-area-inset-top, 0px)); }
-  #root header.sticky button { min-height: 40px; }
-  #root button[aria-label="Buka Menu Navigasi"] {
-    right: 16px;
-    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-    width: 58px;
-    height: 58px;
-    border-radius: 19px;
-    box-shadow: 0 8px 26px rgba(0,122,255,.24);
-  }
-  #root [class*="fixed"][class*="inset-0"] [class*="rounded-t-3xl"] {
-    max-height: calc(92dvh - env(safe-area-inset-top, 0px));
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-  }
+  #root main .overflow-x-auto { overflow-x: auto; overscroll-behavior-x: contain; }
+  #root main table { min-width: 560px; font-size: 12px; }
+  #root main th, #root main td { padding: 9px; }
+  #root button[aria-label="Buka Menu Navigasi"] { right: 16px; bottom: calc(16px + env(safe-area-inset-bottom,0px)); width: 58px; height: 58px; }
 }
-@media (max-width: 380px) {
-  #root main { padding-left: 10px; padding-right: 10px; }
-  #root main [class*="rounded-3xl"][class*="p-6"] { padding: 12px; }
-  #root main .grid-cols-2 { column-gap: 8px; }
-  #root main .text-lg { font-size: 16px; }
+@media (max-width:380px) {
+  #root main { padding-inline: 10px; }
+  #root main .text-xl { font-size: 19px; }
 }
-@media (hover: none) and (pointer: coarse) {
-  #root button, #root a { touch-action: manipulation; }
-  #root aside button:hover { transform: none; }
-}
-
-
-/* Readability pass: accessible neutral surfaces in both color schemes.
-   Applies to every operational page without changing business logic. */
-:root {
-  --ui-bg: #f5f6f8;
-  --ui-surface: #ffffff;
-  --ui-subtle: #f2f4f7;
-  --ui-text: #20232a;
-  --ui-muted: #525866;
-  --ui-border: #dce1e8;
-  --ui-accent: #075bb5;
-}
-html:not(.dark) body { background: var(--ui-bg); color: var(--ui-text); }
-html:not(.dark) #root > div { background: var(--ui-bg) !important; color: var(--ui-text); }
-html:not(.dark) #root aside { background: rgba(255,255,255,.97); border-color: var(--ui-border); }
-html:not(.dark) #root main [class*="bg-white"] { background-color: var(--ui-surface); }
-html:not(.dark) #root main [class*="bg-slate-50"] { background-color: var(--ui-subtle); }
-html:not(.dark) #root main .text-slate-500,
-html:not(.dark) #root main .text-slate-400 { color: var(--ui-muted); }
-html:not(.dark) #root main .text-sky-400 { color: #075bb5; }
-html:not(.dark) #root main .text-emerald-400 { color: #087342; }
-html:not(.dark) #root main .text-amber-500 { color: #865500; }
-html:not(.dark) #root main .text-sky-600 { color: #075bb5; }
-html:not(.dark) #root main input,
-html:not(.dark) #root main select,
-html:not(.dark) #root main textarea { color: var(--ui-text); }
-html:not(.dark) #root main input::placeholder,
-html:not(.dark) #root main textarea::placeholder { color: #687181; opacity: 1; }
-html.dark {
-  --ui-bg: #121417;
-  --ui-surface: #1d2127;
-  --ui-subtle: #282d35;
-  --ui-text: #f3f5f8;
-  --ui-muted: #b7c0cc;
-  --ui-border: #414955;
-  --ui-accent: #77b8ff;
-  background: var(--ui-bg);
-  color: var(--ui-text);
-}
-html.dark body { background: var(--ui-bg); color: var(--ui-text); }
-html.dark #root > div { background: var(--ui-bg) !important; color: var(--ui-text); }
-html.dark #root aside { background: rgba(29,33,39,.97); border-color: var(--ui-border); }
-html.dark #root main [class*="bg-[#0B1528]"] { background-color: var(--ui-surface); border-color: var(--ui-border); }
-html.dark #root main [class*="bg-[#111F38]"] { background-color: var(--ui-subtle); border-color: var(--ui-border); }
-html.dark #root main .text-slate-400,
-html.dark #root main .text-slate-500 { color: var(--ui-muted); }
-html.dark #root main .text-sky-400 { color: var(--ui-accent); }
-html.dark #root main .text-emerald-400 { color: #69e0a3; }
-html.dark #root main .text-amber-400 { color: #ffd078; }
-html.dark #root main input,
-html.dark #root main select,
-html.dark #root main textarea { color: var(--ui-text); }
-html.dark #root main input::placeholder,
-html.dark #root main textarea::placeholder { color: #b1bac7; opacity: 1; }
-html.dark #root main thead th { color: #c4ccd7; }
-#root main .text-xs { line-height: 1.5; }
-#root main .text-sm { line-height: 1.5; }
-#root main button:focus-visible,
-#root main input:focus-visible,
-#root aside button:focus-visible { outline: 3px solid #3489ed; outline-offset: 2px; }
-@media (prefers-contrast: more) {
-  #root main [class*="border"] { border-color: var(--ui-border); }
-  #root main .text-slate-500 { color: var(--ui-muted); }
-}
-
-
-/* Contrast hotfix 2026-11-04: readable staff leaderboard and KPI tiles.
-   Earlier broad gradient removal made white avatar initials disappear. */
-#root main [class*="bg-gradient-to-br"] { background-image: revert-layer; }
-#root main [class*="bg-gradient-to-br"][class*="from-sky-600"] {
-  background-image: linear-gradient(135deg,#007aff,#0054b8);
-  background-color: #007aff;
-  color: #fff;
-}
-html:not(.dark) #root main [class*="bg-slate-100"] { background-color: #eef1f5; }
-html:not(.dark) #root main [class*="bg-slate-200"] { background-color: #e8edf3; }
-html:not(.dark) #root main .text-blue-700 { color: #134f9b; }
-html:not(.dark) #root main .text-slate-600 { color: #414b59; }
-html:not(.dark) #root main .text-slate-700 { color: #343d4a; }
-html:not(.dark) #root main .text-slate-900,
-html:not(.dark) #root main .text-slate-950 { color: #18202b; }
-html:not(.dark) #root main .text-rose-600 { color: #b42342; }
-html:not(.dark) #root main .text-emerald-700 { color: #087443; }
-html:not(.dark) #root main .text-amber-700 { color: #8a5400; }
-html:not(.dark) #root main [class*="bg-rose-50"] { background-color: #fff0f2; }
-html:not(.dark) #root main [class*="bg-emerald-50"] { background-color: #e8f8ee; }
-html:not(.dark) #root main [class*="bg-amber-50"] { background-color: #fff5dd; }
-html:not(.dark) #root main .text-rose-800 { color: #92203a; }
-html:not(.dark) #root main .text-emerald-800 { color: #086638; }
-html:not(.dark) #root main .text-amber-900 { color: #754700; }
-html:not(.dark) #root main [class*="bg-slate-100"] strong,
-html:not(.dark) #root main [class*="bg-slate-100"] .font-mono { opacity: 1; }
-html.dark #root main .text-slate-950,
-html.dark #root main .text-slate-900 { color: #f3f5f8; }
-html.dark #root main .text-slate-700,
-html.dark #root main .text-slate-600 { color: #c4cbd5; }
-html.dark #root main .text-blue-700 { color: #80bdff; }
-html.dark #root main .text-rose-600 { color: #ff8199; }
-html.dark #root main .text-emerald-700 { color: #71e5a6; }
-html.dark #root main .text-amber-700 { color: #ffd17e; }
-#root main .text-\[10px\] { font-size: 11px; }
-#root main .text-\[11px\] { font-size: 12px; }
-#root main strong { opacity: 1; }
-@media (max-width: 767px) {
-  #root main .text-\[10px\] { font-size: 11px; }
-  #root main .text-\[11px\] { font-size: 12px; }
-}
-
-
-/* Screenshot-driven contrast fixes: MoM staff cards and category breakdowns */
-html:not(.dark) #root main [class*="bg-slate-100"] .text-white,
-html:not(.dark) #root main [class*="bg-slate-50"] .text-white,
-html:not(.dark) #root main [class*="bg-slate-200"] .text-white,
-html:not(.dark) #root main [class*="bg-[#f5f5f7]"] .text-white,
-html:not(.dark) #root main [class*="bg-[#F3F4F6]"] .text-white { color: #1f2937; }
-html:not(.dark) #root main [class*="bg-slate-100"] .text-slate-300,
-html:not(.dark) #root main [class*="bg-slate-100"] .text-slate-400,
-html:not(.dark) #root main [class*="bg-slate-100"] .text-slate-500,
-html:not(.dark) #root main [class*="bg-slate-50"] .text-slate-300,
-html:not(.dark) #root main [class*="bg-slate-50"] .text-slate-400 { color: #485365; }
-html:not(.dark) #root main [class*="bg-slate-100"] .text-amber-400,
-html:not(.dark) #root main [class*="bg-slate-50"] .text-amber-400 { color: #895200; }
-html:not(.dark) #root main [class*="bg-slate-100"] .text-sky-400,
-html:not(.dark) #root main [class*="bg-slate-50"] .text-sky-400 { color: #075bb5; }
-html:not(.dark) #root main [class*="bg-slate-100"] .text-emerald-400 { color: #087443; }
-html:not(.dark) #root main [class*="bg-slate-100"] .text-rose-400 { color: #b42342; }
-html:not(.dark) #root main [class*="bg-slate-100"] .text-indigo-400 { color: #5143a5; }
-html:not(.dark) #root main [class*="bg-slate-100"] .text-purple-400 { color: #7439a8; }
-html:not(.dark) #root main [class*="bg-slate-100"] strong,
-html:not(.dark) #root main [class*="bg-slate-50"] strong { opacity: 1; }
-html:not(.dark) #root main [class*="bg-slate-100"] [class*="text-[10px]"],
-html:not(.dark) #root main [class*="bg-slate-100"] [class*="text-[11px]"] { opacity: 1; }
-html:not(.dark) #root main .text-slate-400 { color: #526071; }
-html:not(.dark) #root main .text-slate-300 { color: #526071; }
-html:not(.dark) #root main .text-amber-400 { color: #895200; }
-html:not(.dark) #root main .text-indigo-400 { color: #5143a5; }
-html:not(.dark) #root main .text-purple-400 { color: #7439a8; }
-html:not(.dark) #root main .text-rose-400 { color: #b42342; }
-html:not(.dark) #root main .text-emerald-400 { color: #087443; }
-html.dark #root main [class*="bg-slate-900"] .text-white { color: #f8fafc; }
-html.dark #root main [class*="bg-slate-900"] .text-slate-400 { color: #c4cbd5; }
+@media (hover:none) and (pointer:coarse) { #root button, #root a { touch-action: manipulation; } }
+@media (prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto !important; animation-duration:.01ms !important; transition-duration:.01ms !important; } }
+@media print { #root .shadow-xl,#root .shadow-lg,#root .shadow-2xl { box-shadow:none !important; } }
