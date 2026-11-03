@@ -1,3 +1,6 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* Digiplus accessible theme foundation — no substring class selectors.
    Component Tailwind classes remain authoritative for status colors and badges. */
 :root {
