@@ -332,6 +332,22 @@ export default function DigiplusOperationalEngine() {
     const names = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
     return names[Number(today.slice(5,7))-1] + today.slice(0,4);
   });
+  useEffect(() => {
+    const syncCurrentMonth = () => {
+      const today = new Intl.DateTimeFormat("sv-SE", {timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+      const names = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+      const currentMonth = names[Number(today.slice(5,7))-1] + today.slice(0,4);
+      setSelectedMonth(currentMonth);
+      setPeriodType("monthly");
+    };
+    const onVisibility = () => { if (document.visibilityState === "visible") syncCurrentMonth(); };
+    window.addEventListener("pageshow", syncCurrentMonth);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pageshow", syncCurrentMonth);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
   const [momBaseMonth, setMomBaseMonth] = useState<string>("November2026");
   const [momCompareMonth, setMomCompareMonth] = useState<string>("Oktober2026");
   const [momMode, setMomMode] = useState<"mtd" | "full">("mtd");
