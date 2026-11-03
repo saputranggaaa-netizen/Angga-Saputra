@@ -557,9 +557,8 @@ export default function DigiplusOperationalEngine() {
       };
       const activeSection = ["","",""];
       let parsedGrandTotal=0;
-      const normName=(name:string)=>name.toLowerCase().normalize("NFKC").replace(/[^a-z0-9]+/g," ").trim().replace(/\\s+/g," ");
-      const knownStaffNames = new Set<string>();
-      (jsonTarget.table.rows || []).forEach((r:any) => {
+      const normName=(name:string)=>name.toLowerCase().normalize("NFKC").replace(/[^a-z0-9]+/g," ").trim().replace(/\s+/g," ");
+            (jsonTarget.table.rows || []).forEach((r:any) => {
         const c=r.c || [];
         const heading=String(c[2]?.v ?? c[2]?.f ?? "");
         const headingSection=identify(heading);
@@ -575,7 +574,6 @@ export default function DigiplusOperationalEngine() {
           if(amount<0 || !c[block.value])return;
           const key=normName(rawName);
           if(!key || /^\\d+$/.test(key))return;
-          knownStaffNames.add(key);
           if(!categoryByStaff[key])categoryByStaff[key]={};
           categoryByStaff[key][activeSection[idx]]=amount;
           if(activeSection[idx]==="total")targetMap[key]=amount;
