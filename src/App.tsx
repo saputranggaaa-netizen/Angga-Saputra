@@ -2,16 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 
-const LOG_API_URL = "https://script.google.com/macros/s/AKfycbymMye32fTgxNg4rKtLn5iqVWq4xenaZSJ2bxGW4yfZdMYoYKRbXYYCKrx1n_Uul_JNdw/exec";
 
-export const UploadRawSalesModal = ({ isOpen, onClose, selectedInvoice, defaultSalesName }: any) => {
-  const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
-  const [catatan, setCatatan] = React.useState("");
-  const [isUploading, setIsUploading] = React.useState(false);
-
-  if (!isOpen) return null;
-
- 
             
 type MenuTab = 
   | "store-overview"
