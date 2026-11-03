@@ -80,26 +80,8 @@ export const UploadRawSalesModal = ({ isOpen, onClose, selectedInvoice, defaultS
               type="text"
               value={catatan}
               onChange={(e) => setCatatan(e.target.value)}
-              placeholder="Catatan / keterangan..."
-              className="w-full px-3 py-2 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-black/40 border border-slate-300 dark:border-white/10 text-slate-950 dark:text-white focus:outline-none"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={isUploading}
-            className="w-full py-2.5 bg-sky-600 hover:bg-sky-500 disabled:bg-slate-700 text-white font-black rounded-xl text-xs uppercase tracking-wider transition shadow-lg"
-          >
-            {isUploading ? "Mengunggah ke Drive & Menulis Sheet..." : "Upload & Simpan ke Kolom M-O"}
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-type MenuTab =
-  type MenuTab = 
+            
+type MenuTab = 
   | "store-overview"
   | "weekly-sales"
   | "staff-performance"
@@ -135,24 +117,6 @@ interface RawTransaction {
   supplier?: string;
 }
 
-interface RawTransaction {
-  date: string;
-  isoDate: string;
-  monthKey: string;
-  month?: string;
-  salesId: string;
-  salesName: string;
-  invoice: string;
-  sapArticle: string;
-  productName: string;
-  qty: number;
-  amount: number;
-  productType: string;
-  brand: string;
-  brandName?: string;
-  groupCategory: string;
-  weekLabel: string;
-}
 
 interface BnplRecord {
   date: string;
