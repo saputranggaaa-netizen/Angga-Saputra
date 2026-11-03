@@ -40,11 +40,11 @@ export default async function handler(req: any, res: any) {
       return res.status(200).json({ rows: (await response.json()).values || [] });
     }
     const { salesId, salesName, location, locationStatus } = req.body || {};
-    if (!/^\\d{4,20}$/.test(String(salesId || ""))) return res.status(400).json({ error: "Sales ID tidak valid" });
+    if (!/^\d{4,20}$/.test(String(salesId || ""))) return res.status(400).json({ error: "Sales ID tidak valid" });
     const clean = (value: unknown) => String(value || "").slice(0, 180).replace(/^[=+@-]/, "'");
     const now = new Date();
     const date = new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Asia/Jakarta" }).format(now);
-    const time = new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "Asia/Jakarta" }).format(now).replace(/\\./g, ":");
+    const time = new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "Asia/Jakarta" }).format(now).replace(/\./g, ":");
     const token = await googleToken();
     const response = await fetch("https://sheets.googleapis.com/v4/spreadsheets/" + SHEET_ID + "/values/" + encodeURIComponent(RANGE) + ":append?valueInputOption=RAW&insertDataOption=INSERT_ROWS", {
       method: "POST", headers: { Authorization: "Bearer " + token, "content-type": "application/json" },
