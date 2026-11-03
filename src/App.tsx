@@ -323,6 +323,7 @@ export default function DigiplusOperationalEngine() {
   const [scheduleData, setScheduleData] = useState<StaffScheduleItem[]>(INITIAL_SCHEDULE);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [staffDailyTargets, setStaffDailyTargets] = useState<Record<string, StaffDailyTargetDetail>>({});
+  const [staffCategoryTargets, setStaffCategoryTargets] = useState<Record<string, Record<string, number>>>({});
   const [selectedDailyStaff, setSelectedDailyStaff] = useState<string>("");
 
   // Period Filters
@@ -424,7 +425,7 @@ export default function DigiplusOperationalEngine() {
     try {
       const dbUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=602901290';
       const bnplUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=2697970';
-      const targetUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=685849318';
+      const targetUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=685849310';
       const dailyTargetSheetUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=789142551';
 
       const [resDb, resBnpl, resTarget, resDailyTarget] = await Promise.all([
@@ -521,50 +522,60 @@ export default function DigiplusOperationalEngine() {
         }
       });
 
+      // Pembagian target: three side-by-side blocks (C:F, H:K, M:P).
       const jsonTarget = JSON.parse(textTarget.substring(textTarget.indexOf("{"), textTarget.lastIndexOf("}") + 1));
       const targetMap: Record<string, number> = {};
-      let parsedGrandTotal = 0;
-      let targetApple = 0;
-      let targetAndroid = 0;
-
-      (jsonTarget.table.rows || []).forEach((r: any) => {
-        const c = r.c;
-        if (!c) return;
-
-        const labelB = String(c[1]?.v || c[1]?.f || "").trim().toLowerCase();
-        const rawAmountF = c[5]?.v;
-        const amountF = typeof rawAmountF === "number"
-          ? rawAmountF
-          : Number(String(rawAmountF || 0).replace(/[^0-9]/g, ""));
-
-        if (labelB.includes("grand total") && amountF > 5000000000 && parsedGrandTotal === 0) {
-          parsedGrandTotal = amountF;
-        }
-
-        if (
-          labelB &&
-          !labelB.includes("staff name") &&
-          !labelB.includes("grand total") &&
-          !labelB.includes("target") &&
-          amountF > 0
-        ) {
-          targetMap[labelB] = amountF;
-        }
-
-        if (labelB.includes("grand total") && amountF > 0) {
-          if (amountF > 6000000000) targetApple = amountF;
-          else if (amountF > 900000000 && amountF < 1000000000) targetAndroid = amountF;
+      const categoryByStaff: Record<string, Record<string, number>> = {};
+      const blocks = [{name:2,value:5},{name:7,value:10},{name:12,value:15}];
+      const sections = ["total","apple","iphone","ipad","android","macbook","applewatch","accessories","qoala","telkomsel","vas","indosat","xl"];
+      const identify = (value:string) => {
+        const x=value.toUpperCase().replace(/[^A-Z]/g,"");
+        if(x.includes("TARGETIPHONE"))return "iphone";
+        if(x.includes("TARGETIPAD"))return "ipad";
+        if(x.includes("TARGETMACBOOK"))return "macbook";
+        if(x.includes("TARGETAW")||x.includes("TARGETAPPLEWATCH"))return "applewatch";
+        if(x.includes("TARGETAPPLEDEVICE"))return "apple";
+        if(x.includes("TARGETANDROIDDEVICE"))return "android";
+        if(x.includes("TARGETACC"))return "accessories";
+        if(x.includes("TARGETQOALA"))return "qoala";
+        if(x.includes("TARGETTELKOMSEL"))return "telkomsel";
+        if(x.includes("TARGETINDOSAT"))return "indosat";
+        if(x.includes("TARGETXL"))return "xl";
+        if(x.includes("TARGETVAS"))return "vas";
+        if(x.includes("MTDTARGET"))return "total";
+        return "";
+      };
+      const parseMoney = (cell:any) => {
+        const raw = cell?.v ?? cell?.f ?? 0;
+        return typeof raw==="number" ? raw : Number(String(raw).replace(/[^0-9-]/g,"")) || 0;
+      };
+      const activeSection = ["","",""];
+      let parsedGrandTotal=0;
+      (jsonTarget.table.rows || []).forEach((r:any) => {
+        const c=r.c || [];
+        blocks.forEach((block,idx)=>{
+          const rawName=String(c[block.name]?.v ?? c[block.name]?.f ?? "").trim();
+          const section=identify(rawName);
+          if(section && sections.includes(section)){activeSection[idx]=section;return;}
+          const lower=rawName.toLowerCase();
+          if(lower.includes("grand total")){activeSection[idx]="";return;}
+          if(!activeSection[idx] || !rawName || /^(staff name|target|position|amount)$/i.test(rawName))return;
+          const amount=parseMoney(c[block.value]);
+          if(amount<0)return;
+          const key=lower.replace(/\\s+/g," ").trim();
+          if(!categoryByStaff[key])categoryByStaff[key]={};
+          categoryByStaff[key][activeSection[idx]]=amount;
+          if(activeSection[idx]==="total")targetMap[key]=amount;
+        });
+        const label=String(c[2]?.v ?? "").toLowerCase();
+        if(label.includes("grand total") && !parsedGrandTotal) {
+          const amount=parseMoney(c[5]);
+          if(amount>5000000000)parsedGrandTotal=amount;
         }
       });
-
-      if (parsedGrandTotal > 0) setStoreTotalTarget(parsedGrandTotal);
+      if(parsedGrandTotal>0)setStoreTotalTarget(parsedGrandTotal);
       setStaffTargets(targetMap);
-      setCategoryTargets((prev) => ({
-        ...prev,
-        apple: targetApple || prev.apple,
-        android: targetAndroid || prev.android,
-      }));
-
+      setStaffCategoryTargets(categoryByStaff);
       // Parsing Sheet Daily Target (gid: 789142551)
       const jsonDailyTarget = JSON.parse(
         textDailyTarget.substring(textDailyTarget.indexOf("{"), textDailyTarget.lastIndexOf("}") + 1)
@@ -3095,7 +3106,22 @@ Indosat IM3 : ${isatText}`;
                     ];
                     const key = st.name.trim().toLowerCase();
                     const target = staffDailyTargets[key] || staffDailyTargets[key.split(" ")[0]];
-                    const dailyTargetFor = (title:string) => periodType==="daily" && target ? Number(title==="Apple Devices"?target.apple:title==="Android Devices"?target.android:title==="Accessories"?target.accessories:target.vas)||0 : null;
+                    const categoryTarget = staffCategoryTargets[key] || staffCategoryTargets[key.split(" ")[0]] || {};
+                    const targetFor = (category:string):number|null => {
+                      const value=categoryTarget[category];
+                      if(value===undefined)return null;
+                      if(periodType==="monthly")return value;
+                      const monthParts=selectedMonth.match(/(20\\d{2})$/);
+                      const monthIndex=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"].findIndex(m=>selectedMonth.toLowerCase().startsWith(m.toLowerCase()));
+                      const days=monthParts && monthIndex>=0?new Date(Number(monthParts[1]),monthIndex+1,0).getDate():30;
+                      if(periodType==="daily")return Math.round(value/days);
+                      if(periodType==="weekly" && selectedWeek!=="ALL"){
+                        const dates=[...new Set(activeTransactions.map(t=>t.isoDate).filter(Boolean))];
+                        return Math.round(value/days*Math.max(1,dates.length));
+                      }
+                      return null;
+                    };
+                    const dailyTargetFor = (title:string) => targetFor(title==="Apple Devices"?"apple":title==="Android Devices"?"android":title==="Accessories"?"accessories":"vas");
                     const renderMetric = (label:string,items:RawTransaction[],targetValue:number|null,detailKey:string) => {
                       const actual = sum(items);
                       const variance = targetValue===null?null:actual.amount-targetValue;
@@ -3115,8 +3141,8 @@ Indosat IM3 : ${isatText}`;
                     return <section className={`p-5 sm:p-6 rounded-3xl border-2 ${cardBg} shadow-xl space-y-4`}>
                       <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-black text-lg text-slate-950 dark:text-white">Target Vs Achievement Per Staff</h2><p className={`text-xs ${textMuted}`}>{st.name} · {periodType.toUpperCase()} · {periodType==="daily"?selectedDate:periodType==="weekly"?selectedWeek:selectedMonth}</p></div><button type="button" onClick={()=>handleShareStaffWA(st,rows)} className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black">↗ Share WhatsApp</button></div>
                       {renderMetric("TOTAL STAFF",rows,st.targetAmount,"total")}
-                      <p className={`text-xs ${textMuted}`}>Target kategori hanya ditampilkan jika target harian staff tersedia untuk filter Daily. Target subkategori tidak diestimasi tanpa sumber target. Estimate adalah sisa nominal menuju target, bukan prediksi penjualan.</p>
-                      {groups.map(g=><div key={g.title} className="space-y-2"><h3 className="font-black text-base text-slate-950 dark:text-white">{g.title}</h3>{renderMetric(g.title,g.items,dailyTargetFor(g.title),"group-"+g.title)}<div className="grid md:grid-cols-2 gap-2">{g.sub.map(([label,items])=>renderMetric(label,items,null,g.title+"-"+label))}</div></div>)}
+                      <p className={`text-xs ${textMuted}`}>Target diambil dari sheet Pembagian target berdasarkan nama staff dan kategori. Target bulanan dibagi rata per hari untuk filter Daily; Weekly diprorata berdasarkan tanggal transaksi yang terfilter. Estimate adalah sisa target, bukan prediksi penjualan.</p>
+                      {groups.map(g=><div key={g.title} className="space-y-2"><h3 className="font-black text-base text-slate-950 dark:text-white">{g.title}</h3>{renderMetric(g.title,g.items,dailyTargetFor(g.title),"group-"+g.title)}<div className="grid md:grid-cols-2 gap-2">{g.sub.map(([label,items])=>renderMetric(label,items,targetFor(({iPhone:"iphone",iPad:"ipad",MacBook:"macbook","Apple Watch":"applewatch",Qoala:"qoala",Telkomsel:"telkomsel",XL:"xl",Indosat:"indosat"} as Record<string,string>)[label] || label.toLowerCase()),g.title+"-"+label))}</div></div>)}
                     </section>;
                   })()}
                   <div className="space-y-4">
