@@ -2389,21 +2389,21 @@ Indosat IM3 : ${isatText}`;
                                 return (
                                   <div key={idx} className={`p-3.5 rounded-xl border ${cardBg} text-xs space-y-2 shadow-sm`}>
                                     <div className="flex justify-between items-center">
-                                      <span className="font-black text-slate-900 dark:text-white uppercase tracking-wider">{sub.label}</span>
-                                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${subAchv >= 100 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"}`}>
+                                      <span className="font-black text-[#17212f] dark:text-[#f4f7fb] uppercase tracking-wider">{sub.label}</span>
+                                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${subAchv >= 100 ? "bg-emerald-500/15 text-[#087443] dark:text-[#75e4a9]" : "bg-amber-100 text-[#8b5500] dark:bg-amber-900/40 dark:text-[#ffd07d]"}`}>
                                         {subAchv}%
                                       </span>
                                     </div>
-                                    <div className="text-[11px] font-mono text-slate-600 dark:text-slate-400 space-y-0.5">
-                                      <div><strong>T/A:</strong> {formatIDR(subTarget)} / <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatIDR(subActual)}</span></div>
-                                      <div><strong>-/+:</strong> <span className={subGap >= 0 ? "text-emerald-600" : "text-rose-600"}>{subGap >= 0 ? `+${formatIDR(subGap)}` : formatIDR(subGap)}</span></div>
+                                    <div className="text-[11px] font-mono text-[#334155] dark:text-[#d3dce7] space-y-0.5">
+                                      <div><strong>T/A:</strong> {formatIDR(subTarget)} / <span className="font-bold text-[#087443] dark:text-[#75e4a9]">{formatIDR(subActual)}</span></div>
+                                      <div><strong>-/+:</strong> <span className={subGap >= 0 ? "text-[#087443] dark:text-[#75e4a9]" : "text-[#b42342] dark:text-[#ff8da4]"}>{subGap >= 0 ? `+${formatIDR(subGap)}` : formatIDR(subGap)}</span></div>
                                       <div><strong>Estimate:</strong> {formatIDR(calcEst(subActual))}</div>
                                     </div>
                                     <div className="pt-1 border-t border-inherit/40 flex justify-end">
                                       <button
                                         type="button"
                                         onClick={() => openLobDetailSheet(`Daftar ${sub.label} Terjual`, subItems)}
-                                        className="text-[10px] font-black text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-1"
+                                        className="text-[10px] font-black text-[#075bb5] dark:text-[#82c2ff] hover:underline flex items-center gap-1"
                                       >
                                         <span>More Details</span>
                                         <span>➔</span>
