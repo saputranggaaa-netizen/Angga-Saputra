@@ -1359,7 +1359,7 @@ export default function DigiplusOperationalEngine() {
     const day = parseInt(dayStr, 10);
 
     const totalDays = new Date(year, monthIndex + 1, 0).getDate();
-    const elapsedDays = Math.min(Math.max(day, 1), totalDays);
+    const elapsedDays = Math.min(Math.max(day - 1, 0), totalDays);
     const remainingDays = Math.max(0, totalDays - elapsedDays);
     const timeElapsedPct = Number(((elapsedDays / totalDays) * 100).toFixed(1));
 
