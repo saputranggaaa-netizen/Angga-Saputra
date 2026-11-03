@@ -113,3 +113,51 @@ html.dark #root main [class*="bg-sky-500/15"] { color: #64b5ff; background-color
   #root main [class*="rounded-3xl"] { padding-left: 14px; padding-right: 14px; }
   #root main table { min-width: 560px; }
 }
+
+
+/* Phone-first usability refinements: compact cards, comfortable touch targets,
+   safe areas, horizontal table scrolling, and accessible mobile navigation. */
+@media (max-width: 767px) {
+  html { -webkit-text-size-adjust: 100%; }
+  #root { width: 100%; overflow-x: clip; }
+  #root main { width: 100%; min-width: 0; padding: 18px 12px calc(102px + env(safe-area-inset-bottom, 0px)); }
+  #root main > header { margin-bottom: 18px; padding-bottom: 14px; }
+  #root main > header .text-2xl { font-size: clamp(20px, 5.5vw, 26px); line-height: 1.2; }
+  #root main .grid { min-width: 0; }
+  #root main .grid > * { min-width: 0; }
+  #root main .rounded-3xl { border-radius: 18px; }
+  #root main .rounded-2xl { border-radius: 14px; }
+  #root main [class*="rounded-3xl"][class*="p-6"] { padding: 16px; }
+  #root main [class*="rounded-3xl"][class*="p-5"] { padding: 15px; }
+  #root main .overflow-x-auto { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+  #root main table { min-width: 560px; }
+  #root main th, #root main td { padding: 10px 9px; white-space: normal; }
+  #root main th { white-space: nowrap; }
+  #root main input, #root main select, #root main textarea { min-height: 44px; font-size: 16px; }
+  #root main button { min-height: 38px; }
+  #root main button[class*="px-3"] { min-height: 42px; }
+  #root header.sticky { padding-top: max(12px, env(safe-area-inset-top, 0px)); }
+  #root header.sticky button { min-height: 40px; }
+  #root button[aria-label="Buka Menu Navigasi"] {
+    right: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    width: 58px;
+    height: 58px;
+    border-radius: 19px;
+    box-shadow: 0 8px 26px rgba(0,122,255,.24);
+  }
+  #root [class*="fixed"][class*="inset-0"] [class*="rounded-t-3xl"] {
+    max-height: calc(92dvh - env(safe-area-inset-top, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+@media (max-width: 380px) {
+  #root main { padding-left: 10px; padding-right: 10px; }
+  #root main [class*="rounded-3xl"][class*="p-6"] { padding: 12px; }
+  #root main .grid-cols-2 { column-gap: 8px; }
+  #root main .text-lg { font-size: 16px; }
+}
+@media (hover: none) and (pointer: coarse) {
+  #root button, #root a { touch-action: manipulation; }
+  #root aside button:hover { transform: none; }
+}
