@@ -304,8 +304,8 @@ export default function DigiplusOperationalEngine() {
   };
 const fetchLiveGoogleSheets = async () => {
     setIsLoading(true);
-    try {
- const dbUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=602901290';
+    try {]
+      const dbUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=602901290';
     const bnplUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=2697970';
     const targetUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=685849318';
     const dailyTargetSheetUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=789142551';
@@ -314,14 +314,13 @@ const fetchLiveGoogleSheets = async () => {
       fetch(dbUrl),
       fetch(bnplUrl),
       fetch(targetUrl),
-      fetch(dailyTargetSheetUrl),
+      fetch(dailyTargetSheetUrl)
     ]);
 
     const textDb = await resDb.text();
     const textBnpl = await resBnpl.text();
     const textTarget = await resTarget.text();
     const textDailyTarget = await resDailyTarget.text();
-
      
 
       const jsonDb = JSON.parse(textDb.substring(textDb.indexOf("{"), textDb.lastIndexOf("}") + 1));
