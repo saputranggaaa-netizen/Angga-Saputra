@@ -299,7 +299,9 @@ export default function DigiplusOperationalEngine() {
 
     return { isoDate, monthKey };
   };
-
+const fetchLiveGoogleSheets = async () => {
+    setIsLoading(true);
+    try {
  const dbUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=602901290';
     const bnplUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=2697970';
     const targetUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=685849318';
@@ -441,7 +443,6 @@ export default function DigiplusOperationalEngine() {
         android: targetAndroid || prev.android,
       }));
       // Parsing Sheet Daily Target (gid: 789142551)
-      const textDailyTarget = await resDailyTarget.text();
       const jsonDailyTarget = JSON.parse(
         textDailyTarget.substring(textDailyTarget.indexOf("{"), textDailyTarget.lastIndexOf("}") + 1)
       );
