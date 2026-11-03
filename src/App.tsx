@@ -331,7 +331,7 @@ export default function DigiplusOperationalEngine() {
   const [momBaseMonth, setMomBaseMonth] = useState<string>("November2026");
   const [momCompareMonth, setMomCompareMonth] = useState<string>("Oktober2026");
   const [momMode, setMomMode] = useState<"mtd" | "full">("mtd");
-  const [momToday, setMomToday] = useState(() => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()));
+  const [momToday, setMomToday] = useState(() => new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()));
   const [selectedWeek, setSelectedWeek] = useState<string>("ALL");
   const [w1Filter, setW1Filter] = useState<string>("");
   const [w2Filter, setW2Filter] = useState<string>("");
@@ -1260,7 +1260,7 @@ export default function DigiplusOperationalEngine() {
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      setMomToday(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()));
+      setMomToday(new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()));
     }, 60000);
     return () => window.clearInterval(timer);
   }, []);
@@ -1268,9 +1268,9 @@ export default function DigiplusOperationalEngine() {
   const momAnalytics = useMemo(() => {
     const todayDay = Number(momToday.slice(-2)) || 1;
     const monthDayLimit = (month: string) => {
-      const match = month.match(/(20\\d{2})$/);
+      const match = month.match(/(20\d{2})$/);
       const year = match ? Number(match[1]) : new Date().getFullYear();
-      const monthName = month.replace(/20\\d{2}$/, "").trim().toLowerCase();
+      const monthName = month.replace(/20\d{2}$/, "").trim().toLowerCase();
       const names = ["januari","februari","maret","april","mei","juni","juli","agustus","september","oktober","november","desember"];
       const monthIndex = names.indexOf(monthName);
       return monthIndex >= 0 ? Math.min(todayDay, new Date(year, monthIndex + 1, 0).getDate()) : todayDay;
