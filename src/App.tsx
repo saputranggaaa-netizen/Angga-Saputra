@@ -328,8 +328,10 @@ export default function DigiplusOperationalEngine() {
   // Period Filters
   const [periodType, setPeriodType] = useState<PeriodType>("monthly");
   const [selectedMonth, setSelectedMonth] = useState<string>("Oktober2026");
-  const [momBaseMonth, setMomBaseMonth] = useState<string>("Oktober2026");
-  const [momCompareMonth, setMomCompareMonth] = useState<string>("September2026");
+  const [momBaseMonth, setMomBaseMonth] = useState<string>("November2026");
+  const [momCompareMonth, setMomCompareMonth] = useState<string>("Oktober2026");
+  const [momMode, setMomMode] = useState<"mtd" | "full">("mtd");
+  const [momToday, setMomToday] = useState(() => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()));
   const [selectedWeek, setSelectedWeek] = useState<string>("ALL");
   const [w1Filter, setW1Filter] = useState<string>("");
   const [w2Filter, setW2Filter] = useState<string>("");
@@ -1256,9 +1258,31 @@ export default function DigiplusOperationalEngine() {
       .sort((a, b) => a.diff - b.diff);
   };
 
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setMomToday(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()));
+    }, 60000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const momAnalytics = useMemo(() => {
-    const trxM1 = transactions.filter((t) => (t.monthKey || t.month || "").trim() === momCompareMonth);
-    const trxM2 = transactions.filter((t) => (t.monthKey || t.month || "").trim() === momBaseMonth);
+    const todayDay = Number(momToday.slice(-2)) || 1;
+    const monthDayLimit = (month: string) => {
+      const match = month.match(/(20\\d{2})$/);
+      const year = match ? Number(match[1]) : new Date().getFullYear();
+      const monthName = month.replace(/20\\d{2}$/, "").trim().toLowerCase();
+      const names = ["januari","februari","maret","april","mei","juni","juli","agustus","september","oktober","november","desember"];
+      const monthIndex = names.indexOf(monthName);
+      return monthIndex >= 0 ? Math.min(todayDay, new Date(year, monthIndex + 1, 0).getDate()) : todayDay;
+    };
+    const withinPeriod = (t: RawTransaction, month: string) => {
+      if ((t.monthKey || t.month || "").trim() !== month) return false;
+      if (momMode === "full") return true;
+      const day = Number((t.isoDate || "").slice(8, 10));
+      return day >= 1 && day <= monthDayLimit(month);
+    };
+    const trxM1 = transactions.filter(t => withinPeriod(t, momCompareMonth));
+    const trxM2 = transactions.filter(t => withinPeriod(t, momBaseMonth));
 
     const totalM1 = trxM1.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
     const totalM2 = trxM2.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
@@ -1290,7 +1314,7 @@ export default function DigiplusOperationalEngine() {
       androidOtherData: buildAndroidBrandHierarchy(trxM1, trxM2, "ANDROID LAINNYA"),
       droppedProducts: buildDroppedProductsAnalysis(trxM1, trxM2),
     };
-  }, [transactions, momBaseMonth, momCompareMonth]);
+  }, [transactions, momBaseMonth, momCompareMonth, momMode, momToday]);
 
   const weeklyComparisonData = useMemo(() => {
     const getTrxForWeek = (selectedVal: string) => {
@@ -1857,6 +1881,14 @@ Indosat IM3 : ${isatText}`;
             </h2>
           </div>
 
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300" htmlFor="mom-mode">Mode Perbandingan:</label>
+            <select id="mom-mode" value={momMode} onChange={e => setMomMode(e.target.value as "mtd" | "full")} className="rounded-xl border px-3 py-2 bg-white text-slate-950 dark:bg-slate-800 dark:text-white text-xs font-bold">
+              <option value="mtd">MTD Otomatis (Tanggal Sama)</option>
+              <option value="full">Full Month (Seluruh Bulan)</option>
+            </select>
+            <span className={textMuted + " text-xs"}>{momMode === "mtd" ? "Periode tanggal 1–" + Number(momToday.slice(-2)) + " (maksimum akhir bulan), WIB" : "Semua tanggal dalam bulan yang dipilih"}</span>
+          </div>
           <div className="flex flex-wrap items-center gap-3">
             <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
               <span className="text-[11px] font-black text-slate-600 dark:text-slate-400">Bulan 1:</span>
