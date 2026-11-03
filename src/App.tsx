@@ -346,6 +346,7 @@ export default function DigiplusOperationalEngine() {
   useEffect(() => { if (!dateManuallySelected) setSelectedDate(momToday); }, [momToday, dateManuallySelected]);
 
   const [selectedStaffId, setSelectedStaffId] = useState<string>("");
+  const [staffExpandedDetail, setStaffExpandedDetail] = useState<string | null>(null);
   const [bottomSheetOpen, setBottomSheetOpen] = useState<boolean>(false);
   const [sheetTitle, setSheetTitle] = useState<string>("");
   const [sheetContent, setSheetContent] = useState<React.ReactNode>(null);
@@ -3060,6 +3061,48 @@ Indosat IM3 : ${isatText}`;
               {/* TAB 3: STAFF PERFORMANCE */}
               {activeTab === "staff-performance" && (
                 <div className="space-y-8">
+                  {(() => {
+                    const st = staffList.find(x => x.salesId === selectedStaffId) || staffList[0];
+                    if (!st) return null;
+                    const rows = activeTransactions.filter(t => t.salesId === st.salesId);
+                    const sum = (items: RawTransaction[]) => ({qty:items.reduce((n,t)=>n+(Number(t.qty)||0),0),amount:items.reduce((n,t)=>n+(Number(t.amount)||0),0)});
+                    const apple = rows.filter(t=>t.brand==="APPLE" && (t.groupCategory==="DEVICES" || (t.productType||"").toUpperCase().includes("AIRPOD")));
+                    const android = rows.filter(t=>t.groupCategory==="DEVICES" && t.brand!=="APPLE");
+                    const accessories = rows.filter(t=>t.groupCategory==="ACCESSORIES");
+                    const vas = rows.filter(t=>t.groupCategory==="VAS");
+                    const name = (t:RawTransaction)=>(t.productName||"").toUpperCase();
+                    const groups = [
+                      {title:"Apple Devices",items:apple,sub:[["iPhone",apple.filter(t=>name(t).includes("IPHONE"))],["iPad",apple.filter(t=>name(t).includes("IPAD"))],["MacBook",apple.filter(t=>name(t).includes("MAC"))],["Apple Watch",apple.filter(t=>name(t).includes("WATCH"))],["AirPods",apple.filter(t=>name(t).includes("AIRPOD"))]] as [string,RawTransaction[]][]},
+                      {title:"Android Devices",items:android,sub:["SAMSUNG","OPPO","HUAWEI","XIAOMI","MOTOROLA","INFINIX"].map(b=>[b,android.filter(t=>t.brand===b || (b==="XIAOMI" && t.brand==="REDMI"))] as [string,RawTransaction[]])},
+                      {title:"Accessories",items:accessories,sub:[...new Set(accessories.map(t=>t.supplier||"Supplier Tidak Diketahui"))].map(b=>[b,accessories.filter(t=>(t.supplier||"Supplier Tidak Diketahui")===b)] as [string,RawTransaction[]])},
+                      {title:"VAS",items:vas,sub:["QOALA","TELKOMSEL","SAMSUNG","OPPO","HUAWEI","XIAOMI","MOTOROLA","INFINIX","XL","INDOSAT"].map(b=>[b,vas.filter(t=>t.brand===b || name(t).includes(b))] as [string,RawTransaction[]])}
+                    ];
+                    const key = st.name.trim().toLowerCase();
+                    const target = staffDailyTargets[key] || staffDailyTargets[key.split(" ")[0]];
+                    const dailyTargetFor = (title:string) => periodType==="daily" && target ? Number(title==="Apple Devices"?target.apple:title==="Android Devices"?target.android:title==="Accessories"?target.accessories:target.vas)||0 : null;
+                    const renderMetric = (label:string,items:RawTransaction[],targetValue:number|null,detailKey:string) => {
+                      const actual = sum(items);
+                      const variance = targetValue===null?null:actual.amount-targetValue;
+                      const pct = targetValue && targetValue>0?actual.amount/targetValue*100:null;
+                      const estimate = targetValue===null?null:targetValue-actual.amount;
+                      const expanded = staffExpandedDetail===detailKey;
+                      return <div key={detailKey} className={`p-3 rounded-xl border ${innerBg}`}>
+                        <div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-sm text-slate-950 dark:text-white">{label}</strong><button type="button" onClick={()=>setStaffExpandedDetail(expanded?null:detailKey)} className="text-xs font-bold text-sky-600 dark:text-sky-300">{expanded?"⌃ Show Less":"⌄ More Details"}</button></div>
+                        <div className="text-xs mt-2 text-slate-900 dark:text-slate-200">T/A: <strong>{targetValue===null?"Target belum tersedia":formatIDR(targetValue)}</strong> / <strong>{formatIDR(actual.amount)}</strong> · {actual.qty} Qty</div>
+                        <div className="text-xs mt-1 text-slate-900 dark:text-slate-200">% & +/-: <strong className={variance!==null && variance<0?"text-rose-500":"text-emerald-500"}>{pct===null?"—":pct.toFixed(1)+"%"} · {variance===null?"—":(variance>=0?"+":"")+formatIDR(variance)}</strong></div>
+                        <div className="text-xs mt-1 text-slate-900 dark:text-slate-200">Estimate (sisa target): <strong>{estimate===null?"—":formatIDR(Math.max(0,estimate))}</strong></div>
+                        {expanded && <div className="mt-3 pt-2 border-t border-slate-400/30 max-h-64 overflow-y-auto space-y-1">
+                          {items.length===0?<p className="text-xs text-slate-500">Tidak ada penjualan pada filter ini.</p>:Object.values(items.reduce((m,t)=>{const k=(t.productName||"Unknown")+"|"+(t.supplier||"");if(!m[k])m[k]={product:t.productName||"Unknown",supplier:t.supplier||"",qty:0,amount:0};m[k].qty+=Number(t.qty)||0;m[k].amount+=Number(t.amount)||0;return m;},{} as Record<string,{product:string,supplier:string,qty:number,amount:number}>)).sort((a,b)=>b.amount-a.amount).map((p,i)=><div key={i} className="flex justify-between gap-2 text-[11px] py-1 border-b border-slate-400/10"><span className="text-slate-900 dark:text-white">{p.product}{label==="Accessories"&&p.supplier?" · "+p.supplier:""}</span><span className="shrink-0 text-slate-900 dark:text-white">{p.qty} Qty / {formatIDR(p.amount)}</span></div>)}
+                        </div>}
+                      </div>;
+                    };
+                    return <section className={`p-5 sm:p-6 rounded-3xl border-2 ${cardBg} shadow-xl space-y-4`}>
+                      <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-black text-lg text-slate-950 dark:text-white">Target Vs Achievement Per Staff</h2><p className={`text-xs ${textMuted}`}>{st.name} · {periodType.toUpperCase()} · {periodType==="daily"?selectedDate:periodType==="weekly"?selectedWeek:selectedMonth}</p></div><button type="button" onClick={()=>handleShareStaffWA(st,rows)} className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black">↗ Share WhatsApp</button></div>
+                      {renderMetric("TOTAL STAFF",rows,st.targetAmount,"total")}
+                      <p className={`text-xs ${textMuted}`}>Target kategori hanya ditampilkan jika target harian staff tersedia untuk filter Daily. Target subkategori tidak diestimasi tanpa sumber target. Estimate adalah sisa nominal menuju target, bukan prediksi penjualan.</p>
+                      {groups.map(g=><div key={g.title} className="space-y-2"><h3 className="font-black text-base text-slate-950 dark:text-white">{g.title}</h3>{renderMetric(g.title,g.items,dailyTargetFor(g.title),"group-"+g.title)}<div className="grid md:grid-cols-2 gap-2">{g.sub.map(([label,items])=>renderMetric(label,items,null,g.title+"-"+label))}</div></div>)}
+                    </section>;
+                  })()}
                   <div className="space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-4">
                       <div>
