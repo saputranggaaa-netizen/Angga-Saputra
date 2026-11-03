@@ -748,21 +748,33 @@ export default function DigiplusOperationalEngine() {
     return Array.from(months);
   }, [transactions]);
 
-  // Week labels come strictly from DATABASE column O (weekLabel).
+  // Prefer DATABASE column O; derive calendar week from transaction date if O is blank/0.
+  const getTransactionWeek = (t: RawTransaction): string => {
+    const date = (t.isoDate || "").trim();
+    if (!/^20\d{2}-\d{2}-\d{2}$/.test(date) || date.startsWith("1899-")) return "";
+    const month = date.slice(0,7);
+    const raw = String(t.weekLabel || "").trim();
+    const week = raw && raw !== "0" && raw !== "-" ? raw : "Week " + Math.ceil(Number(date.slice(8,10))/7);
+    return month + " · " + week;
+  };
   const AUTO_WEEKS = useMemo(() => {
-    const map = new Map<string, { label: string; minDate: string; maxDate: string }>();
+    const map = new Map<string, {label:string;minDate:string;maxDate:string}>();
     transactions.forEach(t => {
-      const label = (t.weekLabel || "").trim();
+      const label = getTransactionWeek(t);
       if (!label) return;
-      if (!map.has(label)) map.set(label, { label, minDate: t.isoDate || "", maxDate: t.isoDate || "" });
-      const w = map.get(label)!;
-      if (t.isoDate && (!w.minDate || t.isoDate < w.minDate)) w.minDate = t.isoDate;
-      if (t.isoDate && (!w.maxDate || t.isoDate > w.maxDate)) w.maxDate = t.isoDate;
+      if (!map.has(label)) map.set(label,{label,minDate:t.isoDate,maxDate:t.isoDate});
+      const item=map.get(label)!;
+      if (t.isoDate<item.minDate)item.minDate=t.isoDate;
+      if (t.isoDate>item.maxDate)item.maxDate=t.isoDate;
     });
-    return [...map.values()].sort((a,b) => a.minDate.localeCompare(b.minDate) || a.label.localeCompare(b.label)).map((w,i) => ({
-      key: String(i), label: w.label, range: w.minDate && w.maxDate ? w.minDate + " s.d. " + w.maxDate : "Tanpa tanggal", days: 7
+    const monthNames=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+    const monthIdx=monthNames.findIndex(m=>selectedMonth.toLowerCase().startsWith(m.toLowerCase()));
+    const year=selectedMonth.match(/20\d{2}/)?.[0];
+    const monthPrefix=year && monthIdx>=0 ? year+"-"+String(monthIdx+1).padStart(2,"0") : "";
+    return [...map.values()].filter(w=>!monthPrefix || w.minDate.startsWith(monthPrefix)).sort((a,b)=>a.minDate.localeCompare(b.minDate)).map((w,i)=>({
+      key:String(i),label:w.label,range:w.minDate+" s.d. "+w.maxDate,days:7
     }));
-  }, [transactions]);
+  },[transactions,selectedMonth]);
 
   useEffect(() => {
     if (AUTO_WEEKS.length > 0) {
@@ -1329,7 +1341,7 @@ export default function DigiplusOperationalEngine() {
   }, [transactions, momBaseMonth, momCompareMonth, momMode, momToday]);
 
   const weeklyComparisonData = useMemo(() => {
-    const weekRows = (week: string) => transactions.filter(t => week && (t.weekLabel || "").trim() === week);
+    const weekRows = (week: string) => transactions.filter(t => week && getTransactionWeek(t) === week);
     const w1 = weekRows(w1Filter);
     const w2 = weekRows(w2Filter);
     const amount = (rows: RawTransaction[]) => rows.reduce((n,t) => n + (Number(t.amount) || 0),0);
@@ -2961,9 +2973,9 @@ Indosat IM3 : ${isatText}`;
                 <div className="space-y-5">
                   <section className={`p-5 ${cardBg} border-2 rounded-3xl shadow-xl`}>
                     <h2 className="text-lg font-black text-slate-950 dark:text-white">📈 WEEK TO WEEK SALES — DATABASE COLUMN O</h2>
-                    <p className={`text-xs mt-1 ${textMuted}`}>Pilih dua label Week sesuai isi kolom O pada sheet DATABASE. Week kosong tidak dihitung.</p>
+                    <p className={`text-xs mt-1 ${textMuted}`}>Pilih dua minggu pada bulan yang dipilih. Jika kolom O kosong atau 0, minggu dihitung otomatis dari tanggal transaksi.</p>
                     <div className="flex flex-wrap items-center gap-3 mt-4">
-                      {([{value:w1Filter,set:setW1Filter,label:"WEEK 1 (Baseline)"},{value:w2Filter,set:setW2Filter,label:"WEEK 2 (Pembanding)"}]).map((f,i)=><label key={i} className="flex flex-col gap-1 text-xs font-bold text-slate-950 dark:text-white">{f.label}<select className="rounded-xl border px-3 py-2 bg-white text-slate-950 dark:bg-slate-800 dark:text-white" value={f.value} onChange={e=>f.set(e.target.value)}>{AUTO_WEEKS.map(w=><option key={w.key} value={w.label}>{w.label} ({w.range})</option>)}</select></label>)}
+                      {([{value:w1Filter,set:setW1Filter,label:"WEEK 1 (Baseline)"},{value:w2Filter,set:setW2Filter,label:"WEEK 2 (Pembanding)"}]).map((f,i)=><label key={i} className="flex flex-col gap-1 text-xs font-bold text-slate-950 dark:text-white">{f.label}<select className="rounded-xl border px-3 py-2 bg-white text-slate-950 dark:bg-slate-800 dark:text-white" value={f.value} onChange={e=>f.set(e.target.value)}>{AUTO_WEEKS.length===0 && <option value="">Tidak ada data minggu pada bulan ini</option>}{AUTO_WEEKS.map(w=><option key={w.key} value={w.label}>{w.label} ({w.range})</option>)}</select></label>)}
                     </div>
                   </section>
                   <section className={`p-5 ${cardBg} border-2 rounded-3xl shadow-xl`}>
