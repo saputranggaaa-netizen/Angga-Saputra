@@ -3542,8 +3542,9 @@ Indosat IM3 : ${isatText}`;
                 });
 
                 currentFilteredTrx.forEach((t) => {
-                  const rawSup = (t.supplier || "").toUpperCase();
-                  const matchedSup = TARGET_SUPPLIERS.find((s) => rawSup.includes(s));
+                  const rawSup = (t.supplier || "").trim().toUpperCase();
+                  const rawBrand = (t.brand || "").trim().toUpperCase();
+                  const matchedSup = t.groupCategory === "ACCESSORIES" ? TARGET_SUPPLIERS.find((s) => rawSup.includes(s) || rawBrand.includes(s)) : undefined;
                   if (matchedSup) {
                     supplierDataMap[matchedSup].qty += Number(t.qty) || 1;
                     supplierDataMap[matchedSup].amount += Number(t.amount) || 0;
@@ -3554,8 +3555,9 @@ Indosat IM3 : ${isatText}`;
                 const staffSupplierMap: Record<string, Record<string, { qty: number; amount: number }>> = {};
                 currentFilteredTrx.forEach((t) => {
                   const sName = (t.salesName || "").trim().toUpperCase();
-                  const rawSup = (t.supplier || "").toUpperCase();
-                  const matchedSup = TARGET_SUPPLIERS.find((s) => rawSup.includes(s));
+                  const rawSup = (t.supplier || "").trim().toUpperCase();
+                  const rawBrand = (t.brand || "").trim().toUpperCase();
+                  const matchedSup = t.groupCategory === "ACCESSORIES" ? TARGET_SUPPLIERS.find((s) => rawSup.includes(s) || rawBrand.includes(s)) : undefined;
 
                   if (sName && matchedSup) {
                     if (!staffSupplierMap[sName]) {
@@ -3595,6 +3597,8 @@ Indosat IM3 : ${isatText}`;
                       </div>
                     </div>
 
+                    {currentFilteredTrx.length === 0 && <div className={`p-4 rounded-xl border ${innerBg} text-sm text-amber-600`}>Tidak ada transaksi pada filter periode yang dipilih. Periksa tanggal, minggu, atau bulan di bagian atas.</div>}
+                    {currentFilteredTrx.length > 0 && TARGET_SUPPLIERS.every(s => supplierDataMap[s].items.length === 0) && <div className={`p-4 rounded-xl border ${innerBg} text-sm text-amber-600`}>Tidak ditemukan transaksi Accessories untuk keenam supplier pada periode ini. Periksa kolom P (Supplier) atau kolom K (Brand Name) di DATABASE.</div>}
                     {/* CUPCARDS */}
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
                       {TARGET_SUPPLIERS.map((sup) => {
