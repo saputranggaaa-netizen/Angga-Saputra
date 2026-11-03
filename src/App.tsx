@@ -1647,22 +1647,22 @@ Indosat IM3 : ${isatText}`;
     : "bg-[#F3F4F6] bg-gradient-to-br from-[#F8FAFC] via-[#F1F5F9] to-[#E2E8F0]";
 
   const cardBg = isDark 
-    ? "bg-[#0B1528] border-slate-700/60 shadow-xl shadow-black/40" 
-    : "bg-white border-slate-200 shadow-lg shadow-slate-200/50";
+    ? "bg-[#1c222b] border-[#414c5a] shadow-lg" 
+    : "bg-white border-[#dce3eb] shadow-sm";
 
   const innerBg = isDark 
-    ? "bg-[#111F38] border-slate-700/50" 
-    : "bg-slate-50 border-slate-200";
+    ? "bg-[#29313c] border-[#414c5a]" 
+    : "bg-[#edf1f5] border-[#dce3eb]";
 
-  const textMain = isDark ? "text-slate-50" : "text-slate-900";
-  const textMuted = isDark ? "text-slate-400" : "text-slate-500";
-  const accentText = isDark ? "text-sky-400" : "text-sky-600";
+  const textMain = isDark ? "text-[#f4f7fb]" : "text-[#17212f]";
+  const textMuted = isDark ? "text-[#b9c6d6]" : "text-[#475569]";
+  const accentText = isDark ? "text-[#82c2ff]" : "text-[#075bb5]";
   const activeTabBtn = isDark 
     ? "bg-sky-500/20 text-sky-400 border border-sky-400/40 shadow-sm" 
     : "bg-sky-50 text-sky-700 border border-sky-300 shadow-sm";
   const glassSidebar = isDark 
-    ? "bg-[#070D1E]/90 border-slate-800" 
-    : "bg-white/90 border-slate-200";
+    ? "bg-[#1c222b]/95 border-[#414c5a]" 
+    : "bg-white/95 border-[#dce3eb]";
 
   const mainNavItems = [
     { id: "store-overview", label: "Overview Store", icon: "📊", color: "bg-emerald-500", shadow: "shadow-emerald-500/30" },
