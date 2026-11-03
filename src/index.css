@@ -65,3 +65,51 @@ html.dark ::selection { background: #245a91; color: white; }
   body { background: white !important; }
   #root .shadow-xl, #root .shadow-lg, #root .shadow-2xl { box-shadow: none !important; }
 }
+
+
+/* Unified Apple-style shell, navigation and dashboard components */
+#root > div { background-image: none; }
+#root aside { border-right: 1px solid rgba(142,142,147,.18); }
+#root aside > div { scrollbar-width: thin; }
+#root aside .bg-gradient-to-tr { background-image: none; background-color: #007aff; box-shadow: none; letter-spacing: -.04em; }
+#root aside h1 { font-size: 15px; letter-spacing: -.035em; }
+#root aside button { border-radius: 12px; }
+#root aside button[class*="bg-sky-50"] { background-color: #eaf4ff; color: #0066cc; border-color: transparent; box-shadow: none; }
+#root aside button[class*="bg-sky-500/20"] { background-color: rgba(10,132,255,.16); border-color: transparent; box-shadow: none; }
+#root main { max-width: 1600px; }
+#root main > header { border-color: rgba(142,142,147,.2); }
+#root main > header h1, #root main > header .text-2xl { letter-spacing: -.045em; }
+#root main > div > div, #root main > section { min-width: 0; }
+#root main [class*="rounded-3xl"][class*="border"] { box-shadow: 0 2px 12px rgba(20,20,30,.035); }
+#root main [class*="rounded-3xl"][class*="border-2"] { border-width: 1px; }
+#root main [class*="bg-gradient-to-br"] { background-image: none; }
+#root main [class*="bg-sky-500/15"] { background-color: rgba(0,122,255,.08); color: #0066cc; border-color: rgba(0,122,255,.12); }
+#root main [class*="bg-emerald-500/15"] { background-color: rgba(48,209,88,.09); border-color: rgba(48,209,88,.15); }
+#root main button[class*="font-black"] { font-weight: 650; }
+#root main button:hover { filter: brightness(.985); }
+#root main table { overflow: hidden; }
+#root main thead { background: rgba(142,142,147,.07); }
+#root main thead th { color: #6e6e73; text-transform: none; font-size: 11px; }
+#root main tbody td { line-height: 1.55; }
+#root main .overflow-x-auto { overscroll-behavior-x: contain; }
+#root main input, #root main select, #root main textarea { border-radius: 12px; }
+#root main [class*="tracking-wider"] { letter-spacing: .02em; }
+#root [role="dialog"] { border-radius: 22px; }
+html.dark #root aside { border-color: rgba(255,255,255,.1); }
+html.dark #root main [class*="rounded-3xl"][class*="border"] { box-shadow: 0 3px 16px rgba(0,0,0,.16); }
+html.dark #root main thead { background: rgba(255,255,255,.05); }
+html.dark #root main thead th { color: #a1a1a6; }
+html.dark #root main [class*="bg-sky-500/15"] { color: #64b5ff; background-color: rgba(10,132,255,.12); }
+@media (min-width: 1024px) {
+  #root aside { width: 264px; }
+  #root main { padding: 30px 34px 42px; }
+}
+@media (max-width: 1023px) {
+  #root main { padding-top: 22px; }
+  #root header.sticky { box-shadow: 0 1px 10px rgba(0,0,0,.025); }
+}
+@media (max-width: 640px) {
+  #root main { padding-left: 14px; padding-right: 14px; }
+  #root main [class*="rounded-3xl"] { padding-left: 14px; padding-right: 14px; }
+  #root main table { min-width: 560px; }
+}
