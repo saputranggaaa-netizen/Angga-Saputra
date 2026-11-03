@@ -304,7 +304,7 @@ export default function DigiplusOperationalEngine() {
   };
 const fetchLiveGoogleSheets = async () => {
     setIsLoading(true);
-    try {]
+    try {
       const dbUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=602901290';
     const bnplUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=2697970';
     const targetUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=685849318';
