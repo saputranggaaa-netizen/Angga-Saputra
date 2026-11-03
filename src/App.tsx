@@ -99,10 +99,12 @@ export const UploadRawSalesModal = ({ isOpen, onClose, selectedInvoice, defaultS
 };
 
 type MenuTab =
+  type MenuTab = 
   | "store-overview"
   | "weekly-sales"
   | "staff-performance"
   | "daily-target"
+  | "brand-focus"
   | "schedule"
   | "feedback"
   | "bnpl"
@@ -111,9 +113,27 @@ type MenuTab =
   | "product-search"
   | "qoala-ar"
   | "mom-comparison";
-
 type ThemeMode = "dark" | "light";
 type PeriodType = "daily" | "weekly" | "monthly";
+interface RawTransaction {
+  date: string;
+  isoDate: string;
+  monthKey: string;
+  month?: string;
+  salesId: string;
+  salesName: string;
+  invoice: string;
+  sapArticle: string;
+  productName: string;
+  qty: number;
+  amount: number;
+  productType: string;
+  brand: string;
+  brandName?: string;
+  groupCategory: string;
+  weekLabel: string;
+  supplier?: string;
+}
 
 interface RawTransaction {
   date: string;
@@ -399,19 +419,8 @@ export default function DigiplusOperationalEngine() {
       const dbUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=602901290`;
       const bnplUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=2697970`;
       const targetUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=685849310`;
+      const dailyTargetSheetUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=789142551';
       
-      // 1. Tambahkan baris URL sheet daily target ini:
-      const dailyTargetSheetUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=789142551`;
-      // Kolom P = indeks 15 (Supplier)
-const supplier = String(c[15]?.v || c[15]?.f || "").trim().toUpperCase();
-
-parsedTrx.push({
-  // ... field lainnya ...
-  salesName: String(c[2]?.v || c[2]?.f || "").trim(), // Kolom C = Nama Staff
-  qty: Number(c[7]?.v || c[7]?.f || 1),              // Kolom H = Qty
-  amount: Number(c[8]?.v || c[8]?.f || 0),           // Kolom I = Amount
-  supplier: supplier,                               // Kolom P = Supplier
-});
 
       // 2. Ganti blok Promise.all menjadi ini:
       const [resDb, resBnpl, resTarget, resDailyTarget] = await Promise.all([
@@ -446,6 +455,7 @@ parsedTrx.push({
         const brand = String(c[10]?.v || "").trim().toUpperCase();
         let groupCategory = String(c[11]?.v || "").trim().toUpperCase();
         const weekLabel = String(c[14]?.v || "").trim();
+        const supplier = String(c[15]?.v || c[15]?.f || "").trim().toUpperCase();
 
         const pUpper = productName.toUpperCase();
 
