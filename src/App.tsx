@@ -331,6 +331,7 @@ export default function DigiplusOperationalEngine() {
   const [momBaseMonth, setMomBaseMonth] = useState<string>("November2026");
   const [momCompareMonth, setMomCompareMonth] = useState<string>("Oktober2026");
   const [momMode, setMomMode] = useState<"mtd" | "full">("mtd");
+  const [showAllQoalaDevices, setShowAllQoalaDevices] = useState(false);
   const [momToday, setMomToday] = useState(() => new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()));
   const [selectedWeek, setSelectedWeek] = useState<string>("ALL");
   const [w1Filter, setW1Filter] = useState<string>("");
@@ -3065,8 +3066,13 @@ Indosat IM3 : ${isatText}`;
                       <p className={textMuted + " text-xs"}>Attachment diestimasi dari kecocokan nomor invoice antara Qoala dan device.</p>
                       <div className="overflow-x-auto"><table className="w-full text-xs text-slate-900 dark:text-slate-100">
                         <thead><tr><th className="p-2 text-left">Device</th><th className="p-2 text-right">Terjual</th><th className="p-2 text-right">Qoala Attached</th></tr></thead>
-                        <tbody>{qoalaDetails.devices.map(p=><tr key={p.name} className="border-t border-slate-200 dark:border-slate-700"><td className="p-2">{p.name}</td><td className="p-2 text-right">{p.qty}</td><td className="p-2 text-right">{p.attached}</td></tr>)}</tbody>
+                        <tbody>{(showAllQoalaDevices ? qoalaDetails.devices : qoalaDetails.devices.slice(0, 10)).map(p=><tr key={p.name} className="border-t border-slate-200 dark:border-slate-700"><td className="p-2">{p.name}</td><td className="p-2 text-right">{p.qty}</td><td className="p-2 text-right">{p.attached}</td></tr>)}</tbody>
                       </table></div>
+                      {qoalaDetails.devices.length > 10 && (
+                        <button type="button" onClick={() => setShowAllQoalaDevices(v => !v)} className="w-full rounded-xl border border-sky-500/40 px-4 py-2 text-xs font-black text-sky-700 dark:text-sky-300 hover:bg-sky-500/10">
+                          {showAllQoalaDevices ? "Show Less — Tampilkan 10 Device" : "More Details — Lihat Semua " + qoalaDetails.devices.length + " Device"}
+                        </button>
+                      )}
                       {qoalaDetails.unmatchedQty > 0 && <p className="text-xs text-amber-600">Sebanyak {qoalaDetails.unmatchedQty} polis belum dapat dipasangkan dengan device berdasarkan invoice.</p>}
                     </div>
                   </div>
