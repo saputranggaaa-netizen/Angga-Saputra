@@ -527,9 +527,15 @@ export default function DigiplusOperationalEngine() {
       const targetMap: Record<string, number> = {};
       const categoryByStaff: Record<string, Record<string, number>> = {};
       const blocks = [{name:2,value:5},{name:7,value:10},{name:12,value:15}];
-      const sections = ["total","apple","iphone","ipad","android","macbook","applewatch","accessories","qoala","telkomsel","vas","indosat","xl"];
+      const sections = ["total","apple","iphone","ipad","android","macbook","applewatch","accessories","qoala","telkomsel","vas","indosat","xl","samsung","xiaomi","oppo","motorola","huawei","infinix"];
       const identify = (value:string) => {
         const x=value.toUpperCase().replace(/[^A-Z]/g,"");
+        if(x.includes("TARGETSAMSUNG"))return "samsung";
+        if(x.includes("TARGETXIOMI")||x.includes("TARGETXIAOMI"))return "xiaomi";
+        if(x.includes("TARGETOPPO"))return "oppo";
+        if(x.includes("TARGETMOTOROLA"))return "motorola";
+        if(x.includes("TARGETHUAWEI"))return "huawei";
+        if(x.includes("TARGETINFINIX"))return "infinix";
         if(x.includes("TARGETIPHONE"))return "iphone";
         if(x.includes("TARGETIPAD"))return "ipad";
         if(x.includes("TARGETMACBOOK"))return "macbook";
@@ -551,8 +557,13 @@ export default function DigiplusOperationalEngine() {
       };
       const activeSection = ["","",""];
       let parsedGrandTotal=0;
+      const normName=(name:string)=>name.toLowerCase().normalize("NFKC").replace(/[^a-z0-9]+/g," ").trim().replace(/\\s+/g," ");
+      const knownStaffNames = new Set<string>();
       (jsonTarget.table.rows || []).forEach((r:any) => {
         const c=r.c || [];
+        const heading=String(c[2]?.v ?? c[2]?.f ?? "");
+        const headingSection=identify(heading);
+        if(headingSection==="total" || heading.toUpperCase().includes("MTD TARGET"))activeSection[0]="total";
         blocks.forEach((block,idx)=>{
           const rawName=String(c[block.name]?.v ?? c[block.name]?.f ?? "").trim();
           const section=identify(rawName);
@@ -561,8 +572,10 @@ export default function DigiplusOperationalEngine() {
           if(lower.includes("grand total")){activeSection[idx]="";return;}
           if(!activeSection[idx] || !rawName || /^(staff name|target|position|amount)$/i.test(rawName))return;
           const amount=parseMoney(c[block.value]);
-          if(amount<0)return;
-          const key=lower.replace(/\s+/g," ").trim();
+          if(amount<0 || !c[block.value])return;
+          const key=normName(rawName);
+          if(!key || /^\\d+$/.test(key))return;
+          knownStaffNames.add(key);
           if(!categoryByStaff[key])categoryByStaff[key]={};
           categoryByStaff[key][activeSection[idx]]=amount;
           if(activeSection[idx]==="total")targetMap[key]=amount;
@@ -3106,10 +3119,11 @@ Indosat IM3 : ${isatText}`;
                     ];
                     const key = st.name.trim().toLowerCase();
                     const target = staffDailyTargets[key] || staffDailyTargets[key.split(" ")[0]];
-                    const categoryTarget = staffCategoryTargets[key] || staffCategoryTargets[key.split(" ")[0]] || {};
+                    const normalizedStaffKey = st.name.toLowerCase().normalize("NFKC").replace(/[^a-z0-9]+/g," ").trim().replace(/\s+/g," ");
+                    const categoryTarget = staffCategoryTargets[normalizedStaffKey] || {};
                     const targetFor = (category:string):number|null => {
                       const value=categoryTarget[category];
-                      if(value===undefined)return null;
+                      if(value===undefined)return 0;
                       if(periodType==="monthly")return value;
                       const monthParts=selectedMonth.match(/(20\d{2})$/);
                       const monthIndex=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"].findIndex(m=>selectedMonth.toLowerCase().startsWith(m.toLowerCase()));
@@ -3119,19 +3133,19 @@ Indosat IM3 : ${isatText}`;
                         const dates=[...new Set(activeTransactions.map(t=>t.isoDate).filter(Boolean))];
                         return Math.round(value/days*Math.max(1,dates.length));
                       }
-                      return null;
+                      return value;
                     };
                     const dailyTargetFor = (title:string) => targetFor(title==="Apple Devices"?"apple":title==="Android Devices"?"android":title==="Accessories"?"accessories":"vas");
                     const renderMetric = (label:string,items:RawTransaction[],targetValue:number|null,detailKey:string) => {
                       const actual = sum(items);
-                      const variance = targetValue===null?null:actual.amount-targetValue;
-                      const pct = targetValue && targetValue>0?actual.amount/targetValue*100:null;
-                      const estimate = targetValue===null?null:targetValue-actual.amount;
+                      const variance = actual.amount-(targetValue ?? 0);
+                      const pct = targetValue !== null && targetValue>0?actual.amount/targetValue*100:0;
+                      const estimate = (targetValue ?? 0)-actual.amount;
                       const expanded = staffExpandedDetail===detailKey;
                       return <div key={detailKey} className={`p-3 rounded-xl border ${innerBg}`}>
                         <div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-sm text-slate-950 dark:text-white">{label}</strong><button type="button" onClick={()=>setStaffExpandedDetail(expanded?null:detailKey)} className="text-xs font-bold text-sky-600 dark:text-sky-300">{expanded?"⌃ Show Less":"⌄ More Details"}</button></div>
-                        <div className="text-xs mt-2 text-slate-900 dark:text-slate-200">T/A: <strong>{targetValue===null?"Target belum tersedia":formatIDR(targetValue)}</strong> / <strong>{formatIDR(actual.amount)}</strong> · {actual.qty} Qty</div>
-                        <div className="text-xs mt-1 text-slate-900 dark:text-slate-200">% & +/-: <strong className={variance!==null && variance<0?"text-rose-500":"text-emerald-500"}>{pct===null?"—":pct.toFixed(1)+"%"} · {variance===null?"—":(variance>=0?"+":"")+formatIDR(variance)}</strong></div>
+                        <div className="text-xs mt-2 text-slate-900 dark:text-slate-200">T/A: <strong>{formatIDR(targetValue ?? 0)}</strong> / <strong>{formatIDR(actual.amount)}</strong> · {actual.qty} Qty</div>
+                        <div className="text-xs mt-1 text-slate-900 dark:text-slate-200">% & +/-: <strong className={variance!==null && variance<0?"text-rose-500":"text-emerald-500"}>{pct.toFixed(1)+"%"} · {variance===null?"—":(variance>=0?"+":"")+formatIDR(variance)}</strong></div>
                         <div className="text-xs mt-1 text-slate-900 dark:text-slate-200">Estimate (sisa target): <strong>{estimate===null?"—":formatIDR(Math.max(0,estimate))}</strong></div>
                         {expanded && <div className="mt-3 pt-2 border-t border-slate-400/30 max-h-64 overflow-y-auto space-y-1">
                           {items.length===0?<p className="text-xs text-slate-500">Tidak ada penjualan pada filter ini.</p>:Object.values(items.reduce((m,t)=>{const k=(t.productName||"Unknown")+"|"+(t.supplier||"");if(!m[k])m[k]={product:t.productName||"Unknown",supplier:t.supplier||"",qty:0,amount:0};m[k].qty+=Number(t.qty)||0;m[k].amount+=Number(t.amount)||0;return m;},{} as Record<string,{product:string,supplier:string,qty:number,amount:number}>)).sort((a,b)=>b.amount-a.amount).map((p,i)=><div key={i} className="flex justify-between gap-2 text-[11px] py-1 border-b border-slate-400/10"><span className="text-slate-900 dark:text-white">{p.product}{label==="Accessories"&&p.supplier?" · "+p.supplier:""}</span><span className="shrink-0 text-slate-900 dark:text-white">{p.qty} Qty / {formatIDR(p.amount)}</span></div>)}
@@ -3139,10 +3153,10 @@ Indosat IM3 : ${isatText}`;
                       </div>;
                     };
                     return <section className={`p-5 sm:p-6 rounded-3xl border-2 ${cardBg} shadow-xl space-y-4`}>
-                      <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-black text-lg text-slate-950 dark:text-white">Target Vs Achievement Per Staff</h2><p className={`text-xs ${textMuted}`}>{st.name} · {periodType.toUpperCase()} · {periodType==="daily"?selectedDate:periodType==="weekly"?selectedWeek:selectedMonth}</p></div><button type="button" onClick={()=>handleShareStaffWA(st,rows)} className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black">↗ Share WhatsApp</button></div>
-                      {renderMetric("TOTAL STAFF",rows,st.targetAmount,"total")}
-                      <p className={`text-xs ${textMuted}`}>Target diambil dari sheet Pembagian target berdasarkan nama staff dan kategori. Target bulanan dibagi rata per hari untuk filter Daily; Weekly diprorata berdasarkan tanggal transaksi yang terfilter. Estimate adalah sisa target, bukan prediksi penjualan.</p>
-                      {groups.map(g=><div key={g.title} className="space-y-2"><h3 className="font-black text-base text-slate-950 dark:text-white">{g.title}</h3>{renderMetric(g.title,g.items,dailyTargetFor(g.title),"group-"+g.title)}<div className="grid md:grid-cols-2 gap-2">{g.sub.map(([label,items])=>renderMetric(label,items,targetFor(({iPhone:"iphone",iPad:"ipad",MacBook:"macbook","Apple Watch":"applewatch",Qoala:"qoala",Telkomsel:"telkomsel",XL:"xl",Indosat:"indosat"} as Record<string,string>)[label] || label.toLowerCase()),g.title+"-"+label))}</div></div>)}
+                      <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-black text-lg text-slate-950 dark:text-white">Target Vs Achievement Per Staff</h2><p className={`text-xs ${textMuted}`}>{st.name} · {periodType.toUpperCase()} · {periodType==="daily"?selectedDate:periodType==="weekly"?selectedWeek:selectedMonth}</p></div><button type="button" onClick={()=>handleShareStaffWA({...st,targetAmount:targetFor("total")??0,achvPct:(targetFor("total")??0)>0?Number((st.totalAmount/(targetFor("total")??1)*100).toFixed(1)):0},rows)} className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black">↗ Share WhatsApp</button></div>
+                      {renderMetric("TOTAL STAFF",rows,targetFor("total"),"total")}
+                      <p className={`text-xs ${textMuted}`}>Sumber target: Pembagian target (gid 685849310). Staff atau kategori yang tidak ditemukan memiliki target Rp 0. Target Daily/Weekly diprorata dari target bulanan. Estimate adalah sisa target, bukan prediksi penjualan.</p>
+                      {groups.map(g=><div key={g.title} className="space-y-2"><h3 className="font-black text-base text-slate-950 dark:text-white">{g.title}</h3>{renderMetric(g.title,g.items,dailyTargetFor(g.title),"group-"+g.title)}<div className="grid md:grid-cols-2 gap-2">{g.sub.map(([label,items])=>renderMetric(label,items,targetFor(({iPhone:"iphone",iPad:"ipad",MacBook:"macbook","Apple Watch":"applewatch",Qoala:"qoala",Telkomsel:"telkomsel",XL:"xl",Indosat:"indosat",SAMSUNG:"samsung",XIAOMI:"xiaomi",OPPO:"oppo",MOTOROLA:"motorola",HUAWEI:"huawei",INFINIX:"infinix"} as Record<string,string>)[label] || label.toLowerCase()),g.title+"-"+label))}</div></div>)}
                     </section>;
                   })()}
                   <div className="space-y-4">
