@@ -346,6 +346,7 @@ export default function DigiplusOperationalEngine() {
   const [overviewStaffPopupId, setOverviewStaffPopupId] = useState<string | null>(null);
   const [momToday, setMomToday] = useState(() => new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()));
   const [selectedWeek, setSelectedWeek] = useState<string>("ALL");
+  const [calendarWeekIndex, setCalendarWeekIndex] = useState(0);
   const [w1Filter, setW1Filter] = useState<string>("");
   const [w2Filter, setW2Filter] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<string>(() => new Intl.DateTimeFormat("sv-SE", {timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()));
@@ -1327,6 +1328,29 @@ export default function DigiplusOperationalEngine() {
       droppedProducts: buildDroppedProductsAnalysis(trxM1, trxM2),
     };
   }, [transactions, momBaseMonth, momCompareMonth, momMode, momToday]);
+
+  const calendarWeekly = useMemo(() => {
+    const names=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+    const monthIndex=names.findIndex(n=>selectedMonth.startsWith(n));
+    const year=Number(selectedMonth.slice(-4));
+    if(monthIndex<0||!Number.isFinite(year))return {weeks:[],current:null,previous:null,monthRows:[] as RawTransaction[],dailyTarget:0};
+    const pad=(d:Date)=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+    const last=new Date(year,monthIndex+1,0).getDate();
+    const prefix=year+"-"+String(monthIndex+1).padStart(2,"0")+"-";
+    const monthRows=transactions.filter(t=>t.isoDate.startsWith(prefix));
+    const weeks:{label:string;start:string;end:string;days:number;rows:RawTransaction[];amount:number;target:number}[]=[];
+    const dailyTarget=selectedMonth===targetSheetMonth?storeTotalTarget/last:0;
+    let start=1;
+    while(start<=last){
+      const first=new Date(year,monthIndex,start);
+      const end=Math.min(last,start+6-first.getDay());
+      const rows=monthRows.filter(t=>{const day=Number(t.isoDate.slice(8,10));return day>=start&&day<=end;});
+      weeks.push({label:"W"+(weeks.length+1),start:pad(first),end:pad(new Date(year,monthIndex,end)),days:end-start+1,rows,amount:rows.reduce((n,t)=>n+t.amount,0),target:dailyTarget*(end-start+1)});
+      start=end+1;
+    }
+    const index=Math.min(calendarWeekIndex,weeks.length-1);
+    return {weeks,current:weeks[index]||null,previous:index>0?weeks[index-1]:null,monthRows,dailyTarget};
+  },[transactions,selectedMonth,calendarWeekIndex,targetSheetMonth,storeTotalTarget]);
 
   const weeklyComparisonData = useMemo(() => {
     const weekRows = (week: string) => transactions.filter(t => week && getTransactionWeek(t) === week);
@@ -2958,6 +2982,38 @@ Indosat IM3 : ${isatText}`;
               {/* TAB 2: WEEKLY SALES (WoW) */}
               {activeTab === "weekly-sales" && (
                 <div className="space-y-5">
+                  <section className={`p-5 ${cardBg} border-2 rounded-3xl shadow-xl space-y-5`}>
+                    <div className="flex justify-between items-center flex-wrap gap-3">
+                      <div><h2 className="text-lg font-black text-slate-950 dark:text-white">📊 WEEKLY PERFORMANCE — MINGGU–SABTU</h2><p className="text-xs text-slate-500">Target mingguan = target bulanan ÷ jumlah hari bulan × hari dalam week. Periode terpotong pada batas bulan.</p></div>
+                      <select className="rounded-xl border px-3 py-2 bg-white text-slate-950 dark:bg-slate-800 dark:text-white" value={Math.min(calendarWeekIndex,Math.max(0,calendarWeekly.weeks.length-1))} onChange={e=>setCalendarWeekIndex(Number(e.target.value))}>{calendarWeekly.weeks.map((w,i)=><option key={i} value={i}>{w.label} · {w.start} s.d. {w.end}</option>)}</select>
+                    </div>
+                    {calendarWeekly.current && (() => {
+                      const w=calendarWeekly.current, prev=calendarWeekly.previous;
+                      const amount=(rows:RawTransaction[])=>rows.reduce((n,t)=>n+t.amount,0);
+                      const qty=(rows:RawTransaction[])=>rows.reduce((n,t)=>n+t.qty,0);
+                      const growth=prev&&prev.amount>0?(w.amount-prev.amount)/prev.amount*100:null;
+                      const inv=new Set(w.rows.map(t=>t.invoice).filter(Boolean)).size;
+                      const groups=["Apple","Android","ACC","VAS"];
+                      const groupOf=(t:RawTransaction)=>{const g=t.groupCategory.toUpperCase(),p=t.productType.toUpperCase(),b=t.brand.toUpperCase();return g.includes("VAS")||p.includes("VAS")?"VAS":g.includes("ACC")||p.includes("ACC")?"ACC":g.includes("APPLE")||b.includes("APPLE")||b.includes("IPHONE")?"Apple":"Android";};
+                      const staff=[...new Set(w.rows.map(t=>t.salesId||t.salesName))].map(id=>{const rows=w.rows.filter(t=>(t.salesId||t.salesName)===id);const monthly=staffTargets[id]||0;return {id,name:rows[0]?.salesName||id,amount:amount(rows),qty:qty(rows),invoices:new Set(rows.map(t=>t.invoice)).size,target:monthly/calendarWeekly.weeks.reduce((n,x)=>n+x.days,0)*w.days,acc:amount(rows.filter(t=>groupOf(t)==="ACC")),vas:amount(rows.filter(t=>groupOf(t)==="VAS"))};}).sort((a,b)=>b.amount-a.amount);
+                      const products=[...new Set(w.rows.map(t=>t.productName))].map(name=>{const rows=w.rows.filter(t=>t.productName===name);return {name,qty:qty(rows),amount:amount(rows)};}).sort((a,b)=>b.qty-a.qty).slice(0,10);
+                      const days=Array.from({length:w.days},(_,i)=>{const d=new Date(w.start+"T12:00:00");d.setDate(d.getDate()+i);const iso=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");const rows=w.rows.filter(t=>t.isoDate===iso);return {iso,amount:amount(rows),rows};});
+                      const maxDay=Math.max(calendarWeekly.dailyTarget,...days.map(d=>d.amount),1);
+                      return <div className="space-y-5">
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                          {([{label:"SALES "+w.label,value:formatIDR(w.amount),detail:"Target "+formatIDR(w.target)+" · "+(w.target>0?(w.amount/w.target*100).toFixed(1)+"%":"Target belum tersedia")},{label:"VS WEEK LALU",value:growth===null?"—":(growth>=0?"+":"")+growth.toFixed(1)+"%",detail:prev?prev.label+" · "+formatIDR(prev.amount):"Week pertama bulan ini"},{label:"TRANSAKSI · UPT",value:inv+" · "+(inv?qty(w.rows)/inv:0).toFixed(2),detail:qty(w.rows)+" unit"},{label:"TIME GONE",value:(w.days?Math.min(100,days.filter(d=>d.rows.length>0).length/w.days*100):0).toFixed(0)+"%",detail:w.days+" hari kalender"}] as const).map(k=><div key={k.label} className={`p-4 rounded-2xl border ${innerBg}`}><div className="text-xs font-bold text-slate-500">{k.label}</div><div className="text-lg font-black text-slate-950 dark:text-white">{k.value}</div><div className="text-xs text-slate-500">{k.detail}</div></div>)}
+                        </div>
+                        <div className={`p-4 rounded-2xl border ${innerBg}`}><h3 className="font-black text-slate-950 dark:text-white mb-3">Harian Minggu–Sabtu · Target/Hari {formatIDR(calendarWeekly.dailyTarget)}</h3><div className="grid grid-cols-7 gap-2 items-end h-44">{days.map(d=><div key={d.iso} className="flex flex-col items-center justify-end h-full gap-1"><span className="text-[10px] font-bold text-slate-600 dark:text-slate-300">{formatCompactIDR(d.amount)}</span><div className={`w-full rounded-t-lg ${d.amount>=calendarWeekly.dailyTarget?"bg-blue-500":"bg-rose-400"}`} style={{height:Math.max(3,d.amount/maxDay*115)+"px"}}/><span className="text-[10px] text-slate-500">{d.iso.slice(8)}</span></div>)}</div><div className="overflow-x-auto mt-4"><table className="w-full min-w-[620px] text-xs"><thead><tr>{["Hari","Sales","Apple","Android","ACC","VAS","Inv","UPT","ACH"].map(h=><th key={h} className="p-2 text-left">{h}</th>)}</tr></thead><tbody>{days.map(d=><tr key={d.iso} className="border-t border-slate-400/20"><td className="p-2">{d.iso}</td><td className="p-2 font-bold">{formatCompactIDR(d.amount)}</td>{groups.map(g=><td key={g} className="p-2">{formatCompactIDR(amount(d.rows.filter(t=>groupOf(t)===g)))}</td>)}<td className="p-2">{new Set(d.rows.map(t=>t.invoice)).size}</td><td className="p-2">{(qty(d.rows)/Math.max(1,new Set(d.rows.map(t=>t.invoice)).size)).toFixed(1)}</td><td className="p-2">{calendarWeekly.dailyTarget?(d.amount/calendarWeekly.dailyTarget*100).toFixed(0)+"%":"—"}</td></tr>)}</tbody></table></div></div>
+                        <div className="grid lg:grid-cols-2 gap-4">
+                          <div className={`p-4 rounded-2xl border ${innerBg}`}><h3 className="font-black text-slate-950 dark:text-white mb-3">Per Grup · Actual vs Target Week</h3>{groups.map(g=>{const actual=amount(w.rows.filter(t=>groupOf(t)===g));return <div key={g} className="py-2 border-b border-slate-400/20 text-xs"><div className="flex justify-between"><strong>{g}</strong><span>{formatIDR(actual)}</span></div><div className="h-2 bg-slate-400/20 rounded-full mt-1"><div className="h-full bg-blue-500 rounded-full" style={{width:Math.min(100,w.amount?actual/w.amount*100:0)+"%"}}/></div></div>})}</div>
+                          <div className={`p-4 rounded-2xl border ${innerBg}`}><h3 className="font-black text-slate-950 dark:text-white mb-3">Staff {w.label} · Ranking</h3>{staff.map((st,i)=><div key={st.id} className="flex justify-between gap-2 py-2 border-b border-slate-400/20 text-xs"><span>{i+1}. {st.name}<span className="block text-[10px] text-slate-500">ACC {formatCompactIDR(st.acc)} · VAS {formatCompactIDR(st.vas)} · {st.invoices} trx</span></span><strong>{formatCompactIDR(st.amount)} · {st.target?(st.amount/st.target*100).toFixed(0)+"%":"—"}</strong></div>)}</div>
+                          <div className={`p-4 rounded-2xl border ${innerBg}`}><h3 className="font-black text-slate-950 dark:text-white mb-3">Top Produk {w.label}</h3>{products.map((p,i)=><div key={p.name} className="flex justify-between gap-2 py-2 border-b border-slate-400/20 text-xs"><span>{i+1}. {p.name}</span><strong>{p.qty} · {formatCompactIDR(p.amount)}</strong></div>)}</div>
+                          <div className={`p-4 rounded-2xl border ${innerBg}`}><h3 className="font-black text-slate-950 dark:text-white mb-3">Tren Week Bulan Ini</h3><div className="flex items-end gap-3 h-36">{calendarWeekly.weeks.map((wk,i)=><button key={i} onClick={()=>setCalendarWeekIndex(i)} className="flex-1 flex flex-col items-center justify-end h-full gap-1"><span className="text-[10px]">{formatCompactIDR(wk.amount)}</span><div className="w-full bg-blue-500 rounded-t" style={{height:Math.max(3,wk.amount/Math.max(1,...calendarWeekly.weeks.map(x=>x.amount))*95)+"px"}}/><span className="text-xs">{wk.label}</span></button>)}</div></div>
+                        </div>
+                        <div className={`p-4 rounded-2xl border overflow-x-auto ${innerBg}`}><h3 className="font-black text-slate-950 dark:text-white mb-3">Comparison per LOB · {w.label} vs Week Lalu</h3><table className="w-full min-w-[600px] text-xs"><thead><tr>{["LOB","Qty Ini","Qty Lalu","Δ Qty","Value Ini","Value Lalu","Δ Value","Growth"].map(h=><th key={h} className="p-2 text-left">{h}</th>)}</tr></thead><tbody>{groups.map(g=>{const a=w.rows.filter(t=>groupOf(t)===g),b=prev?.rows.filter(t=>groupOf(t)===g)||[];const va=amount(a),vb=amount(b);return <tr key={g} className="border-t border-slate-400/20"><td className="p-2 font-bold">{g}</td><td className="p-2">{qty(a)}</td><td className="p-2">{prev?qty(b):"—"}</td><td className="p-2">{prev?qty(a)-qty(b):"—"}</td><td className="p-2">{formatIDR(va)}</td><td className="p-2">{prev?formatIDR(vb):"—"}</td><td className="p-2">{prev?formatIDR(va-vb):"—"}</td><td className="p-2">{prev&&vb?(va/vb*100-100).toFixed(1)+"%":"—"}</td></tr>})}</tbody></table></div>
+                      </div>;
+                    })()}
+                  </section>
                   <section className={`p-5 ${cardBg} border-2 rounded-3xl shadow-xl`}>
                     <h2 className="text-lg font-black text-slate-950 dark:text-white">📈 WEEK TO WEEK SALES — DATABASE COLUMN O</h2>
                     <p className={`text-xs mt-1 ${textMuted}`}>Pilih dua minggu pada bulan yang dipilih. Jika kolom O kosong atau 0, minggu dihitung otomatis dari tanggal transaksi.</p>
