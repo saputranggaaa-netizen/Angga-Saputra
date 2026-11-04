@@ -1334,16 +1334,18 @@ export default function DigiplusOperationalEngine() {
   }, [transactions,w1Filter,w2Filter]);
 
   const timeGoneStats = useMemo(() => {
-    // Jakarta clock; H-1 means completed days in the CURRENT calendar month.
-    const [yearStr,monthStr,dayStr]=momToday.split("-");
-    const year=Number(yearStr),monthIndex=Number(monthStr)-1;
-    const totalDays=new Date(year,monthIndex+1,0).getDate();
-    const elapsedDays=Math.min(totalDays,Math.max(0,Number(dayStr)-1));
-    const remainingDays=totalDays-elapsedDays;
-    const timeElapsedPct=Number((elapsedDays/totalDays*100).toFixed(1));
-    const monthName=new Date(year,monthIndex,1).toLocaleDateString("id-ID",{month:"long",year:"numeric"}).toUpperCase();
+    const dates = transactions.map(t => String(t.isoDate || "").trim()).filter(d => d.length === 10 && d[4] === "-" && d[7] === "-" && d > "1900-01-01").sort();
+    const latestDate = dates[dates.length - 1];
+    if (!latestDate) return {monthName:"BELUM ADA DATA",elapsedDays:0,totalDays:0,remainingDays:0,timeElapsedPct:0};
+    const [yearText,monthText,dayText] = latestDate.split("-");
+    const year = Number(yearText), monthIndex = Number(monthText) - 1;
+    const totalDays = new Date(year,monthIndex + 1,0).getDate();
+    const elapsedDays = Math.min(totalDays,Math.max(0,Number(dayText)));
+    const remainingDays = totalDays - elapsedDays;
+    const timeElapsedPct = Number((elapsedDays / totalDays * 100).toFixed(2));
+    const monthName = new Date(year,monthIndex,1).toLocaleDateString("id-ID",{month:"long",year:"numeric"}).toUpperCase();
     return {monthName,elapsedDays,totalDays,remainingDays,timeElapsedPct};
-  },[momToday]);
+  },[transactions]);
 
   const dailyTrendStats = useMemo(() => {
     const daysInMonth = timeGoneStats.totalDays || 31;
