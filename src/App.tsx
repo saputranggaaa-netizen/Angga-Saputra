@@ -312,14 +312,10 @@ export default function DigiplusOperationalEngine() {
   // Live Spreadsheet Data & Targets
   const [transactions, setTransactions] = useState<RawTransaction[]>([]);
   const [bnplRecords, setBnplRecords] = useState<BnplRecord[]>([]);
-  const [storeTotalTarget, setStoreTotalTarget] = useState<number>(8728667173);
+  const [storeTotalTarget, setStoreTotalTarget] = useState<number>(0);
+  const [targetSheetMonth, setTargetSheetMonth] = useState<string>("");
   const [staffTargets, setStaffTargets] = useState<Record<string, number>>({});
-  const [categoryTargets, setCategoryTargets] = useState<Record<string, number>>({
-    apple: 6932151006,
-    android: 943691666,
-    accessories: 650000000,
-    vas: 200000000,
-  });
+  const [categoryTargets, setCategoryTargets] = useState<Record<string, number>>({});
   const [scheduleData, setScheduleData] = useState<StaffScheduleItem[]>(INITIAL_SCHEDULE);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [staffDailyTargets, setStaffDailyTargets] = useState<Record<string, StaffDailyTargetDetail>>({});
@@ -413,19 +409,18 @@ export default function DigiplusOperationalEngine() {
       const dbUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=602901290';
       const bnplUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=2697970';
       const targetUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=685849310';
-      const dailyTargetSheetUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=789142551';
 
-      const [resDb, resBnpl, resTarget, resDailyTarget] = await Promise.all([
+
+      const [resDb, resBnpl, resTarget] = await Promise.all([
         fetch(dbUrl),
         fetch(bnplUrl),
-        fetch(targetUrl),
-        fetch(dailyTargetSheetUrl)
+        fetch(targetUrl)
       ]);
 
       const textDb = await resDb.text();
       const textBnpl = await resBnpl.text();
       const textTarget = await resTarget.text();
-      const textDailyTarget = await resDailyTarget.text();
+
 
       const jsonDb = JSON.parse(textDb.substring(textDb.indexOf("{"), textDb.lastIndexOf("}") + 1));
       const parsedTrx: RawTransaction[] = [];
@@ -509,122 +504,91 @@ export default function DigiplusOperationalEngine() {
         }
       });
 
-      // Pembagian target: three side-by-side blocks (C:F, H:K, M:P).
+      // Single source of truth: Pembagian target, header-driven columns B:W.
       const jsonTarget = JSON.parse(textTarget.substring(textTarget.indexOf("{"), textTarget.lastIndexOf("}") + 1));
-      const targetMap: Record<string, number> = {};
-      const categoryByStaff: Record<string, Record<string, number>> = {};
-      const blocks = [{name:2,value:5},{name:7,value:10},{name:12,value:15}];
-      const sections = ["total","apple","iphone","ipad","android","macbook","applewatch","accessories","qoala","telkomsel","vas","indosat","xl","samsung","xiaomi","oppo","motorola","huawei","infinix"];
-      const identify = (value:string) => {
-        const x=value.toUpperCase().replace(/[^A-Z]/g,"");
-        if(x.includes("TARGETSAMSUNG"))return "samsung";
-        if(x.includes("TARGETXIOMI")||x.includes("TARGETXIAOMI"))return "xiaomi";
-        if(x.includes("TARGETOPPO"))return "oppo";
-        if(x.includes("TARGETMOTOROLA"))return "motorola";
-        if(x.includes("TARGETHUAWEI"))return "huawei";
-        if(x.includes("TARGETINFINIX"))return "infinix";
-        if(x.includes("TARGETIPHONE"))return "iphone";
-        if(x.includes("TARGETIPAD"))return "ipad";
-        if(x.includes("TARGETMACBOOK"))return "macbook";
-        if(x.includes("TARGETAW")||x.includes("TARGETAPPLEWATCH"))return "applewatch";
-        if(x.includes("TARGETAPPLEDEVICE"))return "apple";
-        if(x.includes("TARGETANDROIDDEVICE"))return "android";
-        if(x.includes("TARGETACC"))return "accessories";
-        if(x.includes("TARGETQOALA"))return "qoala";
-        if(x.includes("TARGETTELKOMSEL"))return "telkomsel";
-        if(x.includes("TARGETINDOSAT"))return "indosat";
-        if(x.includes("TARGETXL"))return "xl";
-        if(x.includes("TARGETVAS"))return "vas";
-        if(x.includes("MTDTARGET"))return "total";
-        return "";
-      };
-      const parseMoney = (cell:any) => {
-        const raw = cell?.v ?? cell?.f ?? 0;
+      const rows = jsonTarget.table?.rows || [];
+      const norm = (name:string) => name.toLowerCase().normalize("NFKC").replace(/[^a-z0-9]+/g," ").trim().replace(/\s+/g," ");
+      const parseMoney = (cell:any):number => {
+        const raw=cell?.v ?? cell?.f ?? 0;
         return typeof raw==="number" ? raw : Number(String(raw).replace(/[^0-9-]/g,"")) || 0;
       };
-      const activeSection = ["","",""];
-      let parsedGrandTotal=0;
-      const normName=(name:string)=>name.toLowerCase().normalize("NFKC").replace(/[^a-z0-9]+/g," ").trim().replace(/\s+/g," ");
-            (jsonTarget.table.rows || []).forEach((r:any) => {
+      const cellText=(c:any[],i:number)=>String(c[i]?.f ?? c[i]?.v ?? "").trim();
+      const categories:Record<string,string>={
+        "total target mtd":"total","iphone":"iphone","ipad":"ipad","macbook":"macbook",
+        "apple watch":"applewatch","total target apple devices":"apple",
+        "samsung":"samsung","oppo":"oppo","xiaomi":"xiaomi","huawei":"huawei",
+        "motorola":"motorola","infinix":"infinix","total target android devices":"android",
+        "accessories":"accessories","qoala":"qoala","telkomsel":"telkomsel",
+        "indosat":"indosat","xl":"xl","total target vas":"vas"
+      };
+      const header=rows.find((r:any)=> {
         const c=r.c || [];
-        const heading=String(c[2]?.v ?? c[2]?.f ?? "");
-        const headingSection=identify(heading);
-        if(headingSection==="total" || heading.toUpperCase().includes("MTD TARGET"))activeSection[0]="total";
-        blocks.forEach((block,idx)=>{
-          const rawName=String(c[block.name]?.v ?? c[block.name]?.f ?? "").trim();
-          const section=identify(rawName);
-          if(section && sections.includes(section)){activeSection[idx]=section;return;}
-          const lower=rawName.toLowerCase();
-          if(lower.includes("grand total")){activeSection[idx]="";return;}
-          if(!activeSection[idx] || !rawName || /^(staff name|target|position|amount)$/i.test(rawName))return;
-          const amount=parseMoney(c[block.value]);
-          if(amount<0 || !c[block.value])return;
-          const key=normName(rawName);
-          if(!key || /^\d+$/.test(key))return;
-          if(!categoryByStaff[key])categoryByStaff[key]={};
-          categoryByStaff[key][activeSection[idx]]=amount;
-          if(activeSection[idx]==="total")targetMap[key]=amount;
-        });
-        const label=String(c[2]?.v ?? "").toLowerCase();
-        if(label.includes("grand total") && !parsedGrandTotal) {
-          const amount=parseMoney(c[5]);
-          if(amount>5000000000)parsedGrandTotal=amount;
-        }
+        return c.some((_:any,i:number)=>norm(cellText(c,i))==="nama staff")
+          && c.some((_:any,i:number)=>norm(cellText(c,i))==="total target mtd");
       });
-      if(parsedGrandTotal>0)setStoreTotalTarget(parsedGrandTotal);
-      setStaffTargets(targetMap);
-      setStaffCategoryTargets(categoryByStaff);
-      // Parsing Sheet Daily Target (gid: 789142551)
-      const jsonDailyTarget = JSON.parse(
-        textDailyTarget.substring(textDailyTarget.indexOf("{"), textDailyTarget.lastIndexOf("}") + 1)
-      );
-
-      const parsedStaffDailyTargets: Record<string, StaffDailyTargetDetail> = {};
-
-      (jsonDailyTarget.table.rows || []).forEach((r: any) => {
-        const c = r.c;
-        if (!c) return;
-
-        const rawStaffName = String(c[0]?.v || c[0]?.f || "").trim().toLowerCase();
-        const rawCategory = String(c[1]?.v || c[1]?.f || "").trim().toUpperCase();
-        const rawTargetVal = c[7]?.v;
-        const targetVal = typeof rawTargetVal === "number" 
-          ? rawTargetVal 
-          : Number(String(rawTargetVal || 0).replace(/[^0-9]/g, ""));
-
-        if (
-          !rawStaffName ||
-          rawStaffName.includes("staff") ||
-          rawStaffName.includes("nama") ||
-          rawStaffName.includes("total") ||
-          rawStaffName.includes("grand") ||
-          rawStaffName.includes("month") ||
-          rawStaffName.includes("target") ||
-          rawStaffName.includes("all") ||
-          rawStaffName.length <= 2 ||
-          isNaN(targetVal)
-        ) {
+      if(!header)throw new Error("Header Pembagian target tidak ditemukan");
+      const columns:Record<string,number>={};
+      (header.c || []).forEach((_:any,i:number)=>{
+        const label=norm(cellText(header.c,i));
+        if(categories[label])columns[categories[label]]=i;
+        if(label==="nama staff")columns.staff=i;
+        if(label==="bulan")columns.month=i;
+      });
+      const targetMap:Record<string,number>={};
+      const categoryByStaff:Record<string,Record<string,number>>={};
+      const categoryTotals:Record<string,number>={};
+      const monthNames=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+      const normalizeMonth=(v:string)=>{
+        const m=v.trim().match(/^([a-zA-Z]+)\s*(20\d{2})$/);
+        const idx=m?monthNames.findIndex(n=>n.toLowerCase()===m[1].toLowerCase()):-1;
+        return idx>=0?monthNames[idx]+m![2]:"";
+      };
+      const targetMonth=rows.map((r:any)=>normalizeMonth(cellText(r.c||[],columns.month))).find(Boolean) || "";
+      const currentMonth=new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit"}).format(new Date());
+      const currentMonthKey=monthNames[Number(currentMonth.slice(5,7))-1]+currentMonth.slice(0,4);
+      const validMonth=targetMonth && targetMonth===currentMonthKey;
+      let parsedGrandTotal=0;
+      rows.forEach((r:any)=>{
+        const c=r.c || [];
+        const rawName=cellText(c,columns.staff);
+        const key=norm(rawName);
+        const rowMonth=normalizeMonth(cellText(c,columns.month));
+        if(!key)return;
+        if(key==="grand total"){
+          Object.keys(categories).forEach(()=>{});
+          Object.entries(columns).forEach(([category,i])=>{
+            if(!["staff","month"].includes(category))categoryTotals[category]=parseMoney(c[i]);
+          });
+          parsedGrandTotal=categoryTotals.total || 0;
           return;
         }
-
-        if (!parsedStaffDailyTargets[rawStaffName]) {
-          parsedStaffDailyTargets[rawStaffName] = { total: 0, apple: 0, android: 0, accessories: 0, vas: 0 };
-        }
-
-        if (rawCategory.includes("APPLE")) {
-          parsedStaffDailyTargets[rawStaffName].apple += targetVal;
-        } else if (rawCategory.includes("ANDROID")) {
-          parsedStaffDailyTargets[rawStaffName].android += targetVal;
-        } else if (rawCategory.includes("ACCESSORIES") || rawCategory.includes("AKSESORIS")) {
-          parsedStaffDailyTargets[rawStaffName].accessories += targetVal;
-        } else if (rawCategory.includes("VAS") || rawCategory.includes("QOALA")) {
-          parsedStaffDailyTargets[rawStaffName].vas += targetVal;
-        }
-
-        parsedStaffDailyTargets[rawStaffName].total += targetVal;
+        if(!rowMonth || rowMonth!==targetMonth || key==="nama staff")return;
+        const perCategory:Record<string,number>={};
+        Object.entries(columns).forEach(([category,i])=>{
+          if(!["staff","month"].includes(category))perCategory[category]=parseMoney(c[i]);
+        });
+        categoryByStaff[key]=perCategory;
+        targetMap[key]=perCategory.total || 0;
       });
-
-      setStaffDailyTargets(parsedStaffDailyTargets);
+      if(!parsedGrandTotal)parsedGrandTotal=Object.values(targetMap).reduce((a,b)=>a+b,0);
+      setTargetSheetMonth(targetMonth);
+      setStoreTotalTarget(validMonth?parsedGrandTotal:0);
+      setStaffTargets(validMonth?targetMap:{});
+      setStaffCategoryTargets(validMonth?categoryByStaff:{});
+      setCategoryTargets(validMonth?categoryTotals:{});
+      const daysInTargetMonth=Number(currentMonth.slice(5,7))>0
+        ? new Date(Number(currentMonth.slice(0,4)),Number(currentMonth.slice(5,7)),0).getDate():30;
+      const dailyTargets:Record<string,StaffDailyTargetDetail>={};
+      if(validMonth)Object.entries(categoryByStaff).forEach(([name,c])=>{
+        dailyTargets[name]={
+          total:Math.round((c.total||0)/daysInTargetMonth),
+          apple:Math.round((c.apple||0)/daysInTargetMonth),
+          android:Math.round((c.android||0)/daysInTargetMonth),
+          accessories:Math.round((c.accessories||0)/daysInTargetMonth),
+          vas:Math.round((c.vas||0)/daysInTargetMonth)
+        };
+      });
+      setStaffDailyTargets(dailyTargets);
       setTransactions(parsedTrx);
       setBnplRecords(parsedBnpl);
 
@@ -798,11 +762,11 @@ export default function DigiplusOperationalEngine() {
     const activeTx = activeTransactions || [];
     const actual = activeTx.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
     
-    const baseTarget = storeTotalTarget || 8728667173;
+    const baseTarget = selectedMonth===targetSheetMonth ? storeTotalTarget : 0;
     const target = periodType === "daily"
-      ? Math.round(baseTarget / 31)
+      ? Math.round(baseTarget / new Date(Number(selectedDate.slice(0,4)),Number(selectedDate.slice(5,7)),0).getDate())
       : periodType === "weekly"
-      ? Math.round((baseTarget / 31) * 7)
+      ? Math.round((baseTarget / new Date(Number(momToday.slice(0,4)),Number(momToday.slice(5,7)),0).getDate()) * 7)
       : baseTarget;
 
     const achv = calcAchv(actual, target);
@@ -820,7 +784,7 @@ export default function DigiplusOperationalEngine() {
       return (t.brand === "APPLE" && (t.groupCategory === "DEVICES" || isHardware)) && !isCaseOrAcc;
     });
     const appleActual = appleItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
-    const appleTarget = categoryTargets.apple || Math.round(target * 0.794);
+    const appleTarget = Math.round((selectedMonth===targetSheetMonth ? (categoryTargets.apple ?? 0) : 0) * (periodType==="monthly" ? 1 : target > 0 && baseTarget > 0 ? target/baseTarget : 0));
 
     const androidItems = activeTx.filter((t: any) => {
       const pUpper = (t.productName || "").toUpperCase();
@@ -828,15 +792,15 @@ export default function DigiplusOperationalEngine() {
       return t.groupCategory === "DEVICES" && t.brand !== "APPLE" && !isCaseOrAcc;
     });
     const androidActual = androidItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
-    const androidTarget = categoryTargets.android || Math.round(target * 0.108);
+    const androidTarget = Math.round((selectedMonth===targetSheetMonth ? (categoryTargets.android ?? 0) : 0) * (periodType==="monthly" ? 1 : target > 0 && baseTarget > 0 ? target/baseTarget : 0));
 
     const accItems = activeTx.filter((t: any) => t.groupCategory === "ACCESSORIES");
     const accActual = accItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
-    const accTarget = categoryTargets.accessories || Math.round(target * 0.05);
+    const accTarget = Math.round((selectedMonth===targetSheetMonth ? (categoryTargets.accessories ?? 0) : 0) * (periodType==="monthly" ? 1 : target > 0 && baseTarget > 0 ? target/baseTarget : 0));
 
     const vasItems = activeTx.filter((t: any) => t.groupCategory === "VAS");
     const vasActual = vasItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
-    const vasTarget = categoryTargets.vas || Math.round(target * 0.045);
+    const vasTarget = Math.round((selectedMonth===targetSheetMonth ? (categoryTargets.vas ?? 0) : 0) * (periodType==="monthly" ? 1 : target > 0 && baseTarget > 0 ? target/baseTarget : 0));
 
     const todayItems = transactions.filter((t: any) => t.isoDate === selectedDate);
     const todayActual = todayItems.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
@@ -1007,11 +971,11 @@ export default function DigiplusOperationalEngine() {
 
       const nameKey = s.name.trim().toLowerCase();
       const matchedTarget = 
-        staffTargets[nameKey] ||
-        staffTargets[nameKey.split(" ")[0]] ||
+        staffTargets[nameKey] ??
+        staffTargets[nameKey.split(" ")[0]] ??
         staffTargets[s.salesId];
 
-      const targetQuota = matchedTarget || Math.round((storeTotalTarget || 8728667173) / Math.max(sorted.length, 1));
+      const targetQuota = selectedMonth===targetSheetMonth ? (matchedTarget ?? 0) : 0;
       const achv = calcAchv(s.total, targetQuota);
       const words = s.name.split(" ");
       const initials = words.length > 1 ? (words[0][0] + words[1][0]).toUpperCase() : words[0].slice(0, 2).toUpperCase();
@@ -1370,26 +1334,20 @@ export default function DigiplusOperationalEngine() {
   }, [transactions,w1Filter,w2Filter]);
 
   const timeGoneStats = useMemo(() => {
-    const names=["januari","februari","maret","april","mei","juni","juli","agustus","september","oktober","november","desember"];
-    const match=selectedMonth.match(/^(.*?)(20\d{2})$/);
-    const index=match ? names.indexOf(match[1].trim().toLowerCase()) : -1;
-    const monthIso=index>=0 ? match![2]+"-"+String(index+1).padStart(2,"0") : momToday.slice(0,7);
-    const targetIso=periodType==="daily" ? selectedDate : monthIso+"-"+momToday.slice(8,10);
-    const [yearStr,monthStr,dayStr]=targetIso.split("-");
+    // Jakarta clock; H-1 means completed days in the CURRENT calendar month.
+    const [yearStr,monthStr,dayStr]=momToday.split("-");
     const year=Number(yearStr),monthIndex=Number(monthStr)-1;
     const totalDays=new Date(year,monthIndex+1,0).getDate();
-    const isPastMonth=monthIso<momToday.slice(0,7);
-    const isFutureMonth=monthIso>momToday.slice(0,7);
-    const elapsedDays=isPastMonth?totalDays:isFutureMonth?0:Math.min(totalDays,Math.max(0,Number(dayStr)-1));
-    const remainingDays=Math.max(0,totalDays-elapsedDays);
+    const elapsedDays=Math.min(totalDays,Math.max(0,Number(dayStr)-1));
+    const remainingDays=totalDays-elapsedDays;
     const timeElapsedPct=Number((elapsedDays/totalDays*100).toFixed(1));
     const monthName=new Date(year,monthIndex,1).toLocaleDateString("id-ID",{month:"long",year:"numeric"}).toUpperCase();
     return {monthName,elapsedDays,totalDays,remainingDays,timeElapsedPct};
-  },[selectedDate,selectedMonth,periodType,momToday]);
+  },[momToday]);
 
   const dailyTrendStats = useMemo(() => {
     const daysInMonth = timeGoneStats.totalDays || 31;
-    const idealDaily = Math.round((storeTotalTarget || 8728667173) / daysInMonth);
+    const idealDaily = Math.round((selectedMonth===targetSheetMonth ? storeTotalTarget : 0) / daysInMonth);
     const arr = [];
 
     const datePrefix = periodType === "monthly" ? (() => { const m = selectedMonth.match(/^(.*?)(20\d{2})$/); const idx = m ? ["januari","februari","maret","april","mei","juni","juli","agustus","september","oktober","november","desember"].indexOf(m[1].toLowerCase()) : -1; return idx >= 0 ? `${m![2]}-${String(idx+1).padStart(2,"0")}` : momToday.slice(0,7); })() : selectedDate.slice(0,7);
@@ -3090,7 +3048,7 @@ Indosat IM3 : ${isatText}`;
                     const key = st.name.trim().toLowerCase();
                     const target = staffDailyTargets[key] || staffDailyTargets[key.split(" ")[0]];
                     const normalizedStaffKey = st.name.toLowerCase().normalize("NFKC").replace(/[^a-z0-9]+/g," ").trim().replace(/\s+/g," ");
-                    const categoryTarget = staffCategoryTargets[normalizedStaffKey] || {};
+                    const categoryTarget = selectedMonth===targetSheetMonth ? (staffCategoryTargets[normalizedStaffKey] || {}) : {};
                     const targetFor = (category:string):number|null => {
                       const value=categoryTarget[category];
                       if(value===undefined)return 0;
