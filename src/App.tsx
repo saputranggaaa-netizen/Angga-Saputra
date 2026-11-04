@@ -168,6 +168,15 @@ export default function DigiplusOperationalEngine() {
   const [activeTab, setActiveTab] = useState<MenuTab>("store-overview");
   const [productSearchQuery, setProductSearchQuery] = useState("");
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState<boolean>(false);
+  // Floating mobile shortcut: solid at top, faded while scrolling content.
+  const [isMobileScrolled, setIsMobileScrolled] = useState(false);
+  useEffect(() => {
+    const updateScroll = () => setIsMobileScrolled(window.scrollY > 80);
+    updateScroll();
+    window.addEventListener("scroll", updateScroll, { passive: true });
+    return () => window.removeEventListener("scroll", updateScroll);
+  }, []);
+
 
   // Real-time Clock (WIB)
   const [currentTime, setCurrentTime] = useState<string>("");
@@ -4084,7 +4093,7 @@ Indosat IM3 : ${isatText}`;
       <button
         type="button"
         onClick={() => setMobileDrawerOpen(true)}
-        className="lg:hidden fixed bottom-[calc(env(safe-area-inset-bottom)+12px)] left-3 z-40 w-11 h-11 rounded-full bg-sky-500/85 backdrop-blur-md hover:bg-sky-400 active:scale-95 text-white shadow-md shadow-sky-500/20 border border-sky-400/30 flex items-center justify-center transition-all duration-200 print:hidden"
+        className={`lg:hidden fixed bottom-[calc(env(safe-area-inset-bottom)+12px)] left-3 z-40 w-11 h-11 rounded-full flex items-center justify-center border backdrop-blur-md active:scale-95 focus-visible:opacity-100 hover:opacity-100 transition-all duration-300 print:hidden ${isMobileScrolled ? "bg-slate-200/50 dark:bg-white/15 text-slate-500 dark:text-slate-300 border-slate-300/30 dark:border-white/10 opacity-30 shadow-none" : "bg-slate-900 dark:bg-sky-500 text-white border-slate-700 dark:border-sky-400/30 opacity-100 shadow-lg shadow-slate-900/20 dark:shadow-sky-500/25"}`}
         aria-label="Buka Menu Navigasi"
       >
         <span className="text-lg leading-none" aria-hidden="true">☰</span>
