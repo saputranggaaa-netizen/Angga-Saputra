@@ -332,7 +332,7 @@ export default function DigiplusOperationalEngine() {
   // Preserve a user-selected month across page visibility changes and refreshes.
   useEffect(() => {
     const saved=window.sessionStorage.getItem("digi_ops_selected_month");
-    if(saved && (/^(Januari|Februari|Maret|April|Mei|Juni|Juli|Agustus|September|Oktober|November|Desember)20\\d{2}$/.test(saved) || saved==="ALL")) {
+    if(saved && (/^(Januari|Februari|Maret|April|Mei|Juni|Juli|Agustus|September|Oktober|November|Desember)20\d{2}$/.test(saved) || saved==="ALL")) {
       setSelectedMonth(saved);
     }
   },[]);
