@@ -566,9 +566,10 @@ export default function DigiplusOperationalEngine() {
         return c.some((_:any,i:number)=>norm(cellText(c,i))==="nama staff")
           && c.some((_:any,i:number)=>norm(cellText(c,i))==="total target mtd");
       });
-      if(!header)throw new Error("Header Pembagian target tidak ditemukan");
-      const columns:Record<string,number>={};
-      (header.c || []).forEach((_:any,i:number)=>{
+      // Google Visualization may omit textual headers due to mixed column types.
+      // Use the fixed Pembagian target B:W column layout as a safe fallback.
+      const columns:Record<string,number>={month:1,staff:2,total:4,iphone:5,ipad:6,macbook:7,applewatch:8,apple:9,samsung:10,oppo:11,xiaomi:12,huawei:13,motorola:14,infinix:15,android:16,accessories:17,qoala:18,telkomsel:19,indosat:20,xl:21,vas:22};
+      (header?.c || []).forEach((_:any,i:number)=>{
         const label=norm(cellText(header.c,i));
         if(categories[label])columns[categories[label]]=i;
         if(label==="nama staff")columns.staff=i;
