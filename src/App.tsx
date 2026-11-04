@@ -397,26 +397,13 @@ export default function DigiplusOperationalEngine() {
     }
 
     const cleanRawM = String(rawMonthStr || "").trim();
-    const mLower = cleanRawM.toLowerCase();
-    let monthKey = "";
-
-    if (mLower.includes("agu") || mLower.includes("aug") || mLower.includes("08-2026") || mLower.includes("2026-08")) {
-      monthKey = "Agustus2026";
-    } else if (mLower.includes("sep") || mLower.includes("09-2026") || mLower.includes("2026-09")) {
-      monthKey = "September2026";
-    } else if (mLower.includes("okt") || mLower.includes("oct") || mLower.includes("10-2026") || mLower.includes("2026-10")) {
-      monthKey = "Oktober2026";
-    } else if (cleanRawM !== "") {
-      monthKey = cleanRawM;
-    } else if (isoDate) {
-      if (isoDate.startsWith("2026-08")) monthKey = "Agustus2026";
-      else if (isoDate.startsWith("2026-09")) monthKey = "September2026";
-      else if (isoDate.startsWith("2026-10")) monthKey = "Oktober2026";
-      else monthKey = "Oktober2026";
-    } else {
-      monthKey = "Oktober2026";
-    }
-
+    const names = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+    const monthMatch = cleanRawM.match(/^(.*?)(20\d{2})$/);
+    const matchedIndex = monthMatch ? names.findIndex(n=>n.toLowerCase()===monthMatch[1].trim().toLowerCase()) : -1;
+    const monthKey = matchedIndex >= 0 ? names[matchedIndex] + monthMatch![2]
+      : /^20\d{2}-\d{2}$/.test(isoDate.slice(0,7))
+        ? names[Number(isoDate.slice(5,7))-1] + isoDate.slice(0,4)
+        : cleanRawM;
     return { isoDate, monthKey };
   };
 
@@ -573,7 +560,7 @@ export default function DigiplusOperationalEngine() {
           const amount=parseMoney(c[block.value]);
           if(amount<0 || !c[block.value])return;
           const key=normName(rawName);
-          if(!key || /^\\d+$/.test(key))return;
+          if(!key || /^\d+$/.test(key))return;
           if(!categoryByStaff[key])categoryByStaff[key]={};
           categoryByStaff[key][activeSection[idx]]=amount;
           if(activeSection[idx]==="total")targetMap[key]=amount;
@@ -798,25 +785,10 @@ export default function DigiplusOperationalEngine() {
         return t.isoDate === selectedDate;
       }
       if (periodType === "weekly" && selectedWeek !== "ALL") {
-        const rawWl = (t.weekLabel || "").trim().toLowerCase();
-        const rawSelected = selectedWeek.trim().toLowerCase();
-
-        if (rawWl === rawSelected || rawSelected.includes(rawWl) || rawWl.includes(rawSelected)) {
-          return true;
-        }
-
-        const selMatch = rawSelected.match(/(?:week|w)\s*(\d+)/i) || rawSelected.match(/\d+/);
-        const selNum = selMatch ? selMatch[1] : "";
-
-        if (selNum) {
-          const rowMatch = rawWl.match(/(?:week|w)\s*(\d+)/i) || rawWl.match(/\d+/);
-          const rowNum = rowMatch ? rowMatch[1] : "";
-          if (rowNum && rowNum === selNum) {
-            return true;
-          }
-        }
-
-        return false;
+        const selected = selectedWeek.trim();
+        if (selected.includes(" · ")) return getTransactionWeek(t) === selected;
+        const raw = String(t.weekLabel || "").trim().toLowerCase();
+        return raw !== "" && raw !== "0" && raw === selected.toLowerCase();
       }
       return true;
     });
@@ -1398,41 +1370,29 @@ export default function DigiplusOperationalEngine() {
   }, [transactions,w1Filter,w2Filter]);
 
   const timeGoneStats = useMemo(() => {
-    const monthNames = ["januari","februari","maret","april","mei","juni","juli","agustus","september","oktober","november","desember"];
-    const match = selectedMonth.match(/^(.*?)(20\\d{2})$/);
-    const monthIndexFromFilter = match ? monthNames.indexOf(match[1].trim().toLowerCase()) : -1;
-    const targetDateStr = periodType === "monthly" && monthIndexFromFilter >= 0
-      ? `${match![2]}-${String(monthIndexFromFilter + 1).padStart(2,"0")}-${momToday.slice(-2)}`
-      : periodType === "daily" ? selectedDate : momToday;
-    const [yearStr, monthStr, dayStr] = targetDateStr.split("-");
-    const year = parseInt(yearStr, 10);
-    const monthIndex = parseInt(monthStr, 10) - 1;
-    const day = parseInt(dayStr, 10);
-
-    const totalDays = new Date(year, monthIndex + 1, 0).getDate();
-    const elapsedDays = Math.min(Math.max(day - 1, 0), totalDays);
-    const remainingDays = Math.max(0, totalDays - elapsedDays);
-    const timeElapsedPct = Number(((elapsedDays / totalDays) * 100).toFixed(1));
-
-    const monthName = new Date(year, monthIndex, 1)
-      .toLocaleDateString("id-ID", { month: "long", year: "numeric" })
-      .toUpperCase();
-
-    return {
-      monthName,
-      elapsedDays,
-      totalDays,
-      remainingDays,
-      timeElapsedPct,
-    };
-  }, [selectedDate, selectedMonth, periodType, momToday]);
+    const names=["januari","februari","maret","april","mei","juni","juli","agustus","september","oktober","november","desember"];
+    const match=selectedMonth.match(/^(.*?)(20\d{2})$/);
+    const index=match ? names.indexOf(match[1].trim().toLowerCase()) : -1;
+    const monthIso=index>=0 ? match![2]+"-"+String(index+1).padStart(2,"0") : momToday.slice(0,7);
+    const targetIso=periodType==="daily" ? selectedDate : monthIso+"-"+momToday.slice(8,10);
+    const [yearStr,monthStr,dayStr]=targetIso.split("-");
+    const year=Number(yearStr),monthIndex=Number(monthStr)-1;
+    const totalDays=new Date(year,monthIndex+1,0).getDate();
+    const isPastMonth=monthIso<momToday.slice(0,7);
+    const isFutureMonth=monthIso>momToday.slice(0,7);
+    const elapsedDays=isPastMonth?totalDays:isFutureMonth?0:Math.min(totalDays,Math.max(0,Number(dayStr)-1));
+    const remainingDays=Math.max(0,totalDays-elapsedDays);
+    const timeElapsedPct=Number((elapsedDays/totalDays*100).toFixed(1));
+    const monthName=new Date(year,monthIndex,1).toLocaleDateString("id-ID",{month:"long",year:"numeric"}).toUpperCase();
+    return {monthName,elapsedDays,totalDays,remainingDays,timeElapsedPct};
+  },[selectedDate,selectedMonth,periodType,momToday]);
 
   const dailyTrendStats = useMemo(() => {
     const daysInMonth = timeGoneStats.totalDays || 31;
     const idealDaily = Math.round((storeTotalTarget || 8728667173) / daysInMonth);
     const arr = [];
 
-    const datePrefix = periodType === "monthly" ? (() => { const m = selectedMonth.match(/^(.*?)(20\\d{2})$/); const idx = m ? ["januari","februari","maret","april","mei","juni","juli","agustus","september","oktober","november","desember"].indexOf(m[1].toLowerCase()) : -1; return idx >= 0 ? `${m![2]}-${String(idx+1).padStart(2,"0")}` : momToday.slice(0,7); })() : selectedDate.slice(0,7);
+    const datePrefix = periodType === "monthly" ? (() => { const m = selectedMonth.match(/^(.*?)(20\d{2})$/); const idx = m ? ["januari","februari","maret","april","mei","juni","juli","agustus","september","oktober","november","desember"].indexOf(m[1].toLowerCase()) : -1; return idx >= 0 ? `${m![2]}-${String(idx+1).padStart(2,"0")}` : momToday.slice(0,7); })() : selectedDate.slice(0,7);
 
     for (let i = 1; i <= daysInMonth; i++) {
       const dStr = String(i).padStart(2, "0");
@@ -3140,8 +3100,11 @@ Indosat IM3 : ${isatText}`;
                       const days=monthParts && monthIndex>=0?new Date(Number(monthParts[1]),monthIndex+1,0).getDate():30;
                       if(periodType==="daily")return Math.round(value/days);
                       if(periodType==="weekly" && selectedWeek!=="ALL"){
-                        const dates=[...new Set(activeTransactions.map(t=>t.isoDate).filter(Boolean))];
-                        return Math.round(value/days*Math.max(1,dates.length));
+                        const weekDates=activeTransactions.map(t=>t.isoDate).filter(Boolean).sort();
+                        if(weekDates.length===0)return 0;
+                        const first=weekDates[0],last=weekDates[weekDates.length-1];
+                        const span=Math.min(7,Math.max(1,Math.round((Date.parse(last+"T00:00:00Z")-Date.parse(first+"T00:00:00Z"))/86400000)+1));
+                        return Math.round(value/days*span);
                       }
                       return value;
                     };
