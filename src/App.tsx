@@ -3549,10 +3549,10 @@ Indosat IM3 : ${isatText}`;
               )}
 
               {/* ========================================================= */}
-              {/* TAB: BRAND FOCUS (SUPPLIER DINO, IGA, MEDPOIN, HASTAG, IBACKS, KAIZEN) */}
+              {/* TAB: BRAND FOCUS (20 SELECTED ACCESSORIES BRANDS) */}
               {/* ========================================================= */}
               {activeTab === "brand-focus" && (() => {
-                const TARGET_SUPPLIERS = ["DINO", "IGA", "MEDPOIN", "HASTAG", "IBACKS", "KAIZEN", "VERBATIM", "MUTUALL"];
+                const TARGET_SUPPLIERS = ["AVANA","INCASE","INCIPIO","ITSKIN","RIVERCASE","TUCANO","UAG","IFROGZ","ZAG","MUTUALL","KRATOS","VERBATIM","MEDPOIN","ARC PULSE","FLAUNT","CARE","KATE SPADE","IBACKS","KAIZEN","RAPTIC"];
                 const currentFilteredTrx = activeTransactions || [];
 
                 const totalAccAmount = currentFilteredTrx
@@ -3606,7 +3606,7 @@ Indosat IM3 : ${isatText}`;
                           <span>BRAND FOCUS ACCESSORIES</span>
                         </h2>
                         <p className="text-xs text-slate-500 mt-1">
-                          Data penjualan supplier: DINO, IGA, MEDPOIN, HASTAG, IBACKS, KAIZEN, VERBATIM, MUTUALL (Filter: {periodType.toUpperCase()})
+                          Data penjualan supplier: AVANA, INCASE, INCIPIO, ITSKIN, RIVERCASE, TUCANO, UAG, IFROGZ, ZAG, MUTUALL, KRATOS, VERBATIM, MEDPOIN, ARC PULSE, FLAUNT, CARE, KATE SPADE, IBACKS, KAIZEN, RAPTIC (Filter: {periodType.toUpperCase()})
                         </p>
                       </div>
 
