@@ -553,15 +553,15 @@ export default function DigiplusOperationalEngine() {
         const rawName=cellText(c,columns.staff);
         const key=norm(rawName);
         const rowMonth=normalizeMonth(cellText(c,columns.month));
-        if(!key)return;
-        if(key==="grand total"){
-          Object.keys(categories).forEach(()=>{});
+        // The Grand Total label is in column B (Bulan), not column C (Nama Staff).
+        if(norm(cellText(c,columns.month))==="grand total" || key==="grand total"){
           Object.entries(columns).forEach(([category,i])=>{
             if(!["staff","month"].includes(category))categoryTotals[category]=parseMoney(c[i]);
           });
           parsedGrandTotal=categoryTotals.total || 0;
           return;
         }
+        if(!key)return;
         if(!rowMonth || rowMonth!==targetMonth || key==="nama staff")return;
         const perCategory:Record<string,number>={};
         Object.entries(columns).forEach(([category,i])=>{
