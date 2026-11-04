@@ -312,6 +312,8 @@ export default function DigiplusOperationalEngine() {
   // Live Spreadsheet Data & Targets
   const [transactions, setTransactions] = useState<RawTransaction[]>([]);
   const [bnplRecords, setBnplRecords] = useState<BnplRecord[]>([]);
+  const [expandedSupplierDetails, setExpandedSupplierDetails] = useState<Record<string,boolean>>({});
+  const [expandedBnplTenders, setExpandedBnplTenders] = useState<Record<string,boolean>>({});
   const [storeTotalTarget, setStoreTotalTarget] = useState<number>(0);
   const [targetSheetMonth, setTargetSheetMonth] = useState<string>("");
   const [staffTargets, setStaffTargets] = useState<Record<string, number>>({});
@@ -1473,24 +1475,52 @@ export default function DigiplusOperationalEngine() {
   }, [scheduleData]);
 
   const bnplSummary = useMemo(() => {
-    const totalAmount = bnplRecords.reduce((acc, b) => acc + b.amount, 0);
-    const totalQty = bnplRecords.reduce((acc, b) => acc + b.qty, 0);
-
-    const map: Record<string, { amount: number; qty: number }> = {};
-    bnplRecords.forEach((b) => {
-      const tKey = b.tender || "Other";
-      if (!map[tKey]) map[tKey] = { amount: 0, qty: 0 };
-      map[tKey].amount += b.amount;
-      map[tKey].qty += b.qty;
+    const names=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+    const selectedIdx=names.findIndex(n=>selectedMonth.toLowerCase().startsWith(n.toLowerCase()));
+    const selectedPrefix=selectedIdx>=0?selectedMonth.slice(-4)+"-"+String(selectedIdx+1).padStart(2,"0"):"";
+    const filtered=bnplRecords.filter(b=>{
+      const iso=parseNormalizedDate(b.date,b.month).isoDate;
+      if(selectedPrefix && !iso.startsWith(selectedPrefix))return false;
+      if(periodType==="daily")return iso===selectedDate;
+      if(periodType==="weekly" && selectedWeek!=="ALL"){
+        const weekMatch=selectedWeek.match(/Week\s*(\d+)/i);
+        if(weekMatch){
+          const matched=transactions.some(t=>t.isoDate===iso && String(t.weekLabel||"").trim().toLowerCase()==="week "+weekMatch[1]);
+          if(!matched)return false;
+        }
+      }
+      return true;
     });
+    const map:Record<string,{amount:number;qty:number;records:BnplRecord[]}>={};
+    filtered.forEach(b=>{
+      const key=b.tender||"Other";
+      if(!map[key])map[key]={amount:0,qty:0,records:[]};
+      map[key].amount+=b.amount;
+      map[key].qty+=b.qty;
+      map[key].records.push(b);
+    });
+    const totalAmount=filtered.reduce((n,b)=>n+b.amount,0);
+    const totalQty=filtered.reduce((n,b)=>n+b.qty,0);
+    const tenders=Object.entries(map).map(([tender,d])=>({
+      tender,...d,share:totalAmount>0?Number((d.amount/totalAmount*100).toFixed(1)):0
+    })).sort((a,b)=>b.amount-a.amount);
+    return {totalAmount,totalQty,tenders,list:filtered};
+  },[bnplRecords,selectedMonth,selectedDate,selectedWeek,periodType,transactions]);
 
-    const tenders = Object.entries(map).map(([tender, d]) => {
-      const share = overviewStats.actual > 0 ? Number(((d.amount / overviewStats.actual) * 100).toFixed(1)) : 0;
-      return { tender, amount: d.amount, qty: d.qty, share };
-    }).sort((a, b) => b.amount - a.amount);
-
-    return { totalAmount, totalQty, tenders, list: bnplRecords };
-  }, [bnplRecords, overviewStats.actual]);
+  const handleShareBnplWhatsApp = () => {
+    const lines=[
+      "*Pencapaian "+selectedMonth+" Tender BNPL*",
+      "DIGIPLUS GRAND INDONESIA",
+      "Periode: "+periodType.toUpperCase()+(periodType==="daily"?" ("+selectedDate+")":""),
+      "",
+      ...bnplSummary.tenders.map(t=>"*"+t.tender+"*\nQty: "+t.qty+"\nAmount Achievement: "+formatIDR(t.amount)),
+      "",
+      "*TOTAL BNPL*",
+      "Qty: "+bnplSummary.totalQty,
+      "Amount Achievement: "+formatIDR(bnplSummary.totalAmount)
+    ];
+    window.open("https://wa.me/?text="+encodeURIComponent(lines.join("\n")),"_blank","noopener,noreferrer");
+  };
 
   const handleShareDaily = () => {
     const appleVal = overviewStats.lobs.find((l) => l.name.includes("Apple"))?.actual || 0;
@@ -3696,7 +3726,7 @@ Indosat IM3 : ${isatText}`;
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-inherit">
-                                      {s.items.map((item, itemIdx) => (
+                                      {(expandedSupplierDetails[sup] ? s.items : s.items.slice(0,5)).map((item, itemIdx) => (
                                         <tr key={itemIdx} className="hover:bg-slate-500/5 transition">
                                           <td className="p-2.5 font-mono text-slate-500">{item.isoDate || item.date}</td>
                                           <td className="p-2.5 font-mono font-bold text-slate-700 dark:text-slate-300">{item.invoice || "-"}</td>
@@ -3710,6 +3740,11 @@ Indosat IM3 : ${isatText}`;
                                       ))}
                                     </tbody>
                                   </table>
+                                  {s.items.length>5 && (
+                                    <button type="button" onClick={()=>setExpandedSupplierDetails(prev=>({...prev,[sup]:!prev[sup]}))} className="w-full py-3 text-sm font-bold text-sky-600 hover:underline">
+                                      {expandedSupplierDetails[sup]?"Show Less":"Show More ("+(s.items.length-5)+" transaksi lainnya)"}
+                                    </button>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -3865,7 +3900,8 @@ Indosat IM3 : ${isatText}`;
                           <span>TRANSAKSI PEMBIAYAAN KONSUMEN (BNPL)</span>
                         </h2>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <button type="button" onClick={handleShareBnplWhatsApp} className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black">📲 Share WhatsApp</button>
                         <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border border-emerald-400/30">
                           Total BNPL: {formatIDR(bnplSummary.totalAmount)}
                         </span>
@@ -3881,6 +3917,24 @@ Indosat IM3 : ${isatText}`;
                           <span className="text-xs font-black text-slate-900 dark:text-white block">{td.tender}</span>
                           <div className="text-base font-black font-mono text-emerald-600 dark:text-emerald-400 mt-1">{formatIDR(td.amount)}</div>
                           <span className="text-[11px] text-slate-500 block">{td.qty} Transaksi ({td.share}% Share)</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="space-y-4 pt-3">
+                      <h3 className="text-sm font-black text-slate-900 dark:text-white">📋 Rincian Transaksi per Tender BNPL — {selectedMonth}</h3>
+                      {bnplSummary.tenders.length===0 && <p className="text-sm text-slate-500">Tidak ada transaksi BNPL pada periode terpilih.</p>}
+                      {bnplSummary.tenders.map(td=>(
+                        <div key={td.tender} className={`rounded-2xl border ${innerBg} p-3 space-y-3`}>
+                          <div className="flex justify-between items-center gap-3 flex-wrap">
+                            <div><strong className="text-slate-900 dark:text-white">{td.tender}</strong><p className="text-xs text-slate-500">{td.qty} Qty · {formatIDR(td.amount)}</p></div>
+                            <button type="button" onClick={()=>setExpandedBnplTenders(prev=>({...prev,[td.tender]:!prev[td.tender]}))} className="text-xs font-bold text-sky-600">{expandedBnplTenders[td.tender]?"Show Less":"Show More ("+td.records.length+" transaksi)"}</button>
+                          </div>
+                          {expandedBnplTenders[td.tender] && <div className="overflow-x-auto">
+                            <table className="w-full min-w-[700px] text-xs text-left">
+                              <thead><tr className="border-b"><th className="p-2">Date</th><th className="p-2">Invoice</th><th className="p-2">Qty</th><th className="p-2 text-right">Amount Tender</th><th className="p-2">Description Product</th></tr></thead>
+                              <tbody>{td.records.map((rec,i)=><tr key={i} className="border-b border-slate-200/20"><td className="p-2">{rec.date}</td><td className="p-2">{rec.invoice}</td><td className="p-2">{rec.qty}</td><td className="p-2 text-right">{formatIDR(rec.amount)}</td><td className="p-2">{rec.product||"-"}</td></tr>)}</tbody>
+                            </table>
+                          </div>}
                         </div>
                       ))}
                     </div>
