@@ -749,45 +749,30 @@ export default function DigiplusOperationalEngine() {
     });
   },[transactions,targetSheetMonth,selectedMonth]);
 
-  // Prefer DATABASE column O; derive calendar week from transaction date if O is blank/0.
-  // Infer the continuous Week number for blank DATABASE labels using an existing labeled transaction.
-  const continuousWeekAnchor = useMemo(() => {
-    for (const t of transactions) {
-      const match=String(t.weekLabel||"").trim().match(/^Week\s+(\d+)$/i);
-      if(!match || !/^20\d{2}-\d{2}-\d{2}$/.test(t.isoDate||""))continue;
-      const date=new Date(t.isoDate+"T00:00:00Z");
-      if(Number.isNaN(date.getTime()))continue;
-      const weekStart=date.getTime()-date.getUTCDay()*86400000;
-      return weekStart-(Number(match[1])-1)*7*86400000;
-    }
-    return null as number|null;
-  },[transactions]);
+  // Column O is the authoritative week label; never derive a new week number.
   const getTransactionWeek = (t: RawTransaction): string => {
-    const date = (t.isoDate || "").trim();
-    if (!/^20\d{2}-\d{2}-\d{2}$/.test(date) || date.startsWith("1899-")) return "";
-    const month = date.slice(0,7);
-    const raw = String(t.weekLabel || "").trim();
-    const dateMs=Date.parse(date+"T00:00:00Z");
-    const weekStart=dateMs-new Date(dateMs).getUTCDay()*86400000;
-    const inferred=continuousWeekAnchor===null?0:Math.floor((weekStart-continuousWeekAnchor)/604800000)+1;
-    const week = raw && raw !== "0" && raw !== "-" ? raw : "Week " + (inferred>0?inferred:Math.ceil(Number(date.slice(8,10))/7));
-    return month + " · " + week;
+    const date=String(t.isoDate||"").trim();
+    const raw=String(t.weekLabel||"").trim();
+    const match=raw.match(/^Week\s*(\d+)$/i);
+    if(!/^20\d{2}-\d{2}-\d{2}$/.test(date)||!match)return "";
+    return date.slice(0,7)+" · Week "+Number(match[1]);
   };
   const AUTO_WEEKS = useMemo(() => {
-    const map = new Map<string, {label:string;minDate:string;maxDate:string}>();
-    transactions.forEach(t => {
-      const label = getTransactionWeek(t);
-      if (!label) return;
-      if (!map.has(label)) map.set(label,{label,minDate:t.isoDate,maxDate:t.isoDate});
+    const map=new Map<string,{label:string;minDate:string;maxDate:string;weekNumber:number}>();
+    const names=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+    const idx=names.findIndex(n=>selectedMonth.startsWith(n));
+    const prefix=idx>=0?selectedMonth.slice(-4)+"-"+String(idx+1).padStart(2,"0"):"";
+    transactions.forEach(t=>{
+      if(prefix&&!String(t.isoDate||"").startsWith(prefix))return;
+      const label=getTransactionWeek(t);
+      if(!label)return;
+      const weekNumber=Number(label.match(/Week (\d+)$/)?.[1]||0);
+      if(!map.has(label))map.set(label,{label,minDate:t.isoDate,maxDate:t.isoDate,weekNumber});
       const item=map.get(label)!;
-      if (t.isoDate<item.minDate)item.minDate=t.isoDate;
-      if (t.isoDate>item.maxDate)item.maxDate=t.isoDate;
+      if(t.isoDate<item.minDate)item.minDate=t.isoDate;
+      if(t.isoDate>item.maxDate)item.maxDate=t.isoDate;
     });
-    const monthNames=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
-    const monthIdx=monthNames.findIndex(m=>selectedMonth.toLowerCase().startsWith(m.toLowerCase()));
-    const year=selectedMonth.match(/20\d{2}/)?.[0];
-    const monthPrefix=year && monthIdx>=0 ? year+"-"+String(monthIdx+1).padStart(2,"0") : "";
-    return [...map.values()].filter(w=>!monthPrefix || w.minDate.startsWith(monthPrefix)).sort((a,b)=>a.minDate.localeCompare(b.minDate)).map((w,i)=>({
+    return [...map.values()].sort((a,b)=>a.minDate.localeCompare(b.minDate)||a.weekNumber-b.weekNumber).map((w,i)=>({
       key:String(i),label:w.label,range:w.minDate+" s.d. "+w.maxDate,days:7
     }));
   },[transactions,selectedMonth]);
@@ -817,8 +802,7 @@ export default function DigiplusOperationalEngine() {
       if (periodType === "weekly" && selectedWeek !== "ALL") {
         const selected = selectedWeek.trim();
         if (selected.includes(" · ")) return getTransactionWeek(t) === selected;
-        const raw = String(t.weekLabel || "").trim().toLowerCase();
-        return raw !== "" && raw !== "0" && raw === selected.toLowerCase();
+        return getTransactionWeek(t).toLowerCase().endsWith(" · "+selected.toLowerCase());
       }
       return true;
     });
