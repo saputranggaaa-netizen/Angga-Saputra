@@ -1445,20 +1445,22 @@ export default function DigiplusOperationalEngine() {
     const monthlyTarget=validTarget?storeTotalTarget:0;
     const monthPrefix=selectedDate.slice(0,7);
     const monthTrx=transactions.filter(t=>t.isoDate.startsWith(monthPrefix) && t.isoDate<=selectedDate);
+    const latestRecordedDay=monthTrx.reduce((max,t)=>Math.max(max,Number(t.isoDate.slice(8,10))||0),0);
+    const remainingSellingDays=Math.max(0,totalDaysInMonth-latestRecordedDay);
     const actualAchievedSoFar=monthTrx.reduce((a,t)=>a+(Number(t.amount)||0),0);
     const actualToday=monthTrx.filter(t=>t.isoDate===selectedDate).reduce((a,t)=>a+(Number(t.amount)||0),0);
     const remainingTarget=Math.max(0,monthlyTarget-actualAchievedSoFar);
     const targetStoreToday=Math.round(monthlyTarget/totalDaysInMonth);
-    const requiredDailyRunRate=remainingTarget/Math.max(1,daysLeft);
+    const requiredDailyRunRate=remainingTarget/Math.max(1,remainingSellingDays);
     const staffOnDuty=Object.entries(staffTargets).filter(([name])=>!name.includes("admin")&&!name.includes("leader")).map(([name,target])=>({
       name,targetToday:Math.round((validTarget?target:0)/totalDaysInMonth),
-      runRate:Math.round(Math.max(0,(validTarget?target:0)-monthTrx.filter(t=>t.salesName.toLowerCase().trim()===name).reduce((a,t)=>a+(Number(t.amount)||0),0))/Math.max(1,daysLeft))
+      runRate:Math.round(Math.max(0,(validTarget?target:0)-monthTrx.filter(t=>t.salesName.toLowerCase().trim()===name).reduce((a,t)=>a+(Number(t.amount)||0),0))/Math.max(1,remainingSellingDays))
     }));
     const staffCount=staffOnDuty.length;
     const targetPerStaffToday=staffCount?Math.round(targetStoreToday/staffCount):0;
     return {totalMonthTarget:monthlyTarget,totalDays:totalDaysInMonth,daysPassed,daysLeft,
       actualAchievedSoFar,remainingTarget,requiredDailyRunRate:Math.round(requiredDailyRunRate),
-      staffOnDuty,staffCount,targetStoreToday,targetPerStaffToday,actualToday,
+      staffOnDuty,staffCount,targetStoreToday,targetPerStaffToday,actualToday,remainingSellingDays,
       achvToday:targetStoreToday>0?Math.round(actualToday/targetStoreToday*100):0};
   },[transactions,selectedDate,storeTotalTarget,targetSheetMonth,staffTargets]);
 
@@ -1610,7 +1612,7 @@ ${staffListMsg}
 Total Target: ${formatIDR(dailyTargetCalculated.targetStoreToday)}
 ━━━━━━━━━━━━━━━━━━
 Sisa Target Bulan: ${formatIDR(dailyTargetCalculated.remainingTarget)}
-Sisa Waktu: ${dailyTargetCalculated.daysLeft} Hari Tersisa
+Sisa Waktu Berdasarkan Data: ${dailyTargetCalculated.remainingSellingDays} Hari Tersisa
 
 Semangat closing team! Fokus capai target hari ini! 🔥💪`;
 
@@ -3315,14 +3317,11 @@ Indosat IM3 : ${isatText}`;
 
                   {/* DETAIL TARGET VS ACHIEVEMENT PER STAFF */}
                   {(() => {
-                    const availableStaffNames = (staffList || [])
-                      .map((s) => s.name.trim().toLowerCase())
-                      .filter((name) => !name.includes("admin") && !name.includes("leader") && Boolean(staffDailyTargets[name] || staffDailyTargets[name.split(" ")[0]]));
+                    const availableStaffNames = Object.keys(staffDailyTargets).filter(name => !name.includes("admin") && !name.includes("leader"));
                     
                     const activeName = selectedDailyStaff || availableStaffNames[0] || "";
 
-                    const targetData: StaffDailyTargetDetail = staffDailyTargets[activeName] || 
-                      staffDailyTargets[activeName.split(" ")[0]] || {
+                    const targetData: StaffDailyTargetDetail = (targetSheetMonth===selectedMonth ? staffDailyTargets[activeName] : undefined) || {
                         total: 0,
                         apple: 0,
                         android: 0,
