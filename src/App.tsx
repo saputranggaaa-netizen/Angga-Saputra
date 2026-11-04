@@ -1331,25 +1331,40 @@ export default function DigiplusOperationalEngine() {
 
   const calendarWeekly = useMemo(() => {
     const names=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
-    const monthIndex=names.findIndex(n=>selectedMonth.startsWith(n));
+    const monthIndex=names.findIndex(n=>selectedMonth.toLowerCase().startsWith(n.toLowerCase()));
     const year=Number(selectedMonth.slice(-4));
-    if(monthIndex<0||!Number.isFinite(year))return {weeks:[],current:null,previous:null,monthRows:[] as RawTransaction[],dailyTarget:0};
+    type CalendarWeek={label:string;start:string;end:string;days:number;rows:RawTransaction[];amount:number;target:number;observedDays:number};
+    if(monthIndex<0||!Number.isFinite(year))return {weeks:[] as CalendarWeek[],current:null as CalendarWeek|null,previous:null as CalendarWeek|null,monthRows:[] as RawTransaction[],dailyTarget:0};
     const pad=(d:Date)=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
     const last=new Date(year,monthIndex+1,0).getDate();
     const prefix=year+"-"+String(monthIndex+1).padStart(2,"0")+"-";
     const monthRows=transactions.filter(t=>t.isoDate.startsWith(prefix));
-    const weeks:{label:string;start:string;end:string;days:number;rows:RawTransaction[];amount:number;target:number}[]=[];
+    const weeks:CalendarWeek[]=[];
     const dailyTarget=selectedMonth===targetSheetMonth?storeTotalTarget/last:0;
-    let start=1;
-    while(start<=last){
-      const first=new Date(year,monthIndex,start);
-      const end=Math.min(last,start+6-first.getDay());
-      const rows=monthRows.filter(t=>{const day=Number(t.isoDate.slice(8,10));return day>=start&&day<=end;});
-      weeks.push({label:"W"+(weeks.length+1),start:pad(first),end:pad(new Date(year,monthIndex,end)),days:end-start+1,rows,amount:rows.reduce((n,t)=>n+t.amount,0),target:dailyTarget*(end-start+1)});
-      start=end+1;
+    const makeWeek=(label:string,first:Date,final:Date,target:number):CalendarWeek=>{
+      const start=pad(first),end=pad(final);
+      const rows=transactions.filter(t=>t.isoDate>=start&&t.isoDate<=end);
+      const days=Math.round((Date.UTC(final.getFullYear(),final.getMonth(),final.getDate())-Date.UTC(first.getFullYear(),first.getMonth(),first.getDate()))/86400000)+1;
+      const observedDays=rows.length?Math.max(1,Math.min(days,Math.round((Date.parse(rows.reduce((m,t)=>t.isoDate>m?t.isoDate:m,start)+"T12:00:00")-Date.parse(start+"T12:00:00"))/86400000)+1)):0;
+      return {label,start,end,days,rows,observedDays,amount:rows.reduce((n,t)=>n+(Number(t.amount)||0),0),target};
+    };
+    let day=1;
+    while(day<=last){
+      const first=new Date(year,monthIndex,day);
+      const endDay=Math.min(last,day+6-first.getDay());
+      weeks.push(makeWeek("W"+(weeks.length+1),first,new Date(year,monthIndex,endDay),dailyTarget*(endDay-day+1)));
+      day=endDay+1;
     }
     const index=Math.min(calendarWeekIndex,weeks.length-1);
-    return {weeks,current:weeks[index]||null,previous:index>0?weeks[index-1]:null,monthRows,dailyTarget};
+    const current=weeks[index]||null;
+    let previous:CalendarWeek|null=index>0?weeks[index-1]:null;
+    if(current&&!previous){
+      const priorEnd=new Date(year,monthIndex,0);
+      const priorStart=new Date(priorEnd);
+      priorStart.setDate(priorEnd.getDate()-priorEnd.getDay());
+      previous=makeWeek("Week sebelumnya",priorStart,priorEnd,0);
+    }
+    return {weeks,current,previous,monthRows,dailyTarget};
   },[transactions,selectedMonth,calendarWeekIndex,targetSheetMonth,storeTotalTarget]);
 
   const weeklyComparisonData = useMemo(() => {
@@ -2992,6 +3007,7 @@ Indosat IM3 : ${isatText}`;
                       const amount=(rows:RawTransaction[])=>rows.reduce((n,t)=>n+t.amount,0);
                       const qty=(rows:RawTransaction[])=>rows.reduce((n,t)=>n+t.qty,0);
                       const growth=prev&&prev.amount>0?(w.amount-prev.amount)/prev.amount*100:null;
+                      const dailyGrowth=prev&&prev.amount>0&&w.observedDays>0&&prev.observedDays>0?((w.amount/w.observedDays)/(prev.amount/prev.observedDays)-1)*100:null;
                       const inv=new Set(w.rows.map(t=>t.invoice).filter(Boolean)).size;
                       const groups=["Apple","Android","ACC","VAS"];
                       const groupOf=(t:RawTransaction)=>{const g=t.groupCategory.toUpperCase(),p=t.productType.toUpperCase(),b=t.brand.toUpperCase();return g.includes("VAS")||p.includes("VAS")?"VAS":g.includes("ACC")||p.includes("ACC")?"ACC":g.includes("APPLE")||b.includes("APPLE")||b.includes("IPHONE")?"Apple":"Android";};
@@ -3001,7 +3017,7 @@ Indosat IM3 : ${isatText}`;
                       const maxDay=Math.max(calendarWeekly.dailyTarget,...days.map(d=>d.amount),1);
                       return <div className="space-y-5">
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                          {([{label:"SALES "+w.label,value:formatIDR(w.amount),detail:"Target "+formatIDR(w.target)+" · "+(w.target>0?(w.amount/w.target*100).toFixed(1)+"%":"Target belum tersedia")},{label:"VS WEEK LALU",value:growth===null?"—":(growth>=0?"+":"")+growth.toFixed(1)+"%",detail:prev?prev.label+" · "+formatIDR(prev.amount):"Week pertama bulan ini"},{label:"TRANSAKSI · UPT",value:inv+" · "+(inv?qty(w.rows)/inv:0).toFixed(2),detail:qty(w.rows)+" unit"},{label:"TIME GONE",value:(w.days?Math.min(100,days.filter(d=>d.rows.length>0).length/w.days*100):0).toFixed(0)+"%",detail:w.days+" hari kalender"}] as const).map(k=><div key={k.label} className={`p-4 rounded-2xl border ${innerBg}`}><div className="text-xs font-bold text-slate-500">{k.label}</div><div className="text-lg font-black text-slate-950 dark:text-white">{k.value}</div><div className="text-xs text-slate-500">{k.detail}</div></div>)}
+                          {([{label:"SALES "+w.label,value:formatIDR(w.amount),detail:"Target "+formatIDR(w.target)+" · "+(w.target>0?(w.amount/w.target*100).toFixed(1)+"%":"Target belum tersedia")},{label:"GROWTH ACTUAL",value:growth===null?"—":(growth>=0?"+":"")+growth.toFixed(1)+"%",detail:prev?prev.start+" – "+prev.end:"Week sebelumnya tidak tersedia"},{label:"TRANSAKSI · UPT",value:inv+" · "+(inv?qty(w.rows)/inv:0).toFixed(2),detail:qty(w.rows)+" unit"},{label:"GROWTH DAILY AVG",value:dailyGrowth===null?"—":(dailyGrowth>=0?"+":"")+dailyGrowth.toFixed(1)+"%",detail:w.observedDays+" hari teramati vs "+(prev?.observedDays||0)+" hari sebelumnya"}] as const).map(k=><div key={k.label} className={`p-4 rounded-2xl border ${innerBg}`}><div className="text-xs font-bold text-slate-500">{k.label}</div><div className="text-lg font-black text-slate-950 dark:text-white">{k.value}</div><div className="text-xs text-slate-500">{k.detail}</div></div>)}
                         </div>
                         <div className={`p-4 rounded-2xl border ${innerBg}`}><h3 className="font-black text-slate-950 dark:text-white mb-3">Harian Minggu–Sabtu · Target/Hari {formatIDR(calendarWeekly.dailyTarget)}</h3><div className="grid grid-cols-7 gap-2 items-end h-44">{days.map(d=><div key={d.iso} className="flex flex-col items-center justify-end h-full gap-1"><span className="text-[10px] font-bold text-slate-600 dark:text-slate-300">{formatCompactIDR(d.amount)}</span><div className={`w-full rounded-t-lg ${d.amount>=calendarWeekly.dailyTarget?"bg-blue-500":"bg-rose-400"}`} style={{height:Math.max(3,d.amount/maxDay*115)+"px"}}/><span className="text-[10px] text-slate-500">{d.iso.slice(8)}</span></div>)}</div><div className="overflow-x-auto mt-4"><table className="w-full min-w-[620px] text-xs"><thead><tr>{["Hari","Sales","Apple","Android","ACC","VAS","Inv","UPT","ACH"].map(h=><th key={h} className="p-2 text-left">{h}</th>)}</tr></thead><tbody>{days.map(d=><tr key={d.iso} className="border-t border-slate-400/20"><td className="p-2">{d.iso}</td><td className="p-2 font-bold">{formatCompactIDR(d.amount)}</td>{groups.map(g=><td key={g} className="p-2">{formatCompactIDR(amount(d.rows.filter(t=>groupOf(t)===g)))}</td>)}<td className="p-2">{new Set(d.rows.map(t=>t.invoice)).size}</td><td className="p-2">{(qty(d.rows)/Math.max(1,new Set(d.rows.map(t=>t.invoice)).size)).toFixed(1)}</td><td className="p-2">{calendarWeekly.dailyTarget?(d.amount/calendarWeekly.dailyTarget*100).toFixed(0)+"%":"—"}</td></tr>)}</tbody></table></div></div>
                         <div className="grid lg:grid-cols-2 gap-4">
@@ -3016,7 +3032,7 @@ Indosat IM3 : ${isatText}`;
                   </section>
                   <section className={`p-5 ${cardBg} border-2 rounded-3xl shadow-xl space-y-4`}>
                     <h2 className="text-lg font-black text-slate-950 dark:text-white">📦 RINCIAN PENJUALAN WEEK BERJALAN VS WEEK SEBELUMNYA</h2>
-                    <p className="text-xs text-slate-500">Periode mengikuti pilihan Weekly Performance (Minggu–Sabtu), bukan label kolom O. Qty dan nominal dari DATABASE.</p>
+                    <p className="text-xs text-slate-500">Pembanding lintas bulan otomatis. Growth Actual = perubahan omzet total; Growth Daily Average = perubahan rata-rata omzet per hari teramati.</p>
                     {calendarWeekly.current && (() => {
                       const w=calendarWeekly.current,prev=calendarWeekly.previous;
                       const focus=["AVANA","INCASE","INCIPIO","ITSKIN","RIVERCASE","TUCANO","UAG","IFROGZ","ZAG","ZAAG","MUTUALL","KRATOS","VERBATIM","MEDPOIN","ARC PULSE","FLAUNT","CARE","KATE SPADE","IBACKS","KAIZEN","RAPTIC"];
@@ -3039,10 +3055,12 @@ Indosat IM3 : ${isatText}`;
                       return <div className="space-y-4">{specs.map(spec=>{
                         const current=w.rows.filter(spec.filter),prior=(prev?.rows||[]).filter(spec.filter),now=sum(current),before=sum(prior);
                         const names=[...new Set([...current,...prior].map(spec.detail))].sort();
+                        const actualGrowth=prev&&before.amount>0?(now.amount/before.amount-1)*100:null;
+                        const dailyAvgGrowth=prev&&before.amount>0&&w.observedDays&&prev.observedDays?((now.amount/w.observedDays)/(before.amount/prev.observedDays)-1)*100:null;
                         return <div key={spec.title} className={`p-4 rounded-2xl border ${innerBg} space-y-3`}>
-                          <div className="flex flex-wrap justify-between gap-3 items-center"><h3 className="font-black text-slate-950 dark:text-white">{spec.title}</h3><span className="text-xs text-slate-500">{w.label} ({w.start} – {w.end}) {prev?"vs "+prev.label:"· belum ada week sebelumnya"}</span></div>
+                          <div className="flex flex-wrap justify-between gap-3 items-center"><h3 className="font-black text-slate-950 dark:text-white">{spec.title}</h3><span className="text-xs text-slate-500">{w.label} ({w.start} – {w.end}) {prev?"vs "+prev.label+" ("+prev.start+" – "+prev.end+")":"· belum ada week sebelumnya"}</span></div>
                           <div className="grid grid-cols-2 gap-3 text-xs"><div className="p-3 rounded-xl bg-blue-500/10"><strong className="block">Week Berjalan · {w.label}</strong><span>{now.qty} Qty · {formatIDR(now.amount)}</span></div><div className="p-3 rounded-xl bg-slate-500/10"><strong className="block">Week Sebelumnya · {prev?.label||"—"}</strong><span>{prev?before.qty+" Qty · "+formatIDR(before.amount):"Belum tersedia"}</span></div></div>
-                          <div className="overflow-x-auto"><table className="w-full min-w-[700px] text-xs text-left"><thead><tr className="border-b border-slate-400/30">{["Brand / Kategori","Qty Week Ini","Amount Week Ini","Qty Week Lalu","Amount Week Lalu","Δ Qty","Δ Amount","Growth"].map(h=><th key={h} className="p-2">{h}</th>)}</tr></thead><tbody>{names.map(name=>{const a=sum(current.filter(t=>spec.detail(t)===name)),b=sum(prior.filter(t=>spec.detail(t)===name));return <tr key={name} className="border-b border-slate-400/20"><td className="p-2 font-bold">{name}</td><td className="p-2">{a.qty}</td><td className="p-2">{formatIDR(a.amount)}</td><td className="p-2">{prev?b.qty:"—"}</td><td className="p-2">{prev?formatIDR(b.amount):"—"}</td><td className="p-2">{prev?a.qty-b.qty:"—"}</td><td className="p-2">{prev?formatIDR(a.amount-b.amount):"—"}</td><td className="p-2">{prev&&b.amount?((a.amount/b.amount-1)*100).toFixed(1)+"%":"—"}</td></tr>})}</tbody></table>{names.length===0&&<p className="text-xs text-slate-500 py-3">Belum ada penjualan pada kategori ini.</p>}</div>
+                          <div className="text-xs font-bold text-slate-700 dark:text-slate-200">Growth Actual: {actualGrowth===null?"—":actualGrowth.toFixed(1)+"%"} · Growth Daily Average: {dailyAvgGrowth===null?"—":dailyAvgGrowth.toFixed(1)+"%"}</div><div className="overflow-x-auto"><table className="w-full min-w-[820px] text-xs text-left"><thead><tr className="border-b border-slate-400/30">{["Brand / Kategori","Qty Week Ini","Amount Week Ini","Qty Week Lalu","Amount Week Lalu","Δ Qty","Δ Amount","Growth Actual","Growth Daily Avg"].map(h=><th key={h} className="p-2">{h}</th>)}</tr></thead><tbody>{names.map(name=>{const a=sum(current.filter(t=>spec.detail(t)===name)),b=sum(prior.filter(t=>spec.detail(t)===name));return <tr key={name} className="border-b border-slate-400/20"><td className="p-2 font-bold">{name}</td><td className="p-2">{a.qty}</td><td className="p-2">{formatIDR(a.amount)}</td><td className="p-2">{prev?b.qty:"—"}</td><td className="p-2">{prev?formatIDR(b.amount):"—"}</td><td className="p-2">{prev?a.qty-b.qty:"—"}</td><td className="p-2">{prev?formatIDR(a.amount-b.amount):"—"}</td><td className="p-2">{prev&&b.amount?((a.amount/b.amount-1)*100).toFixed(1)+"%":"—"}</td><td className="p-2">{prev&&b.amount&&w.observedDays&&prev.observedDays?(((a.amount/w.observedDays)/(b.amount/prev.observedDays)-1)*100).toFixed(1)+"%":"—"}</td></tr>})}</tbody></table>{names.length===0&&<p className="text-xs text-slate-500 py-3">Belum ada penjualan pada kategori ini.</p>}</div>
                         </div>;
                       })}</div>;
                     })()}
