@@ -363,8 +363,51 @@ export default function DigiplusOperationalEngine() {
   const [bottomSheetOpen, setBottomSheetOpen] = useState<boolean>(false);
   const [sheetTitle, setSheetTitle] = useState<string>("");
   const [sheetContent, setSheetContent] = useState<React.ReactNode>(null);
-  const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>(DEFAULT_FEEDBACKS);
+  const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>([]);
+  const [feedbackText, setFeedbackText] = useState("");
+  const [feedbackSentiment, setFeedbackSentiment] = useState<FeedbackItem["sentiment"]>("Cukup Baik");
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [feedbackError, setFeedbackError] = useState("");
+  const [feedbackAdminKey, setFeedbackAdminKey] = useState("");
   const [isExportingPptx, setIsExportingPptx] = useState<boolean>(false);
+
+  const loadFeedbacks = async () => {
+    try {
+      const response = await fetch("/api/feedback",{cache:"no-store"});
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Gagal memuat feedback");
+      setFeedbacks(data.feedbacks || []);
+      setFeedbackError("");
+    } catch(e:any){setFeedbackError(e.message || "Feedback belum tersedia");}
+  };
+  useEffect(() => {
+    void loadFeedbacks();
+    const timer = window.setInterval(() => { void loadFeedbacks(); },15000);
+    return () => window.clearInterval(timer);
+  },[]);
+  const submitFeedback = async () => {
+    if (feedbackText.trim().length < 5) {setFeedbackError("Isi feedback minimal 5 karakter");return;}
+    setFeedbackLoading(true);
+    try {
+      const response=await fetch("/api/feedback",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({salesName:currentSalesName || "Staff",text:feedbackText.trim(),sentiment:feedbackSentiment})});
+      const data=await response.json();
+      if(!response.ok)throw new Error(data.error || "Gagal mengirim feedback");
+      setFeedbackText("");
+      await loadFeedbacks();
+    } catch(e:any){setFeedbackError(e.message || "Gagal mengirim feedback");}
+    finally{setFeedbackLoading(false);}
+  };
+  const deleteFeedback = async (id:string) => {
+    if(!window.confirm("Hapus feedback ini secara permanen?"))return;
+    setFeedbackLoading(true);
+    try{
+      const response=await fetch("/api/feedback",{method:"DELETE",headers:{"Content-Type":"application/json","x-feedback-admin-key":feedbackAdminKey},body:JSON.stringify({id})});
+      const data=await response.json();
+      if(!response.ok)throw new Error(data.error || "Gagal menghapus");
+      await loadFeedbacks();
+    }catch(e:any){setFeedbackError(e.message || "Gagal menghapus feedback");}
+    finally{setFeedbackLoading(false);}
+  };
 
   const SPREADSHEET_ID = "1v_QCLTDKORjVnByrzo9qRiivdU8CGO99nJri9jBETWM";
   const ADMIN_ID = "22008089";
@@ -1392,55 +1435,32 @@ export default function DigiplusOperationalEngine() {
   }, [transactions, storeTotalTarget, selectedDate, selectedMonth, periodType, momToday, timeGoneStats]);
 
   const dailyTargetCalculated = useMemo(() => {
-    const activeStaffNames = (staffList || [])
-      .map((s) => s.name.trim().toLowerCase())
-      .filter((name) => !name.includes("admin") && !name.includes("leader"));
-
-    let totalStaffDailyCatchup = 0;
-    activeStaffNames.forEach((name) => {
-      const targetDetail = staffDailyTargets[name] || staffDailyTargets[name.split(" ")[0]];
-      if (targetDetail && targetDetail.total > 0) {
-        totalStaffDailyCatchup += Number(targetDetail.total) || 0;
-      }
-    });
-
-    if (totalStaffDailyCatchup === 0) {
-      totalStaffDailyCatchup = Object.values(staffDailyTargets || {}).reduce(
-        (acc, curr) => acc + (Number(curr.total) || 0),
-        0
-      );
-    }
-
-    const todayTrx = transactions.filter((t) => t.isoDate === selectedDate);
-    const actualToday = todayTrx.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-
-    const [yearText, monthText, dayText] = (selectedDate || momToday).split("-");
-    const year = Number(yearText);
-    const month = Number(monthText) - 1;
-    const totalDaysInMonth = new Date(year, month + 1, 0).getDate();
-    const daysPassed = Number(dayText);
-    const daysLeft = Math.max(0, totalDaysInMonth - daysPassed);
-
-    const targetStoreToday = totalStaffDailyCatchup;
-    const activeStaffCount = activeStaffNames.length || 1;
-    const targetPerStaffToday = Math.round(targetStoreToday / activeStaffCount);
-
-    return {
-      totalMonthTarget: storeTotalTarget,
-      totalDays: totalDaysInMonth,
-      daysPassed,
-      daysLeft,
-      actualAchievedSoFar: 0,
-      remainingTarget: 0,
-      requiredDailyRunRate: targetStoreToday,
-      staffOnDuty: [],
-      staffCount: activeStaffCount,
-      targetStoreToday,
-      targetPerStaffToday,
-      actualToday,
-      achvToday: targetStoreToday > 0 ? Math.round((actualToday / targetStoreToday) * 100) : 0,
-    };
-  }, [staffDailyTargets, staffList, transactions, selectedDate, storeTotalTarget]);
+    const [yearText,monthText,dayText]=selectedDate.split("-");
+    const year=Number(yearText),month=Number(monthText);
+    const totalDaysInMonth=new Date(year,month,0).getDate();
+    const daysPassed=Math.max(1,Math.min(totalDaysInMonth,Number(dayText)||1));
+    const daysLeft=Math.max(0,totalDaysInMonth-daysPassed);
+    const monthKey=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"][month-1]+year;
+    const validTarget=targetSheetMonth===monthKey;
+    const monthlyTarget=validTarget?storeTotalTarget:0;
+    const monthPrefix=selectedDate.slice(0,7);
+    const monthTrx=transactions.filter(t=>t.isoDate.startsWith(monthPrefix) && t.isoDate<=selectedDate);
+    const actualAchievedSoFar=monthTrx.reduce((a,t)=>a+(Number(t.amount)||0),0);
+    const actualToday=monthTrx.filter(t=>t.isoDate===selectedDate).reduce((a,t)=>a+(Number(t.amount)||0),0);
+    const remainingTarget=Math.max(0,monthlyTarget-actualAchievedSoFar);
+    const targetStoreToday=Math.round(monthlyTarget/totalDaysInMonth);
+    const requiredDailyRunRate=remainingTarget/Math.max(1,daysLeft);
+    const staffOnDuty=Object.entries(staffTargets).filter(([name])=>!name.includes("admin")&&!name.includes("leader")).map(([name,target])=>({
+      name,targetToday:Math.round((validTarget?target:0)/totalDaysInMonth),
+      runRate:Math.round(Math.max(0,(validTarget?target:0)-monthTrx.filter(t=>t.salesName.toLowerCase().trim()===name).reduce((a,t)=>a+(Number(t.amount)||0),0))/Math.max(1,daysLeft))
+    }));
+    const staffCount=staffOnDuty.length;
+    const targetPerStaffToday=staffCount?Math.round(targetStoreToday/staffCount):0;
+    return {totalMonthTarget:monthlyTarget,totalDays:totalDaysInMonth,daysPassed,daysLeft,
+      actualAchievedSoFar,remainingTarget,requiredDailyRunRate:Math.round(requiredDailyRunRate),
+      staffOnDuty,staffCount,targetStoreToday,targetPerStaffToday,actualToday,
+      achvToday:targetStoreToday>0?Math.round(actualToday/targetStoreToday*100):0};
+  },[transactions,selectedDate,storeTotalTarget,targetSheetMonth,staffTargets]);
 
   const scheduleDaySummary = useMemo(() => {
     const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
@@ -1578,7 +1598,7 @@ Total Achievement : ${formatIDR(totalAchvAmount)}
 
   const handleShareTargetWA = () => {
     const staffListMsg = dailyTargetCalculated.staffOnDuty
-      .map((s: any) => `• ${s.name} : ${formatIDR(dailyTargetCalculated.targetPerStaffToday)}`)
+      .map((s: any) => `• ${s.name} : ${formatIDR(s.targetToday)} | Run Rate: ${formatIDR(s.runRate)}`)
       .join("\n");
 
     const text = 
@@ -3284,10 +3304,10 @@ Indosat IM3 : ${isatText}`;
 
                       <div className={`p-4 rounded-2xl border ${innerBg}`}>
                         <span className={`text-[11px] font-black ${textMuted} uppercase block tracking-wider`}>
-                          TARGET IDEAL RUN RATE
+                          RUN RATE SISA TARGET / HARI
                         </span>
                         <div className="text-xl sm:text-2xl font-black text-sky-700 dark:text-sky-400 mt-1 font-mono">
-                          {formatIDR(dailyTargetCalculated.targetPerStaffToday)}
+                          {formatIDR(dailyTargetCalculated.requiredDailyRunRate)}
                         </div>
                       </div>
                     </div>
@@ -3392,7 +3412,7 @@ Indosat IM3 : ${isatText}`;
                         <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-3`}>
                           <div className="flex justify-between items-center pb-2 border-b border-inherit/40">
                             <span className="text-xs font-black text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                              Target Harian (Catch-up Sheet)
+                              Target Harian (Pembagian target ÷ Hari Bulan)
                             </span>
                             <strong className="text-sm sm:text-base font-black font-mono text-slate-950 dark:text-white">
                               Total Target : {formatIDR(targetData.total)}
@@ -3808,22 +3828,36 @@ Indosat IM3 : ${isatText}`;
               {/* TAB 6: FEEDBACK TIM */}
               {activeTab === "feedback" && (
                 <div className="space-y-6">
-                  <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-5 overflow-hidden`}>
-                    <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
-                      <span>💬</span>
-                      <span>Riwayat Feedback Penjualan Tim</span>
-                    </h2>
-                    <div className="space-y-3">
-                      {feedbacks.map((fb) => (
-                        <div key={fb.id} className={`p-4 rounded-2xl border ${innerBg} space-y-2`}>
-                          <div className="flex justify-between items-center">
-                            <span className="font-black text-sm text-slate-900 dark:text-white">{fb.salesName}</span>
-                            <span className="text-xs text-slate-500">{fb.timestamp}</span>
-                          </div>
-                          <p className="text-xs text-slate-700 dark:text-slate-300 font-medium">{fb.text}</p>
-                        </div>
-                      ))}
+                  <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-4`}>
+                    <h2 className="font-black text-lg text-slate-950 dark:text-white">💬 Feedback Tim — Semua Perangkat</h2>
+                    <p className="text-xs text-slate-500">Feedback tersimpan online dan dapat dibaca semua pengguna dashboard. Jangan memasukkan data pribadi pelanggan.</p>
+                    <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">Pengirim: {currentSalesName || "Staff"}</div>
+                    <select value={feedbackSentiment} onChange={e=>setFeedbackSentiment(e.target.value as FeedbackItem["sentiment"])} className="w-full rounded-xl p-3 border bg-white text-slate-900">
+                      <option>Luar Biasa</option><option>Cukup Baik</option><option>Kecewa</option>
+                    </select>
+                    <textarea value={feedbackText} maxLength={1500} onChange={e=>setFeedbackText(e.target.value)} placeholder="Tulis feedback atau masukan untuk tim..." className="w-full min-h-28 rounded-xl p-3 border bg-white text-slate-900"/>
+                    <button type="button" disabled={feedbackLoading || feedbackText.trim().length<5} onClick={()=>void submitFeedback()} className="px-5 py-3 bg-sky-600 text-white font-black rounded-xl disabled:opacity-50">Kirim Feedback</button>
+                    {feedbackError && <p role="alert" className="text-red-600 text-sm">{feedbackError}</p>}
+                  </div>
+                  {currentSalesId===ADMIN_ID && (
+                    <div className={`p-4 ${cardBg} border rounded-2xl space-y-2`}>
+                      <h3 className="font-black text-sm text-slate-950 dark:text-white">Admin — Hapus Feedback</h3>
+                      <input type="password" autoComplete="off" value={feedbackAdminKey} onChange={e=>setFeedbackAdminKey(e.target.value)} placeholder="Masukkan kunci admin feedback" className="w-full rounded-xl p-3 border bg-white text-slate-900"/>
+                      <p className="text-xs text-slate-500">Penghapusan memerlukan kunci server admin; login admin saja tidak cukup.</p>
                     </div>
+                  )}
+                  <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-3`}>
+                    <h2 className="font-black text-lg text-slate-950 dark:text-white">Riwayat Feedback ({feedbacks.length})</h2>
+                    {feedbacks.length===0 && <p className="text-sm text-slate-500">Belum ada feedback yang tersimpan.</p>}
+                    {feedbacks.map(fb=>(
+                      <div key={fb.id} className={`p-4 rounded-2xl border ${innerBg} space-y-2`}>
+                        <div className="flex justify-between gap-2 items-start">
+                          <div><strong className="text-sm text-slate-950 dark:text-white">{fb.salesName}</strong><p className="text-xs text-slate-500">{fb.sentiment} · {fb.timestamp}</p></div>
+                          {currentSalesId===ADMIN_ID && <button disabled={feedbackLoading || !feedbackAdminKey} type="button" onClick={()=>void deleteFeedback(fb.id)} className="text-red-600 text-xs font-black disabled:opacity-40">Hapus</button>}
+                        </div>
+                        <p className="text-sm whitespace-pre-wrap break-words text-slate-800 dark:text-slate-200">{fb.text}</p>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
