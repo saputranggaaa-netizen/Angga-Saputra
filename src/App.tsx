@@ -700,12 +700,27 @@ export default function DigiplusOperationalEngine() {
   }, [transactions]);
 
   // Prefer DATABASE column O; derive calendar week from transaction date if O is blank/0.
+  // Infer the continuous Week number for blank DATABASE labels using an existing labeled transaction.
+  const continuousWeekAnchor = useMemo(() => {
+    for (const t of transactions) {
+      const match=String(t.weekLabel||"").trim().match(/^Week\s+(\d+)$/i);
+      if(!match || !/^20\d{2}-\d{2}-\d{2}$/.test(t.isoDate||""))continue;
+      const date=new Date(t.isoDate+"T00:00:00Z");
+      if(Number.isNaN(date.getTime()))continue;
+      const weekStart=date.getTime()-date.getUTCDay()*86400000;
+      return weekStart-(Number(match[1])-1)*7*86400000;
+    }
+    return null as number|null;
+  },[transactions]);
   const getTransactionWeek = (t: RawTransaction): string => {
     const date = (t.isoDate || "").trim();
     if (!/^20\d{2}-\d{2}-\d{2}$/.test(date) || date.startsWith("1899-")) return "";
     const month = date.slice(0,7);
     const raw = String(t.weekLabel || "").trim();
-    const week = raw && raw !== "0" && raw !== "-" ? raw : "Week " + Math.ceil(Number(date.slice(8,10))/7);
+    const dateMs=Date.parse(date+"T00:00:00Z");
+    const weekStart=dateMs-new Date(dateMs).getUTCDay()*86400000;
+    const inferred=continuousWeekAnchor===null?0:Math.floor((weekStart-continuousWeekAnchor)/604800000)+1;
+    const week = raw && raw !== "0" && raw !== "-" ? raw : "Week " + (inferred>0?inferred:Math.ceil(Number(date.slice(8,10))/7));
     return month + " · " + week;
   };
   const AUTO_WEEKS = useMemo(() => {
@@ -766,7 +781,7 @@ export default function DigiplusOperationalEngine() {
     const target = periodType === "daily"
       ? Math.round(baseTarget / new Date(Number(selectedDate.slice(0,4)),Number(selectedDate.slice(5,7)),0).getDate())
       : periodType === "weekly"
-      ? Math.round((baseTarget / new Date(Number(momToday.slice(0,4)),Number(momToday.slice(5,7)),0).getDate()) * 7)
+      ? Math.round((baseTarget / new Date(Number(momToday.slice(0,4)),Number(momToday.slice(5,7)),0).getDate()) * (selectedWeek==="ALL" ? 7 : Math.max(1,Math.min(7,new Set(activeTx.map(t=>t.isoDate).filter(Boolean)).size))))
       : baseTarget;
 
     const achv = calcAchv(actual, target);
@@ -1334,7 +1349,12 @@ export default function DigiplusOperationalEngine() {
   }, [transactions,w1Filter,w2Filter]);
 
   const timeGoneStats = useMemo(() => {
-    const dates = transactions.map(t => String(t.isoDate || "").trim()).filter(d => d.length === 10 && d[4] === "-" && d[7] === "-" && d > "1900-01-01").sort();
+    const dates = transactions.map(t => String(t.isoDate || "").trim()).filter(d => {
+      if (!/^20\d{2}-\d{2}-\d{2}$/.test(d)) return false;
+      const [y,m,day]=d.split("-").map(Number);
+      const parsed=new Date(Date.UTC(y,m-1,day));
+      return parsed.getUTCFullYear()===y && parsed.getUTCMonth()===m-1 && parsed.getUTCDate()===day;
+    }).sort();
     const latestDate = dates[dates.length - 1];
     if (!latestDate) return {monthName:"BELUM ADA DATA",elapsedDays:0,totalDays:0,remainingDays:0,timeElapsedPct:0};
     const [yearText,monthText,dayText] = latestDate.split("-");
@@ -1348,7 +1368,9 @@ export default function DigiplusOperationalEngine() {
   },[transactions]);
 
   const dailyTrendStats = useMemo(() => {
-    const daysInMonth = timeGoneStats.totalDays || 31;
+    const monthMatch=selectedMonth.match(/^(.*?)(20\d{2})$/);
+    const monthIdx=monthMatch?["januari","februari","maret","april","mei","juni","juli","agustus","september","oktober","november","desember"].indexOf(monthMatch[1].trim().toLowerCase()):-1;
+    const daysInMonth=monthIdx>=0?new Date(Number(monthMatch![2]),monthIdx+1,0).getDate():timeGoneStats.totalDays || 31;
     const idealDaily = Math.round((selectedMonth===targetSheetMonth ? storeTotalTarget : 0) / daysInMonth);
     const arr = [];
 
