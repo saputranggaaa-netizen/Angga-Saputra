@@ -3582,7 +3582,7 @@ Indosat IM3 : ${isatText}`;
               {/* TAB: BRAND FOCUS (20 SELECTED ACCESSORIES BRANDS) */}
               {/* ========================================================= */}
               {activeTab === "brand-focus" && (() => {
-                const TARGET_SUPPLIERS = ["AVANA","INCASE","INCIPIO","ITSKIN","RIVERCASE","TUCANO","UAG","IFROGZ","ZAG","MUTUALL","KRATOS","VERBATIM","MEDPOIN","ARC PULSE","FLAUNT","CARE","KATE SPADE","IBACKS","KAIZEN","RAPTIC"];
+                const TARGET_SUPPLIERS = ["AVANA","INCASE","INCIPIO","ITSKIN","RIVERCASE","TUCANO","UAG","IFROGZ","ZAAG","MUTUALL","KRATOS","VERBATIM","MEDPOIN","FLAUNT","CARE","KATE SPADE","IBACKS","KAIZEN","RAPTIC"];
                 const currentFilteredTrx = activeTransactions || [];
 
                 const totalAccAmount = currentFilteredTrx
