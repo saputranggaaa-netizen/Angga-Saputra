@@ -1929,7 +1929,7 @@ Indosat IM3 : ${isatText}`;
             </select>
             <span className={textMuted + " text-xs"}>{momMode === "mtd" ? "Periode tanggal 1–" + Number(momToday.slice(-2)) + " (maksimum akhir bulan), WIB" : "Semua tanggal dalam bulan yang dipilih"}</span>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
               <span className="text-[11px] font-black text-slate-600 dark:text-slate-400">Bulan 1:</span>
               <select
@@ -2287,32 +2287,31 @@ Indosat IM3 : ${isatText}`;
 
       {/* 3. KONTEN UTAMA */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className={`lg:hidden flex items-center justify-between px-4 py-3 border-b backdrop-blur-xl sticky top-0 z-20 print:hidden ${glassSidebar}`}>
+        <header className={`lg:hidden flex items-center justify-between gap-2 px-3 py-2 min-h-[56px] border-b backdrop-blur-xl sticky top-0 z-30 print:hidden ${glassSidebar}`}>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileDrawerOpen(true)}
-              className="px-3 py-1.5 rounded-xl bg-sky-500/10 text-sky-400 dark:text-sky-400 border border-sky-400/20 text-xs font-black flex items-center gap-1.5 active:scale-95 transition"
+              className="h-10 w-10 shrink-0 rounded-xl bg-sky-500/10 text-sky-400 border border-sky-400/20 flex items-center justify-center active:scale-95 transition"
               aria-label="Buka Menu"
             >
-              <span>☰</span>
-              <span>Menu</span>
+              <span className="text-lg leading-none">☰</span>
             </button>
 
-            <div className="flex items-center gap-2 pl-2 border-l border-slate-700/40">
-              <div className="w-8 h-8 rounded-xl bg-sky-500 flex items-center justify-center font-black text-xs text-white shadow-sm">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-8 h-8 shrink-0 rounded-xl bg-sky-500 flex items-center justify-center font-black text-xs text-white shadow-sm">
                 QF01
               </div>
-              <div>
+              <div className="min-w-0">
                 <h2 className="text-xs font-black leading-none text-slate-900 dark:text-white">DIGIPLUS GI</h2>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold">
+                  <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold truncate max-w-[150px]">
                     {currentSalesName || "Store Leader Admin"}
                   </span>
-                  <span className="text-[9px] text-emerald-400 font-mono font-bold">
+                  <span className="hidden sm:inline text-[9px] text-emerald-400 font-mono font-bold">
                     • {currentTime}
                   </span>
                 </div>
-                <span className="text-[9px] text-slate-400 font-mono block mt-0.5">
+                <span className="hidden sm:block text-[9px] text-slate-400 font-mono mt-0.5">
                   {todayFormatted}
                 </span>
               </div>
@@ -2330,15 +2329,15 @@ Indosat IM3 : ${isatText}`;
           </div>
         </header>
         
-        <main className="p-3 sm:p-6 lg:p-8 w-full max-w-[1700px] mx-auto flex-1 overflow-x-hidden pb-6">
-          <header className="mb-6 border-b border-inherit pb-5 print:hidden">
-            <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
+        <main className="p-3 sm:p-6 lg:p-8 w-full max-w-[1700px] mx-auto flex-1 overflow-x-hidden pb-20 lg:pb-6">
+          <header className="mb-3 sm:mb-6 border-b border-inherit pb-3 sm:pb-5 print:hidden">
+            <div className="flex flex-wrap justify-between items-center gap-2 sm:gap-4 mb-2 sm:mb-4">
               <div>
-                <div className={`text-xl sm:text-2xl font-black ${accentText} flex items-center gap-2`}>
+                <div className={`hidden sm:flex text-xl sm:text-2xl font-black ${accentText} items-center gap-2`}>
                   <span>Halo, {currentSalesName} 👋</span>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                <div className="hidden sm:flex flex-wrap items-center gap-2 mt-1.5">
                   <span className="px-2.5 py-1 rounded-xl bg-sky-500/15 text-sky-400 border border-sky-400/30 text-xs font-black flex items-center gap-1.5 shadow-sm">
                     <span>🗓️</span>
                     <span>{todayFormatted}</span>
@@ -2354,18 +2353,18 @@ Indosat IM3 : ${isatText}`;
                   </span>
                 </div>
 
-                <p className={`text-[11px] ${textMuted} mt-1.5 font-semibold`}>
+                <p className={`hidden sm:block text-[11px] ${textMuted} mt-1.5 font-semibold`}>
                   Live Feed: <code>DATABASE</code> (gid: 602901290) &amp; <code>BNPL DATABASE</code> (gid: 2697970)
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
                 <button
                   onClick={handleShareDaily}
-                  className="px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-95"
+                  className="px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-95"
                 >
                   <span>📲</span>
-                  <span>Share Daily</span>
+                  <span className="hidden sm:inline">Share Daily</span><span className="sm:hidden">Share</span>
                 </button>
 
                 <button
@@ -2374,10 +2373,10 @@ Indosat IM3 : ${isatText}`;
                   className={`px-3 py-1.5 rounded-xl border text-xs font-black transition flex items-center gap-1.5 ${innerBg} text-slate-950 dark:text-white`}
                 >
                   <span>🔄</span>
-                  <span>{isLoading ? "Mengambil Data..." : "Sync Live"}</span>
+                  <span className="hidden sm:inline">{isLoading ? "Mengambil Data..." : "Sync Live"}</span><span className="sm:hidden">{isLoading ? "Sync..." : "Sync"}</span>
                 </button>
 
-                <span className={`px-3 py-1.5 rounded-lg border text-xs font-black ${
+                <span className={`px-2 sm:px-3 py-1.5 rounded-lg border text-[11px] sm:text-xs font-black ${
                   isDark ? "bg-emerald-500/15 text-emerald-300 border-emerald-400/30" : "bg-emerald-100 text-emerald-950 border-emerald-300"
                 }`}>
                   Actual: {formatIDR(overviewStats.actual)}
@@ -2385,7 +2384,7 @@ Indosat IM3 : ${isatText}`;
               </div>
             </div>
 
-            <div className={`p-3 ${cardBg} border rounded-2xl flex flex-wrap items-center gap-3 justify-between text-xs font-bold`}>
+            <div className={`p-2 sm:p-3 ${cardBg} border rounded-2xl flex flex-wrap items-center gap-2 sm:gap-3 justify-between text-xs font-bold`}>
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex items-center gap-1 bg-black/10 dark:bg-black/20 p-1 rounded-xl">
                   {(["daily", "weekly", "monthly"] as const).map((mode) => (
@@ -4085,11 +4084,10 @@ Indosat IM3 : ${isatText}`;
       <button
         type="button"
         onClick={() => setMobileDrawerOpen(true)}
-        className="lg:hidden fixed bottom-6 right-6 z-40 w-14 h-14 rounded-2xl bg-sky-500 hover:bg-sky-400 active:scale-95 text-white shadow-xl shadow-sky-500/40 border border-sky-400/30 flex flex-col items-center justify-center gap-0.5 transition-all duration-200"
+        className="lg:hidden fixed bottom-[calc(env(safe-area-inset-bottom)+12px)] left-3 z-40 w-11 h-11 rounded-full bg-sky-500/85 backdrop-blur-md hover:bg-sky-400 active:scale-95 text-white shadow-md shadow-sky-500/20 border border-sky-400/30 flex items-center justify-center transition-all duration-200 print:hidden"
         aria-label="Buka Menu Navigasi"
       >
-        <span className="text-xl leading-none">☰</span>
-        <span className="text-[10px] font-black uppercase tracking-wider leading-none">Menu</span>
+        <span className="text-lg leading-none" aria-hidden="true">☰</span>
       </button>
 
       {/* BOTTOM SHEET MODAL DRILLDOWN */}
