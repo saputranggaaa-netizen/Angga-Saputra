@@ -3552,7 +3552,7 @@ Indosat IM3 : ${isatText}`;
               {/* TAB: BRAND FOCUS (SUPPLIER DINO, IGA, MEDPOIN, HASTAG, IBACKS, KAIZEN) */}
               {/* ========================================================= */}
               {activeTab === "brand-focus" && (() => {
-                const TARGET_SUPPLIERS = ["DINO", "IGA", "MEDPOIN", "HASTAG", "IBACKS", "KAIZEN"];
+                const TARGET_SUPPLIERS = ["DINO", "IGA", "MEDPOIN", "HASTAG", "IBACKS", "KAIZEN", "VERBATIM", "MUTUALL"];
                 const currentFilteredTrx = activeTransactions || [];
 
                 const totalAccAmount = currentFilteredTrx
@@ -3606,7 +3606,7 @@ Indosat IM3 : ${isatText}`;
                           <span>BRAND FOCUS ACCESSORIES</span>
                         </h2>
                         <p className="text-xs text-slate-500 mt-1">
-                          Data penjualan supplier: DINO, IGA, MEDPOIN, HASTAG, IBACKS, KAIZEN (Filter: {periodType.toUpperCase()})
+                          Data penjualan supplier: DINO, IGA, MEDPOIN, HASTAG, IBACKS, KAIZEN, VERBATIM, MUTUALL (Filter: {periodType.toUpperCase()})
                         </p>
                       </div>
 
@@ -3621,9 +3621,9 @@ Indosat IM3 : ${isatText}`;
                     </div>
 
                     {currentFilteredTrx.length === 0 && <div className={`p-4 rounded-xl border ${innerBg} text-sm text-amber-600`}>Tidak ada transaksi pada filter periode yang dipilih. Periksa tanggal, minggu, atau bulan di bagian atas.</div>}
-                    {currentFilteredTrx.length > 0 && TARGET_SUPPLIERS.every(s => supplierDataMap[s].items.length === 0) && <div className={`p-4 rounded-xl border ${innerBg} text-sm text-amber-600`}>Tidak ditemukan transaksi Accessories untuk keenam supplier pada periode ini. Periksa kolom P (Supplier) atau kolom K (Brand Name) di DATABASE.</div>}
+                    {currentFilteredTrx.length > 0 && TARGET_SUPPLIERS.every(s => supplierDataMap[s].items.length === 0) && <div className={`p-4 rounded-xl border ${innerBg} text-sm text-amber-600`}>Tidak ditemukan transaksi Accessories untuk supplier Brand Focus pada periode ini. Periksa kolom P (Supplier) atau kolom K (Brand Name) di DATABASE.</div>}
                     {/* CUPCARDS */}
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
                       {TARGET_SUPPLIERS.map((sup) => {
                         const s = supplierDataMap[sup];
                         const contribPercent = totalAccAmount > 0 ? ((s.amount / totalAccAmount) * 100).toFixed(1) : "0.0";
