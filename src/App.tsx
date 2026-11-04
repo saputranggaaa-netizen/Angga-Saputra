@@ -3014,49 +3014,39 @@ Indosat IM3 : ${isatText}`;
                       </div>;
                     })()}
                   </section>
-                  <section className={`p-5 ${cardBg} border-2 rounded-3xl shadow-xl`}>
-                    <h2 className="text-lg font-black text-slate-950 dark:text-white">📈 WEEK TO WEEK SALES — DATABASE COLUMN O</h2>
-                    <p className={`text-xs mt-1 ${textMuted}`}>Pilih dua minggu pada bulan yang dipilih. Jika kolom O kosong atau 0, minggu dihitung otomatis dari tanggal transaksi.</p>
-                    <div className="flex flex-wrap items-center gap-3 mt-4">
-                      {([{value:w1Filter,set:setW1Filter,label:"WEEK 1 (Baseline)"},{value:w2Filter,set:setW2Filter,label:"WEEK 2 (Pembanding)"}]).map((f,i)=><label key={i} className="flex flex-col gap-1 text-xs font-bold text-slate-950 dark:text-white">{f.label}<select className="rounded-xl border px-3 py-2 bg-white text-slate-950 dark:bg-slate-800 dark:text-white" value={f.value} onChange={e=>f.set(e.target.value)}>{AUTO_WEEKS.length===0 && <option value="">Tidak ada data minggu pada bulan ini</option>}{AUTO_WEEKS.map(w=><option key={w.key} value={w.label}>{w.label} ({w.range})</option>)}</select></label>)}
-                    </div>
+                  <section className={`p-5 ${cardBg} border-2 rounded-3xl shadow-xl space-y-4`}>
+                    <h2 className="text-lg font-black text-slate-950 dark:text-white">📦 RINCIAN PENJUALAN WEEK BERJALAN VS WEEK SEBELUMNYA</h2>
+                    <p className="text-xs text-slate-500">Periode mengikuti pilihan Weekly Performance (Minggu–Sabtu), bukan label kolom O. Qty dan nominal dari DATABASE.</p>
+                    {calendarWeekly.current && (() => {
+                      const w=calendarWeekly.current,prev=calendarWeekly.previous;
+                      const focus=["AVANA","INCASE","INCIPIO","ITSKIN","RIVERCASE","TUCANO","UAG","IFROGZ","ZAG","ZAAG","MUTUALL","KRATOS","VERBATIM","MEDPOIN","ARC PULSE","FLAUNT","CARE","KATE SPADE","IBACKS","KAIZEN","RAPTIC"];
+                      const sum=(rows:RawTransaction[])=>({qty:rows.reduce((n,t)=>n+(Number(t.qty)||0),0),amount:rows.reduce((n,t)=>n+(Number(t.amount)||0),0)});
+                      const category=(t:RawTransaction)=>{
+                        const group=(t.groupCategory||"").toUpperCase(),type=(t.productType||"").toUpperCase(),brand=(t.brand||"").toUpperCase(),name=(t.productName||"").toUpperCase();
+                        if(group.includes("VAS")||type.includes("VAS")||/QOALA|TELKOMSEL|INDOSAT|\bXL\b/.test(name+" "+brand+" "+group))return "VAS";
+                        if(group.includes("ACC")||type.includes("ACC")||group.includes("ACCESSOR"))return "Accessories";
+                        if(group.includes("APPLE")||brand.includes("APPLE")||/IPHONE|IPAD|MACBOOK|AIRPODS|APPLE WATCH/.test(name))return "Apple Devices";
+                        if(group.includes("ANDROID")||/SAMSUNG|OPPO|HUAWEI|XIAOMI|MOTOROLA|INFINIX/.test(brand+" "+name))return "Android Devices";
+                        return "Lainnya";
+                      };
+                      const specs=[
+                        {title:"Apple Devices",filter:(t:RawTransaction)=>category(t)==="Apple Devices",detail:(t:RawTransaction)=>/IPHONE|IPAD|MACBOOK|AIRPODS|WATCH/i.exec(t.productName)?.[0]||t.productType||"Apple"},
+                        {title:"Android Devices",filter:(t:RawTransaction)=>category(t)==="Android Devices",detail:(t:RawTransaction)=>["SAMSUNG","OPPO","HUAWEI","XIAOMI","MOTOROLA","INFINIX"].find(x=>(t.brand+" "+t.productName).toUpperCase().includes(x))||t.brand||"Android Lainnya"},
+                        {title:"Accessories (All Category)",filter:(t:RawTransaction)=>category(t)==="Accessories",detail:(t:RawTransaction)=>t.productType||t.brand||"Accessories"},
+                        {title:"Accessories Referensi (Brand Focus)",filter:(t:RawTransaction)=>category(t)==="Accessories"&&focus.some(x=>(t.supplier+" "+t.brand+" "+t.productName).toUpperCase().includes(x)),detail:(t:RawTransaction)=>focus.find(x=>(t.supplier+" "+t.brand+" "+t.productName).toUpperCase().includes(x))||"Lainnya"},
+                        {title:"VAS",filter:(t:RawTransaction)=>category(t)==="VAS",detail:(t:RawTransaction)=>["QOALA","TELKOMSEL","INDOSAT","XL"].find(x=>(t.brand+" "+t.productName+" "+t.productType).toUpperCase().includes(x))||"VAS Lainnya"}
+                      ];
+                      return <div className="space-y-4">{specs.map(spec=>{
+                        const current=w.rows.filter(spec.filter),prior=(prev?.rows||[]).filter(spec.filter),now=sum(current),before=sum(prior);
+                        const names=[...new Set([...current,...prior].map(spec.detail))].sort();
+                        return <div key={spec.title} className={`p-4 rounded-2xl border ${innerBg} space-y-3`}>
+                          <div className="flex flex-wrap justify-between gap-3 items-center"><h3 className="font-black text-slate-950 dark:text-white">{spec.title}</h3><span className="text-xs text-slate-500">{w.label} ({w.start} – {w.end}) {prev?"vs "+prev.label:"· belum ada week sebelumnya"}</span></div>
+                          <div className="grid grid-cols-2 gap-3 text-xs"><div className="p-3 rounded-xl bg-blue-500/10"><strong className="block">Week Berjalan · {w.label}</strong><span>{now.qty} Qty · {formatIDR(now.amount)}</span></div><div className="p-3 rounded-xl bg-slate-500/10"><strong className="block">Week Sebelumnya · {prev?.label||"—"}</strong><span>{prev?before.qty+" Qty · "+formatIDR(before.amount):"Belum tersedia"}</span></div></div>
+                          <div className="overflow-x-auto"><table className="w-full min-w-[700px] text-xs text-left"><thead><tr className="border-b border-slate-400/30">{["Brand / Kategori","Qty Week Ini","Amount Week Ini","Qty Week Lalu","Amount Week Lalu","Δ Qty","Δ Amount","Growth"].map(h=><th key={h} className="p-2">{h}</th>)}</tr></thead><tbody>{names.map(name=>{const a=sum(current.filter(t=>spec.detail(t)===name)),b=sum(prior.filter(t=>spec.detail(t)===name));return <tr key={name} className="border-b border-slate-400/20"><td className="p-2 font-bold">{name}</td><td className="p-2">{a.qty}</td><td className="p-2">{formatIDR(a.amount)}</td><td className="p-2">{prev?b.qty:"—"}</td><td className="p-2">{prev?formatIDR(b.amount):"—"}</td><td className="p-2">{prev?a.qty-b.qty:"—"}</td><td className="p-2">{prev?formatIDR(a.amount-b.amount):"—"}</td><td className="p-2">{prev&&b.amount?((a.amount/b.amount-1)*100).toFixed(1)+"%":"—"}</td></tr>})}</tbody></table>{names.length===0&&<p className="text-xs text-slate-500 py-3">Belum ada penjualan pada kategori ini.</p>}</div>
+                        </div>;
+                      })}</div>;
+                    })()}
                   </section>
-                  <section className={`p-5 ${cardBg} border-2 rounded-3xl shadow-xl`}>
-                    <h3 className="font-black text-slate-950 dark:text-white mb-3">📅 TREND DAILY SALES (BERDASARKAN TANGGAL)</h3>
-                    <div className="grid md:grid-cols-2 gap-4">
-                      {([{label:weeklyComparisonData.p1Label,rows:weeklyComparisonData.daily1},{label:weeklyComparisonData.p2Label,rows:weeklyComparisonData.daily2}]).map((period,i)=><div key={i} className={`p-3 rounded-xl border ${innerBg}`}>
-                        <h4 className="text-xs font-black text-slate-950 dark:text-white mb-2">{i===0?"WEEK 1":"WEEK 2"} — {period.label}</h4>
-                        {period.rows.length===0 && <p className={`text-xs ${textMuted}`}>Tidak ada transaksi bertanggal.</p>}
-                        {period.rows.map(d=><div key={d.date} className="flex items-center gap-2 py-1.5 text-xs"><span className="w-24 shrink-0 text-slate-700 dark:text-slate-300">{d.date}</span><div className="flex-1 h-3 bg-slate-300/30 rounded-full overflow-hidden"><div className="h-full bg-sky-500" style={{width:`${Math.max(1,d.value/Math.max(...period.rows.map(x=>x.value),1)*100)}%`}} /></div><strong className="text-slate-950 dark:text-white whitespace-nowrap">{formatCompactIDR(d.value)}</strong></div>)}
-                      </div>)}
-                    </div>
-                  </section>
-                  <section className={`p-5 ${cardBg} border-2 rounded-3xl shadow-xl`}>
-                    <h3 className="font-black text-slate-950 dark:text-white">TOTAL SALES STORE & PER STAFF</h3>
-                    <div className="grid md:grid-cols-2 gap-3 mt-3">
-                      {([{label:"WEEK 1",week:weeklyComparisonData.p1Label,value:weeklyComparisonData.totalM1,key:"m1" as const},{label:"WEEK 2",week:weeklyComparisonData.p2Label,value:weeklyComparisonData.totalM2,key:"m2" as const}]).map(p=><div key={p.label} className={`p-4 rounded-xl border ${innerBg}`}>
-                        <h4 className="text-xs font-black text-slate-950 dark:text-white">{p.label} — {p.week}</h4>
-                        <p className="text-xl font-black text-sky-600 dark:text-sky-300 my-2">{formatIDR(p.value)}</p>
-                        {weeklyComparisonData.staffSales.map(st=><div key={st.id} className="flex justify-between gap-2 py-1 border-t border-slate-400/20 text-xs"><span className="text-slate-900 dark:text-white">{st.name}</span><strong className="text-slate-950 dark:text-white">{formatIDR(st[p.key])}</strong></div>)}
-                      </div>)}
-                    </div>
-                    <p className={`mt-3 font-black text-sm ${weeklyComparisonData.storeGrowth>=0?"text-emerald-500":"text-rose-500"}`}>{weeklyComparisonData.storeGrowth>=0?"▲ Growth":"▼ Disgrowth"} {weeklyComparisonData.storeGrowth}%</p>
-                    <h4 className="font-black text-xs text-slate-900 dark:text-white mt-4 mb-2">GROWTH PER STAFF</h4>
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">{weeklyComparisonData.staffSales.map(st=><div key={st.id} className={`p-3 border rounded-xl ${innerBg} text-xs flex justify-between gap-2`}><span className="text-slate-900 dark:text-white">{st.name}</span><strong className={st.growth>=0?"text-emerald-500":"text-rose-500"}>{st.growth>=0?"▲ +":"▼ "}{st.growth}%</strong></div>)}</div>
-                  </section>
-                  {([{title:"APPLE DEVICES",data:weeklyComparisonData.apple,brand:"APPLE"},{...weeklyComparisonData.android[0],title:"SAMSUNG DEVICES",data:weeklyComparisonData.android[0]},{...weeklyComparisonData.android[1],title:"HUAWEI DEVICES",data:weeklyComparisonData.android[1]},{...weeklyComparisonData.android[2],title:"OPPO DEVICES",data:weeklyComparisonData.android[2]}]).map(lob=><section key={lob.title} className={`p-5 ${cardBg} border-2 rounded-3xl shadow-xl`}>
-                    <div className="flex flex-wrap justify-between gap-3 items-center mb-4"><h3 className="font-black text-slate-950 dark:text-white">📦 {lob.title}</h3><div className="flex gap-3 text-xs font-black"><span className={lob.data.growth>=0?"text-emerald-500":"text-rose-500"}>{lob.data.growth>=0?"▲ +":"▼ "}{lob.data.growth}% Amount</span><span className={lob.data.qtyGrowth>=0?"text-emerald-500":"text-rose-500"}>{lob.data.qtyGrowth>=0?"▲ +":"▼ "}{lob.data.qtyGrowth}% Qty</span></div></div>
-                    <div className="grid lg:grid-cols-2 gap-4">
-                      {([{label:"WEEK 1",week:weeklyComparisonData.p1Label,data:lob.data.w1},{label:"WEEK 2",week:weeklyComparisonData.p2Label,data:lob.data.w2}]).map(p=><div key={p.label} className={`rounded-2xl border p-3 ${innerBg}`}>
-                        <h4 className="font-black text-sm text-slate-950 dark:text-white">{p.label} — {p.week}</h4><p className="text-xs font-bold text-sky-600 dark:text-sky-300 mt-1 mb-3">{p.data.qty} Qty · {formatIDR(p.data.amount)}</p>
-                        {p.data.staff.length===0 && <p className={`text-xs ${textMuted}`}>Tidak ada penjualan.</p>}
-                        {p.data.staff.map(st=><div key={st.id} className="border-t border-slate-400/20 py-3">
-                          <div className="flex justify-between gap-2 text-xs"><strong className="text-slate-950 dark:text-white">{st.name}</strong><span className="text-slate-900 dark:text-white">{st.qty} Qty · {formatIDR(st.amount)}</span></div>
-                          {st.categories.map(cat=><div key={cat.name} className="flex justify-between gap-2 text-[11px] mt-1 pl-3 text-slate-700 dark:text-slate-300"><span>↳ {lob.brand==="APPLE"?cat.name:lob.brand+" "+cat.name}</span><span>{cat.qty} Qty · {formatIDR(cat.amount)}</span></div>)}
-                        </div>)}
-                      </div>)}
-                    </div>
-                  </section>)}
                 </div>
               )}
 
