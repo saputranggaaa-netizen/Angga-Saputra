@@ -360,6 +360,7 @@ export default function DigiplusOperationalEngine() {
   const [feedbackSentiment, setFeedbackSentiment] = useState<FeedbackItem["sentiment"]>("Cukup Baik");
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [feedbackError, setFeedbackError] = useState("");
+  const [dataLoadError, setDataLoadError] = useState("");
   const [feedbackAdminKey, setFeedbackAdminKey] = useState("");
   const [isExportingPptx, setIsExportingPptx] = useState<boolean>(false);
 
@@ -440,6 +441,7 @@ export default function DigiplusOperationalEngine() {
 
   const fetchLiveGoogleSheets = async () => {
     setIsLoading(true);
+    setDataLoadError("");
     try {
       const dbUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=602901290';
       const bnplUrl = 'https://docs.google.com/spreadsheets/d/' + SPREADSHEET_ID + '/gviz/tq?tqx=out:json&gid=2697970';
@@ -455,9 +457,18 @@ export default function DigiplusOperationalEngine() {
       const textDb = await resDb.text();
       const textBnpl = await resBnpl.text();
       const textTarget = await resTarget.text();
+      if(!resDb.ok || !resBnpl.ok || !resTarget.ok)throw new Error("Google Sheets HTTP: DATABASE "+resDb.status+", BNPL "+resBnpl.status+", TARGET "+resTarget.status);
+      const parseGviz=(value:string,label:string)=>{
+        const start=value.indexOf("{"),end=value.lastIndexOf("}");
+        if(start<0||end<start)throw new Error(label+" tidak mengembalikan JSON. Periksa akses publik spreadsheet dan koneksi internet.");
+        const result=JSON.parse(value.slice(start,end+1));
+        if(result.status==="error")throw new Error(label+": "+(result.errors||[]).map((e:any)=>e.detailed_message||e.message).join("; "));
+        if(!result.table?.rows)throw new Error(label+" tidak memiliki baris data.");
+        return result;
+      };
 
 
-      const jsonDb = JSON.parse(textDb.substring(textDb.indexOf("{"), textDb.lastIndexOf("}") + 1));
+      const jsonDb = parseGviz(textDb,"DATABASE");
       const parsedTrx: RawTransaction[] = [];
       (jsonDb.table.rows || []).forEach((r: any) => {
         const c = r.c;
@@ -519,7 +530,7 @@ export default function DigiplusOperationalEngine() {
         }
       });
 
-      const jsonBnpl = JSON.parse(textBnpl.substring(textBnpl.indexOf("{"), textBnpl.lastIndexOf("}") + 1));
+      const jsonBnpl = parseGviz(textBnpl,"BNPL DATABASE");
       const parsedBnpl: BnplRecord[] = [];
       (jsonBnpl.table.rows || []).forEach((r: any) => {
         const c = r.c;
@@ -540,7 +551,7 @@ export default function DigiplusOperationalEngine() {
       });
 
       // Single source of truth: Pembagian target, header-driven columns B:W.
-      const jsonTarget = JSON.parse(textTarget.substring(textTarget.indexOf("{"), textTarget.lastIndexOf("}") + 1));
+      const jsonTarget = parseGviz(textTarget,"Pembagian target");
       const rows = jsonTarget.table?.rows || [];
       const norm = (name:string) => name.toLowerCase().normalize("NFKC").replace(/[^a-z0-9]+/g," ").trim().replace(/\s+/g," ");
       const parseMoney = (cell:any):number => {
@@ -581,7 +592,7 @@ export default function DigiplusOperationalEngine() {
       const targetMonth=rows.map((r:any)=>normalizeMonth(cellText(r.c||[],columns.month))).find(Boolean) || "";
       const currentMonth=new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit"}).format(new Date());
       const currentMonthKey=monthNames[Number(currentMonth.slice(5,7))-1]+currentMonth.slice(0,4);
-      const validMonth=targetMonth && targetMonth===currentMonthKey;
+      const validMonth=Boolean(targetMonth);
       let parsedGrandTotal=0;
       rows.forEach((r:any)=>{
         const c=r.c || [];
@@ -611,8 +622,9 @@ export default function DigiplusOperationalEngine() {
       setStaffTargets(validMonth?targetMap:{});
       setStaffCategoryTargets(validMonth?categoryByStaff:{});
       setCategoryTargets(validMonth?categoryTotals:{});
-      const daysInTargetMonth=Number(currentMonth.slice(5,7))>0
-        ? new Date(Number(currentMonth.slice(0,4)),Number(currentMonth.slice(5,7)),0).getDate():30;
+      const targetMonthIndex=monthNames.findIndex(n=>targetMonth.startsWith(n));
+      const daysInTargetMonth=targetMonthIndex>=0
+        ? new Date(Number(targetMonth.slice(-4)),targetMonthIndex+1,0).getDate():30;
       const dailyTargets:Record<string,StaffDailyTargetDetail>={};
       if(validMonth)Object.entries(categoryByStaff).forEach(([name,c])=>{
         dailyTargets[name]={
@@ -624,6 +636,7 @@ export default function DigiplusOperationalEngine() {
         };
       });
       setStaffDailyTargets(dailyTargets);
+      if(parsedTrx.length===0)throw new Error("DATABASE tidak menghasilkan transaksi valid. Periksa format tanggal, invoice, nominal dan kolom staff.");
       setTransactions(parsedTrx);
       setBnplRecords(parsedBnpl);
 
@@ -637,6 +650,7 @@ export default function DigiplusOperationalEngine() {
       }
     } catch (err) {
       console.error("Gagal live fetch:", err);
+      setDataLoadError(err instanceof Error ? err.message : "Gagal membaca Google Sheets");
     } finally {
       setIsLoading(false);
     }
@@ -2362,6 +2376,7 @@ Indosat IM3 : ${isatText}`;
                   </div>
                 )}
 
+                {dataLoadError && <div role="alert" className="w-full p-3 rounded-xl bg-red-50 border border-red-300 text-red-800 text-xs font-bold">⚠️ Data Google Sheets gagal dimuat: {dataLoadError}. Periksa akses Google Sheets, lalu klik Sync Live.</div>}
                 {periodType === "weekly" && (
                   <div className="flex items-center gap-2">
                     <span className="font-black text-slate-900 dark:text-slate-200">📊 Week:</span>
