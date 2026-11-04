@@ -3791,7 +3791,7 @@ Indosat IM3 : ${isatText}`;
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-inherit">
-                                      {(expandedSupplierDetails[sup] ? s.items : s.items.slice(0,5)).map((item, itemIdx) => (
+                                      {(expandedSupplierDetails[sup] ? s.items : s.items.slice(0,3)).map((item, itemIdx) => (
                                         <tr key={itemIdx} className="hover:bg-slate-500/5 transition">
                                           <td className="p-2.5 font-mono text-slate-500">{item.isoDate || item.date}</td>
                                           <td className="p-2.5 font-mono font-bold text-slate-700 dark:text-slate-300">{item.invoice || "-"}</td>
@@ -3805,9 +3805,9 @@ Indosat IM3 : ${isatText}`;
                                       ))}
                                     </tbody>
                                   </table>
-                                  {s.items.length>5 && (
+                                  {s.items.length>3 && (
                                     <button type="button" onClick={()=>setExpandedSupplierDetails(prev=>({...prev,[sup]:!prev[sup]}))} className="w-full py-3 text-sm font-bold text-sky-600 hover:underline">
-                                      {expandedSupplierDetails[sup]?"Show Less":"Show More ("+(s.items.length-5)+" transaksi lainnya)"}
+                                      {expandedSupplierDetails[sup]?"Show Less":"Show More ("+(s.items.length-3)+" transaksi lainnya)"}
                                     </button>
                                   )}
                                 </div>
