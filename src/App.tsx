@@ -406,37 +406,31 @@ export default function DigiplusOperationalEngine() {
   const ADMIN_ID = "22008089";
 
   const parseNormalizedDate = (rawDateStr: string, rawMonthStr: string) => {
-    let isoDate = "";
-
-    if (rawDateStr) {
-      const cleanStr = String(rawDateStr).trim().replace(/\//g, "-");
-      const parts = cleanStr.split("-");
-      if (parts.length === 3) {
-        let y = 0, m = 0, d = 0;
-        if (parts[0].length === 4) {
-          y = parseInt(parts[0], 10);
-          m = parseInt(parts[1], 10);
-          d = parseInt(parts[2], 10);
-        } else {
-          d = parseInt(parts[0], 10);
-          m = parseInt(parts[1], 10);
-          y = parseInt(parts[2], 10);
-        }
-        if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
-          isoDate = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-        }
+    const raw=String(rawDateStr||"").trim();
+    let isoDate="";
+    const gviz=raw.match(/^Date\((\d{4}),(\d{1,2}),(\d{1,2})(?:,.*)?\)$/i);
+    if(gviz){
+      isoDate=gviz[1]+"-"+String(Number(gviz[2])+1).padStart(2,"0")+"-"+gviz[3].padStart(2,"0");
+    }else{
+      const parts=raw.replace(/\//g,"-").split("-");
+      if(parts.length===3){
+        const [a,b,c]=parts.map(Number);
+        const y=parts[0].length===4?a:c;
+        const m=b,d=parts[0].length===4?c:a;
+        if(y>=2000 && m>=1 && m<=12 && d>=1 && d<=31)isoDate=y+"-"+String(m).padStart(2,"0")+"-"+String(d).padStart(2,"0");
       }
     }
-
-    const cleanRawM = String(rawMonthStr || "").trim();
-    const names = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
-    const monthMatch = cleanRawM.match(/^(.*?)(20\d{2})$/);
-    const matchedIndex = monthMatch ? names.findIndex(n=>n.toLowerCase()===monthMatch[1].trim().toLowerCase()) : -1;
-    const monthKey = matchedIndex >= 0 ? names[matchedIndex] + monthMatch![2]
-      : /^20\d{2}-\d{2}$/.test(isoDate.slice(0,7))
-        ? names[Number(isoDate.slice(5,7))-1] + isoDate.slice(0,4)
-        : cleanRawM;
-    return { isoDate, monthKey };
+    if(isoDate){
+      const [y,m,d]=isoDate.split("-").map(Number);
+      const date=new Date(Date.UTC(y,m-1,d));
+      if(date.getUTCFullYear()!==y||date.getUTCMonth()!==m-1||date.getUTCDate()!==d)isoDate="";
+    }
+    const names=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+    const rawMonth=String(rawMonthStr||"").trim();
+    const match=rawMonth.match(/^([a-zA-Z]+)\s*(20\d{2})$/);
+    const idx=match?names.findIndex(n=>n.toLowerCase()===match[1].toLowerCase()):-1;
+    const monthKey=isoDate?names[Number(isoDate.slice(5,7))-1]+isoDate.slice(0,4):idx>=0?names[idx]+match![2]:rawMonth;
+    return {isoDate,monthKey};
   };
 
   const fetchLiveGoogleSheets = async () => {
@@ -474,7 +468,7 @@ export default function DigiplusOperationalEngine() {
         const c = r.c;
         if (!c) return;
 
-        const rawDate = c[0]?.f || c[0]?.v || "";
+        const rawDate = c[0]?.v || c[0]?.f || "";
         const rawMonth = c[12]?.f || c[12]?.v || "";
         const { isoDate, monthKey } = parseNormalizedDate(String(rawDate), String(rawMonth));
 
