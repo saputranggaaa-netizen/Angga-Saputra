@@ -329,22 +329,14 @@ export default function DigiplusOperationalEngine() {
     const names = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
     return names[Number(today.slice(5,7))-1] + today.slice(0,4);
   });
+  // Preserve a user-selected month across page visibility changes and refreshes.
   useEffect(() => {
-    const syncCurrentMonth = () => {
-      const today = new Intl.DateTimeFormat("sv-SE", {timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
-      const names = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
-      const currentMonth = names[Number(today.slice(5,7))-1] + today.slice(0,4);
-      setSelectedMonth(currentMonth);
-      setPeriodType("monthly");
-    };
-    const onVisibility = () => { if (document.visibilityState === "visible") syncCurrentMonth(); };
-    window.addEventListener("pageshow", syncCurrentMonth);
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      window.removeEventListener("pageshow", syncCurrentMonth);
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, []);
+    const saved=window.sessionStorage.getItem("digi_ops_selected_month");
+    if(saved && (/^(Januari|Februari|Maret|April|Mei|Juni|Juli|Agustus|September|Oktober|November|Desember)20\\d{2}$/.test(saved) || saved==="ALL")) {
+      setSelectedMonth(saved);
+    }
+  },[]);
+  useEffect(() => {window.sessionStorage.setItem("digi_ops_selected_month",selectedMonth);},[selectedMonth]);
   const [momBaseMonth, setMomBaseMonth] = useState<string>("November2026");
   const [momCompareMonth, setMomCompareMonth] = useState<string>("Oktober2026");
   const [momMode, setMomMode] = useState<"mtd" | "full">("mtd");
@@ -731,16 +723,22 @@ export default function DigiplusOperationalEngine() {
   };
 
   const availableMonths = useMemo(() => {
-    const months = new Set<string>();
-    transactions.forEach((t: any) => {
-      if (t.month && String(t.month).trim() !== "") {
-        months.add(String(t.month).trim());
-      } else if (t.monthKey && String(t.monthKey).trim() !== "") {
-        months.add(String(t.monthKey).trim());
+    const names=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+    const months=new Set<string>();
+    transactions.forEach(t=>{
+      const iso=String(t.isoDate||"");
+      if(/^20\d{2}-\d{2}-\d{2}$/.test(iso)){
+        const idx=Number(iso.slice(5,7))-1;
+        if(idx>=0&&idx<12)months.add(names[idx]+iso.slice(0,4));
       }
     });
-    return Array.from(months);
-  }, [transactions]);
+    if(targetSheetMonth)months.add(targetSheetMonth);
+    if(selectedMonth!=="ALL")months.add(selectedMonth);
+    return [...months].sort((a,b)=>{
+      const parse=(x:string)=>Number(x.slice(-4))*12+names.findIndex(n=>x.startsWith(n));
+      return parse(b)-parse(a);
+    });
+  },[transactions,targetSheetMonth,selectedMonth]);
 
   // Prefer DATABASE column O; derive calendar week from transaction date if O is blank/0.
   // Infer the continuous Week number for blank DATABASE labels using an existing labeled transaction.
@@ -800,7 +798,8 @@ export default function DigiplusOperationalEngine() {
 
   const activeTransactions = useMemo(() => {
     return transactions.filter((t) => {
-      if (selectedMonth !== "ALL" && selectedMonth !== "Semua Bulan" && t.monthKey !== selectedMonth && t.month !== selectedMonth) {
+      if (selectedMonth !== "ALL" && selectedMonth !== "Semua Bulan" && !availableMonths.includes(selectedMonth)) return false;
+      if (selectedMonth !== "ALL" && selectedMonth !== "Semua Bulan" && (()=>{const names=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];const idx=names.findIndex(n=>selectedMonth.startsWith(n));const prefix=idx>=0?selectedMonth.slice(-4)+"-"+String(idx+1).padStart(2,"0"):"";return !prefix || !t.isoDate.startsWith(prefix);})()) {
         return false;
       }
       if (periodType === "daily") {
@@ -814,7 +813,7 @@ export default function DigiplusOperationalEngine() {
       }
       return true;
     });
-  }, [transactions, selectedMonth, periodType, selectedDate, selectedWeek]);
+  }, [transactions, selectedMonth, periodType, selectedDate, selectedWeek, availableMonths]);
 
   const overviewStats = useMemo(() => {
     const activeTx = activeTransactions || [];
@@ -2347,12 +2346,12 @@ Indosat IM3 : ${isatText}`;
                   ))}
                 </div>
 
-                {periodType === "monthly" && (
+                {(
                   <div className="flex items-center gap-2">
                     <span className="font-black text-slate-900 dark:text-slate-200">📅 Bulan:</span>
                     <select
                       value={selectedMonth}
-                      onChange={(e) => setSelectedMonth(e.target.value)}
+                      onChange={(e) => { setSelectedMonth(e.target.value); setSelectedWeek("ALL"); setDateManuallySelected(false); const month=e.target.value; const names=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];const idx=names.findIndex(n=>month.startsWith(n));if(idx>=0)setSelectedDate(month.slice(-4)+"-"+String(idx+1).padStart(2,"0")+"-01"); }}
                       className={`${innerBg} border rounded-xl px-2.5 py-1 font-black focus:outline-none text-slate-950 dark:text-white`}
                     >
                       <option value="ALL">Semua Bulan</option>
