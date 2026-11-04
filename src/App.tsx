@@ -1336,34 +1336,27 @@ export default function DigiplusOperationalEngine() {
     type CalendarWeek={label:string;start:string;end:string;days:number;rows:RawTransaction[];amount:number;target:number;observedDays:number};
     if(monthIndex<0||!Number.isFinite(year))return {weeks:[] as CalendarWeek[],current:null as CalendarWeek|null,previous:null as CalendarWeek|null,monthRows:[] as RawTransaction[],dailyTarget:0};
     const pad=(d:Date)=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
-    const last=new Date(year,monthIndex+1,0).getDate();
+    const firstOfMonth=new Date(year,monthIndex,1);
+    const lastOfMonth=new Date(year,monthIndex+1,0);
     const prefix=year+"-"+String(monthIndex+1).padStart(2,"0")+"-";
     const monthRows=transactions.filter(t=>t.isoDate.startsWith(prefix));
-    const weeks:CalendarWeek[]=[];
-    const dailyTarget=selectedMonth===targetSheetMonth?storeTotalTarget/last:0;
-    const makeWeek=(label:string,first:Date,final:Date,target:number):CalendarWeek=>{
+    const dailyTarget=selectedMonth===targetSheetMonth?storeTotalTarget/lastOfMonth.getDate():0;
+    const today=new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+    const makeWeek=(label:string,first:Date):CalendarWeek=>{
+      const final=new Date(first);final.setDate(first.getDate()+6);
       const start=pad(first),end=pad(final);
       const rows=transactions.filter(t=>t.isoDate>=start&&t.isoDate<=end);
-      const days=Math.round((Date.UTC(final.getFullYear(),final.getMonth(),final.getDate())-Date.UTC(first.getFullYear(),first.getMonth(),first.getDate()))/86400000)+1;
-      const observedDays=rows.length?Math.max(1,Math.min(days,Math.round((Date.parse(rows.reduce((m,t)=>t.isoDate>m?t.isoDate:m,start)+"T12:00:00")-Date.parse(start+"T12:00:00"))/86400000)+1)):0;
-      return {label,start,end,days,rows,observedDays,amount:rows.reduce((n,t)=>n+(Number(t.amount)||0),0),target};
+      const overlap=Array.from({length:7},(_,i)=>{const d=new Date(first);d.setDate(first.getDate()+i);return d;}).filter(d=>d.getFullYear()===year&&d.getMonth()===monthIndex).length;
+      const observedDays=today<start?0:today>=end?7:Math.max(0,Math.min(7,Math.round((Date.parse(today+"T12:00:00")-Date.parse(start+"T12:00:00"))/86400000)+1));
+      return {label,start,end,days:7,rows,observedDays,amount:rows.reduce((n,t)=>n+(Number(t.amount)||0),0),target:dailyTarget*overlap};
     };
-    let day=1;
-    while(day<=last){
-      const first=new Date(year,monthIndex,day);
-      const endDay=Math.min(last,day+6-first.getDay());
-      weeks.push(makeWeek("W"+(weeks.length+1),first,new Date(year,monthIndex,endDay),dailyTarget*(endDay-day+1)));
-      day=endDay+1;
-    }
-    const index=Math.min(calendarWeekIndex,weeks.length-1);
+    const start=new Date(firstOfMonth);start.setDate(start.getDate()-start.getDay());
+    const weeks:CalendarWeek[]=[];
+    for(let d=new Date(start);d<=lastOfMonth;d.setDate(d.getDate()+7))weeks.push(makeWeek("W"+(weeks.length+1),new Date(d)));
+    const index=Math.max(0,Math.min(calendarWeekIndex,weeks.length-1));
     const current=weeks[index]||null;
-    let previous:CalendarWeek|null=index>0?weeks[index-1]:null;
-    if(current&&!previous){
-      const priorEnd=new Date(year,monthIndex,0);
-      const priorStart=new Date(priorEnd);
-      priorStart.setDate(priorEnd.getDate()-priorEnd.getDay());
-      previous=makeWeek("Week sebelumnya",priorStart,priorEnd,0);
-    }
+    let previous:CalendarWeek|null=null;
+    if(current){const d=new Date(current.start+"T12:00:00");d.setDate(d.getDate()-7);previous=makeWeek("Week sebelumnya",d);}
     return {weeks,current,previous,monthRows,dailyTarget};
   },[transactions,selectedMonth,calendarWeekIndex,targetSheetMonth,storeTotalTarget]);
 
@@ -2999,7 +2992,7 @@ Indosat IM3 : ${isatText}`;
                 <div className="space-y-5">
                   <section className={`p-5 ${cardBg} border-2 rounded-3xl shadow-xl space-y-5`}>
                     <div className="flex justify-between items-center flex-wrap gap-3">
-                      <div><h2 className="text-lg font-black text-slate-950 dark:text-white">📊 WEEKLY PERFORMANCE — MINGGU–SABTU</h2><p className="text-xs text-slate-500">Target mingguan = target bulanan ÷ jumlah hari bulan × hari dalam week. Periode terpotong pada batas bulan.</p></div>
+                      <div><h2 className="text-lg font-black text-slate-950 dark:text-white">📊 WEEKLY PERFORMANCE — MINGGU–SABTU</h2><p className="text-xs text-slate-500">Target mingguan = target bulanan ÷ jumlah hari bulan × hari dalam week. Week selalu Minggu–Sabtu (7 hari), termasuk lintas bulan. Target hanya dihitung untuk hari pada bulan terpilih.</p></div>
                       <select className="rounded-xl border px-3 py-2 bg-white text-slate-950 dark:bg-slate-800 dark:text-white" value={Math.min(calendarWeekIndex,Math.max(0,calendarWeekly.weeks.length-1))} onChange={e=>setCalendarWeekIndex(Number(e.target.value))}>{calendarWeekly.weeks.map((w,i)=><option key={i} value={i}>{w.label} · {w.start} s.d. {w.end}</option>)}</select>
                     </div>
                     {calendarWeekly.current && (() => {
@@ -3010,8 +3003,8 @@ Indosat IM3 : ${isatText}`;
                       const dailyGrowth=prev&&prev.amount>0&&w.observedDays>0&&prev.observedDays>0?((w.amount/w.observedDays)/(prev.amount/prev.observedDays)-1)*100:null;
                       const inv=new Set(w.rows.map(t=>t.invoice).filter(Boolean)).size;
                       const groups=["Apple","Android","ACC","VAS"];
-                      const groupOf=(t:RawTransaction)=>{const g=t.groupCategory.toUpperCase(),p=t.productType.toUpperCase(),b=t.brand.toUpperCase();return g.includes("VAS")||p.includes("VAS")?"VAS":g.includes("ACC")||p.includes("ACC")?"ACC":g.includes("APPLE")||b.includes("APPLE")||b.includes("IPHONE")?"Apple":"Android";};
-                      const staff=[...new Set(w.rows.map(t=>t.salesId||t.salesName))].map(id=>{const rows=w.rows.filter(t=>(t.salesId||t.salesName)===id);const monthly=staffTargets[id]||0;return {id,name:rows[0]?.salesName||id,amount:amount(rows),qty:qty(rows),invoices:new Set(rows.map(t=>t.invoice)).size,target:monthly/calendarWeekly.weeks.reduce((n,x)=>n+x.days,0)*w.days,acc:amount(rows.filter(t=>groupOf(t)==="ACC")),vas:amount(rows.filter(t=>groupOf(t)==="VAS"))};}).sort((a,b)=>b.amount-a.amount);
+                      const groupOf=(t:RawTransaction)=>{const g=(t.groupCategory||"").toUpperCase(),p=(t.productType||"").toUpperCase(),b=(t.brand||"").toUpperCase();return g.includes("VAS")||p.includes("VAS")?"VAS":g.includes("ACC")||p.includes("ACC")?"ACC":g.includes("APPLE")||b.includes("APPLE")||b.includes("IPHONE")?"Apple":"Android";};
+                      const staff=[...new Set(w.rows.map(t=>t.salesId||t.salesName))].map(id=>{const rows=w.rows.filter(t=>(t.salesId||t.salesName)===id);const monthly=staffTargets[id]||0;return {id,name:rows[0]?.salesName||id,amount:amount(rows),qty:qty(rows),invoices:new Set(rows.map(t=>t.invoice)).size,target:monthly/(new Date(Number(selectedMonth.slice(-4)),["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"].findIndex(n=>selectedMonth.startsWith(n))+1,0).getDate()||30)*w.days,acc:amount(rows.filter(t=>groupOf(t)==="ACC")),vas:amount(rows.filter(t=>groupOf(t)==="VAS"))};}).sort((a,b)=>b.amount-a.amount);
                       const products=[...new Set(w.rows.map(t=>t.productName))].map(name=>{const rows=w.rows.filter(t=>t.productName===name);return {name,qty:qty(rows),amount:amount(rows)};}).sort((a,b)=>b.qty-a.qty).slice(0,10);
                       const days=Array.from({length:w.days},(_,i)=>{const d=new Date(w.start+"T12:00:00");d.setDate(d.getDate()+i);const iso=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");const rows=w.rows.filter(t=>t.isoDate===iso);return {iso,amount:amount(rows),rows};});
                       const maxDay=Math.max(calendarWeekly.dailyTarget,...days.map(d=>d.amount),1);
