@@ -1031,11 +1031,8 @@ export default function DigiplusOperationalEngine() {
       const upt = typeof rawUpt === "number" && !isNaN(rawUpt) ? rawUpt.toFixed(1) : "0.0";
       const atv = invCount > 0 ? Math.round(s.total / invCount) : 0;
 
-      const nameKey = s.name.trim().toLowerCase();
-      const matchedTarget = 
-        staffTargets[nameKey] ??
-        staffTargets[nameKey.split(" ")[0]] ??
-        staffTargets[s.salesId];
+      const nameKey = s.name.toLowerCase().normalize("NFKC").replace(/[^a-z0-9]+/g," ").trim().replace(/\s+/g," ");
+      const matchedTarget = staffTargets[nameKey];
 
       const targetQuota = selectedMonth===targetSheetMonth ? (matchedTarget ?? 0) : 0;
       const achv = calcAchv(s.total, targetQuota);
@@ -1062,7 +1059,7 @@ export default function DigiplusOperationalEngine() {
         vasAmount: s.vasAmount,
       };
     });
-  }, [activeTransactions, staffTargets, storeTotalTarget]);
+  }, [activeTransactions, staffTargets, storeTotalTarget, selectedMonth, targetSheetMonth]);
 
   useEffect(() => {
     if (!selectedStaffId && staffList && staffList.length > 0) {
@@ -1598,7 +1595,7 @@ _Diperbarui otomatis via Store Performance Engine._`;
   const handleShareDailyTargetStaffWA = (staffName: string, targetData: StaffDailyTargetDetail, todayTrx: RawTransaction[]) => {
     const calcSub = (filterFn: (t: RawTransaction) => boolean) => {
       const filtered = todayTrx.filter(filterFn);
-      const qty = filtered.reduce((acc, t) => acc + (Number(t.qty) || 1), 0);
+      const qty = filtered.reduce((acc, t) => acc + (Number(t.qty) || 0), 0);
       const amt = filtered.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
       return `${qty} / ${formatIDR(amt)}`;
     };
@@ -1726,14 +1723,14 @@ _Diperbarui via Digiplus Store Operations Engine._`;
     const xlText = calcSub((t) => t.groupCategory === "VAS" && (t.brand.includes("XL") || (t.productName || "").toUpperCase().includes("MYPRIO")));
     const isatText = calcSub((t) => t.groupCategory === "VAS" && (t.brand.includes("INDOSAT") || (t.productName || "").toUpperCase().includes("INDOSAT")));
 
-    const varianceVal = (staff.totalAmount || 0) - (staff.targetAmount || 0);
+    const varianceVal = currentTrx.reduce((acc,t)=>acc+(Number(t.amount)||0),0) - (staff.targetAmount || 0);
     const varianceStr = varianceVal >= 0 ? `+${formatIDR(varianceVal)}` : formatIDR(varianceVal);
 
     const message = 
 `- ${staff.name} -
 
 Target : ${formatIDR(staff.targetAmount || 0)}
-Achievement : ${formatIDR(staff.totalAmount || 0)}
+Achievement : ${formatIDR(currentTrx.reduce((acc,t)=>acc+(Number(t.amount)||0),0))}
 % : ${staff.achvPct || 0}%
 Variance : ${varianceStr}
 
@@ -3179,24 +3176,22 @@ Indosat IM3 : ${isatText}`;
                       {title:"Accessories",items:accessories,sub:[...new Set(accessories.map(t=>t.supplier||"Supplier Tidak Diketahui"))].map(b=>[b,accessories.filter(t=>(t.supplier||"Supplier Tidak Diketahui")===b)] as [string,RawTransaction[]])},
                       {title:"VAS",items:vas,sub:["QOALA","TELKOMSEL","SAMSUNG","OPPO","HUAWEI","XIAOMI","MOTOROLA","INFINIX","XL","INDOSAT"].map(b=>[b,vas.filter(t=>t.brand===b || name(t).includes(b))] as [string,RawTransaction[]])}
                     ];
-                    const key = st.name.trim().toLowerCase();
-                    const target = staffDailyTargets[key] || staffDailyTargets[key.split(" ")[0]];
+                    
+                    // Target matched by exact normalized staff name; missing names have target zero.
                     const normalizedStaffKey = st.name.toLowerCase().normalize("NFKC").replace(/[^a-z0-9]+/g," ").trim().replace(/\s+/g," ");
                     const categoryTarget = selectedMonth===targetSheetMonth ? (staffCategoryTargets[normalizedStaffKey] || {}) : {};
-                    const targetFor = (category:string):number|null => {
-                      const value=categoryTarget[category];
-                      if(value===undefined)return 0;
+                    const targetFor = (category:string):number => {
+                      const value=Number(categoryTarget[category])||0;
                       if(periodType==="monthly")return value;
-                      const monthParts=selectedMonth.match(/(20\d{2})$/);
                       const monthIndex=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"].findIndex(m=>selectedMonth.toLowerCase().startsWith(m.toLowerCase()));
-                      const days=monthParts && monthIndex>=0?new Date(Number(monthParts[1]),monthIndex+1,0).getDate():30;
+                      const year=Number(selectedMonth.slice(-4));
+                      const days=monthIndex>=0&&Number.isFinite(year)?new Date(year,monthIndex+1,0).getDate():30;
                       if(periodType==="daily")return Math.round(value/days);
-                      if(periodType==="weekly" && selectedWeek!=="ALL"){
-                        const weekDates=activeTransactions.map(t=>t.isoDate).filter(Boolean).sort();
-                        if(weekDates.length===0)return 0;
-                        const first=weekDates[0],last=weekDates[weekDates.length-1];
-                        const span=Math.min(7,Math.max(1,Math.round((Date.parse(last+"T00:00:00Z")-Date.parse(first+"T00:00:00Z"))/86400000)+1));
-                        return Math.round(value/days*span);
+                      if(periodType==="weekly"&&selectedWeek!=="ALL"){
+                        const week=AUTO_WEEKS.find(w=>w.label===selectedWeek||w.key===selectedWeek);
+                        const dates=(week?.range||"").match(/\d{4}-\d{2}-\d{2}/g)||[];
+                        const count=dates.length>=2?Math.max(1,Math.min(7,Math.round((Date.parse(dates[1]+"T00:00:00Z")-Date.parse(dates[0]+"T00:00:00Z"))/86400000)+1)):7;
+                        return Math.round(value/days*count);
                       }
                       return value;
                     };
@@ -3218,7 +3213,7 @@ Indosat IM3 : ${isatText}`;
                       </div>;
                     };
                     return <section className={`p-5 sm:p-6 rounded-3xl border-2 ${cardBg} shadow-xl space-y-4`}>
-                      <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-black text-lg text-slate-950 dark:text-white">Target Vs Achievement Per Staff</h2><p className={`text-xs ${textMuted}`}>{st.name} · {periodType.toUpperCase()} · {periodType==="daily"?selectedDate:periodType==="weekly"?selectedWeek:selectedMonth}</p></div><button type="button" onClick={()=>handleShareStaffWA({...st,targetAmount:targetFor("total")??0,achvPct:(targetFor("total")??0)>0?Number((st.totalAmount/(targetFor("total")??1)*100).toFixed(1)):0},rows)} className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black">↗ Share WhatsApp</button></div>
+                      <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-black text-lg text-slate-950 dark:text-white">Target Vs Achievement Per Staff</h2><p className={`text-xs ${textMuted}`}>#{st.rank} · {st.name} · {periodType.toUpperCase()} · {periodType==="daily"?selectedDate:periodType==="weekly"?selectedWeek:selectedMonth}</p></div><button type="button" onClick={()=>handleShareStaffWA({...st,targetAmount:targetFor("total"),achvPct:targetFor("total")>0?Number((st.totalAmount/targetFor("total")*100).toFixed(1)):0},rows)} className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black">↗ Share WhatsApp</button></div>
                       {renderMetric("TOTAL STAFF",rows,targetFor("total"),"total")}
                       <p className={`text-xs ${textMuted}`}>Sumber target: Pembagian target (gid 685849310). Staff atau kategori yang tidak ditemukan memiliki target Rp 0. Target Daily/Weekly diprorata dari target bulanan. Estimate adalah sisa target, bukan prediksi penjualan.</p>
                       {groups.map(g=><div key={g.title} className="space-y-2"><h3 className="font-black text-base text-slate-950 dark:text-white">{g.title}</h3>{renderMetric(g.title,g.items,dailyTargetFor(g.title),"group-"+g.title)}<div className="grid md:grid-cols-2 gap-2">{g.sub.map(([label,items])=>renderMetric(label,items,targetFor(({iPhone:"iphone",iPad:"ipad",MacBook:"macbook","Apple Watch":"applewatch",Qoala:"qoala",Telkomsel:"telkomsel",XL:"xl",Indosat:"indosat",SAMSUNG:"samsung",XIAOMI:"xiaomi",OPPO:"oppo",MOTOROLA:"motorola",HUAWEI:"huawei",INFINIX:"infinix"} as Record<string,string>)[label] || label.toLowerCase()),g.title+"-"+label))}</div></div>)}
