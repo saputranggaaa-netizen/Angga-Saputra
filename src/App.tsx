@@ -1811,25 +1811,194 @@ Indosat IM3 : ${isatText}`;
   const handleExportToPptx = async () => {
     setIsExportingPptx(true);
     try {
-      if (typeof window !== "undefined" && !(window as any).PptxGenJS) {
-        const script = document.createElement("script");
-        script.src = "https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js";
-        script.async = true;
-        document.body.appendChild(script);
-        await new Promise((resolve) => { script.onload = resolve; });
+      if (!transactions.length) throw new Error("Data penjualan belum tersedia. Refresh dashboard terlebih dahulu.");
+      if (!(window as any).PptxGenJS) {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = "https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js";
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error("Library PowerPoint gagal dimuat."));
+          document.body.appendChild(script);
+        });
       }
-
       const pptx = new (window as any).PptxGenJS();
-      pptx.layout = "LAYOUT_16x9";
-
-      const slide1 = pptx.addSlide();
-      slide1.background = { color: "0A1128" };
-      slide1.addText("STORE SALES PERFORMANCE & STAFF OPERATIONS REPORT", { x: 0.8, y: 1.8, fontSize: 24, bold: true, color: "38BDF8" });
-      slide1.addText("Evaluasi Mingguan (WoW), Kategori Produk, & Suara Lapangan\nKode Toko: QF01 | Periode: " + timeGoneStats.monthName + " | Cut-off: " + selectedDate, { x: 0.8, y: 3.2, fontSize: 14, color: "F8FAFC" });
-
-      pptx.writeFile({ fileName: `Laporan_Operasional_QF01_${selectedDate}.pptx` });
+      pptx.layout = "LAYOUT_WIDE";
+      pptx.author = "Digiplus Grand Indonesia";
+      pptx.subject = "Live store performance report";
+      pptx.title = "Digiplus Grand Indonesia - Sales Performance";
+      const BLUE = "174EA6", NAVY = "102D59", MUTED = "64748B", LIGHT = "EAF3FF", WHITE = "FFFFFF", RED = "B42318", GREEN = "147D64";
+      const fmt = (n: number) => "Rp " + Math.round(n).toLocaleString("id-ID");
+      const day = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+      const cutoff = day; // always use today's Jakarta cut-off, independent of dashboard filter
+      const [yy, mm, dd] = cutoff.split("-").map(Number);
+      const previousMonth = new Date(Date.UTC(yy, mm - 2, 1));
+      const previousPrefix = previousMonth.toISOString().slice(0, 7);
+      const currentPrefix = cutoff.slice(0, 7);
+      const prevLastDay = new Date(Date.UTC(yy, mm - 1, 0)).getUTCDate();
+      const priorCutoff = previousPrefix + "-" + String(Math.min(dd, prevLastDay)).padStart(2, "0");
+      const currentMTD = transactions.filter(t => t.isoDate >= currentPrefix + "-01" && t.isoDate <= cutoff);
+      const previousMTD = transactions.filter(t => t.isoDate >= previousPrefix + "-01" && t.isoDate <= priorCutoff);
+      const asDate = (iso: string) => new Date(iso + "T00:00:00Z");
+      const sundayStart = (d: Date) => { const x = new Date(d); x.setUTCDate(x.getUTCDate() - x.getUTCDay()); return x; };
+      const toIso = (d: Date) => d.toISOString().slice(0, 10);
+      const thisWeekStart = sundayStart(asDate(cutoff));
+      const lastWeekStart = new Date(thisWeekStart); lastWeekStart.setUTCDate(lastWeekStart.getUTCDate() - 7);
+      const elapsedDays = Math.floor((asDate(cutoff).getTime() - thisWeekStart.getTime()) / 86400000);
+      const lastWeekCutoff = new Date(lastWeekStart); lastWeekCutoff.setUTCDate(lastWeekCutoff.getUTCDate() + elapsedDays);
+      const currentWeek = transactions.filter(t => t.isoDate >= toIso(thisWeekStart) && t.isoDate <= cutoff);
+      const previousWeek = transactions.filter(t => t.isoDate >= toIso(lastWeekStart) && t.isoDate <= toIso(lastWeekCutoff));
+      const groups = ["Total Amount", "Apple Devices", "Android Devices", "Accessories", "VAS"];
+      const classify = (t: RawTransaction) => {
+        const p = (t.productName || "").toUpperCase();
+        const brand = (t.brand || "").toUpperCase();
+        const g = (t.groupCategory || "").toUpperCase();
+        if (g === "VAS" || /QOALA|PROTECTION|PROTEKSI/.test(p)) return "VAS";
+        if (g === "ACCESSORIES") return "Accessories";
+        if (brand === "APPLE" && (g === "DEVICES" || /IPHONE|IPAD|MAC|WATCH/.test(p))) return "Apple Devices";
+        if (g === "DEVICES" || /SAMSUNG|MOTOROLA|XIAOMI|OPPO|VIVO|HUAWEI|INFINIX/.test(brand)) return "Android Devices";
+        return "Other";
+      };
+      const detail = (t: RawTransaction) => {
+        const group = classify(t);
+        if (group === "Apple Devices") return /IPHONE/i.test(t.productName) ? "iPhone" : /IPAD/i.test(t.productName) ? "iPad" : /MAC/i.test(t.productName) ? "Mac" : /WATCH/i.test(t.productName) ? "Watch" : "Other Apple";
+        if (group === "Android Devices") return t.brand || "Other Android";
+        if (group === "VAS") return /QOALA/i.test(t.productName + " " + t.brand) ? "Qoala" : (t.brand || t.productType || "Other VAS");
+        if (group === "Accessories") return t.productType || t.brand || "Other Accessories";
+        return "Other";
+      };
+      const amount = (arr: RawTransaction[], group?: string, sub?: string) => arr.reduce((sum, t) => sum + ((!group || group === "Total Amount" || classify(t) === group) && (!sub || detail(t) === sub) ? (Number(t.amount) || 0) : 0), 0);
+      const growth = (now: number, before: number) => before > 0 ? ((now - before) / before) * 100 : now > 0 ? null : 0;
+      const growthText = (now: number, before: number) => { const g = growth(now, before); return g === null ? "NEW" : (g > 0 ? "+" : "") + g.toFixed(1) + "%"; };
+      const growthColor = (now: number, before: number) => { const g = growth(now, before); return g === null ? BLUE : g < 0 ? RED : GREEN; };
+      const makeSlide = (heading: string, subtitle: string) => {
+        const slide = pptx.addSlide();
+        slide.background = { color: WHITE };
+        slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 13.333, h: 0.11, line: { color: BLUE }, fill: { color: BLUE } });
+        slide.addText(heading, { x: 0.6, y: 0.4, w: 12, h: 0.4, fontFace: "Aptos Display", fontSize: 23, bold: true, color: NAVY, margin: 0 });
+        slide.addText(subtitle, { x: 0.6, y: 0.92, w: 12, h: 0.32, fontSize: 10, color: MUTED, margin: 0 });
+        slide.addText("DIGIPLUS GRAND INDONESIA  •  QF01", { x: 0.6, y: 7.13, w: 8, h: 0.18, fontSize: 8, color: MUTED, margin: 0 });
+        slide.addText("Cut-off " + cutoff, { x: 10.4, y: 7.13, w: 2.3, h: 0.18, align: "right", fontSize: 8, color: MUTED, margin: 0 });
+        return slide;
+      };
+      const row = (slide: any, name: string, current: number, previous: number, y: number, height = 0.38, fontSize = 10, indent = 0) => {
+        slide.addShape(pptx.ShapeType.rect, { x: 0.6, y, w: 12.1, h: height, line: { color: "EDF2F8", transparency: 100 }, fill: { color: Math.round(y * 10) % 2 ? "F8FAFD" : WHITE } });
+        slide.addText(name, { x: 0.78 + indent, y: y + 0.04, w: 4.2 - indent, h: height - 0.06, fontSize, bold: indent === 0, color: indent ? MUTED : NAVY, margin: 0, breakLine: false });
+        slide.addText(fmt(current), { x: 5.1, y: y + 0.04, w: 2.7, h: height - 0.06, fontSize, align: "right", color: NAVY, margin: 0 });
+        slide.addText(fmt(previous), { x: 8.0, y: y + 0.04, w: 2.7, h: height - 0.06, fontSize, align: "right", color: MUTED, margin: 0 });
+        slide.addText(growthText(current, previous), { x: 11, y: y + 0.04, w: 1.45, h: height - 0.06, fontSize, bold: true, align: "right", color: growthColor(current, previous), margin: 0 });
+      };
+      const tableHeader = (slide: any, nowLabel: string, beforeLabel: string) => {
+        slide.addShape(pptx.ShapeType.roundRect, { x: 0.6, y: 1.5, w: 12.1, h: 0.48, rectRadius: 0.1, line: { color: LIGHT }, fill: { color: LIGHT } });
+        [["Kategori", 0.78, 4.1], [nowLabel, 5.1, 2.7], [beforeLabel, 8, 2.7], ["Growth", 11, 1.45]].forEach(([label, x, w]: any) => slide.addText(label, { x, y: 1.62, w, h: 0.2, fontSize: 10, bold: true, color: NAVY, align: x > 4 ? "right" : "left", margin: 0 }));
+      };
+      const summaryRows = (slide: any, now: RawTransaction[], before: RawTransaction[], subcategories = false) => {
+        const items: { label: string; group: string; sub?: string; indent: number }[] = [];
+        groups.forEach(group => {
+          items.push({ label: group, group, indent: 0 });
+          if (subcategories && group !== "Total Amount") {
+            const names = new Set([...now, ...before].filter(t => classify(t) === group).map(detail));
+            [...names].sort((a, b) => amount(now, group, b) - amount(now, group, a)).forEach(name => items.push({ label: "↳ " + name, group, sub: name, indent: 0.28 }));
+          }
+        });
+        // Keep all categories in the slide; adapt row height and font size to fit.
+        const available = 4.78, height = Math.min(0.43, available / Math.max(items.length, 1)), fontSize = items.length > 16 ? 7 : items.length > 12 ? 8 : 10;
+        items.forEach((item, i) => row(slide, item.label, amount(now, item.group, item.sub), amount(before, item.group, item.sub), 2.05 + i * height, height, fontSize, item.indent));
+        if (!items.length) slide.addText("Belum ada transaksi pada periode ini.", { x: 0.7, y: 2.3, w: 11, h: 0.4, color: MUTED });
+      };
+      // Slide 1: store and active staff.
+      {
+        const slide = makeSlide("STORE OVERVIEW", "Ringkasan store dan staff aktif berdasarkan transaksi MTD.");
+        slide.addShape(pptx.ShapeType.roundRect, { x: 0.6, y: 1.6, w: 12.1, h: 1.35, rectRadius: 0.2, line: { color: LIGHT }, fill: { color: LIGHT } });
+        slide.addText("DIGIPLUS GRAND INDONESIA", { x: 0.92, y: 1.92, w: 8, h: 0.35, fontSize: 24, bold: true, color: NAVY, margin: 0 });
+        slide.addText("Store QF01  •  " + currentPrefix + " MTD  •  " + fmt(amount(currentMTD)), { x: 0.92, y: 2.4, w: 10, h: 0.25, fontSize: 13, color: BLUE, margin: 0 });
+        const staff = [...new Map(currentMTD.filter(t => t.salesId || t.salesName).map(t => [t.salesId || t.salesName, t.salesName])).values()].sort();
+        slide.addText("ACTIVE STAFF (" + staff.length + ")", { x: 0.7, y: 3.35, w: 8, h: 0.3, fontSize: 17, bold: true, color: NAVY });
+        const perCol = Math.max(1, Math.ceil(staff.length / 3));
+        staff.forEach((name, i) => slide.addText(String(i + 1) + ". " + name, { x: 0.8 + Math.floor(i / perCol) * 4.1, y: 3.92 + (i % perCol) * Math.min(0.35, 2.85 / perCol), w: 3.9, h: 0.25, fontSize: 12, color: NAVY, margin: 0 }));
+        if (!staff.length) slide.addText("Tidak ada staff dengan transaksi MTD.", { x: 0.8, y: 4, w: 10, h: 0.4, color: MUTED });
+      }
+      // Slide 2: month-on-month same elapsed calendar days.
+      {
+        const slide = makeSlide("MONTH ON MONTH • SAME DAY CUT-OFF", currentPrefix + "-01 s/d " + cutoff + " vs " + previousPrefix + "-01 s/d " + priorCutoff);
+        tableHeader(slide, "Bulan ini", "Bulan lalu");
+        summaryRows(slide, currentMTD, previousMTD, true);
+      }
+      // Slide 3: weekly Sunday-to-cutoff, previous Sunday-to-same-weekday.
+      {
+        const slide = makeSlide("WEEK TO WEEK • SAME WEEKDAY CUT-OFF", toIso(thisWeekStart) + " s/d " + cutoff + " vs " + toIso(lastWeekStart) + " s/d " + toIso(lastWeekCutoff));
+        tableHeader(slide, "Minggu ini", "Minggu lalu");
+        summaryRows(slide, currentWeek, previousWeek);
+      }
+      // Slide 4: MTD performance by category, same-day last month as benchmark.
+      {
+        const slide = makeSlide("MTD SALES • CATEGORY BREAKDOWN", "Penjualan 1–" + dd + " bulan ini dibanding tanggal yang sama bulan lalu; semua nominal adalah sales amount.");
+        tableHeader(slide, "MTD saat ini", "MTD bulan lalu");
+        summaryRows(slide, currentMTD, previousMTD, true);
+      }
+      // Slide 5: ranking staff, and category contribution per staff.
+      {
+        const slide = makeSlide("STAFF SALES PERFORMANCE", "Ranking berdasarkan total penjualan MTD tertinggi ke terendah. Kolom kategori adalah nominal sales.");
+        const staff = [...new Map(currentMTD.map(t => [t.salesId || t.salesName, t.salesName])).entries()].map(([id, name]) => ({ id, name, tx: currentMTD.filter(t => (t.salesId || t.salesName) === id) })).sort((a, b) => amount(b.tx) - amount(a.tx));
+        const headers = ["Rank / Staff", "Total Amount", "Apple", "Android", "Accessories", "VAS"];
+        const x = [0.65, 4.4, 6.2, 7.9, 9.6, 11.25], w = [3.65, 1.7, 1.6, 1.6, 1.55, 1.45];
+        slide.addShape(pptx.ShapeType.rect, { x: 0.6, y: 1.48, w: 12.1, h: 0.5, line: { color: LIGHT }, fill: { color: LIGHT } });
+        headers.forEach((h, i) => slide.addText(h, { x: x[i], y: 1.62, w: w[i], h: 0.2, fontSize: 9, bold: true, color: NAVY, align: i ? "right" : "left", margin: 0 }));
+        const h = Math.min(0.46, 4.65 / Math.max(staff.length, 1));
+        staff.forEach((s, i) => {
+          const y = 2.08 + i * h;
+          const values = [String(i + 1) + ". " + s.name, fmt(amount(s.tx)), ...groups.slice(1).map(g => fmt(amount(s.tx, g)))];
+          values.forEach((v, j) => slide.addText(v, { x: x[j], y, w: w[j], h: Math.max(0.14, h - 0.05), fontSize: staff.length > 15 ? 7 : 9, bold: j === 0, color: j === 0 ? NAVY : MUTED, align: j ? "right" : "left", margin: 0 }));
+        });
+        if (!staff.length) slide.addText("Belum ada staff aktif pada MTD.", { x: 0.8, y: 2.2, w: 10, h: 0.3, color: MUTED });
+      }
+      // Slide 6: evidence-led decline, staff review, and stock opportunities.
+      {
+        const slide = makeSlide("ACTION PLAN • NEED REVIEW", "Analisa otomatis berbasis data transaksi. Indikasi, bukan penilaian personal atau keputusan stok final.");
+        const insights: string[] = [];
+        const mtdDiff = amount(currentMTD) - amount(previousMTD);
+        const weekDiff = amount(currentWeek) - amount(previousWeek);
+        insights.push("MTD: " + growthText(amount(currentMTD), amount(previousMTD)) + " (" + fmt(mtdDiff) + ") dibanding bulan lalu pada cut-off sama.");
+        insights.push("Weekly: " + growthText(amount(currentWeek), amount(previousWeek)) + " (" + fmt(weekDiff) + ") dibanding minggu lalu pada hari setara.");
+        groups.slice(1).forEach(g => {
+          const m = amount(currentMTD, g), p = amount(previousMTD, g);
+          if (p > m) insights.push("Penurunan " + g + ": " + fmt(p - m) + " (" + growthText(m, p) + "). Tinjau stok dan attach rate.");
+        });
+        const staffIds = new Set([...currentMTD, ...previousMTD].map(t => t.salesId || t.salesName));
+        const review = [...staffIds].map(id => {
+          const curr = currentMTD.filter(t => (t.salesId || t.salesName) === id);
+          const prev = previousMTD.filter(t => (t.salesId || t.salesName) === id);
+          return { name: curr[0]?.salesName || prev[0]?.salesName || id, now: amount(curr), before: amount(prev) };
+        }).filter(v => v.before > v.now && v.before > 0).sort((a, b) => (b.before - b.now) - (a.before - a.now)).slice(0, 4);
+        const productMap = new Map<string, { name: string; current: number; previous: number }>();
+        [...currentMTD, ...previousMTD].forEach(t => {
+          const key = t.sapArticle || t.productName;
+          if (!key) return;
+          if (!productMap.has(key)) productMap.set(key, { name: t.productName, current: 0, previous: 0 });
+          const item = productMap.get(key)!;
+          if (currentMTD.includes(t)) item.current += t.qty;
+          else item.previous += t.qty;
+        });
+        const opportunities = [...productMap.values()].filter(v => v.previous > v.current && v.previous >= 2).sort((a, b) => b.previous - b.current - (a.previous - a.current)).slice(0, 4);
+        const blocks = [
+          { heading: "PERFORMANCE ANALYSIS", lines: insights.slice(0, 6) },
+          { heading: "STAFF NEED REVIEW", lines: review.length ? review.map(v => v.name + ": " + fmt(v.now) + " vs " + fmt(v.before) + " (" + growthText(v.now, v.before) + ")") : ["Tidak ada penurunan staff yang dapat dibandingkan dari data MTD."] },
+          { heading: "PRODUCTS TO REVIEW / REPLENISH", lines: opportunities.length ? opportunities.map(v => v.name.slice(0, 65) + " • Qty " + v.current + " vs " + v.previous + " (cek stok & demand)") : ["Belum ada indikasi produk menurun yang memenuhi ambang perbandingan."] }
+        ];
+        let y = 1.5;
+        blocks.forEach(block => {
+          slide.addText(block.heading, { x: 0.7, y, w: 12, h: 0.25, fontSize: 12, bold: true, color: BLUE, margin: 0 });
+          y += 0.34;
+          block.lines.forEach(line => {
+            slide.addText("• " + line, { x: 0.83, y, w: 11.6, h: 0.24, fontSize: 9, color: NAVY, margin: 0 });
+            y += 0.28;
+          });
+          y += 0.22;
+        });
+        slide.addText("Catatan: evaluasi staff harus mempertimbangkan jadwal, jam kerja, traffic, ketersediaan stok, dan target individual. Rekomendasi stok perlu validasi inventory.", { x: 0.7, y: 6.75, w: 12, h: 0.26, fontSize: 8, italic: true, color: MUTED, margin: 0 });
+      }
+      await pptx.writeFile({ fileName: "Digiplus_GI_Sales_Review_" + cutoff + ".pptx" });
     } catch (err) {
-      alert("Gagal mengekspor slide PowerPoint: " + err);
+      alert("Gagal mengekspor slide PowerPoint: " + (err instanceof Error ? err.message : String(err)));
     } finally {
       setIsExportingPptx(false);
     }
