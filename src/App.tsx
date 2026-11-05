@@ -976,6 +976,31 @@ export default function DigiplusOperationalEngine() {
       unmatchedQty };
   }, [activeTransactions]);
 
+  // Staff Performance weekly filter is independent of DATABASE column O.
+  // Every selected week is Sunday 00:00 through Saturday 23:59, even across months.
+  const staffCalendarWeeks = useMemo(() => {
+    const names=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+    const m=names.findIndex(n=>selectedMonth.toLowerCase().startsWith(n.toLowerCase()));
+    const y=Number(selectedMonth.slice(-4));
+    if(m<0||!Number.isFinite(y))return [] as {label:string;start:string;end:string;monthDays:number}[];
+    const pad=(d:Date)=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+    const first=new Date(y,m,1),last=new Date(y,m+1,0),start=new Date(first);
+    start.setDate(start.getDate()-start.getDay());
+    const weeks:{label:string;start:string;end:string;monthDays:number}[]=[];
+    for(let d=new Date(start);d<=last;d.setDate(d.getDate()+7)){
+      const end=new Date(d);end.setDate(d.getDate()+6);
+      let monthDays=0;
+      for(let n=0;n<7;n++){const x=new Date(d);x.setDate(d.getDate()+n);if(x.getMonth()===m&&x.getFullYear()===y)monthDays++;}
+      weeks.push({label:"W"+(weeks.length+1),start:pad(d),end:pad(end),monthDays});
+    }
+    return weeks;
+  },[selectedMonth]);
+  const staffSelectedWeek=staffCalendarWeeks[Math.min(calendarWeekIndex,staffCalendarWeeks.length-1)];
+  const staffPeriodTransactions=useMemo(()=>{
+    if(periodType!=="weekly"||!staffSelectedWeek)return activeTransactions;
+    return transactions.filter(t=>t.isoDate>=staffSelectedWeek.start&&t.isoDate<=staffSelectedWeek.end);
+  },[activeTransactions,transactions,periodType,staffSelectedWeek?.start,staffSelectedWeek?.end]);
+
   const staffList = useMemo(() => {
     const map: Record<string, {
       salesId: string;
@@ -989,7 +1014,7 @@ export default function DigiplusOperationalEngine() {
       vasAmount: number;
     }> = {};
 
-    activeTransactions.forEach((t) => {
+    staffPeriodTransactions.forEach((t) => {
       const id = t.salesId || "OTHER";
       if (!map[id]) {
         map[id] = {
@@ -1059,7 +1084,7 @@ export default function DigiplusOperationalEngine() {
         vasAmount: s.vasAmount,
       };
     });
-  }, [activeTransactions, staffTargets, storeTotalTarget, selectedMonth, targetSheetMonth]);
+  }, [staffPeriodTransactions, staffTargets, storeTotalTarget, selectedMonth, targetSheetMonth]);
 
   useEffect(() => {
     if (!selectedStaffId && staffList && staffList.length > 0) {
@@ -3159,14 +3184,14 @@ Indosat IM3 : ${isatText}`;
 
               {/* TAB 3: STAFF PERFORMANCE */}
               {activeTab === "staff-performance" && (
-                <div className="space-y-8">
+                <div className="space-y-8">{periodType==="weekly"&&<div className={`p-3 rounded-2xl border ${cardBg} flex flex-wrap gap-2 items-center`}><strong className="text-xs">Week Minggu–Sabtu:</strong>{staffCalendarWeeks.map((w,i)=><button key={w.label} type="button" onClick={()=>setCalendarWeekIndex(i)} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${calendarWeekIndex===i?"bg-sky-600 text-white":"bg-slate-500/10 text-slate-800 dark:text-slate-100"}`}>{w.label} · {w.start.slice(5)}–{w.end.slice(5)}</button>)}</div>}
                   {(() => {
                     const st = staffList.find(x => x.salesId === selectedStaffId) || staffList[0];
                     if (!st) return null;
-                    const rows = activeTransactions.filter(t => t.salesId === st.salesId);
+                    const rows = staffPeriodTransactions.filter(t => t.salesId === st.salesId);
                     const sum = (items: RawTransaction[]) => ({qty:items.reduce((n,t)=>n+(Number(t.qty)||0),0),amount:items.reduce((n,t)=>n+(Number(t.amount)||0),0)});
-                    const apple = rows.filter(t=>t.brand==="APPLE" && (t.groupCategory==="DEVICES" || (t.productType||"").toUpperCase().includes("AIRPOD")));
-                    const android = rows.filter(t=>t.groupCategory==="DEVICES" && t.brand!=="APPLE");
+                    const apple = rows.filter(t=>t.brand==="APPLE" && t.groupCategory==="DEVICES");
+                    const android = rows.filter(t=>t.groupCategory==="DEVICES" && ["SAMSUNG","OPPO","HUAWEI","XIAOMI","REDMI","MOTOROLA","INFINIX"].includes(t.brand));
                     const accessories = rows.filter(t=>t.groupCategory==="ACCESSORIES");
                     const vas = rows.filter(t=>t.groupCategory==="VAS");
                     const name = (t:RawTransaction)=>(t.productName||"").toUpperCase();
@@ -3174,7 +3199,7 @@ Indosat IM3 : ${isatText}`;
                       {title:"Apple Devices",items:apple,sub:[["iPhone",apple.filter(t=>name(t).includes("IPHONE"))],["iPad",apple.filter(t=>name(t).includes("IPAD"))],["MacBook",apple.filter(t=>name(t).includes("MAC"))],["Apple Watch",apple.filter(t=>name(t).includes("WATCH"))],["AirPods",apple.filter(t=>name(t).includes("AIRPOD"))]] as [string,RawTransaction[]][]},
                       {title:"Android Devices",items:android,sub:["SAMSUNG","OPPO","HUAWEI","XIAOMI","MOTOROLA","INFINIX"].map(b=>[b,android.filter(t=>t.brand===b || (b==="XIAOMI" && t.brand==="REDMI"))] as [string,RawTransaction[]])},
                       {title:"Accessories",items:accessories,sub:[...new Set(accessories.map(t=>t.supplier||"Supplier Tidak Diketahui"))].map(b=>[b,accessories.filter(t=>(t.supplier||"Supplier Tidak Diketahui")===b)] as [string,RawTransaction[]])},
-                      {title:"VAS",items:vas,sub:["QOALA","TELKOMSEL","SAMSUNG","OPPO","HUAWEI","XIAOMI","MOTOROLA","INFINIX","XL","INDOSAT"].map(b=>[b,vas.filter(t=>t.brand===b || name(t).includes(b))] as [string,RawTransaction[]])}
+                      {title:"VAS",items:vas,sub:["QOALA","TELKOMSEL","INDOSAT","XL"].map(b=>[b,vas.filter(t=>t.brand===b || name(t).includes(b))] as [string,RawTransaction[]])}
                     ];
                     
                     // Target matched by exact normalized staff name; missing names have target zero.
@@ -3187,11 +3212,11 @@ Indosat IM3 : ${isatText}`;
                       const year=Number(selectedMonth.slice(-4));
                       const days=monthIndex>=0&&Number.isFinite(year)?new Date(year,monthIndex+1,0).getDate():30;
                       if(periodType==="daily")return Math.round(value/days);
-                      if(periodType==="weekly"&&selectedWeek!=="ALL"){
-                        const week=AUTO_WEEKS.find(w=>w.label===selectedWeek||w.key===selectedWeek);
-                        const dates=(week?.range||"").match(/\d{4}-\d{2}-\d{2}/g)||[];
+                      if(periodType==="weekly"){
+                        const week=staffSelectedWeek;
+                        const dates=week?[week.start,week.end]:[];
                         const count=dates.length>=2?Math.max(1,Math.min(7,Math.round((Date.parse(dates[1]+"T00:00:00Z")-Date.parse(dates[0]+"T00:00:00Z"))/86400000)+1)):7;
-                        return Math.round(value/days*count);
+                        return Math.round(value/days*(week?.monthDays||count));
                       }
                       return value;
                     };
@@ -3213,7 +3238,7 @@ Indosat IM3 : ${isatText}`;
                       </div>;
                     };
                     return <section className={`p-5 sm:p-6 rounded-3xl border-2 ${cardBg} shadow-xl space-y-4`}>
-                      <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-black text-lg text-slate-950 dark:text-white">Target Vs Achievement Per Staff</h2><p className={`text-xs ${textMuted}`}>#{st.rank} · {st.name} · {periodType.toUpperCase()} · {periodType==="daily"?selectedDate:periodType==="weekly"?selectedWeek:selectedMonth}</p></div><button type="button" onClick={()=>handleShareStaffWA({...st,targetAmount:targetFor("total"),achvPct:targetFor("total")>0?Number((st.totalAmount/targetFor("total")*100).toFixed(1)):0},rows)} className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black">↗ Share WhatsApp</button></div>
+                      <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-black text-lg text-slate-950 dark:text-white">Target Vs Achievement Per Staff</h2><p className={`text-xs ${textMuted}`}>#{st.rank} · {st.name} · {periodType.toUpperCase()} · {periodType==="daily"?selectedDate:periodType==="weekly"?(staffSelectedWeek?.label+" · "+staffSelectedWeek?.start+" – "+staffSelectedWeek?.end):selectedMonth}</p></div><button type="button" onClick={()=>handleShareStaffWA({...st,targetAmount:targetFor("total"),achvPct:targetFor("total")>0?Number((st.totalAmount/targetFor("total")*100).toFixed(1)):0},rows)} className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black">↗ Share WhatsApp</button></div>
                       {renderMetric("TOTAL STAFF",rows,targetFor("total"),"total")}
                       <p className={`text-xs ${textMuted}`}>Sumber target: Pembagian target (gid 685849310). Staff atau kategori yang tidak ditemukan memiliki target Rp 0. Target Daily/Weekly diprorata dari target bulanan. Estimate adalah sisa target, bukan prediksi penjualan.</p>
                       {groups.map(g=><div key={g.title} className="space-y-2"><h3 className="font-black text-base text-slate-950 dark:text-white">{g.title}</h3>{renderMetric(g.title,g.items,dailyTargetFor(g.title),"group-"+g.title)}<div className="grid md:grid-cols-2 gap-2">{g.sub.map(([label,items])=>renderMetric(label,items,targetFor(({iPhone:"iphone",iPad:"ipad",MacBook:"macbook","Apple Watch":"applewatch",Qoala:"qoala",Telkomsel:"telkomsel",XL:"xl",Indosat:"indosat",SAMSUNG:"samsung",XIAOMI:"xiaomi",OPPO:"oppo",MOTOROLA:"motorola",HUAWEI:"huawei",INFINIX:"infinix"} as Record<string,string>)[label] || label.toLowerCase()),g.title+"-"+label))}</div></div>)}
@@ -3227,7 +3252,7 @@ Indosat IM3 : ${isatText}`;
                           <span>STAFF PERFORMANCE LEADERBOARD ({staffList.length} STAF)</span>
                         </h2>
                         <p className={`text-xs ${textMuted} mt-0.5`}>
-                          Periode: {periodType.toUpperCase()} ({periodType === "daily" ? selectedDate : periodType === "weekly" ? selectedWeek : selectedMonth})
+                          Periode: {periodType.toUpperCase()} ({periodType === "daily" ? selectedDate : periodType === "weekly" ? (staffSelectedWeek?.label+" · "+staffSelectedWeek?.start+" – "+staffSelectedWeek?.end) : selectedMonth})
                         </p>
                       </div>
                     </div>
@@ -3313,7 +3338,7 @@ Indosat IM3 : ${isatText}`;
                             />
                           </div>
 
-                          <div className={`grid grid-cols-3 gap-2 py-3 px-3 rounded-2xl border ${
+                          <div className={`grid grid-cols-4 gap-2 py-3 px-2 rounded-2xl border ${
                             isDark ? "bg-slate-900/60 border-slate-700/80" : "bg-slate-100/90 border-slate-300 shadow-inner"
                           }`}>
                             <div className="text-center">
@@ -3323,17 +3348,18 @@ Indosat IM3 : ${isatText}`;
                               </strong>
                             </div>
                             <div className={`text-center border-x ${isDark ? "border-slate-700" : "border-slate-300"}`}>
-                              <span className="text-[10px] font-black uppercase tracking-wider block text-slate-500 dark:text-slate-400">ATV</span>
+                              <span className="text-[10px] font-black uppercase tracking-wider block text-slate-500 dark:text-slate-400">UNIT</span>
                               <strong className="text-xs sm:text-sm font-black font-mono block mt-1 text-slate-900 dark:text-slate-100">
-                                {formatCompactIDR(st.atv)}
+                                {st.qty}
                               </strong>
                             </div>
                             <div className="text-center">
-                              <span className="text-[10px] font-black uppercase tracking-wider block text-slate-500 dark:text-slate-400">TRX</span>
+                              <span className="text-[10px] font-black uppercase tracking-wider block text-slate-500 dark:text-slate-400">INVOICE</span>
                               <strong className="text-xs sm:text-sm font-black font-mono block mt-1 text-slate-950 dark:text-white">
                                 {st.trxCount || 0}
                               </strong>
                             </div>
+                            <div className="text-center"><span className="text-[10px] font-black uppercase tracking-wider block text-slate-500 dark:text-slate-400">ATV</span><strong className="text-xs sm:text-sm font-black font-mono block mt-1 text-slate-900 dark:text-slate-100">{formatCompactIDR(st.atv)}</strong></div>
                           </div>
                         </div>
                       ))}
