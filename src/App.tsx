@@ -1996,7 +1996,57 @@ Indosat IM3 : ${isatText}`;
         });
         slide.addText("Catatan: evaluasi staff harus mempertimbangkan jadwal, jam kerja, traffic, ketersediaan stok, dan target individual. Rekomendasi stok perlu validasi inventory.", { x: 0.7, y: 6.75, w: 12, h: 0.26, fontSize: 8, italic: true, color: MUTED, margin: 0 });
       }
-      await pptx.writeFile({ fileName: "Digiplus_GI_Sales_Review_" + cutoff + ".pptx" });
+      // Slide 7: BNPL tender, quantity, amount, product and contribution.
+      {
+        const slide = makeSlide("BNPL • TENDER & PRODUCT CONTRIBUTION", "BNPL DATABASE • MTD " + currentPrefix + "-01 s/d " + cutoff + " • nominal, qty, dan kontribusi tender.");
+        const dated = bnplRecords.map(b => ({ ...b, iso: parseNormalizedDate(b.date, b.month).isoDate }));
+        const bnpl = dated.filter(b => b.iso >= currentPrefix + "-01" && b.iso <= cutoff);
+        const priorBnpl = dated.filter(b => b.iso >= previousPrefix + "-01" && b.iso <= priorCutoff);
+        const bnplAmount = bnpl.reduce((n, b) => n + b.amount, 0);
+        const priorBnplAmount = priorBnpl.reduce((n, b) => n + b.amount, 0);
+        const bnplQty = bnpl.reduce((n, b) => n + b.qty, 0);
+        const contribution = amount(currentMTD) > 0 ? bnplAmount / amount(currentMTD) * 100 : 0;
+        const tenders = [...new Set(bnpl.map(b => b.tender || "Other"))].map(name => ({
+          name, amount: bnpl.filter(b => (b.tender || "Other") === name).reduce((n, b) => n + b.amount, 0),
+          qty: bnpl.filter(b => (b.tender || "Other") === name).reduce((n, b) => n + b.qty, 0)
+        })).sort((a, b) => b.amount - a.amount);
+        const products = [...new Set(bnpl.map(b => b.product || "Unknown"))].map(name => ({
+          name, amount: bnpl.filter(b => (b.product || "Unknown") === name).reduce((n, b) => n + b.amount, 0),
+          qty: bnpl.filter(b => (b.product || "Unknown") === name).reduce((n, b) => n + b.qty, 0)
+        })).sort((a, b) => b.amount - a.amount);
+        const card = (x: number, label: string, value: string, foot: string) => {
+          slide.addShape(pptx.ShapeType.roundRect, { x, y: 1.4, w: 3.85, h: 1.05, rectRadius: 0.13, line: { color: "D8E6F7" }, fill: { color: "F5F9FF" } });
+          slide.addText(label, { x: x + 0.17, y: 1.55, w: 3.5, h: 0.19, fontSize: 9, color: MUTED, margin: 0 });
+          slide.addText(value, { x: x + 0.17, y: 1.83, w: 3.5, h: 0.28, fontSize: 18, bold: true, color: NAVY, margin: 0 });
+          slide.addText(foot, { x: x + 0.17, y: 2.19, w: 3.5, h: 0.16, fontSize: 8, color: BLUE, margin: 0 });
+        };
+        card(0.6, "Total BNPL Amount", fmt(bnplAmount), "MoM " + growthText(bnplAmount, priorBnplAmount));
+        card(4.74, "Qty BNPL", String(bnplQty), "Qty transaksi produk BNPL");
+        card(8.88, "Kontribusi ke Total Sales", contribution.toFixed(1) + "%", "BNPL / Total Amount MTD");
+        slide.addText("BNPL PER TENDER", { x: 0.65, y: 2.76, w: 6, h: 0.28, fontSize: 13, bold: true, color: NAVY, margin: 0 });
+        slide.addText("DETAIL PRODUCT BNPL", { x: 7.05, y: 2.76, w: 5.7, h: 0.28, fontSize: 13, bold: true, color: NAVY, margin: 0 });
+        const addHeading = (labels: { text: string; x: number; w: number; align?: string }[], y: number) => labels.forEach(h => slide.addText(h.text, { x: h.x, y, w: h.w, h: 0.2, fontSize: 9, bold: true, color: BLUE, align: h.align || "left", margin: 0 }));
+        addHeading([{text:"Tender",x:0.7,w:2.3},{text:"Qty",x:3.2,w:0.7,align:"right"},{text:"Amount",x:4.1,w:1.7,align:"right"},{text:"Share",x:5.9,w:0.7,align:"right"}],3.18);
+        addHeading([{text:"Product",x:7.08,w:3.2},{text:"Qty",x:10.3,w:0.5,align:"right"},{text:"Amount",x:10.95,w:1.65,align:"right"}],3.18);
+        const tenderRows = tenders.slice(0, 10);
+        tenderRows.forEach((t, i) => {
+          const y = 3.52 + i * 0.29;
+          slide.addText(t.name, { x:0.7,y,w:2.4,h:0.21,fontSize:9,color:NAVY,margin:0 });
+          slide.addText(String(t.qty), { x:3.2,y,w:0.7,h:0.21,fontSize:9,color:NAVY,align:"right",margin:0 });
+          slide.addText(fmt(t.amount), { x:4.1,y,w:1.7,h:0.21,fontSize:9,color:NAVY,align:"right",margin:0 });
+          slide.addText(bnplAmount ? (t.amount/bnplAmount*100).toFixed(1)+"%" : "0%", { x:5.9,y,w:0.7,h:0.21,fontSize:9,bold:true,color:BLUE,align:"right",margin:0 });
+        });
+        products.slice(0, 10).forEach((p, i) => {
+          const y = 3.52 + i * 0.29;
+          slide.addText(p.name, { x:7.08,y,w:3.15,h:0.21,fontSize:8,color:NAVY,margin:0 });
+          slide.addText(String(p.qty), { x:10.3,y,w:0.5,h:0.21,fontSize:9,color:NAVY,align:"right",margin:0 });
+          slide.addText(fmt(p.amount), { x:10.95,y,w:1.65,h:0.21,fontSize:9,color:NAVY,align:"right",margin:0 });
+        });
+        if (!bnpl.length) slide.addText("Tidak ada data BNPL pada periode MTD.", { x:0.7,y:3.8,w:11,h:0.4,fontSize:12,color:MUTED });
+        const more = (tenders.length > 10 ? " • " + (tenders.length - 10) + " tender lain" : "") + (products.length > 10 ? " • " + (products.length - 10) + " produk lain" : "");
+        slide.addText("Top tender: " + (tenders[0]?.name || "—") + " • " + fmt(tenders[0]?.amount || 0) + more + " | Sumber: BNPL DATABASE", { x:0.7,y:6.75,w:12,h:0.23,fontSize:9,color:MUTED,margin:0 });
+      }
+      await pptx.writeFile({ fileName: "Digiplus_GI_7_Slide_Sales_Review_" + cutoff + ".pptx" });
     } catch (err) {
       alert("Gagal mengekspor slide PowerPoint: " + (err instanceof Error ? err.message : String(err)));
     } finally {
