@@ -1827,6 +1827,23 @@ Indosat IM3 : ${isatText}`;
       pptx.subject = "Live store performance report";
       pptx.title = "Digiplus Grand Indonesia - Sales Performance";
       const BLUE = "174EA6", NAVY = "102D59", MUTED = "64748B", LIGHT = "EAF3FF", WHITE = "FFFFFF", RED = "B42318", GREEN = "147D64";
+      // Embed the existing Digiplus brand asset into the PPTX (no external image links in exported file).
+      let digiplusLogoData = "";
+      try {
+        const logoResponse = await fetch("/apple-touch-icon.png");
+        if (logoResponse.ok) {
+          const blob = await logoResponse.blob();
+          digiplusLogoData = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result || ""));
+            reader.onerror = () => reject(new Error("Logo gagal dibaca"));
+            reader.readAsDataURL(blob);
+          });
+        }
+      } catch (logoError) {
+        console.warn("Logo Digiplus tidak dapat dimuat untuk PPTX", logoError);
+      }
+
       const fmt = (n: number) => "Rp " + Math.round(n).toLocaleString("id-ID");
       const day = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
       const cutoff = day; // always use today's Jakarta cut-off, independent of dashboard filter
@@ -1873,9 +1890,11 @@ Indosat IM3 : ${isatText}`;
       const makeSlide = (heading: string, subtitle: string) => {
         const slide = pptx.addSlide();
         slide.background = { color: WHITE };
+        if (digiplusLogoData) slide.addImage({ data: digiplusLogoData, x: 0.6, y: 0.34, w: 1.43, h: 0.6 });
+
         slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 13.333, h: 0.11, line: { color: BLUE }, fill: { color: BLUE } });
-        slide.addText(heading, { x: 0.6, y: 0.4, w: 12, h: 0.4, fontFace: "Aptos Display", fontSize: 23, bold: true, color: NAVY, margin: 0 });
-        slide.addText(subtitle, { x: 0.6, y: 0.92, w: 12, h: 0.32, fontSize: 10, color: MUTED, margin: 0 });
+        slide.addText(heading, { x: 2.25, y: 0.4, w: 10.45, h: 0.4, fontFace: "Aptos Display", fontSize: 23, bold: true, color: NAVY, margin: 0 });
+        slide.addText(subtitle, { x: 2.25, y: 0.92, w: 10.45, h: 0.32, fontSize: 10, color: MUTED, margin: 0 });
         slide.addText("DIGIPLUS GRAND INDONESIA  •  QF01", { x: 0.6, y: 7.13, w: 8, h: 0.18, fontSize: 8, color: MUTED, margin: 0 });
         slide.addText("Cut-off " + cutoff, { x: 10.4, y: 7.13, w: 2.3, h: 0.18, align: "right", fontSize: 8, color: MUTED, margin: 0 });
         return slide;
