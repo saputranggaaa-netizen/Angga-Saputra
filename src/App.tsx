@@ -44,6 +44,7 @@ interface RawTransaction {
   groupCategory: string;
   weekLabel: string;
   supplier?: string;
+  incentives: [number, number, number, number, number];
 }
 
 interface BnplRecord {
@@ -167,6 +168,7 @@ export default function DigiplusOperationalEngine() {
   // Theme & Navigation
   const [theme, setTheme] = useState<ThemeMode>("dark");
   const [activeTab, setActiveTab] = useState<MenuTab>("store-overview");
+  const [incentiveChartMode, setIncentiveChartMode] = useState<"stacked" | "grouped">("stacked");
   const [productSearchQuery, setProductSearchQuery] = useState("");
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState<boolean>(false);
   // Floating mobile shortcut: solid at top, faded while scrolling content.
@@ -478,6 +480,16 @@ export default function DigiplusOperationalEngine() {
 
       const jsonDb = parseGviz(textDb,"DATABASE");
       const parsedTrx: RawTransaction[] = [];
+      // DATABASE R:V are recorded incentive amounts, not rates.
+      const parseIncentive = (cell: any): number => {
+        const raw = cell?.v ?? cell?.f ?? 0;
+        if (typeof raw === "number") return Number.isFinite(raw) && raw > 0 ? raw : 0;
+        const normalized = String(raw).trim().replace(/Rp\\s*/gi, "").replace(/\\s/g, "");
+        if (!normalized) return 0;
+        const cleaned = normalized.replace(/\\./g, "").replace(/,/g, ".");
+        const value = Number(cleaned);
+        return Number.isFinite(value) && value > 0 ? value : 0;
+      };
       (jsonDb.table.rows || []).forEach((r: any) => {
         const c = r.c;
         if (!c) return;
@@ -534,6 +546,7 @@ export default function DigiplusOperationalEngine() {
             groupCategory,
             weekLabel,
             supplier,
+            incentives: [17, 18, 19, 20, 21].map(i => parseIncentive(c[i])) as [number, number, number, number, number],
           });
         }
       });
@@ -3182,56 +3195,84 @@ Indosat IM3 : ${isatText}`;
                 </div>
               )}
 
-              {/* EST. INCENTIVE — verified scheme coverage only; never infer payout from revenue. */}
+              {/* EST. INCENTIVE V2 — finance-blue responsive dashboard, sourced from DATABASE R:V. */}
               {activeTab === "est-incentive" && (() => {
-                const normalize = (v: string) => String(v || "").trim().toLowerCase().replace(/\\s+/g, " ");
-                const categories = ["Apple Devices", "Android Devices", "Accessories", "VAS / Qoala", "Other"];
-                const getCategory = (t: RawTransaction) => {
-                  const g = String(t.groupCategory || "").toUpperCase();
-                  const p = String(t.productName || "").toUpperCase();
-                  if (g === "VAS" || /QOALA|PROTECTION/.test(p)) return "VAS / Qoala";
-                  if (g === "ACCESSORIES") return "Accessories";
-                  if (/APPLE|IPHONE|IPAD|MACBOOK/.test(String(t.brand || "") + " " + p)) return "Apple Devices";
-                  if (g.includes("DEVICE") || /SAMSUNG|MOTOROLA|XIAOMI|OPPO|VIVO/.test(String(t.brand || ""))) return "Android Devices";
-                  return "Other";
-                };
-                const rows = new Map<string, { id: string; name: string; categories: Record<string, { qty: number; sales: number; invoices: Set<string> }> }>();
-                for (const t of activeTransactions) {
-                  const id = String(t.salesId || "").trim();
-                  const name = String(t.salesName || "").trim();
-                  const key = id || normalize(name);
-                  if (!key) continue;
-                  if (!rows.has(key)) rows.set(key, { id, name: name || id, categories: {} });
-                  const staff = rows.get(key)!;
-                  const category = getCategory(t);
-                  if (!staff.categories[category]) staff.categories[category] = { qty: 0, sales: 0, invoices: new Set<string>() };
-                  staff.categories[category].qty += Number(t.qty) || 0;
-                  staff.categories[category].sales += Number(t.amount) || 0;
-                  if (t.invoice) staff.categories[category].invoices.add(t.invoice);
-                }
-                const leaderboard = Array.from(rows.values()).map(staff => ({
-                  ...staff,
-                  sales: Object.values(staff.categories).reduce((sum, c) => sum + c.sales, 0),
-                  qty: Object.values(staff.categories).reduce((sum, c) => sum + c.qty, 0)
-                })).sort((a, b) => b.sales - a.sales || a.name.localeCompare(b.name));
-                return <div className="space-y-5">
-                  <section className={cardBg + " rounded-3xl border p-5 space-y-3"}>
-                    <div className="flex items-center justify-between gap-3 flex-wrap"><h2 className="text-lg font-black text-slate-950 dark:text-white">💰 Est. Incentive — Staff</h2><span className="text-xs rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 px-3 py-1 font-bold">Rate belum lengkap</span></div>
-                    <p className={textMuted + " text-xs"}>Mengikuti filter periode dashboard (harian, mingguan, bulanan). Data transaksi dikelompokkan berdasarkan staff dan sumber kategori. Urutan sementara berdasarkan nilai penjualan, BUKAN besaran insentif, sampai seluruh skema yang berlaku tervalidasi.</p>
-                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-200">Nominal estimasi sengaja tidak ditampilkan: tabel Insentif 2026 berisi tier dan program produk tertentu, sementara laporan pembayaran historis bukan rate yang dapat diterapkan langsung pada transaksi bulan berjalan. Tidak ada angka insentif yang diasumsikan.</div>
-                    <p className={textMuted + " text-xs"}>Sumber referensi: Insentif 2026.xlsx (tier & program tambahan) dan Incentive Desember2 (breakdown historis Apple, Android, Accessories, Qoala dan pihak ketiga). Sumber tersebut belum tersambung sebagai API rate per periode.</p>
+                const labels = ["Apple", "3rd Party", "Android", "Qoala", "Accessories"];
+                const colors = ["#0B3D91", "#1266D6", "#3293E6", "#74B6EF", "#C3DFF8"];
+                const sums = [0, 0, 0, 0, 0];
+                const staffMap = new Map<string, { id: string; name: string; amounts: number[]; transactions: RawTransaction[] }>();
+                activeTransactions.forEach(t => {
+                  const key = t.salesId || t.salesName.toLowerCase();
+                  if (!key) return;
+                  if (!staffMap.has(key)) staffMap.set(key, { id: t.salesId, name: t.salesName, amounts: [0, 0, 0, 0, 0], transactions: [] });
+                  const entry = staffMap.get(key)!;
+                  entry.transactions.push(t);
+                  t.incentives.forEach((v, i) => { entry.amounts[i] += v; sums[i] += v; });
+                });
+                const staff = [...staffMap.values()].map(v => ({ ...v, total: v.amounts.reduce((a, b) => a + b, 0) })).sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
+                const total = sums.reduce((a, b) => a + b, 0);
+                const topIndex = sums.indexOf(Math.max(...sums));
+                const maxStaff = Math.max(1, ...staff.map(v => v.total));
+                const percent = (v: number, base = total) => base ? (100 * v / base).toFixed(1).replace(".", ",") + "%" : "0%";
+                const donut = total ? "conic-gradient(" + sums.map((v, i) => {
+                  const from = sums.slice(0, i).reduce((a, b) => a + b, 0) / total * 100;
+                  return colors[i] + " " + from + "% " + (from + v / total * 100) + "%";
+                }).join(",") + ")" : "conic-gradient(#e2e8f0 0% 100%)";
+                const currentStaff = staff.find(v => (v.id || v.name) === expandedIncentiveStaff);
+                const recommendations = [
+                  { title: "Devices + Accessories", body: "Tawarkan case, charger, audio, atau aksesori kompatibel bersama perangkat.", index: 4 },
+                  { title: "Devices + Qoala", body: "Jelaskan manfaat perlindungan dan persyaratannya; tawarkan hanya jika sesuai kebutuhan pelanggan.", index: 3 },
+                  { title: "Apple / Android + 3rd Party", body: "Periksa produk pelengkap yang relevan, stok, dan nominal insentif tercatat.", index: 1 }
+                ];
+                return <div className="space-y-4 sm:space-y-6 text-slate-900">
+                  <div className="rounded-3xl border border-blue-100 bg-white p-4 sm:p-6 dark:bg-slate-950 dark:border-blue-900/40 dark:text-white">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div><div className="text-[11px] font-bold uppercase tracking-[0.2em] text-blue-600">Finance Blue · V2</div><h2 className="mt-1 text-2xl font-black tracking-tight">Est. Incentive</h2><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Executive Dashboard · Digiplus Grand Indonesia</p></div>
+                      <span className="rounded-full bg-blue-50 px-3 py-1.5 text-[11px] font-bold text-blue-800 dark:bg-blue-900/30 dark:text-blue-200">Estimasi dari DATABASE R–V</span>
+                    </div>
+                    <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Periode: {periodType === "daily" ? selectedDate : periodType === "weekly" ? selectedWeek : selectedMonth} · {staff.length} staff terdata. Mengikuti filter periode global.</p>
+                  </div>
+                  <div className="rounded-3xl bg-gradient-to-br from-blue-900 via-blue-800 to-blue-600 p-5 sm:p-7 text-white shadow-lg shadow-blue-900/10">
+                    <p className="text-sm font-medium text-blue-100">Total Est. Incentive</p><div className="mt-2 text-3xl sm:text-4xl font-black tracking-tight">{formatIDR(total)}</div>
+                    <p className="mt-3 text-xs text-blue-100">Akumulasi insentif tercatat pada periode yang dipilih · bukan nominal payout final</p>
+                  </div>
+                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                    {[
+                      { title: "Top Incentive Staff", value: staff[0]?.name || "—", sub: staff[0] ? formatIDR(staff[0].total) : "Belum ada data" },
+                      { title: "Active Staff", value: String(staff.length), sub: "Staff dengan transaksi" },
+                      { title: "Top Category", value: total ? labels[topIndex] : "—", sub: total ? percent(sums[topIndex]) + " kontribusi" : "Belum ada insentif" }
+                    ].map(item => <div key={item.title} className="rounded-2xl border border-blue-100 bg-white p-4 dark:border-blue-900/40 dark:bg-slate-950 dark:text-white"><p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{item.title}</p><div className="mt-2 text-lg sm:text-xl font-black break-words">{item.value}</div><p className="mt-1 text-xs text-blue-700 dark:text-blue-300">{item.sub}</p></div>)}
+                  </div>
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    <section className="rounded-3xl border border-blue-100 bg-white p-4 sm:p-6 dark:border-blue-900/40 dark:bg-slate-950 dark:text-white">
+                      <h3 className="font-bold text-base">Kontribusi Incentive per Kategori</h3>
+                      <div className="mt-5 flex flex-col sm:flex-row items-center gap-6">
+                        <div className="relative h-48 w-48 shrink-0 rounded-full" style={{ background: donut }}><div className="absolute inset-8 flex flex-col items-center justify-center rounded-full bg-white dark:bg-slate-950"><strong className="text-sm">{formatIDR(total)}</strong><span className="text-[10px] text-slate-500">Total Incentive</span></div></div>
+                        <div className="w-full space-y-3">{labels.map((name, i) => <div key={name} className="flex justify-between gap-3 text-xs"><span className="flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: colors[i] }}/>{name}</span><span className="text-right"><b>{percent(sums[i])}</b><span className="block text-slate-500 dark:text-slate-400">{formatIDR(sums[i])}</span></span></div>)}</div>
+                      </div>
+                    </section>
+                    <section className="rounded-3xl border border-blue-100 bg-white p-4 sm:p-6 dark:border-blue-900/40 dark:bg-slate-950 dark:text-white">
+                      <div className="flex flex-wrap justify-between items-center gap-2"><h3 className="font-bold text-base">Perbandingan Incentive per Staff</h3><div className="flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800">{(["stacked","grouped"] as const).map(mode => <button key={mode} type="button" onClick={() => setIncentiveChartMode(mode)} className={"rounded-lg px-3 py-1.5 text-xs font-semibold " + (incentiveChartMode === mode ? "bg-blue-700 text-white" : "text-slate-600 dark:text-slate-300")}>{mode === "stacked" ? "Stacked" : "Grouped"}</button>)}</div></div>
+                      <div className="mt-5 space-y-3 max-h-72 overflow-y-auto">{staff.length === 0 && <p className="text-sm text-slate-500">Tidak ada transaksi pada periode ini.</p>}{staff.map(v => <div key={v.id || v.name} className="grid grid-cols-[90px_1fr] sm:grid-cols-[120px_1fr] items-center gap-2 text-xs"><span className="truncate font-semibold" title={v.name}>{v.name}</span><div><div className="flex h-4 w-full overflow-hidden rounded-md bg-slate-100 dark:bg-slate-800" style={incentiveChartMode === "grouped" ? { gap: "3px", background: "transparent" } : {}}>{v.amounts.map((amount, i) => <div key={i} title={labels[i] + ": " + formatIDR(amount)} style={{ width: (incentiveChartMode === "grouped" ? 20 : amount / maxStaff * 100) + "%", height: incentiveChartMode === "grouped" ? (amount / maxStaff * 100) + "%" : "100%", minHeight: incentiveChartMode === "grouped" && amount > 0 ? "3px" : undefined, backgroundColor: colors[i] }} className="rounded-sm" />)}</div><span className="text-[10px] text-slate-500 dark:text-slate-400">{formatIDR(v.total)}</span></div></div>)}</div>
+                      <div className="mt-4 flex flex-wrap gap-x-3 gap-y-2">{labels.map((name, i) => <span key={name} className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400"><i className="h-2 w-2 rounded-sm" style={{ backgroundColor: colors[i] }}/>{name}</span>)}</div>
+                    </section>
+                  </div>
+                  <section className="rounded-3xl border border-blue-100 bg-white p-4 sm:p-6 dark:border-blue-900/40 dark:bg-slate-950 dark:text-white">
+                    <h3 className="font-bold text-base">Ranking Est. Incentive per Staff</h3>
+                    <div className="mt-4 space-y-2">{staff.map((v, index) => <button type="button" key={v.id || v.name} onClick={() => setExpandedIncentiveStaff(v.id || v.name)} className="flex w-full items-center gap-3 rounded-xl border border-blue-50 p-3 text-left hover:bg-blue-50/60 dark:border-blue-900/30 dark:hover:bg-blue-900/20"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 font-black text-blue-800 dark:bg-blue-900 dark:text-blue-100">{index + 1}</div><div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold">{v.name}</div><div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-full rounded-full bg-blue-600" style={{ width: (v.total / maxStaff * 100) + "%" }}/></div></div><div className="text-right"><strong className="block text-xs sm:text-sm">{formatIDR(v.total)}</strong><span className="text-[10px] text-slate-500">{percent(v.total)}</span></div><span className="text-blue-600">›</span></button>)}{staff.length === 0 && <p className="text-sm text-slate-500">Tidak ada data staff.</p>}</div>
                   </section>
-                  <section className={cardBg + " rounded-3xl border p-4 sm:p-5 space-y-3"}>
-                    <h3 className="font-black text-slate-950 dark:text-white">Staff & Sumber Insentif Potensial</h3>
-                    {leaderboard.length === 0 && <p className={textMuted + " text-sm"}>Tidak ada transaksi pada periode yang dipilih.</p>}
-                    {leaderboard.map((staff, index) => <div key={staff.id || staff.name} className="rounded-2xl border border-slate-300/30 p-3">
-                      <button type="button" className="w-full flex justify-between items-center gap-3 text-left" onClick={() => setExpandedIncentiveStaff(v => v === (staff.id || staff.name) ? null : (staff.id || staff.name))}>
-                        <span className="font-bold text-sm text-slate-950 dark:text-white">{index + 1}. {staff.name}</span>
-                        <span className="text-right"><span className="block font-bold text-sm text-slate-950 dark:text-white">{formatIDR(staff.sales)}</span><span className={textMuted + " text-[11px]"}>Penjualan · {staff.qty} unit · {expandedIncentiveStaff === (staff.id || staff.name) ? "Tutup" : "Detail"}</span></span>
-                      </button>
-                      {expandedIncentiveStaff === (staff.id || staff.name) && <div className="mt-3 overflow-x-auto"><table className="w-full text-xs text-slate-900 dark:text-slate-100"><thead><tr><th className="p-2 text-left">Sumber kategori</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Penjualan</th><th className="p-2 text-right">Est. insentif</th></tr></thead><tbody>{categories.filter(c => staff.categories[c]).map(c => <tr key={c} className="border-t border-slate-300/20"><td className="p-2">{c}</td><td className="p-2 text-right">{staff.categories[c].qty}</td><td className="p-2 text-right">{formatIDR(staff.categories[c].sales)}</td><td className="p-2 text-right text-amber-600 dark:text-amber-300">Menunggu rate</td></tr>)}</tbody></table></div>}
-                    </div>)}
+                  <section className="rounded-3xl border border-blue-100 bg-blue-50/50 p-4 sm:p-6 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-white">
+                    <h3 className="font-bold text-base">Tips & Trick · Incentive Booster</h3><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Rekomendasi kombinasi produk, bukan jaminan tambahan insentif. Pastikan kecocokan, kebutuhan pelanggan, dan program yang berlaku.</p>
+                    <div className="mt-4 grid gap-3 md:grid-cols-3">{recommendations.map(rec => <div key={rec.title} className="rounded-2xl border border-blue-100 bg-white p-4 dark:border-blue-900/40 dark:bg-slate-950"><h4 className="text-sm font-bold">{rec.title}</h4><p className="mt-2 text-xs text-slate-600 dark:text-slate-300">{rec.body}</p><p className="mt-3 text-xs font-bold text-blue-700 dark:text-blue-300">Insentif kategori tercatat: {formatIDR(sums[rec.index])}</p></div>)}</div>
                   </section>
+                  {currentStaff && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-3 sm:p-6" role="presentation" onClick={() => setExpandedIncentiveStaff(null)}>
+                    <section role="dialog" aria-modal="true" aria-label={"Detail incentive " + currentStaff.name} onClick={e => e.stopPropagation()} className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-5 sm:p-7 text-slate-900 shadow-2xl dark:bg-slate-950 dark:text-white">
+                      <div className="flex justify-between gap-3"><div><h3 className="text-xl font-black">{currentStaff.name}</h3><p className="text-xs text-slate-500">Detail Est. Incentive · {currentStaff.id || "Sales ID tidak tersedia"}</p></div><button type="button" aria-label="Tutup detail" onClick={() => setExpandedIncentiveStaff(null)} className="rounded-full bg-slate-100 px-3 py-1 dark:bg-slate-800">✕</button></div>
+                      <div className="mt-4 rounded-2xl bg-blue-800 p-4 text-white"><p className="text-xs text-blue-100">Total Est. Incentive</p><strong className="text-2xl">{formatIDR(currentStaff.total)}</strong></div>
+                      <div className="mt-4 grid grid-cols-2 sm:grid-cols-5 gap-2">{labels.map((name, i) => <div key={name} className="rounded-xl bg-blue-50 p-3 dark:bg-blue-950/40"><p className="text-[10px] text-slate-500">{name}</p><strong className="text-xs">{formatIDR(currentStaff.amounts[i])}</strong></div>)}</div>
+                      <h4 className="mt-5 font-bold">Rincian Transaksi</h4><div className="mt-2 overflow-x-auto"><table className="w-full min-w-[650px] text-xs"><thead><tr className="border-b text-left">{["Tanggal","Invoice","Produk","Qty",...labels].map(v => <th key={v} className="p-2">{v}</th>)}</tr></thead><tbody>{currentStaff.transactions.map((t, i) => <tr key={t.invoice + t.sapArticle + i} className="border-b border-slate-100 dark:border-slate-800"><td className="p-2">{t.isoDate}</td><td className="p-2">{t.invoice}</td><td className="p-2">{t.productName}</td><td className="p-2">{t.qty}</td>{t.incentives.map((v, j) => <td key={j} className="p-2 whitespace-nowrap">{formatIDR(v)}</td>)}</tr>)}</tbody></table></div>
+                    </section>
+                  </div>}
                 </div>;
               })()}
 
