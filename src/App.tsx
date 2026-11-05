@@ -20,7 +20,8 @@ type MenuTab =
   | "access-log"
   | "product-search"
   | "qoala-ar"
-  | "mom-comparison";
+  | "mom-comparison"
+  | "est-incentive";
 
 type ThemeMode = "dark" | "light";
 type PeriodType = "daily" | "weekly" | "monthly";
@@ -352,6 +353,7 @@ export default function DigiplusOperationalEngine() {
   const [momCompareMonth, setMomCompareMonth] = useState<string>("Oktober2026");
   const [momMode, setMomMode] = useState<"mtd" | "full">("mtd");
   const [showAllQoalaDevices, setShowAllQoalaDevices] = useState(false);
+  const [expandedIncentiveStaff, setExpandedIncentiveStaff] = useState<string | null>(null);
   const [overviewStaffPopupId, setOverviewStaffPopupId] = useState<string | null>(null);
   const [momToday, setMomToday] = useState(() => new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()));
   const [selectedWeek, setSelectedWeek] = useState<string>("ALL");
@@ -1930,6 +1932,7 @@ Indosat IM3 : ${isatText}`;
     { id: "weekly-sales", label: "Weekly Sales (WoW)", icon: "📈", color: "bg-blue-600", shadow: "shadow-blue-600/30" },
     { id: "qoala-ar", label: "Qoala Protection (AR %)", icon: "🛡️", color: "bg-rose-500", shadow: "shadow-rose-500/30" },
     { id: "mom-comparison", label: "MoM Growth Analysis", icon: "⚖️", color: "bg-indigo-500", shadow: "shadow-indigo-500/30" },
+    { id: "est-incentive", label: "Est. Incentive", icon: "💰", color: "bg-emerald-500", shadow: "shadow-emerald-500/30" },
     { id: "staff-performance", label: "Staff Performance", icon: "🏆", color: "bg-amber-500", shadow: "shadow-amber-500/30" },
     { id: "daily-target", label: "Daily Target & Run Rate", icon: "🎯", color: "bg-orange-500", shadow: "shadow-orange-500/30" },
     { id: "brand-focus", label: "Brand Focus", icon: "🏷️", color: "bg-amber-500", shadow: "shadow-amber-500/30" },
@@ -3178,6 +3181,59 @@ Indosat IM3 : ${isatText}`;
                   </div>
                 </div>
               )}
+
+              {/* EST. INCENTIVE — verified scheme coverage only; never infer payout from revenue. */}
+              {activeTab === "est-incentive" && (() => {
+                const normalize = (v: string) => String(v || "").trim().toLowerCase().replace(/\\s+/g, " ");
+                const categories = ["Apple Devices", "Android Devices", "Accessories", "VAS / Qoala", "Other"];
+                const getCategory = (t: RawTransaction) => {
+                  const g = String(t.groupCategory || "").toUpperCase();
+                  const p = String(t.productName || "").toUpperCase();
+                  if (g === "VAS" || /QOALA|PROTECTION/.test(p)) return "VAS / Qoala";
+                  if (g === "ACCESSORIES") return "Accessories";
+                  if (/APPLE|IPHONE|IPAD|MACBOOK/.test(String(t.brand || "") + " " + p)) return "Apple Devices";
+                  if (g.includes("DEVICE") || /SAMSUNG|MOTOROLA|XIAOMI|OPPO|VIVO/.test(String(t.brand || ""))) return "Android Devices";
+                  return "Other";
+                };
+                const rows = new Map<string, { id: string; name: string; categories: Record<string, { qty: number; sales: number; invoices: Set<string> }> }>();
+                for (const t of activeTransactions) {
+                  const id = String(t.salesId || "").trim();
+                  const name = String(t.salesName || "").trim();
+                  const key = id || normalize(name);
+                  if (!key) continue;
+                  if (!rows.has(key)) rows.set(key, { id, name: name || id, categories: {} });
+                  const staff = rows.get(key)!;
+                  const category = getCategory(t);
+                  if (!staff.categories[category]) staff.categories[category] = { qty: 0, sales: 0, invoices: new Set<string>() };
+                  staff.categories[category].qty += Number(t.qty) || 0;
+                  staff.categories[category].sales += Number(t.amount) || 0;
+                  if (t.invoice) staff.categories[category].invoices.add(t.invoice);
+                }
+                const leaderboard = Array.from(rows.values()).map(staff => ({
+                  ...staff,
+                  sales: Object.values(staff.categories).reduce((sum, c) => sum + c.sales, 0),
+                  qty: Object.values(staff.categories).reduce((sum, c) => sum + c.qty, 0)
+                })).sort((a, b) => b.sales - a.sales || a.name.localeCompare(b.name));
+                return <div className="space-y-5">
+                  <section className={cardBg + " rounded-3xl border p-5 space-y-3"}>
+                    <div className="flex items-center justify-between gap-3 flex-wrap"><h2 className="text-lg font-black text-slate-950 dark:text-white">💰 Est. Incentive — Staff</h2><span className="text-xs rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 px-3 py-1 font-bold">Rate belum lengkap</span></div>
+                    <p className={textMuted + " text-xs"}>Mengikuti filter periode dashboard (harian, mingguan, bulanan). Data transaksi dikelompokkan berdasarkan staff dan sumber kategori. Urutan sementara berdasarkan nilai penjualan, BUKAN besaran insentif, sampai seluruh skema yang berlaku tervalidasi.</p>
+                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-200">Nominal estimasi sengaja tidak ditampilkan: tabel Insentif 2026 berisi tier dan program produk tertentu, sementara laporan pembayaran historis bukan rate yang dapat diterapkan langsung pada transaksi bulan berjalan. Tidak ada angka insentif yang diasumsikan.</div>
+                    <p className={textMuted + " text-xs"}>Sumber referensi: Insentif 2026.xlsx (tier & program tambahan) dan Incentive Desember2 (breakdown historis Apple, Android, Accessories, Qoala dan pihak ketiga). Sumber tersebut belum tersambung sebagai API rate per periode.</p>
+                  </section>
+                  <section className={cardBg + " rounded-3xl border p-4 sm:p-5 space-y-3"}>
+                    <h3 className="font-black text-slate-950 dark:text-white">Staff & Sumber Insentif Potensial</h3>
+                    {leaderboard.length === 0 && <p className={textMuted + " text-sm"}>Tidak ada transaksi pada periode yang dipilih.</p>}
+                    {leaderboard.map((staff, index) => <div key={staff.id || staff.name} className="rounded-2xl border border-slate-300/30 p-3">
+                      <button type="button" className="w-full flex justify-between items-center gap-3 text-left" onClick={() => setExpandedIncentiveStaff(v => v === (staff.id || staff.name) ? null : (staff.id || staff.name))}>
+                        <span className="font-bold text-sm text-slate-950 dark:text-white">{index + 1}. {staff.name}</span>
+                        <span className="text-right"><span className="block font-bold text-sm text-slate-950 dark:text-white">{formatIDR(staff.sales)}</span><span className={textMuted + " text-[11px]"}>Penjualan · {staff.qty} unit · {expandedIncentiveStaff === (staff.id || staff.name) ? "Tutup" : "Detail"}</span></span>
+                      </button>
+                      {expandedIncentiveStaff === (staff.id || staff.name) && <div className="mt-3 overflow-x-auto"><table className="w-full text-xs text-slate-900 dark:text-slate-100"><thead><tr><th className="p-2 text-left">Sumber kategori</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Penjualan</th><th className="p-2 text-right">Est. insentif</th></tr></thead><tbody>{categories.filter(c => staff.categories[c]).map(c => <tr key={c} className="border-t border-slate-300/20"><td className="p-2">{c}</td><td className="p-2 text-right">{staff.categories[c].qty}</td><td className="p-2 text-right">{formatIDR(staff.categories[c].sales)}</td><td className="p-2 text-right text-amber-600 dark:text-amber-300">Menunggu rate</td></tr>)}</tbody></table></div>}
+                    </div>)}
+                  </section>
+                </div>;
+              })()}
 
               {/* TAB: MoM GROWTH ANALYSIS */}
               {activeTab === "mom-comparison" && renderComparisonSection(momAnalytics)}
