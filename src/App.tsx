@@ -2869,7 +2869,7 @@ Indosat IM3 : ${isatText}`;
                 <div className={`space-y-4 rounded-3xl border p-4 shadow-xl lg:hidden ${cardBg}`}>
                   <header className="flex items-start justify-between gap-3">
                     <div><p className="text-[11px] font-bold uppercase tracking-widest text-sky-600 dark:text-sky-400">QF01 · Digiplus Grand Indonesia</p><h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">📊 Whiteboard</h2><p className="text-xs text-slate-600 dark:text-slate-300">{whiteboard.monthLabel} · Bulan berjalan (WIB)</p></div>
-                    <button type="button" onClick={()=>setIsSidebarOpen(true)} aria-label="Buka menu navigasi" className="rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-slate-800 dark:border-slate-600 dark:bg-slate-800 dark:text-white">☰ Menu</button>
+                    <span className="rounded-xl bg-sky-100 px-3 py-2 text-xs font-bold text-sky-800 dark:bg-sky-950 dark:text-sky-200">Live MTD</span>
                   </header>
                   {!whiteboard.valid && <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-200">Target {whiteboard.monthLabel} belum tersedia. Achievement tetap ditampilkan tanpa perkiraan target.</p>}
                   <section className="rounded-2xl bg-slate-100 p-4 dark:bg-slate-800">
