@@ -406,7 +406,7 @@ export default function DigiplusOperationalEngine() {
     if (feedbackText.trim().length < 5) {setFeedbackError("Isi feedback minimal 5 karakter");return;}
     setFeedbackLoading(true);
     try {
-      const response=await fetch("/api/feedback",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({salesName:currentSalesName || "Staff",text:feedbackText.trim(),sentiment:feedbackSentiment})});
+      const response=await fetch("/api/feedback",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({salesId:currentSalesId,salesName:currentSalesName || "Staff",text:feedbackText.trim(),sentiment:feedbackSentiment})});
       const data=await response.json();
       if(!response.ok)throw new Error(data.error || "Gagal mengirim feedback");
       setFeedbackText("");
@@ -4314,11 +4314,11 @@ return <div className="space-y-5">
                     <h2 className="font-black text-lg text-slate-950 dark:text-white">💬 Feedback Tim — Semua Perangkat</h2>
                     <p className="text-xs text-slate-500">Feedback tersimpan online dan dapat dibaca semua pengguna dashboard. Jangan memasukkan data pribadi pelanggan.</p>
                     <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">Pengirim: {currentSalesName || "Staff"}</div>
-                    <select value={feedbackSentiment} onChange={e=>setFeedbackSentiment(e.target.value as FeedbackItem["sentiment"])} className="w-full rounded-xl p-3 border bg-white text-slate-900">
+                    <select value={feedbackSentiment} onChange={e=>setFeedbackSentiment(e.target.value as FeedbackItem["sentiment"])} className="w-full rounded-xl p-3 border border-slate-300 bg-white text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:[color-scheme:dark]">
                       <option>Luar Biasa</option><option>Cukup Baik</option><option>Kecewa</option>
                     </select>
-                    <textarea value={feedbackText} maxLength={1500} onChange={e=>setFeedbackText(e.target.value)} placeholder="Tulis feedback atau masukan untuk tim..." className="w-full min-h-28 rounded-xl p-3 border bg-white text-slate-900"/>
-                    <button type="button" disabled={feedbackLoading || feedbackText.trim().length<5} onClick={()=>void submitFeedback()} className="px-5 py-3 bg-sky-600 text-white font-black rounded-xl disabled:opacity-50">Kirim Feedback</button>
+                    <textarea value={feedbackText} maxLength={1500} onChange={e=>setFeedbackText(e.target.value)} placeholder="Tulis feedback atau masukan untuk tim..." className="w-full min-h-28 rounded-xl p-3 border border-slate-300 bg-white text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-400"/>
+                    <button type="button" disabled={feedbackLoading || !currentSalesId || feedbackText.trim().length<5} onClick={()=>void submitFeedback()} className="px-5 py-3 bg-sky-600 text-white font-black rounded-xl disabled:opacity-50">Kirim Feedback</button>
                     {feedbackError && <p role="alert" className="text-red-600 text-sm">{feedbackError}</p>}
                   </div>
                   {currentSalesId===ADMIN_ID && (
