@@ -2529,80 +2529,50 @@ Indosat IM3 : ${isatText}`;
         </div>
       </aside>
 
-      {/* 2. DRAWER MOBILE */}
+      {/* 2. MOBILE NAVIGATION — compact iOS-inspired drawer; desktop unchanged */}
       {mobileDrawerOpen && (
-        <div
-          onClick={() => setMobileDrawerOpen(false)}
-          className="lg:hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 transition-opacity print:hidden"
-        />
+        <div onClick={() => setMobileDrawerOpen(false)} className="lg:hidden fixed inset-0 bg-slate-950/65 backdrop-blur-[5px] z-50 print:hidden" />
       )}
-
-      <div
-        className={`lg:hidden fixed top-0 bottom-0 left-0 w-72 max-w-[80vw] z-50 transform transition-transform duration-300 ease-in-out border-r backdrop-blur-2xl p-5 flex flex-col justify-between print:hidden ${glassSidebar} ${
-          mobileDrawerOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+      <aside
+        aria-label="Navigasi mobile Digiplus GI"
+        aria-hidden={!mobileDrawerOpen}
+        className={`lg:hidden fixed inset-y-0 left-0 w-[min(328px,88vw)] z-50 transform transition-transform duration-300 ease-out border-r flex flex-col overflow-hidden print:hidden ${isDark ? "bg-[#161b23] border-white/10" : "bg-[#f8fafc] border-slate-200"} ${mobileDrawerOpen ? "translate-x-0" : "-translate-x-full pointer-events-none"}`}
+        style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <div>
-          <div className="flex items-center justify-between pb-4 border-b border-inherit">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-sky-500 text-white font-black text-sm flex items-center justify-center shadow-sm">
-                QF01
-              </div>
-              <span className="font-black text-sm text-slate-950 dark:text-white">DIGIPLUS GI</span>
+        <div className="px-5 pt-5 pb-4 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-[#0a9fe8] text-white text-[15px] font-extrabold tracking-tight flex items-center justify-center">QF01</div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[15px] font-bold tracking-tight text-slate-950 dark:text-white">DIGIPLUS GI</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">Store dashboard</p>
             </div>
-            <button
-              onClick={() => setMobileDrawerOpen(false)}
-              className="w-8 h-8 rounded-full bg-slate-700/20 dark:bg-slate-700/30 flex items-center justify-center text-xs font-bold text-slate-950 dark:text-white"
-            >
-              ✕
-            </button>
+            <button aria-label="Tutup menu" onClick={() => setMobileDrawerOpen(false)} className="w-9 h-9 rounded-full bg-slate-200/80 dark:bg-white/10 text-slate-700 dark:text-slate-200 flex items-center justify-center text-lg active:scale-95">×</button>
           </div>
-
-          <nav className="mt-4 space-y-1.5 overflow-y-auto max-h-[60vh] pr-1 custom-scrollbar">
-            {mainNavItems.map((item) => {
-              const active = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setActiveTab(item.id as MenuTab);
-                    setMobileDrawerOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs transition-all active:scale-[0.98] ${
-                    active
-                      ? isDark
-                        ? "bg-sky-500/15 border border-sky-400/30 text-white font-black shadow-sm"
-                        : "bg-sky-50 border border-sky-200 text-sky-950 font-black shadow-sm"
-                      : "font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 border border-transparent"
-                  }`}
-                >
-                  <div className={`w-7 h-7 rounded-lg ${item.color} ${item.shadow} shadow-md flex items-center justify-center text-xs shrink-0 text-white`}>
-                    {item.icon}
-                  </div>
-                  <span className="truncate">{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
         </div>
-
-        <div className="pt-4 border-t border-inherit space-y-2">
-          <button
-            onClick={toggleTheme}
-            className={`w-full py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 ${
-              isDark ? "bg-white/5 border-white/10" : "bg-slate-200/80 border-slate-300 text-slate-950"
-            }`}
-          >
-            <span>{isDark ? "☀️ Mode Terang" : "🌙 Mode Gelap"}</span>
-          </button>
-          <button
-            onClick={handleLogout}
-            className="w-full py-2 px-3 rounded-xl bg-rose-500/10 text-rose-600 border border-rose-500/20 text-xs font-black flex items-center justify-center gap-2"
-          >
-            <span>🚪 Keluar</span>
-          </button>
+        <div className="px-5 pb-2 shrink-0"><p className="text-[10px] font-bold tracking-[0.14em] uppercase text-slate-400">Navigation</p></div>
+        <nav className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 pb-3 space-y-0.5 custom-scrollbar">
+          {mainNavItems.map(item => {
+            const active = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                aria-current={active ? "page" : undefined}
+                onClick={() => { setActiveTab(item.id as MenuTab); setMobileDrawerOpen(false); }}
+                className={`w-full min-h-[48px] flex items-center gap-3 px-3 py-2 rounded-2xl text-left transition-colors active:scale-[0.99] ${active ? "bg-sky-500/12 dark:bg-sky-400/15 text-sky-700 dark:text-sky-300" : "text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-white/5"}`}
+              >
+                <span className={`w-9 h-9 shrink-0 rounded-xl flex items-center justify-center text-[17px] ${active ? "bg-sky-500/15 dark:bg-sky-400/15" : "bg-slate-200/70 dark:bg-white/[0.07]"}`}>{item.icon}</span>
+                <span className={`flex-1 min-w-0 text-[13px] leading-tight ${active ? "font-bold" : "font-medium"}`}>{item.label}</span>
+                {active && <span className="w-1.5 h-1.5 rounded-full bg-sky-500 shrink-0" />}
+              </button>
+            );
+          })}
+        </nav>
+        <div className="shrink-0 px-4 pt-3 pb-4 border-t border-slate-200 dark:border-white/10 space-y-2">
+          <button onClick={toggleTheme} className="w-full min-h-[44px] rounded-xl bg-slate-200/70 dark:bg-white/[0.07] text-slate-800 dark:text-slate-200 text-[13px] font-semibold flex items-center justify-center gap-2">{isDark ? "☀️ Mode Terang" : "🌙 Mode Gelap"}</button>
+          <button onClick={handleLogout} className="w-full min-h-[44px] rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[13px] font-semibold flex items-center justify-center gap-2">🚪 Keluar</button>
         </div>
-      </div>
+      </aside>
 
       {/* 3. KONTEN UTAMA */}
       <div className="flex-1 flex flex-col min-w-0">
