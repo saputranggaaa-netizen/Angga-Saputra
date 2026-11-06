@@ -305,22 +305,17 @@ export default function DigiplusOperationalEngine() {
   }, [activityRows]);
 
   const recordAccess = async (salesId: string, salesName: string) => {
-    let location = "Tidak dibagikan";
-    let locationStatus = "Tidak diizinkan";
-    if (window.confirm("Izinkan pencatatan lokasi perkiraan saat login untuk Access Log? Pilih Batal untuk login tanpa lokasi.")) {
-      if (navigator.geolocation) {
-        try {
-          const position = await new Promise<GeolocationPosition>((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, {enableHighAccuracy:false, timeout:9000}));
-          location = position.coords.latitude.toFixed(2) + ", " + position.coords.longitude.toFixed(2);
-          locationStatus = "Diizinkan";
-        } catch { locationStatus = "Izin ditolak / lokasi tidak tersedia"; }
-      } else locationStatus = "Perangkat tidak mendukung lokasi";
-    }
     try {
-      await fetch("/api/access-log", { method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({salesId,salesName,location,locationStatus}) });
-    } catch { /* Optional log must not block login */ }
+      const response = await fetch("/api/access-log", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ salesId, salesName })
+      });
+      if (!response.ok) console.warn("Access Log tidak tersimpan (HTTP " + response.status + ")");
+    } catch {
+      console.warn("Access Log tidak dapat dihubungi");
+    }
   };
-
 
   // Live Spreadsheet Data & Targets
   const [transactions, setTransactions] = useState<RawTransaction[]>([]);
