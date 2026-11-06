@@ -216,6 +216,7 @@ export default function DigiplusOperationalEngine() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [salesIdInput, setSalesIdInput] = useState<string>("");
   const [passwordInput, setPasswordInput] = useState<string>("");
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [loginErr, setLoginErr] = useState<string>("");
   const [currentSalesId, setCurrentSalesId] = useState<string>("");
   const [currentSalesName, setCurrentSalesName] = useState<string>("");
@@ -2391,57 +2392,38 @@ Indosat IM3 : ${isatText}`;
 
   if (!isLoggedIn) {
     return (
-      <div className={`min-h-screen ${bgMain} flex items-center justify-center p-4 ${textMain} font-sans overflow-x-hidden w-full max-w-full`}>
-        <div className={`max-w-md w-full ${cardBg} border-2 rounded-3xl p-6 md:p-8 shadow-2xl`}>
-          <div className="text-center mb-6 flex flex-col items-center justify-center">
-            <img 
-              src="/apple-touch-icon.png" 
-              alt="Logo Digiplus" 
-              className="w-16 h-16 object-contain rounded-2xl bg-white p-1 shadow-md mb-2"
-            />
-            <h2 className="font-black text-3xl tracking-wider mb-1 text-slate-950 dark:text-white">
-              QF01
-            </h2>
-            <h1 className="text-xl font-black text-slate-950 dark:text-white">DIGIPLUS GRAND INDONESIA</h1>
-            <p className={`text-xs ${accentText} mt-1 uppercase tracking-widest`}>PORTAL DASHBOARD SALES</p>
+      <div className={`relative flex min-h-[100dvh] w-full items-center justify-center overflow-hidden px-4 py-10 font-sans antialiased transition-colors duration-500 ${isDark ? "bg-[#030e27] text-white" : "bg-[#f6f9ff] text-slate-950"}`}>
+        <div aria-hidden="true" className={`pointer-events-none absolute -left-28 -top-36 h-[26rem] w-[26rem] rounded-full blur-3xl ${isDark ? "bg-blue-700/25" : "bg-blue-200/60"}`} />
+        <div aria-hidden="true" className={`pointer-events-none absolute -bottom-44 -right-28 h-[32rem] w-[32rem] rounded-full blur-3xl ${isDark ? "bg-sky-600/20" : "bg-sky-200/60"}`} />
+        <div className="relative z-10 w-full max-w-[460px]">
+          <div className="mb-7 flex flex-col items-center text-center">
+            <div className={`mb-5 flex h-20 w-20 items-center justify-center overflow-hidden rounded-[24px] p-2 shadow-xl ${isDark ? "bg-white shadow-blue-950/40" : "bg-white shadow-slate-300/50"}`}>
+              <img src="/apple-touch-icon.png" alt="Logo Digiplus" className="h-full w-full object-contain" />
+            </div>
+            <div className="mb-1 text-3xl font-black tracking-tight text-blue-600 dark:text-sky-400">QF01</div>
+            <h1 className="text-lg font-extrabold tracking-tight sm:text-xl">DIGIPLUS GRAND INDONESIA</h1>
+            <p className={`mt-2 text-[11px] font-semibold uppercase tracking-[0.25em] ${isDark ? "text-slate-400" : "text-slate-500"}`}>Sales Performance Portal</p>
           </div>
-          
-          <form onSubmit={handleLogin} className="space-y-4 font-bold">
-            <div>
-              <label className="text-xs font-black uppercase tracking-wider block text-slate-900 dark:text-slate-100">Sales ID / NIK Karyawan</label>
-              <input
-                type="text"
-                required
-                placeholder="Contoh: 24004971 atau 22008089"
-                value={salesIdInput}
-                onChange={(e) => setSalesIdInput(e.target.value)}
-                className={`w-full mt-1.5 px-4 py-3 rounded-xl ${innerBg} border text-sm font-semibold focus:outline-none text-slate-950 dark:text-white`}
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-black uppercase tracking-wider block text-slate-900 dark:text-slate-100">Kata Sandi</label>
-              <input
-                type="password"
-                required
-                placeholder="Welcome@123"
-                value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                className={`w-full mt-1.5 px-4 py-3 rounded-xl ${innerBg} border text-sm font-semibold focus:outline-none text-slate-950 dark:text-white`}
-              />
-            </div>
-
-            {loginErr && (
-              <p className="text-xs text-rose-600 font-black">{loginErr}</p>
-            )}
-
-            <button
-              type="submit"
-              className={`w-full py-3.5 ${isDark ? "bg-sky-500 text-white" : "bg-blue-600 text-white"} font-black rounded-xl text-xs uppercase tracking-wider transition mt-2 shadow-lg`}
-            >
-              Masuk Dashboard
-            </button>
-          </form>
+          <div className={`rounded-[30px] border px-6 py-8 shadow-2xl backdrop-blur-xl sm:px-9 sm:py-10 ${isDark ? "border-sky-400/25 bg-[#0d1e3c]/85 shadow-black/25" : "border-white bg-white/90 shadow-blue-950/10"}`}>
+            <h2 className="text-2xl font-extrabold tracking-tight">Selamat Datang,</h2>
+            <p className={`mb-7 mt-1 text-sm ${isDark ? "text-slate-300" : "text-slate-500"}`}>Masuk untuk mengakses dashboard penjualan.</p>
+            <form onSubmit={handleLogin} className="space-y-5">
+              <div>
+                <label htmlFor="login-sales-id" className="mb-2 block text-sm font-semibold">Sales ID / NIK Karyawan</label>
+                <input id="login-sales-id" type="text" inputMode="numeric" autoComplete="username" required value={salesIdInput} onChange={(e)=>setSalesIdInput(e.target.value)} placeholder="Masukkan Sales ID" className={`w-full rounded-2xl border px-4 py-3.5 text-base font-medium outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 ${isDark ? "border-slate-600 bg-slate-800/80 text-white placeholder:text-slate-400" : "border-slate-200 bg-slate-50 text-slate-950 placeholder:text-slate-400"}`} />
+              </div>
+              <div>
+                <label htmlFor="login-password" className="mb-2 block text-sm font-semibold">Kata Sandi</label>
+                <div className="relative">
+                  <input id="login-password" type={showLoginPassword ? "text" : "password"} autoComplete="current-password" required value={passwordInput} onChange={(e)=>setPasswordInput(e.target.value)} placeholder="Masukkan kata sandi" className={`w-full rounded-2xl border px-4 py-3.5 pr-20 text-base font-medium outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 ${isDark ? "border-slate-600 bg-slate-800/80 text-white placeholder:text-slate-400" : "border-slate-200 bg-slate-50 text-slate-950 placeholder:text-slate-400"}`} />
+                  <button type="button" onClick={()=>setShowLoginPassword(v=>!v)} aria-label={showLoginPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"} className={`absolute inset-y-0 right-3 my-auto rounded-lg px-2 text-xs font-bold ${isDark ? "text-sky-300 hover:text-white" : "text-blue-700 hover:text-blue-900"}`}>{showLoginPassword ? "Sembunyikan" : "Lihat"}</button>
+                </div>
+              </div>
+              {loginErr && <p role="alert" className="rounded-xl bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-600 dark:text-red-300">{loginErr}</p>}
+              <button type="submit" className="flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-4 text-sm font-extrabold text-white shadow-lg shadow-blue-700/20 transition hover:from-blue-500 hover:to-blue-600 active:scale-[0.99]">Masuk Dashboard <span aria-hidden="true">→</span></button>
+            </form>
+          </div>
+          <p className={`mt-7 text-center text-[10px] font-semibold uppercase tracking-[0.2em] ${isDark ? "text-slate-500" : "text-slate-400"}`}>Digiplus Grand Indonesia · QF01</p>
         </div>
       </div>
     );
