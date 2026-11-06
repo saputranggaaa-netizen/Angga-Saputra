@@ -1556,7 +1556,23 @@ export default function DigiplusOperationalEngine() {
     const names=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
     const selectedIdx=names.findIndex(n=>selectedMonth.toLowerCase().startsWith(n.toLowerCase()));
     const selectedPrefix=selectedIdx>=0?selectedMonth.slice(-4)+"-"+String(selectedIdx+1).padStart(2,"0"):"";
-    const filtered=bnplRecords.filter(b=>{
+    // Resolve missing product descriptions in the WEBSITE, not only the PPTX export.
+    const invoiceKey=(v:unknown)=>String(v??"").replace(/[^0-9A-Za-z]/g,"").toUpperCase();
+    const productsByInvoice=new Map<string,Set<string>>();
+    transactions.forEach(t=>{
+      const key=invoiceKey(t.invoice);
+      const product=String(t.productName||"").trim();
+      if(!key||!product)return;
+      if(!productsByInvoice.has(key))productsByInvoice.set(key,new Set());
+      productsByInvoice.get(key)!.add(product);
+    });
+    const enrichedBnpl=bnplRecords.map(b=>({
+      ...b,
+      product:String(b.product||"").trim() ||
+        [...(productsByInvoice.get(invoiceKey(b.invoice))||[])].join(" ; ") ||
+        "Produk belum teridentifikasi (Invoice "+b.invoice+")"
+    }));
+    const filtered=enrichedBnpl.filter(b=>{
       const iso=parseNormalizedDate(b.date,b.month).isoDate;
       if(selectedPrefix && !iso.startsWith(selectedPrefix))return false;
       if(periodType==="daily")return iso===selectedDate;
