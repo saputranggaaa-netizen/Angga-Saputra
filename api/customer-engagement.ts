@@ -16,14 +16,14 @@ async function token(){
  const signer=createSign("RSA-SHA256");signer.update(jwt);signer.end();
  const assertion=jwt+"."+signer.sign(account.private_key).toString("base64url");
  const r=await fetch("https://oauth2.googleapis.com/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({grant_type:"urn:ietf:params:oauth:grant-type:jwt-bearer",assertion})});
- const d=await r.json();if(!r.ok)throw Error("Google OAuth failed");
+ const rawResponse=await r.text();let d:any;try{d=JSON.parse(rawResponse)}catch{throw Error("Google OAuth mengembalikan HTML/non-JSON (HTTP "+r.status+", content-type "+(r.headers.get("content-type")||"unknown")+"). Periksa konfigurasi akses Google OAuth di Vercel.")}if(!r.ok)throw Error("Google OAuth HTTP "+r.status+": "+(d.error_description||d.error||"authentication failed"));
  cached={token:d.access_token,until:Date.now()+Math.max(60,d.expires_in-120)*1000};return cached.token;
 }
 async function sheets(method:string,range:string,body?:any,extra=""){
  const auth=await token();
  const url="https://sheets.googleapis.com/v4/spreadsheets/"+spreadsheet+"/values/"+encodeURIComponent(range)+extra;
  const r=await fetch(url,{method,headers:{Authorization:"Bearer "+auth,"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});
- const d=await r.json();if(!r.ok)throw Error("Google Sheets API "+r.status+": "+(d.error?.message||"request failed"));return d;
+ const rawResponse=await r.text();let d:any;try{d=JSON.parse(rawResponse)}catch{throw Error("Google Sheets API mengembalikan HTML/non-JSON (HTTP "+r.status+", content-type "+(r.headers.get("content-type")||"unknown")+").")}if(!r.ok)throw Error("Google Sheets API "+r.status+": "+(d.error?.message||"request failed"));return d;
 }
 async function allRows(){
  const d=await sheets("GET",tab+"!A1:J");
