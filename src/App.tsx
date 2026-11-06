@@ -217,6 +217,12 @@ export default function DigiplusOperationalEngine() {
   const [salesIdInput, setSalesIdInput] = useState<string>("");
   const [passwordInput, setPasswordInput] = useState<string>("");
   const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
+  useEffect(() => {
+    if (!showWelcome) return;
+    const timer = window.setTimeout(() => setShowWelcome(false), 2200);
+    return () => window.clearTimeout(timer);
+  }, [showWelcome]);
   const [loginErr, setLoginErr] = useState<string>("");
   const [currentSalesId, setCurrentSalesId] = useState<string>("");
   const [currentSalesName, setCurrentSalesName] = useState<string>("");
@@ -733,7 +739,7 @@ export default function DigiplusOperationalEngine() {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordInput !== "Welcome@123") {
-      setLoginErr("Password salah! Gunakan: Welcome@123");
+      setLoginErr("Kata sandi tidak sesuai.");
       return;
     }
     const cleanId = salesIdInput.trim();
@@ -755,6 +761,7 @@ export default function DigiplusOperationalEngine() {
     setCurrentSalesId(cleanId);
     setCurrentSalesName(detectedName);
     setIsLoggedIn(true);
+    setShowWelcome(true);
     setLoginErr("");
     void recordAccess(cleanId, detectedName);
   };
@@ -763,6 +770,7 @@ export default function DigiplusOperationalEngine() {
     localStorage.removeItem("digi_ops_user");
     localStorage.removeItem("digi_ops_name");
     setIsLoggedIn(false);
+    setShowWelcome(false);
     setCurrentSalesId("");
     setCurrentSalesName("");
   };
@@ -2389,6 +2397,26 @@ Indosat IM3 : ${isatText}`;
       </div>
     );
   };
+
+  if (isLoggedIn && showWelcome) {
+    return (
+      <div role="status" aria-live="polite" className={`relative flex min-h-[100dvh] w-full items-center justify-center overflow-hidden px-5 font-sans ${isDark ? "bg-[#030e27] text-white" : "bg-[#f6f9ff] text-slate-950"}`}>
+        <div aria-hidden="true" className={`absolute h-80 w-80 animate-pulse rounded-full blur-3xl ${isDark ? "bg-blue-600/25" : "bg-sky-300/40"}`} />
+        <div className="relative z-10 flex w-full max-w-md flex-col items-center text-center motion-safe:animate-[fadeIn_.5s_ease-out]">
+          <div className="mb-7 flex h-24 w-24 items-center justify-center rounded-[28px] bg-white p-3 shadow-2xl shadow-blue-500/15 motion-safe:animate-bounce">
+            <img src="/apple-touch-icon.png" alt="Digiplus" className="h-full w-full object-contain" />
+          </div>
+          <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-3xl font-bold text-white shadow-lg shadow-emerald-500/25">✓</div>
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.3em] text-sky-500 dark:text-sky-400">Login Berhasil</p>
+          <h1 className="max-w-full break-words text-3xl font-extrabold tracking-tight sm:text-4xl">Welcome Back,</h1>
+          <h2 className="mt-2 max-w-full break-words text-2xl font-bold text-blue-600 dark:text-sky-400 sm:text-3xl">{currentSalesName} 👋</h2>
+          <p className={`mt-5 text-sm ${isDark ? "text-slate-300" : "text-slate-500"}`}>Ready to achieve more today?</p>
+          <div className="mt-8 h-1 w-44 overflow-hidden rounded-full bg-slate-300/40"><div className="h-full w-full origin-left animate-[pulse_1s_ease-in-out_infinite] rounded-full bg-blue-500" /></div>
+          <button type="button" onClick={()=>setShowWelcome(false)} className="mt-6 text-xs font-semibold text-slate-500 underline underline-offset-4 dark:text-slate-400">Lewati animasi</button>
+        </div>
+      </div>
+    );
+  }
 
   if (!isLoggedIn) {
     return (
