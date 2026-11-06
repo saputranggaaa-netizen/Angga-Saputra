@@ -21,7 +21,7 @@ async function token(){
 }
 async function sheets(method:string,range:string,body?:any,extra=""){
  const auth=await token();
- const url="https://sheets.googleapis.com/v4/spreadsheets/"+spreadsheet+"/values/"+encodeURIComponent(range)+extra;
+ const url="https://sheets.googleapis.com/v4/spreadsheets/"+spreadsheet+"/values/"+encodeURIComponent(range)+(method==="POST"?":append":"")+extra;
  const r=await fetch(url,{method,headers:{Authorization:"Bearer "+auth,"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});
  const rawResponse=await r.text();let d:any;try{d=JSON.parse(rawResponse)}catch{throw Error("Google Sheets API mengembalikan HTML/non-JSON (HTTP "+r.status+", content-type "+(r.headers.get("content-type")||"unknown")+").")}if(!r.ok)throw Error("Google Sheets API "+r.status+": "+(d.error?.message||"request failed"));return d;
 }
