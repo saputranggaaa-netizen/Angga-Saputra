@@ -2018,7 +2018,18 @@ Indosat IM3 : ${isatText}`;
       // Slide 7: BNPL tender, quantity, amount, product and contribution.
       {
         const slide = makeSlide("BNPL • TENDER & PRODUCT CONTRIBUTION", "BNPL DATABASE • MTD " + currentPrefix + "-01 s/d " + cutoff + " • nominal, qty, dan kontribusi tender.");
-        const dated = bnplRecords.map(b => ({ ...b, iso: parseNormalizedDate(b.date, b.month).isoDate }));
+        // BNPL source may omit product name; resolve from sales DATABASE by invoice.
+        // Keep explicit "Not mapped" if no matching sales invoice exists.
+        const salesByInvoice = new Map<string, string>();
+        transactions.forEach(t => {
+          const key = String(t.invoice || "").trim().toUpperCase();
+          if (key && t.productName && !salesByInvoice.has(key)) salesByInvoice.set(key, t.productName);
+        });
+        const dated = bnplRecords.map(b => ({
+          ...b,
+          product: b.product?.trim() || salesByInvoice.get(String(b.invoice || "").trim().toUpperCase()) || "Not mapped",
+          iso: parseNormalizedDate(b.date, b.month).isoDate
+        }));
         const bnpl = dated.filter(b => b.iso >= currentPrefix + "-01" && b.iso <= cutoff);
         const priorBnpl = dated.filter(b => b.iso >= previousPrefix + "-01" && b.iso <= priorCutoff);
         const bnplAmount = bnpl.reduce((n, b) => n + b.amount, 0);
