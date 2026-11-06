@@ -21,7 +21,8 @@ type MenuTab =
   | "product-search"
   | "qoala-ar"
   | "mom-comparison"
-  | "est-incentive";
+  | "est-incentive"
+  | "customer-engagement";
 
 type ThemeMode = "dark" | "light";
 type PeriodType = "daily" | "weekly" | "monthly";
@@ -324,6 +325,18 @@ export default function DigiplusOperationalEngine() {
   // Live Spreadsheet Data & Targets
   const [transactions, setTransactions] = useState<RawTransaction[]>([]);
   const [bnplRecords, setBnplRecords] = useState<BnplRecord[]>([]);
+  const [engRows,setEngRows]=useState<any[]>([]);
+  const [engStaff,setEngStaff]=useState("");
+  const [engCategory,setEngCategory]=useState("CX");
+  const [engQty,setEngQty]=useState("1");
+  const [engDate,setEngDate]=useState(()=>new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()));
+  const [engPeriod,setEngPeriod]=useState("month");
+  const [engError,setEngError]=useState("");
+  const [engBusy,setEngBusy]=useState(false);
+  const [engPassword,setEngPassword]=useState("");
+  const loadEng=async()=>{try{const r=await fetch("/api/customer-engagement",{cache:"no-store"});const d=await r.json();if(!r.ok)throw Error(d.error);setEngRows(d.rows||[]);setEngError("");}catch(e){setEngError(String(e))}};
+  useEffect(()=>{if(activeTab==="customer-engagement")void loadEng()},[activeTab]);
+
   const [expandedSupplierDetails, setExpandedSupplierDetails] = useState<Record<string,boolean>>({});
   const [expandedBnplTenders, setExpandedBnplTenders] = useState<Record<string,boolean>>({});
   const [storeTotalTarget, setStoreTotalTarget] = useState<number>(0);
@@ -2218,6 +2231,7 @@ Indosat IM3 : ${isatText}`;
     { id: "qoala-ar", label: "Qoala Protection (AR %)", icon: "🛡️", color: "bg-rose-500", shadow: "shadow-rose-500/30" },
     { id: "mom-comparison", label: "MoM Growth Analysis", icon: "⚖️", color: "bg-indigo-500", shadow: "shadow-indigo-500/30" },
     { id: "est-incentive", label: "Est. Incentive", icon: "💰", color: "bg-emerald-500", shadow: "shadow-emerald-500/30" },
+    { id: "customer-engagement", label: "Customer Engagement", icon: "🤝", color: "bg-sky-500", shadow: "shadow-sky-500/30" },
     { id: "staff-performance", label: "Staff Performance", icon: "🏆", color: "bg-amber-500", shadow: "shadow-amber-500/30" },
     { id: "daily-target", label: "Daily Target & Run Rate", icon: "🎯", color: "bg-orange-500", shadow: "shadow-orange-500/30" },
     { id: "brand-focus", label: "Brand Focus", icon: "🏷️", color: "bg-amber-500", shadow: "shadow-amber-500/30" },
@@ -3437,7 +3451,28 @@ Indosat IM3 : ${isatText}`;
                 </div>
               )}
 
-              {/* EST. INCENTIVE V2 — finance-blue responsive dashboard, sourced from DATABASE R:V. */}
+              {/* CUSTOMER ENGAGEMENT TRACKER */}
+{activeTab==="customer-engagement"&&(()=>{
+const people=new Map<string,string>();transactions.forEach(t=>{if(t.salesId&&t.salesName)people.set(t.salesId,t.salesName)});
+const now=new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+const from=engPeriod==="today"?now:engPeriod==="week"?(()=>{const d=new Date(now+"T12:00:00Z");d.setUTCDate(d.getUTCDate()-((d.getUTCDay()+6)%7));return d.toISOString().slice(0,10)})():now.slice(0,7)+"-01";
+const within=(d:string)=>d>=from&&d<=now;
+const rows=engRows.filter(r=>within(r.date)),sales=transactions.filter(t=>within(t.isoDate));
+const cats=["CX","New Member","Google Review"];
+const sums=cats.map(c=>rows.filter(r=>r.category===c).reduce((n,r)=>n+Number(r.qty||0),0));
+const invoices=new Map<string,Set<string>>();sales.forEach(t=>{if(!t.invoice?.trim())return;if(!invoices.has(t.salesId))invoices.set(t.salesId,new Set());invoices.get(t.salesId)!.add(t.invoice.trim().toUpperCase())});
+const grand=new Set(sales.map(t=>t.invoice?.trim().toUpperCase()).filter(Boolean)).size;
+const staff=[...new Set([...invoices.keys(),...rows.map(r=>r.salesId)])].filter(Boolean).map(id=>({id,name:people.get(id)||rows.find(r=>r.salesId===id)?.salesName||id,invoice:invoices.get(id)?.size||0,values:cats.map(c=>rows.filter(r=>r.salesId===id&&r.category===c).reduce((n,r)=>n+Number(r.qty||0),0))})).sort((a,b)=>b.invoice-a.invoice);
+const save=async(e:React.FormEvent)=>{e.preventDefault();setEngBusy(true);try{const r=await fetch("/api/customer-engagement",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({date:engDate,salesId:engStaff,salesName:people.get(engStaff),category:engCategory,qty:Number(engQty),enteredBy:currentSalesId})});const d=await r.json();if(!r.ok)throw Error(d.error);setEngQty("1");await loadEng()}catch(e){setEngError(String(e))}finally{setEngBusy(false)}};
+const remove=async(id:string)=>{if(!window.confirm("Hapus aktivitas ini?"))return;setEngBusy(true);try{const r=await fetch("/api/customer-engagement",{method:"DELETE",headers:{"Content-Type":"application/json","x-admin-access-password":engPassword},body:JSON.stringify({id})});const d=await r.json();if(!r.ok)throw Error(d.error);await loadEng()}catch(e){setEngError(String(e))}finally{setEngBusy(false)}};
+return <div className="space-y-5">
+<div className={`rounded-3xl border p-5 ${cardBg}`}><h2 className="text-2xl font-bold">Customer Engagement Tracker</h2><p className="opacity-70 text-sm">Manual CX · New Member · Google Review vs unique invoices</p><div className="flex gap-2 mt-4">{[["today","Today"],["week","This Week"],["month","MTD"]].map(([v,l])=><button key={v} onClick={()=>setEngPeriod(v)} className={`px-4 py-2 rounded-xl border ${engPeriod===v?"bg-blue-600 text-white":""}`}>{l}</button>)}</div></div>
+<div className="grid grid-cols-2 xl:grid-cols-4 gap-3">{[["Unique Invoice",grand],...cats.map((c,i)=>[c,sums[i]])].map(([label,value])=><div key={label} className={`rounded-2xl border p-4 ${cardBg}`}><p className="opacity-70 text-sm">{label}</p><p className="text-3xl font-bold mt-2">{value}</p></div>)}</div>
+<form onSubmit={save} className={`rounded-3xl border p-5 space-y-4 ${cardBg}`}><h3 className="text-xl font-bold">Manual Input</h3><div className="grid md:grid-cols-2 gap-3"><label>Activity Date<input type="date" required value={engDate} onChange={e=>setEngDate(e.target.value)} className="block w-full p-3 rounded-xl text-gray-900"/></label><label>Staff<select required value={engStaff} onChange={e=>setEngStaff(e.target.value)} className="block w-full p-3 rounded-xl text-gray-900"><option value="">Pilih staff</option>{[...people.entries()].sort((a,b)=>a[1].localeCompare(b[1])).map(([id,name])=><option key={id} value={id}>{name} · {id}</option>)}</select></label><label>Category<select value={engCategory} onChange={e=>setEngCategory(e.target.value)} className="block w-full p-3 rounded-xl text-gray-900">{cats.map(c=><option key={c}>{c}</option>)}</select></label><label>Qty<input type="number" min="1" max="10000" required value={engQty} onChange={e=>setEngQty(e.target.value)} className="block w-full p-3 rounded-xl text-gray-900"/></label></div><button disabled={engBusy||!currentSalesId} type="submit" className="bg-blue-600 text-white px-5 py-3 rounded-xl disabled:opacity-50">{engBusy?"Menyimpan...":"Simpan Aktivitas"}</button>{engError&&<p role="alert" className="text-rose-500 text-sm">{engError}</p>}</form>
+<div className={`rounded-3xl border p-5 overflow-x-auto ${cardBg}`}><h3 className="text-xl font-bold mb-3">Staff Performance · COUNTUNIQUE Invoice</h3><table className="w-full text-sm"><thead><tr><th className="p-2 text-left">Staff</th><th className="p-2">Invoice</th>{cats.map(c=><th className="p-2" key={c}>{c}</th>)}</tr></thead><tbody>{staff.map(r=><tr key={r.id} className="border-t border-gray-500/20"><td className="p-2">{r.name}</td><td className="p-2 text-center">{r.invoice}</td>{r.values.map((v,i)=><td className="p-2 text-center" key={i}>{v}</td>)}</tr>)}<tr className="font-bold border-t"><td className="p-2">GRAND TOTAL</td><td className="p-2 text-center">{grand}</td>{sums.map((v,i)=><td className="p-2 text-center" key={i}>{v}</td>)}</tr></tbody></table><p className="opacity-60 text-xs mt-3">Grand total invoice dihitung unik untuk seluruh store.</p></div>
+<div className={`rounded-3xl border p-5 overflow-x-auto ${cardBg}`}><h3 className="text-xl font-bold mb-3">Riwayat Input</h3>{currentSalesId===ADMIN_ID&&<input type="password" placeholder="Admin password untuk hapus" value={engPassword} onChange={e=>setEngPassword(e.target.value)} className="p-2 rounded-xl text-gray-900 mb-3"/>}<table className="w-full text-sm"><thead><tr><th>Date</th><th>Staff</th><th>Category</th><th>Qty</th>{currentSalesId===ADMIN_ID&&<th>Action</th>}</tr></thead><tbody>{rows.map(r=><tr key={r.id} className="border-t border-gray-500/20"><td className="p-2">{r.date}</td><td className="p-2">{r.salesName}</td><td className="p-2">{r.category}</td><td className="p-2 text-center">{r.qty}</td>{currentSalesId===ADMIN_ID&&<td className="p-2"><button className="text-rose-500" onClick={()=>void remove(r.id)}>Hapus</button></td>}</tr>)}</tbody></table></div>
+</div>})()}
+{/* EST. INCENTIVE V2 — finance-blue responsive dashboard, sourced from DATABASE R:V. */}
               {activeTab === "est-incentive" && (() => {
                 const labels = ["Apple", "3rd Party", "Android", "Qoala", "Accessories"];
                 const colors = ["#0B3D91", "#1266D6", "#3293E6", "#74B6EF", "#C3DFF8"];
