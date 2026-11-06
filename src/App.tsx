@@ -635,9 +635,9 @@ export default function DigiplusOperationalEngine() {
         const idx=m?monthNames.findIndex(n=>n.toLowerCase()===m[1].toLowerCase()):-1;
         return idx>=0?monthNames[idx]+m![2]:"";
       };
-      const targetMonth=rows.map((r:any)=>normalizeMonth(cellText(r.c||[],columns.month))).find(Boolean) || "";
       const currentMonth=new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit"}).format(new Date());
       const currentMonthKey=monthNames[Number(currentMonth.slice(5,7))-1]+currentMonth.slice(0,4);
+      const targetMonth=rows.map((r:any)=>normalizeMonth(cellText(r.c||[],columns.month))).find((m:string)=>m===currentMonthKey) || "";
       const validMonth=Boolean(targetMonth);
       let parsedGrandTotal=0;
       rows.forEach((r:any)=>{
@@ -663,6 +663,11 @@ export default function DigiplusOperationalEngine() {
         targetMap[key]=perCategory.total || 0;
       });
       if(!parsedGrandTotal)parsedGrandTotal=Object.values(targetMap).reduce((a,b)=>a+b,0);
+      for(const cat of Object.keys(columns)){
+        if(cat==="month"||cat==="staff")continue;
+        if(!categoryTotals[cat])categoryTotals[cat]=Object.values(categoryByStaff).reduce((sum,targets)=>sum+(targets[cat]||0),0);
+      }
+      if(!categoryTotals.total)categoryTotals.total=parsedGrandTotal;
       setTargetSheetMonth(targetMonth);
       setStoreTotalTarget(validMonth?parsedGrandTotal:0);
       setStaffTargets(validMonth?targetMap:{});
@@ -1049,7 +1054,7 @@ export default function DigiplusOperationalEngine() {
     const monthLabel=monthNames[Number(month.slice(5,7))-1]+month.slice(0,4);
     const days=new Date(Number(month.slice(0,4)),Number(month.slice(5,7)),0).getDate();
     const day=Number(today.slice(8,10));
-    const valid=targetSheetMonth===monthLabel;
+    const valid=targetSheetMonth===monthLabel && (storeTotalTarget>0 || Object.values(categoryTargets).some(v=>v>0));
     const rows=transactions.filter(t=>t.isoDate.startsWith(month)&&t.isoDate<=today);
     const category=(t:RawTransaction)=>{
       const p=(t.productName||"").toUpperCase(),brand=(t.brand||"").toUpperCase(),group=(t.groupCategory||"").toUpperCase();
@@ -1082,8 +1087,8 @@ export default function DigiplusOperationalEngine() {
     rows.forEach(t=>{const id=t.salesId||t.salesName;if(!id)return;const x=byStaff.get(id)||{id,name:t.salesName||"Sales "+id,amount:0};x.amount+=t.amount;byStaff.set(id,x)});
     const staff=[...byStaff.values()].sort((a,b)=>b.amount-a.amount);
     const categoryRows=[["iPhone","iphone"],["iPad","ipad"],["Mac","macbook"],["Apple Watch","applewatch"],["AirPods","airpods"],["Samsung","samsung"],["Oppo","oppo"],["Xiaomi","xiaomi"],["Huawei","huawei"],["Motorola","motorola"],["Infinix","infinix"],["Qoala","qoala"],["Telkomsel","telkomsel"],["Indosat","indosat"],["XL","xl"]];
-    return {today,monthLabel,day,days,valid,actual,apple,android,accessories,vas,staff,totals,categoryRows,targets:valid?categoryTargets:{},staffTargets:valid?staffTargets:{}};
-  },[transactions,targetSheetMonth,categoryTargets,staffTargets]);
+    return {today,monthLabel,day,days,valid,actual,apple,android,accessories,vas,staff,totals,categoryRows,targets:valid?{...categoryTargets,total:categoryTargets.total||storeTotalTarget}:{},staffTargets:valid?staffTargets:{}};
+  },[transactions,targetSheetMonth,categoryTargets,staffTargets,storeTotalTarget]);
   const staffList = useMemo(() => {
     const map: Record<string, {
       salesId: string;
@@ -2921,7 +2926,7 @@ Indosat IM3 : ${isatText}`;
                   <div className="text-center text-sm font-black text-slate-950 dark:text-white">TARGET THIS MONTH — TIME GONE: {Math.round(whiteboard.day/whiteboard.days*100)}%</div>
                   <div className="overflow-x-auto"><table className="w-full min-w-[700px] text-sm text-slate-950 dark:text-white">
                     <thead><tr><th className="p-3 text-left">METRIC</th>{["VALUE","APPLE","ANDROID","ACCESSORIES","VAS"].map(x=><th key={x} className="p-3 text-right">{x} (Rp)</th>)}</tr></thead>
-                    <tbody>{[["TARGET",["total","apple","android","accessories","vas"].map(k=>whiteboard.valid?(whiteboard.targets[k]||0):null)],["ACHIEVEMENT",[whiteboard.actual,whiteboard.apple,whiteboard.android,whiteboard.accessories,whiteboard.vas]],["ACHIEVEMENT %",["total","apple","android","accessories","vas"].map((k,i)=>whiteboard.valid&&whiteboard.targets[k]>0?[whiteboard.actual,whiteboard.apple,whiteboard.android,whiteboard.accessories,whiteboard.vas][i]/whiteboard.targets[k]*100:null)],["VARIANCE",["total","apple","android","accessories","vas"].map((k,i)=>whiteboard.valid?[whiteboard.actual,whiteboard.apple,whiteboard.android,whiteboard.accessories,whiteboard.vas][i]-(whiteboard.targets[k]||0):null)]].map(([label,values]:any)=><tr key={label} className="border-t border-slate-300 dark:border-slate-700"><td className="p-3 font-bold">{label}</td>{values.map((v:number|null,i:number)=><td key={i} className={`p-3 text-right font-semibold ${label==="VARIANCE"&&v!==null&&v<0?"text-rose-600 dark:text-rose-400":label==="ACHIEVEMENT"?"text-blue-600 dark:text-sky-400":""}`}>{v===null?"—":label==="ACHIEVEMENT %"?v.toFixed(1)+"%":formatIDR(v)}</td>)}</tr>)}</tbody>
+                    <tbody>{[["TARGET",["total","apple","android","accessories","vas"].map(k=>whiteboard.valid&&whiteboard.targets[k]>0?whiteboard.targets[k]:null)],["ACHIEVEMENT",[whiteboard.actual,whiteboard.apple,whiteboard.android,whiteboard.accessories,whiteboard.vas]],["ACHIEVEMENT %",["total","apple","android","accessories","vas"].map((k,i)=>whiteboard.valid&&whiteboard.targets[k]>0?[whiteboard.actual,whiteboard.apple,whiteboard.android,whiteboard.accessories,whiteboard.vas][i]/whiteboard.targets[k]*100:null)],["VARIANCE",["total","apple","android","accessories","vas"].map((k,i)=>whiteboard.valid&&whiteboard.targets[k]>0?[whiteboard.actual,whiteboard.apple,whiteboard.android,whiteboard.accessories,whiteboard.vas][i]-whiteboard.targets[k]:null)]].map(([label,values]:any)=><tr key={label} className="border-t border-slate-300 dark:border-slate-700"><td className="p-3 font-bold">{label}</td>{values.map((v:number|null,i:number)=><td key={i} className={`p-3 text-right font-semibold ${label==="VARIANCE"&&v!==null&&v<0?"text-rose-600 dark:text-rose-400":label==="ACHIEVEMENT"?"text-blue-600 dark:text-sky-400":""}`}>{v===null?"—":label==="ACHIEVEMENT %"?v.toFixed(1)+"%":formatIDR(v)}</td>)}</tr>)}</tbody>
                   </table></div>
                   <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
                     <section className="rounded-2xl border border-slate-300 p-4 dark:border-slate-700 xl:col-span-1">
