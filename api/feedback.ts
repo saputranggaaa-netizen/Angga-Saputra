@@ -35,11 +35,11 @@ export default async function handler(req:any,res:any){
  try{
   if(req.method==="GET"){
    const rows=(await allRows()).filter((r:any)=>r.status!=="Deleted").sort((a:any,b:any)=>String(b.createdAt).localeCompare(String(a.createdAt)));
-   return res.status(200).json({feedbacks:rows.map((r:any)=>({...r,salesRole:"Staff",initials:r.salesName.split(/\\s+/).slice(0,2).map((w:string)=>w[0]||"").join("").toUpperCase(),timestamp:new Intl.DateTimeFormat("id-ID",{dateStyle:"medium",timeStyle:"short",timeZone:"Asia/Jakarta"}).format(new Date(r.createdAt)),reactions:{thumbsUp:0,heart:0,fire:0,thumbsDown:0,sad:0},userReactions:[]}))});
+   return res.status(200).json({feedbacks:rows.map((r:any)=>({...r,salesRole:"Staff",initials:r.salesName.split(/\s+/).slice(0,2).map((w:string)=>w[0]||"").join("").toUpperCase(),timestamp:new Intl.DateTimeFormat("id-ID",{dateStyle:"medium",timeStyle:"short",timeZone:"Asia/Jakarta"}).format(new Date(r.createdAt)),reactions:{thumbsUp:0,heart:0,fire:0,thumbsDown:0,sad:0},userReactions:[]}))});
   }
   if(req.method==="POST"){
    const {salesId,salesName,sentiment,text}=req.body||{};
-   if(!/^\\d{4,20}$/.test(String(salesId||""))||!clean(salesName)||!["Luar Biasa","Cukup Baik","Kecewa"].includes(sentiment)||typeof text!=="string"||text.trim().length<5||text.length>1500)return res.status(400).json({error:"Data feedback tidak valid"});
+   if(!/^\d{4,20}$/.test(String(salesId||""))||!clean(salesName)||!["Luar Biasa","Cukup Baik","Kecewa"].includes(sentiment)||typeof text!=="string"||text.trim().length<5||text.length>1500)return res.status(400).json({error:"Data feedback tidak valid"});
    const row={id:randomUUID(),salesId:clean(salesId),salesName:clean(salesName),sentiment,text:text.trim(),createdAt:new Date().toISOString(),status:"Active"};
    await sheets("POST",tab+"!A:H",{values:[[row.id,row.salesId,row.salesName,row.sentiment,row.text,row.createdAt,row.status,""]]},"?valueInputOption=RAW&insertDataOption=INSERT_ROWS");
    return res.status(201).json({ok:true,id:row.id});
