@@ -22,7 +22,8 @@ type MenuTab =
   | "qoala-ar"
   | "mom-comparison"
   | "est-incentive"
-  | "customer-engagement";
+  | "customer-engagement"
+  | "whiteboard";
 
 type ThemeMode = "dark" | "light";
 type PeriodType = "daily" | "weekly" | "monthly";
@@ -1041,6 +1042,48 @@ export default function DigiplusOperationalEngine() {
     return transactions.filter(t=>t.isoDate>=staffSelectedWeek.start&&t.isoDate<=staffSelectedWeek.end);
   },[activeTransactions,transactions,periodType,staffSelectedWeek?.start,staffSelectedWeek?.end]);
 
+  const whiteboard = useMemo(() => {
+    const today=new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+    const month=today.slice(0,7);
+    const monthNames=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+    const monthLabel=monthNames[Number(month.slice(5,7))-1]+month.slice(0,4);
+    const days=new Date(Number(month.slice(0,4)),Number(month.slice(5,7)),0).getDate();
+    const day=Number(today.slice(8,10));
+    const valid=targetSheetMonth===monthLabel;
+    const rows=transactions.filter(t=>t.isoDate.startsWith(month)&&t.isoDate<=today);
+    const category=(t:RawTransaction)=>{
+      const p=(t.productName||"").toUpperCase(),brand=(t.brand||"").toUpperCase(),group=(t.groupCategory||"").toUpperCase();
+      if(p.includes("QOALA"))return "qoala";
+      if(p.includes("TELKOMSEL")||p.includes("TSEL"))return "telkomsel";
+      if(p.includes("INDOSAT"))return "indosat";
+      if(p.includes(" XL ")||p.startsWith("XL ")||p.includes("AXIATA"))return "xl";
+      if(group.includes("VAS")||group.includes("SERVICE"))return "vas";
+      if(group.includes("ACCESSOR")||["CASE","GLASS","CABLE","ADAPTER","CHARGER"].some(k=>p.includes(k)))return "accessories";
+      if(brand==="APPLE"){
+        if(p.includes("IPHONE"))return "iphone";
+        if(p.includes("IPAD"))return "ipad";
+        if(p.includes("MAC"))return "macbook";
+        if(p.includes("WATCH"))return "applewatch";
+        if(p.includes("AIRPOD"))return "airpods";
+        return "apple";
+      }
+      if(["SAMSUNG","OPPO","XIAOMI","HUAWEI","MOTOROLA","INFINIX"].includes(brand))return brand.toLowerCase();
+      return group==="DEVICES"?"android":"other";
+    };
+    const totals:Record<string,{qty:number;amount:number}>={};
+    rows.forEach(t=>{const k=category(t);if(!totals[k])totals[k]={qty:0,amount:0};totals[k].qty+=t.qty;totals[k].amount+=t.amount});
+    const sum=(keys:string[])=>keys.reduce((v,k)=>v+(totals[k]?.amount||0),0);
+    const apple=sum(["iphone","ipad","macbook","applewatch","airpods","apple"]);
+    const android=sum(["samsung","oppo","xiaomi","huawei","motorola","infinix","android"]);
+    const accessories=sum(["accessories"]);
+    const vas=sum(["qoala","telkomsel","indosat","xl","vas"]);
+    const actual=rows.reduce((v,t)=>v+t.amount,0);
+    const byStaff=new Map<string,{id:string;name:string;amount:number}>();
+    rows.forEach(t=>{const id=t.salesId||t.salesName;if(!id)return;const x=byStaff.get(id)||{id,name:t.salesName||"Sales "+id,amount:0};x.amount+=t.amount;byStaff.set(id,x)});
+    const staff=[...byStaff.values()].sort((a,b)=>b.amount-a.amount);
+    const categoryRows=[["iPhone","iphone"],["iPad","ipad"],["Mac","macbook"],["Apple Watch","applewatch"],["AirPods","airpods"],["Samsung","samsung"],["Oppo","oppo"],["Xiaomi","xiaomi"],["Huawei","huawei"],["Motorola","motorola"],["Infinix","infinix"],["Qoala","qoala"],["Telkomsel","telkomsel"],["Indosat","indosat"],["XL","xl"]];
+    return {today,monthLabel,day,days,valid,actual,apple,android,accessories,vas,staff,totals,categoryRows,targets:valid?categoryTargets:{},staffTargets:valid?staffTargets:{}};
+  },[transactions,targetSheetMonth,categoryTargets,staffTargets]);
   const staffList = useMemo(() => {
     const map: Record<string, {
       salesId: string;
@@ -2244,6 +2287,7 @@ Indosat IM3 : ${isatText}`;
     { id: "mom-comparison", label: "MoM Growth Analysis", icon: "⚖️", color: "bg-indigo-500", shadow: "shadow-indigo-500/30" },
     { id: "est-incentive", label: "Est. Incentive", icon: "💰", color: "bg-emerald-500", shadow: "shadow-emerald-500/30" },
     { id: "customer-engagement", label: "Customer Engagement", icon: "🤝", color: "bg-sky-500", shadow: "shadow-sky-500/30" },
+    { id: "whiteboard", label: "Whiteboard", icon: "📊", color: "bg-cyan-600", shadow: "shadow-cyan-600/30" },
     { id: "staff-performance", label: "Staff Performance", icon: "🏆", color: "bg-amber-500", shadow: "shadow-amber-500/30" },
     { id: "daily-target", label: "Daily Target & Run Rate", icon: "🎯", color: "bg-orange-500", shadow: "shadow-orange-500/30" },
     { id: "brand-focus", label: "Brand Focus", icon: "🏷️", color: "bg-amber-500", shadow: "shadow-amber-500/30" },
@@ -2819,6 +2863,36 @@ Indosat IM3 : ${isatText}`;
                     <thead><tr>{["Tanggal","Waktu WIB","Sales ID","Nama Sales","Lokasi","Status Lokasi"].map(h=><th key={h} className="p-3 text-left">{h}</th>)}</tr></thead>
                     <tbody>{accessRows.filter(row=>row.slice(3,5).join(" ").toLowerCase().includes(accessSearch.toLowerCase())).map((row,i)=><tr key={i} className="border-t border-slate-300 dark:border-slate-700">{[row[1],row[2],row[3],row[4],row[5],row[6]].map((v,j)=><td key={j} className="p-3">{v || "—"}</td>)}</tr>)}</tbody>
                   </table></div>
+                </div>
+              )}
+              {activeTab === "whiteboard" && (
+                <div className={`space-y-6 rounded-3xl border p-4 shadow-xl sm:p-7 ${cardBg}`}>
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-300 pb-4 dark:border-slate-700">
+                    <div><h2 className="text-xl font-black text-slate-950 dark:text-white">📊 WHITEBOARD — QF01 DIGIPLUS GRAND INDONESIA</h2><p className="text-xs text-slate-600 dark:text-slate-300">Ringkasan otomatis bulan berjalan • Data transaksi sampai hari ini (WIB)</p></div>
+                    <div className="rounded-xl bg-sky-100 px-4 py-2 text-sm font-bold text-sky-800 dark:bg-sky-950 dark:text-sky-200">{new Date(whiteboard.today+"T12:00:00").toLocaleDateString("id-ID",{day:"numeric",month:"long",year:"numeric"})}</div>
+                  </div>
+                  {!whiteboard.valid && <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-200">Target bulan {whiteboard.monthLabel} belum tersedia pada sumber data. Achievement tetap ditampilkan, target dan variance tidak dihitung.</p>}
+                  <div className="text-center text-sm font-black text-slate-950 dark:text-white">TARGET THIS MONTH — TIME GONE: {Math.round(whiteboard.day/whiteboard.days*100)}%</div>
+                  <div className="overflow-x-auto"><table className="w-full min-w-[700px] text-sm text-slate-950 dark:text-white">
+                    <thead><tr><th className="p-3 text-left">METRIC</th>{["VALUE","APPLE","ANDROID","ACCESSORIES","VAS"].map(x=><th key={x} className="p-3 text-right">{x} (Rp)</th>)}</tr></thead>
+                    <tbody>{[["TARGET",["total","apple","android","accessories","vas"].map(k=>whiteboard.valid?(whiteboard.targets[k]||0):null)],["ACHIEVEMENT",[whiteboard.actual,whiteboard.apple,whiteboard.android,whiteboard.accessories,whiteboard.vas]],["ACHIEVEMENT %",["total","apple","android","accessories","vas"].map((k,i)=>whiteboard.valid&&whiteboard.targets[k]>0?[whiteboard.actual,whiteboard.apple,whiteboard.android,whiteboard.accessories,whiteboard.vas][i]/whiteboard.targets[k]*100:null)],["VARIANCE",["total","apple","android","accessories","vas"].map((k,i)=>whiteboard.valid?[whiteboard.actual,whiteboard.apple,whiteboard.android,whiteboard.accessories,whiteboard.vas][i]-(whiteboard.targets[k]||0):null)]].map(([label,values]:any)=><tr key={label} className="border-t border-slate-300 dark:border-slate-700"><td className="p-3 font-bold">{label}</td>{values.map((v:number|null,i:number)=><td key={i} className={`p-3 text-right font-semibold ${label==="VARIANCE"&&v!==null&&v<0?"text-rose-600 dark:text-rose-400":label==="ACHIEVEMENT"?"text-blue-600 dark:text-sky-400":""}`}>{v===null?"—":label==="ACHIEVEMENT %"?v.toFixed(1)+"%":formatIDR(v)}</td>)}</tr>)}</tbody>
+                  </table></div>
+                  <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+                    <section className="rounded-2xl border border-slate-300 p-4 dark:border-slate-700 xl:col-span-1">
+                      <h3 className="mb-3 border-b pb-2 text-center font-black text-slate-950 dark:text-white">LOB TARGET VS ACHIEVEMENT</h3>
+                      <div className="overflow-x-auto"><table className="w-full text-xs text-slate-950 dark:text-white"><thead><tr>{["LOB","TARGET","QTY","ACHIEVEMENT"].map(h=><th key={h} className="p-2 text-left">{h}</th>)}</tr></thead><tbody>{whiteboard.categoryRows.map(([label,key])=><tr key={key} className="border-t border-slate-200 dark:border-slate-700"><td className="p-2 font-semibold">{label}</td><td className="p-2">{whiteboard.valid?formatIDR(whiteboard.targets[key]||0):"—"}</td><td className="p-2 text-blue-600 dark:text-sky-400">{whiteboard.totals[key]?.qty||0}</td><td className="p-2 font-bold text-blue-600 dark:text-sky-400">{formatIDR(whiteboard.totals[key]?.amount||0)}</td></tr>)}</tbody></table></div>
+                    </section>
+                    <section className="rounded-2xl border border-slate-300 p-4 dark:border-slate-700">
+                      <h3 className="mb-4 border-b pb-2 text-center font-black text-slate-950 dark:text-white">TODAY TARGET</h3>
+                      <div className="space-y-3 text-sm text-slate-900 dark:text-slate-100">{[["TOTAL VALUE","total"],["APPLE / STAFF","apple"],["ANDROID / STAFF","android"],["ACC / STAFF","accessories"],["VAS / STAFF","vas"]].map(([label,key])=><div key={key} className="flex justify-between gap-3 border-b border-slate-200 pb-2 dark:border-slate-700"><span>{label}</span><strong>{whiteboard.valid?formatIDR((whiteboard.targets[key]||0)/whiteboard.days/(key==="total"?1:Math.max(1,Object.keys(whiteboard.staffTargets).length))):"—"}</strong></div>)}</div>
+                      <p className="mt-4 text-xs text-slate-500">Target harian = target bulanan ÷ jumlah hari kalender. Target per staff = target kategori ÷ hari ÷ jumlah staff bertarget.</p>
+                    </section>
+                    <section className="rounded-2xl border border-slate-300 p-4 dark:border-slate-700">
+                      <h3 className="mb-3 border-b pb-2 text-center font-black text-slate-950 dark:text-white">STAFF MONTHLY TARGET VS ACHIEVEMENT</h3>
+                      <div className="max-h-[560px] overflow-auto"><table className="w-full text-xs text-slate-950 dark:text-white"><thead><tr>{["STAFF","TARGET","ACTUAL"].map(h=><th key={h} className="p-2 text-left">{h}</th>)}</tr></thead><tbody>{whiteboard.staff.map(x=>{const key=x.name.toLowerCase().trim();return <tr key={x.id} className="border-t border-slate-200 dark:border-slate-700"><td className="p-2 font-semibold">{x.name}</td><td className="p-2">{whiteboard.valid?formatIDR(whiteboard.staffTargets[key]||0):"—"}</td><td className="p-2 font-bold text-blue-600 dark:text-sky-400">{formatIDR(x.amount)}</td></tr>})}</tbody></table>{whiteboard.staff.length===0&&<p className="p-3 text-sm text-slate-500">Belum ada transaksi bulan ini.</p>}</div>
+                    </section>
+                  </div>
+                  <p className="text-xs text-slate-500">Whiteboard hanya menampilkan bulan berjalan ({whiteboard.monthLabel}), tidak mengikuti filter bulan pada menu lain. Kategori dihitung berdasarkan brand, nama produk, dan grup kategori dari database.</p>
                 </div>
               )}
               {activeTab === "store-overview" && (
