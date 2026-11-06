@@ -2018,18 +2018,25 @@ Indosat IM3 : ${isatText}`;
       // Slide 7: BNPL tender, quantity, amount, product and contribution.
       {
         const slide = makeSlide("BNPL • TENDER & PRODUCT CONTRIBUTION", "BNPL DATABASE • MTD " + currentPrefix + "-01 s/d " + cutoff + " • nominal, qty, dan kontribusi tender.");
-        // BNPL source may omit product name; resolve from sales DATABASE by invoice.
-        // Keep explicit "Not mapped" if no matching sales invoice exists.
-        const salesByInvoice = new Map<string, string>();
+        // Resolve missing BNPL product labels from all matching sales invoice lines.
+        // Invoice normalization handles numeric/string and punctuation differences.
+        const invoiceKey = (v: unknown) => String(v ?? "").replace(/[^0-9A-Za-z]/g, "").toUpperCase();
+        const salesByInvoice = new Map<string, Set<string>>();
         transactions.forEach(t => {
-          const key = String(t.invoice || "").trim().toUpperCase();
-          if (key && t.productName && !salesByInvoice.has(key)) salesByInvoice.set(key, t.productName);
+          const key = invoiceKey(t.invoice);
+          const product = String(t.productName || "").trim();
+          if (!key || !product) return;
+          if (!salesByInvoice.has(key)) salesByInvoice.set(key, new Set());
+          salesByInvoice.get(key)!.add(product);
         });
-        const dated = bnplRecords.map(b => ({
-          ...b,
-          product: b.product?.trim() || salesByInvoice.get(String(b.invoice || "").trim().toUpperCase()) || "Not mapped",
-          iso: parseNormalizedDate(b.date, b.month).isoDate
-        }));
+        const dated = bnplRecords.map(b => {
+          const linked = [...(salesByInvoice.get(invoiceKey(b.invoice)) || [])];
+          return {
+            ...b,
+            product: String(b.product || "").trim() || linked.join(" ; ") || "Produk belum teridentifikasi (Invoice " + b.invoice + ")",
+            iso: parseNormalizedDate(b.date, b.month).isoDate
+          };
+        });
         const bnpl = dated.filter(b => b.iso >= currentPrefix + "-01" && b.iso <= cutoff);
         const priorBnpl = dated.filter(b => b.iso >= previousPrefix + "-01" && b.iso <= priorCutoff);
         const bnplAmount = bnpl.reduce((n, b) => n + b.amount, 0);
