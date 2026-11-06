@@ -311,6 +311,14 @@ export default function DigiplusOperationalEngine() {
     return [...staff.values()].sort((a, b) => b.last - a.last);
   }, [activityRows]);
 
+  const accessRanking = useMemo(() => {
+    const day = (iso:string) => {const d=new Date(iso);return Number.isFinite(d.getTime())?new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(d):""};
+    const today=day(new Date().toISOString());
+    const map=new Map<string,{id:string;name:string;duration:number;loginsToday:number;lastLogin:number;online:boolean}>();
+    staffActivity.forEach(x=>map.set(x.id,{id:x.id,name:x.name,duration:x.duration,loginsToday:0,lastLogin:0,online:x.online}));
+    accessRows.forEach(row=>{const [timestamp,,,id,name]=row;const time=Date.parse(timestamp);if(!id||!Number.isFinite(time))return;const x=map.get(id)||{id,name:name||"Sales "+id,duration:0,loginsToday:0,lastLogin:0,online:false};if(day(timestamp)===today)x.loginsToday++;if(time>x.lastLogin){x.lastLogin=time;x.name=name||x.name}map.set(id,x)});
+    return [...map.values()].sort((a,b)=>b.duration-a.duration||b.loginsToday-a.loginsToday||b.lastLogin-a.lastLogin);
+  },[staffActivity,accessRows]);
   const recordAccess = async (salesId: string, salesName: string) => {
     try {
       const response = await fetch("/api/access-log", {
@@ -2780,6 +2788,19 @@ Indosat IM3 : ${isatText}`;
                     <button disabled={!accessPassword || accessLoading} onClick={()=>void loadAccessLog()} className="px-4 py-2 rounded-lg bg-indigo-600 text-white font-bold disabled:opacity-50">{accessLoading ? "Memuat..." : "Buka / Refresh"}</button>
                   </div>
                   {accessError && <p className="text-rose-600 text-sm">{accessError}</p>}
+                  <section className="space-y-3">
+                    <h3 className="font-black text-slate-950 dark:text-white">🏆 Ranking Aktivitas Staff</h3>
+                    <p className="text-xs text-slate-600 dark:text-slate-300">Ranking berdasarkan estimasi total durasi aktif dari heartbeat. Login hari ini dihitung menurut tanggal WIB.</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[["Staff Tercatat",accessRanking.length],["Login Hari Ini",accessRanking.reduce((n,x)=>n+x.loginsToday,0)],["Online",accessRanking.filter(x=>x.online).length]].map(([label,value])=><div key={label} className={`rounded-xl border p-3 ${innerBg}`}><p className="text-xs text-slate-600 dark:text-slate-300">{label}</p><p className="text-xl font-black text-slate-950 dark:text-white">{value}</p></div>)}
+                    </div>
+                    <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-xs text-slate-900 dark:text-slate-100">
+                      <thead><tr>{["Rank","Sales ID","Nama Staff","Total Durasi Aktif","Login Hari Ini","Login Terakhir (WIB)","Status"].map(h=><th key={h} className="p-2 text-left">{h}</th>)}</tr></thead>
+                      <tbody>{accessRanking.filter(x=>(x.id+" "+x.name).toLowerCase().includes(accessSearch.toLowerCase())).map((x,i)=><tr key={x.id} className="border-t border-slate-300 dark:border-slate-700">
+                        <td className="p-2 font-black text-sky-600 dark:text-sky-400">#{i+1}</td><td className="p-2">{x.id}</td><td className="p-2 font-semibold">{x.name}</td><td className="p-2">{Math.floor(x.duration/3600)}j {Math.floor(x.duration%3600/60)}m</td><td className="p-2">{x.loginsToday}x</td><td className="p-2">{x.lastLogin?new Date(x.lastLogin).toLocaleString("id-ID",{timeZone:"Asia/Jakarta"}):"Belum tercatat"}</td><td className="p-2">{x.online?"🟢 Online":"⚪ Offline"}</td>
+                      </tr>)}</tbody>
+                    </table>{accessRanking.length===0&&<p className="p-3 text-sm text-slate-500">Belum ada aktivitas staff yang tercatat.</p>}</div>
+                  </section>
                   <div className="space-y-2">
                     <h3 className="font-black text-slate-950 dark:text-white">📡 Staff Activity Monitor</h3>
                     <p className="text-xs text-slate-700 dark:text-slate-300">Estimasi durasi aktif berdasarkan heartbeat 60 detik saat tab terlihat dan tidak idle. Klik Refresh untuk memperbarui status.</p>
