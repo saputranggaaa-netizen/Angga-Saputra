@@ -409,6 +409,31 @@ export default function DigiplusOperationalEngine() {
   const [momBaseMonth, setMomBaseMonth] = useState<string>("November2026");
   const [momCompareMonth, setMomCompareMonth] = useState<string>("Oktober2026");
   const [momMode, setMomMode] = useState<"mtd" | "full">("mtd");
+  const [growthView,setGrowthView]=useState<"mom"|"yoy">("mom");
+  const [growthCategory,setGrowthCategory]=useState("All Categories");
+  const [growthRank,setGrowthRank]=useState<"growth"|"decline"|"contribution">("growth");
+  const [growthExpanded,setGrowthExpanded]=useState<string|null>(null);
+  const [growthShowAll,setGrowthShowAll]=useState(false);
+  const [lastYearRows,setLastYearRows]=useState<{date:string;brand:string;division:string;group:string;category:string;description:string;qty:number;amount:number}[]>([]);
+  const [lastYearState,setLastYearState]=useState<"loading"|"ready"|"error">("loading");
+  useEffect(()=>{
+    let cancelled=false;
+    const parseNum=(v:unknown)=>{const x=String(v??"").replace(/[^\d,.-]/g,"").replace(/\./g,"").replace(",",".");return Number(x)||0;};
+    const parseDate=(v:unknown)=>{
+      const x=String(v??"");
+      const match=x.match(/Date\((\d{4}),(\d{1,2}),(\d{1,2})/);
+      if(match)return match[1]+"-"+String(Number(match[2])+1).padStart(2,"0")+"-"+match[3].padStart(2,"0");
+      const d=x.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+      if(d)return d[3]+"-"+d[2].padStart(2,"0")+"-"+d[1].padStart(2,"0");
+      return /^\d{4}-\d{2}-\d{2}$/.test(x)?x:"";
+    };
+    fetch("https://docs.google.com/spreadsheets/d/"+SPREADSHEET_ID+"/gviz/tq?tqx=out:json&gid=1473007559")
+      .then(async r=>{if(!r.ok)throw Error("HTTP "+r.status);const txt=await r.text();const json=JSON.parse(txt.slice(txt.indexOf("{"),txt.lastIndexOf("}")+1));if(!json.table?.rows)throw Error("No rows");return json.table.rows;})
+      .then(rows=>{if(cancelled)return;const mapped=rows.map((r:any)=>{const c=r.c||[];const get=(i:number)=>c[i]?.f??c[i]?.v??"";return {date:parseDate(get(10)),brand:String(get(6)).toUpperCase(),division:String(get(7)).toUpperCase(),group:String(get(8)).toUpperCase(),category:String(get(9)).toUpperCase(),description:String(get(11)),qty:parseNum(get(12)),amount:parseNum(get(14))};}).filter((r:any)=>r.date.startsWith("2025-"));setLastYearRows(mapped);setLastYearState("ready");})
+      .catch(()=>{if(!cancelled)setLastYearState("error")});
+    return()=>{cancelled=true};
+  },[]);
+
   const [showAllQoalaDevices, setShowAllQoalaDevices] = useState(false);
   const [expandedIncentiveStaff, setExpandedIncentiveStaff] = useState<string | null>(null);
   const [overviewStaffPopupId, setOverviewStaffPopupId] = useState<string | null>(null);
@@ -2344,154 +2369,62 @@ Indosat IM3 : ${isatText}`;
   ];
 
   const renderComparisonSection = (data: typeof momAnalytics) => {
-    return (
-      <div className="space-y-6 sm:space-y-8">
-        <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl flex flex-wrap items-center justify-between gap-4`}>
-          <div>
-            <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
-              <span>⚖️</span>
-              <span>ANALISIS PERTUMBUHAN MONTH TO MONTH (MoM)</span>
-            </h2>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <label className="text-xs font-bold text-slate-700 dark:text-slate-300" htmlFor="mom-mode">Mode Perbandingan:</label>
-            <select id="mom-mode" value={momMode} onChange={e => setMomMode(e.target.value as "mtd" | "full")} className="rounded-xl border px-3 py-2 bg-white text-slate-950 dark:bg-slate-800 dark:text-white text-xs font-bold">
-              <option value="mtd">MTD Otomatis (Tanggal Sama)</option>
-              <option value="full">Full Month (Seluruh Bulan)</option>
-            </select>
-            <span className={textMuted + " text-xs"}>{momMode === "mtd" ? "Periode tanggal 1–" + Number(momToday.slice(-2)) + " (maksimum akhir bulan), WIB" : "Semua tanggal dalam bulan yang dipilih"}</span>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
-              <span className="text-[11px] font-black text-slate-600 dark:text-slate-400">Bulan 1:</span>
-              <select
-                value={momCompareMonth}
-                onChange={(e) => setMomCompareMonth(e.target.value)}
-                className="bg-transparent font-black text-xs text-slate-950 dark:text-white focus:outline-none"
-              >
-                {availableMonths.map((m) => (
-                  <option key={`cmp-${m}`} value={m} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <span className="text-xs font-black text-slate-500">VS</span>
-            <div className={`flex items-center gap-2 ${innerBg} px-3 py-1.5 rounded-xl border`}>
-              <span className="text-[11px] font-black text-slate-600 dark:text-slate-400">Bulan 2:</span>
-              <select
-                value={momBaseMonth}
-                onChange={(e) => setMomBaseMonth(e.target.value)}
-                className="bg-transparent font-black text-xs text-sky-700 dark:text-sky-400 focus:outline-none"
-              >
-                {availableMonths.map((m) => (
-                  <option key={`base-${m}`} value={m} className={isDark ? "bg-[#0A1128] text-white" : "bg-white text-slate-900"}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-5`}>
-          <div className="flex flex-wrap justify-between items-center pb-4 border-b border-inherit gap-4">
-            <div>
-              <span className="text-xs font-black uppercase tracking-wider text-slate-500">TOTAL SALES TOKO</span>
-              <div className="flex items-center gap-3 mt-1">
-                <span className="text-2xl sm:text-3xl font-black font-mono text-slate-950 dark:text-white">
-                  {formatIDR(data.totalM2)}
-                </span>
-                <span className={`px-2.5 py-1 rounded-full text-xs font-black flex items-center gap-1 ${
-                  data.storeGrowth >= 0 
-                    ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border border-emerald-400/30" 
-                    : "bg-rose-500/15 text-rose-800 dark:text-rose-400 border border-rose-400/30"
-                }`}>
-                  <span>{data.storeGrowth >= 0 ? "▲ +" : "▼ "}</span>
-                  <span>{data.storeGrowth}%</span>
-                </span>
-              </div>
-              <span className="text-[11px] font-bold text-slate-500 mt-0.5 block">
-                {data.p1Label}: {formatIDR(data.totalM1)} ➔ {data.p2Label}: {formatIDR(data.totalM2)}
-              </span>
-            </div>
-          </div>
-
-          <div>
-            <h4 className="text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-3 flex items-center gap-2">
-              <span>👥</span>
-              <span>TOTAL SALES PER STAF:</span>
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-              {data.staffSales.map((st, idx) => (
-                <div key={idx} className={`p-4 rounded-2xl border ${innerBg} flex justify-between items-center shadow-sm`}>
-                  <div>
-                    <span className="text-xs font-black text-slate-950 dark:text-white block">{st.name}</span>
-                    <div className="text-[11px] font-semibold text-slate-500 mt-1 space-y-0.5">
-                      <div><strong className="text-slate-700 dark:text-slate-300">{data.p1Label}:</strong> {formatIDR(st.m1)}</div>
-                      <div><strong className="text-slate-900 dark:text-white font-bold">{data.p2Label}:</strong> {formatIDR(st.m2)}</div>
-                    </div>
-                  </div>
-                  <span className={`px-2.5 py-1 rounded-xl text-xs font-black border ${
-                    st.growth >= 0 
-                      ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-400/30" 
-                      : "bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-400/30"
-                  }`}>
-                    {st.growth >= 0 ? `▲ +${st.growth}%` : `▼ ${st.growth}%`}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className={`${cardBg} rounded-3xl border-2 border-rose-500/30 overflow-hidden shadow-xl`}>
-          <div className="px-5 py-4 border-b border-rose-500/20 flex justify-between items-center bg-rose-500/5">
-            <div>
-              <h3 className="text-sm font-black text-rose-600 dark:text-rose-400 flex items-center gap-2">
-                <span>🔍</span>
-                <span>ANALISIS PENYEBAB PENURUNAN (ROOT CAUSE BY PRODUCT DEFICIT)</span>
-              </h3>
-            </div>
-            <span className="text-xs text-rose-700 dark:text-rose-400 font-black bg-rose-500/10 px-2.5 py-1 rounded-full border border-rose-500/20">
-              {data.droppedProducts.length} Produk Teridentifikasi
-            </span>
-          </div>
-
-          <div className="overflow-x-auto w-full">
-            <table className="w-full text-left text-xs min-w-[700px]">
-              <thead className={`${innerBg} uppercase text-[10px] tracking-wider border-b border-inherit font-black text-slate-900 dark:text-slate-300`}>
-                <tr>
-                  <th className="px-4 py-3">Nama Produk</th>
-                  <th className="px-4 py-3">Brand</th>
-                  <th className="px-4 py-3 text-center">{data.p1Label} (Unit)</th>
-                  <th className="px-4 py-3 text-right">{data.p1Label} (Omset)</th>
-                  <th className="px-4 py-3 text-center">{data.p2Label} (Unit)</th>
-                  <th className="px-4 py-3 text-right">{data.p2Label} (Omset)</th>
-                  <th className="px-4 py-3 text-right text-rose-600">Nilai Defisit</th>
-                  <th className="px-4 py-3 text-right">Penurunan (%)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-inherit font-bold">
-                {data.droppedProducts.slice(0, 25).map((p, i) => (
-                  <tr key={i} className="hover:opacity-90">
-                    <td className="px-4 py-3 font-black text-slate-950 dark:text-white max-w-xs">{p.name}</td>
-                    <td className="px-4 py-3">{p.brand}</td>
-                    <td className="px-4 py-3 text-center">{p.p1Qty}</td>
-                    <td className="px-4 py-3 text-right font-mono">{formatIDR(p.p1Amt)}</td>
-                    <td className="px-4 py-3 text-center font-black text-amber-500">{p.p2Qty}</td>
-                    <td className="px-4 py-3 text-right font-mono font-black text-amber-500">{formatIDR(p.p2Amt)}</td>
-                    <td className="px-4 py-3 text-right font-black text-rose-600 font-mono">{formatIDR(p.diff)}</td>
-                    <td className="px-4 py-3 text-right font-black text-rose-600 font-mono">{p.growth}%</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    );
+    const money=(n:number)=>formatIDR(n);
+    const percent=(current:number,previous:number)=>previous>0?((current-previous)/previous*100):null;
+    const pctText=(current:number,previous:number)=>{const v=percent(current,previous);return v===null?"N/A":(v>0?"+":"")+v.toFixed(1)+"%";};
+    const categories=["All Categories","Apple Devices","Android Devices","Accessories","VAS"];
+    const categoryOf=(t:RawTransaction)=>{
+      if(t.groupCategory==="ACCESSORIES")return "Accessories";
+      if(t.groupCategory==="DEVICES")return t.brand==="APPLE"?"Apple Devices":"Android Devices";
+      return "VAS";
+    };
+    const inCat=(t:RawTransaction)=>growthCategory==="All Categories"||categoryOf(t)===growthCategory;
+    const cut=Number(momToday.slice(-2))||1;
+    const lastYearDate=momToday.slice(0,4).replace(/^\d{4}$/,"2025")+"-"+momToday.slice(5,7);
+    const selectedMonthLastYear=String(Number(momToday.slice(0,4))-1)+"-"+momToday.slice(5,7);
+    const lastYearFiltered=lastYearRows.filter(r=>r.date.startsWith(selectedMonthLastYear)&&Number(r.date.slice(8,10))<=cut);
+    const lyCategory=(r:typeof lastYearRows[number])=>{
+      if(r.group.includes("ACCESSOR")||r.category.includes("ACCESSOR"))return "Accessories";
+      if(r.brand==="APPLE"||r.division.includes("APPLE")||r.group.includes("APPLE"))return "Apple Devices";
+      if(["SAMSUNG","OPPO","XIAOMI","REDMI","MOTOROLA","HUAWEI","INFINIX","VIVO","REALME","HONOR"].some(b=>r.brand.includes(b)))return "Android Devices";
+      if(["QOALA","TELKOMSEL","INDOSAT","XL","VAS","PROTECTION"].some(b=>(r.brand+" "+r.group+" "+r.category).includes(b)))return "VAS";
+      return "Unmapped";
+    };
+    const lyTotal=(cat:string)=>lastYearFiltered.filter(r=>cat==="All Categories"||lyCategory(r)===cat).reduce((a,r)=>a+r.amount,0);
+    const nowRows=transactions.filter(t=>t.monthKey===momBaseMonth&&(momMode==="full"||Number(t.isoDate.slice(8,10))<=cut));
+    const priorRows=transactions.filter(t=>t.monthKey===momCompareMonth&&(momMode==="full"||Number(t.isoDate.slice(8,10))<=cut));
+    const sum=(rows:RawTransaction[])=>rows.reduce((a,t)=>a+(Number(t.amount)||0),0);
+    const current=sum(nowRows.filter(inCat)),previous=growthView==="mom"?sum(priorRows.filter(inCat)):lyTotal(growthCategory);
+    const staffIds=[...new Set([...nowRows,...priorRows].map(t=>t.salesId||t.salesName).filter(Boolean))];
+    const staffData=staffIds.map(id=>{
+      const curr=nowRows.filter(t=>(t.salesId||t.salesName)===id&&inCat(t));
+      const prev=priorRows.filter(t=>(t.salesId||t.salesName)===id&&inCat(t));
+      return {id,name:curr[0]?.salesName||prev[0]?.salesName||id,current:sum(curr),previous:sum(prev),curr,prev,growth:percent(sum(curr),sum(prev))};
+    }).filter(x=>x.current||x.previous).sort((a,b)=>growthRank==="contribution"?b.current-a.current:growthRank==="decline"?(a.growth??Infinity)-(b.growth??Infinity):(b.growth??-Infinity)-(a.growth??-Infinity));
+    const card=`rounded-2xl border p-4 sm:p-5 ${cardBg}`;
+    const available=growthView==="mom"||lastYearState==="ready";
+    const details=(id:string,cur:RawTransaction[],prev:RawTransaction[])=>{
+      const names=["Apple Devices","Android Devices","Accessories","VAS"];
+      return <div className="grid sm:grid-cols-2 gap-2 mt-3">{names.map(cat=>{
+        const a=sum(cur.filter(t=>categoryOf(t)===cat)),b=sum(prev.filter(t=>categoryOf(t)===cat));
+        return <div key={cat} className={`rounded-xl p-3 ${innerBg}`}><p className="font-black text-xs text-slate-950 dark:text-white">{cat}</p><p className="text-[11px] text-slate-600 dark:text-slate-300">Last Month: {money(b)}</p><p className="text-[11px] text-slate-600 dark:text-slate-300">Current: {money(a)}</p><p className="text-xs font-black text-sky-600">{pctText(a,b)}</p></div>;
+      })}</div>;
+    };
+    return <div className="space-y-4 sm:space-y-6">
+      <div className={card+" space-y-4"}><div><p className="text-[11px] uppercase tracking-widest font-bold text-sky-600">QF01 · Growth Intelligence</p><h2 className="text-2xl font-black text-slate-950 dark:text-white">Sales Growth Analysis</h2><p className={`text-xs ${textMuted}`}>Perbandingan tanggal setara 1–{cut} · WIB</p></div>
+      <div className="grid grid-cols-2 gap-2 rounded-xl p-1 bg-slate-500/10">{([{id:"mom",label:"vs Last Month"},{id:"yoy",label:"vs Last Year"}] as const).map(v=><button type="button" key={v.id} onClick={()=>{setGrowthView(v.id);setGrowthExpanded(null)}} className={`py-3 rounded-xl font-black text-xs sm:text-sm ${growthView===v.id?"bg-blue-600 text-white":"text-slate-700 dark:text-slate-200"}`}>{v.label}</button>)}</div>
+      {growthView==="mom"&&<div className="flex flex-wrap gap-2 items-center"><select aria-label="Periode" value={momMode} onChange={e=>setMomMode(e.target.value as "mtd"|"full")} className="rounded-xl border p-2 text-xs bg-white text-slate-900 dark:bg-slate-800 dark:text-white"><option value="mtd">MTD · Tanggal Setara</option><option value="full">Full Month</option></select><select aria-label="Bulan pembanding" value={momCompareMonth} onChange={e=>setMomCompareMonth(e.target.value)} className="rounded-xl border p-2 text-xs bg-white text-slate-900 dark:bg-slate-800 dark:text-white">{availableMonths.map(m=><option key={m} value={m}>{m}</option>)}</select><span className="text-xs font-bold">vs</span><select aria-label="Bulan berjalan" value={momBaseMonth} onChange={e=>setMomBaseMonth(e.target.value)} className="rounded-xl border p-2 text-xs bg-white text-slate-900 dark:bg-slate-800 dark:text-white">{availableMonths.map(m=><option key={m} value={m}>{m}</option>)}</select></div>}
+      <div className="flex gap-2 overflow-x-auto pb-1">{categories.map(cat=><button type="button" key={cat} onClick={()=>{setGrowthCategory(cat);setGrowthExpanded(null)}} className={`shrink-0 rounded-full px-3 py-2 text-xs font-bold ${growthCategory===cat?"bg-sky-600 text-white":"bg-slate-500/10 text-slate-700 dark:text-slate-200"}`}>{cat}</button>)}</div></div>
+      {growthView==="yoy"&&<p className="rounded-xl bg-blue-500/10 border border-blue-500/20 p-3 text-xs text-slate-700 dark:text-slate-200">Last Year: sumber <strong>breakdwon MSR</strong> kolom G–O (2025). Data transaksi tahun lalu tidak memuat Sales ID, sehingga ranking per staff hanya tersedia pada Last Month. {lastYearState==="loading"?"Memuat data tahun lalu…":lastYearState==="error"?"Data tahun lalu gagal dimuat.":""}</p>}
+      <div className="grid sm:grid-cols-3 gap-3">{[{label:"Current MTD",value:money(current)},{label:growthView==="mom"?"Last Month":"Last Year",value:available?money(previous):"Belum tersedia"},{label:"Growth",value:available?pctText(current,previous):"N/A"}].map(k=><div key={k.label} className={card}><p className={`text-xs ${textMuted}`}>{k.label}</p><p className="text-xl font-black mt-2 text-slate-950 dark:text-white">{k.value}</p></div>)}</div>
+      <div className={card}><div className="flex justify-between items-center gap-2"><h3 className="font-black text-slate-950 dark:text-white">Category Growth Breakdown</h3><span className={`text-xs ${textMuted}`}>Growth Value</span></div><div className="mt-3 space-y-2">{categories.slice(1).map(cat=>{const a=sum(nowRows.filter(t=>categoryOf(t)===cat)),b=growthView==="mom"?sum(priorRows.filter(t=>categoryOf(t)===cat)):lyTotal(cat);return <div key={cat} className="flex justify-between gap-3 border-b border-slate-500/10 py-2 text-sm"><div><p className="font-bold text-slate-950 dark:text-white">{cat}</p><p className={`text-xs ${textMuted}`}>{money(a)} vs {available?money(b):"—"}</p></div><div className="text-right"><p className="font-black text-sky-600">{available?pctText(a,b):"N/A"}</p><p className={`text-xs ${textMuted}`}>{available?money(a-b):"—"}</p></div></div>})}</div></div>
+      {growthView==="yoy"&&lastYearState==="ready"&&<div className={card}><h3 className="font-black text-slate-950 dark:text-white">Data Quality · Last Year</h3><p className={`text-xs mt-2 ${textMuted}`}>Unmapped: {money(lyTotal("Unmapped"))} · Seluruh nilai tetap dihitung dalam total store. Periksa klasifikasi brand yang belum terpetakan.</p></div>}
+      {growthView==="mom"&&<div className={card+" space-y-3"}><div className="flex flex-wrap justify-between gap-2 items-center"><div><h3 className="font-black text-slate-950 dark:text-white">🏆 Staff Growth Ranking</h3><p className={`text-xs ${textMuted}`}>Per staff · kategori dapat difilter · klik Show More</p></div><select aria-label="Urutkan ranking" value={growthRank} onChange={e=>setGrowthRank(e.target.value as "growth"|"decline"|"contribution")} className="rounded-xl border p-2 text-xs bg-white text-slate-900 dark:bg-slate-800 dark:text-white"><option value="growth">Growth Tertinggi</option><option value="decline">Penurunan Terbesar</option><option value="contribution">Sales Value</option></select></div>
+      {staffData.slice(0,growthShowAll?undefined:6).map((st,i)=><div key={st.id} className={`rounded-xl border p-3 ${innerBg}`}><div className="flex justify-between gap-3"><div><p className="font-black text-sm text-slate-950 dark:text-white">#{i+1} · {st.name}</p><p className={`text-xs ${textMuted}`}>{money(st.previous)} → {money(st.current)}</p></div><div className="text-right"><p className="font-black text-sm text-sky-600">{pctText(st.current,st.previous)}</p><button type="button" className="text-xs text-sky-600 font-bold" onClick={()=>setGrowthExpanded(growthExpanded===st.id?null:st.id)}>{growthExpanded===st.id?"Show Less":"Show More"}</button></div></div>{growthExpanded===st.id&&details(st.id,st.curr,st.prev)}</div>)}
+      {staffData.length>6&&<button type="button" onClick={()=>setGrowthShowAll(!growthShowAll)} className="w-full rounded-xl bg-slate-500/10 py-3 text-sm font-bold text-sky-600">{growthShowAll?"Show Less":"Show All Staff ("+staffData.length+")"}</button>}
+      <div className="rounded-xl bg-blue-500/10 p-3 text-xs text-slate-700 dark:text-slate-200">Insight: {staffData.filter(x=>x.growth!==null&&x.growth<0).length} staff mengalami penurunan pada kategori terpilih. Evaluasi traffic, jadwal, ketersediaan stok, dan peluang cross-sell sebelum coaching.</div></div>}
+      <p className={`text-xs ${textMuted}`}>Growth = (Current − Comparison) ÷ Comparison × 100%. Jika pembanding nol, ditampilkan N/A. Perbandingan YoY selalu MTD tanggal setara.</p>
+    </div>;
   };
 
   if (isLoggedIn && showWelcome) {
