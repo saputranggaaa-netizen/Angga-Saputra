@@ -349,6 +349,7 @@ export default function DigiplusOperationalEngine() {
   useEffect(()=>{if(activeTab==="customer-engagement")void loadEng()},[activeTab]);
 
   const [expandedSupplierDetails, setExpandedSupplierDetails] = useState<Record<string,boolean>>({});
+  const [openSupplierCards, setOpenSupplierCards] = useState<Record<string,boolean>>({});
   const [expandedBnplTenders, setExpandedBnplTenders] = useState<Record<string,boolean>>({});
   const [storeTotalTarget, setStoreTotalTarget] = useState<number>(0);
   const [targetSheetMonth, setTargetSheetMonth] = useState<string>("");
@@ -4366,9 +4367,12 @@ return <div className="space-y-5">
                                     Total: <strong className="font-mono text-slate-900 dark:text-white">{s.qty} Unit</strong> / <strong className="font-mono text-amber-600 dark:text-amber-400">{formatIDR(s.amount)}</strong> • Kontribusi Acc: <strong className="text-amber-500">{contrib}%</strong>
                                   </span>
                                 </div>
+                                <button type="button" aria-expanded={Boolean(openSupplierCards[sup])} onClick={()=>setOpenSupplierCards(prev=>({...prev,[sup]:!prev[sup]}))} className="shrink-0 rounded-xl bg-sky-500/10 border border-sky-500/25 px-4 py-2 text-xs font-black text-sky-700 dark:text-sky-300 hover:bg-sky-500/20 transition">
+                                  {openSupplierCards[sup]?"⌃ Show Less":"⌄ Show More · "+s.items.length+" transaksi"}
+                                </button>
                               </div>
 
-                              {s.items.length === 0 ? (
+                              {openSupplierCards[sup] && (s.items.length === 0 ? (
                                 <div className={`p-4 rounded-xl text-center text-xs font-semibold text-slate-400 ${innerBg}`}>
                                   Belum ada penjualan untuk supplier {sup} pada periode ini.
                                 </div>
@@ -4406,7 +4410,7 @@ return <div className="space-y-5">
                                     </button>
                                   )}
                                 </div>
-                              )}
+                              ))}
                             </div>
                           );
                         })}
