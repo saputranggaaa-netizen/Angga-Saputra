@@ -20,7 +20,10 @@ type MenuTab =
   | "access-log"
   | "product-search"
   | "qoala-ar"
-  | "mom-comparison";
+  | "mom-comparison"
+  | "est-incentive"
+  | "customer-engagement"
+  | "whiteboard";
 
 type ThemeMode = "dark" | "light";
 type PeriodType = "daily" | "weekly" | "monthly";
@@ -43,6 +46,7 @@ interface RawTransaction {
   groupCategory: string;
   weekLabel: string;
   supplier?: string;
+  incentives: [number, number, number, number, number];
 }
 
 interface BnplRecord {
@@ -166,6 +170,7 @@ export default function DigiplusOperationalEngine() {
   // Theme & Navigation
   const [theme, setTheme] = useState<ThemeMode>("dark");
   const [activeTab, setActiveTab] = useState<MenuTab>("store-overview");
+  const [incentiveChartMode, setIncentiveChartMode] = useState<"stacked" | "grouped">("stacked");
   const [productSearchQuery, setProductSearchQuery] = useState("");
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState<boolean>(false);
   // Floating mobile shortcut: solid at top, faded while scrolling content.
@@ -212,6 +217,13 @@ export default function DigiplusOperationalEngine() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [salesIdInput, setSalesIdInput] = useState<string>("");
   const [passwordInput, setPasswordInput] = useState<string>("");
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
+  useEffect(() => {
+    if (!showWelcome) return;
+    const timer = window.setTimeout(() => setShowWelcome(false), 2200);
+    return () => window.clearTimeout(timer);
+  }, [showWelcome]);
   const [loginErr, setLoginErr] = useState<string>("");
   const [currentSalesId, setCurrentSalesId] = useState<string>("");
   const [currentSalesName, setCurrentSalesName] = useState<string>("");
@@ -300,27 +312,42 @@ export default function DigiplusOperationalEngine() {
     return [...staff.values()].sort((a, b) => b.last - a.last);
   }, [activityRows]);
 
+  const accessRanking = useMemo(() => {
+    const day = (iso:string) => {const d=new Date(iso);return Number.isFinite(d.getTime())?new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(d):""};
+    const today=day(new Date().toISOString());
+    const map=new Map<string,{id:string;name:string;duration:number;loginsToday:number;lastLogin:number;online:boolean}>();
+    staffActivity.forEach(x=>map.set(x.id,{id:x.id,name:x.name,duration:x.duration,loginsToday:0,lastLogin:0,online:x.online}));
+    accessRows.forEach(row=>{const [timestamp,,,id,name]=row;const time=Date.parse(timestamp);if(!id||!Number.isFinite(time))return;const x=map.get(id)||{id,name:name||"Sales "+id,duration:0,loginsToday:0,lastLogin:0,online:false};if(day(timestamp)===today)x.loginsToday++;if(time>x.lastLogin){x.lastLogin=time;x.name=name||x.name}map.set(id,x)});
+    return [...map.values()].sort((a,b)=>b.duration-a.duration||b.loginsToday-a.loginsToday||b.lastLogin-a.lastLogin);
+  },[staffActivity,accessRows]);
   const recordAccess = async (salesId: string, salesName: string) => {
-    let location = "Tidak dibagikan";
-    let locationStatus = "Tidak diizinkan";
-    if (window.confirm("Izinkan pencatatan lokasi perkiraan saat login untuk Access Log? Pilih Batal untuk login tanpa lokasi.")) {
-      if (navigator.geolocation) {
-        try {
-          const position = await new Promise<GeolocationPosition>((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, {enableHighAccuracy:false, timeout:9000}));
-          location = position.coords.latitude.toFixed(2) + ", " + position.coords.longitude.toFixed(2);
-          locationStatus = "Diizinkan";
-        } catch { locationStatus = "Izin ditolak / lokasi tidak tersedia"; }
-      } else locationStatus = "Perangkat tidak mendukung lokasi";
-    }
     try {
-      await fetch("/api/access-log", { method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({salesId,salesName,location,locationStatus}) });
-    } catch { /* Optional log must not block login */ }
+      const response = await fetch("/api/access-log", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ salesId, salesName })
+      });
+      if (!response.ok) console.warn("Access Log tidak tersimpan (HTTP " + response.status + ")");
+    } catch {
+      console.warn("Access Log tidak dapat dihubungi");
+    }
   };
-
 
   // Live Spreadsheet Data & Targets
   const [transactions, setTransactions] = useState<RawTransaction[]>([]);
   const [bnplRecords, setBnplRecords] = useState<BnplRecord[]>([]);
+  const [engRows,setEngRows]=useState<any[]>([]);
+  const [engStaff,setEngStaff]=useState("");
+  const [engCategory,setEngCategory]=useState("CX");
+  const [engQty,setEngQty]=useState("1");
+  const [engDate,setEngDate]=useState(()=>new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()));
+  const [engPeriod,setEngPeriod]=useState("month");
+  const [engError,setEngError]=useState("");
+  const [engBusy,setEngBusy]=useState(false);
+  const [engPassword,setEngPassword]=useState("");
+  const loadEng=async()=>{try{const r=await fetch("/api/customer-engagement",{cache:"no-store"});const d=await r.json();if(!r.ok)throw Error(d.error);setEngRows(d.rows||[]);setEngError("");}catch(e){setEngError(String(e))}};
+  useEffect(()=>{if(activeTab==="customer-engagement")void loadEng()},[activeTab]);
+
   const [expandedSupplierDetails, setExpandedSupplierDetails] = useState<Record<string,boolean>>({});
   const [expandedBnplTenders, setExpandedBnplTenders] = useState<Record<string,boolean>>({});
   const [storeTotalTarget, setStoreTotalTarget] = useState<number>(0);
@@ -352,6 +379,7 @@ export default function DigiplusOperationalEngine() {
   const [momCompareMonth, setMomCompareMonth] = useState<string>("Oktober2026");
   const [momMode, setMomMode] = useState<"mtd" | "full">("mtd");
   const [showAllQoalaDevices, setShowAllQoalaDevices] = useState(false);
+  const [expandedIncentiveStaff, setExpandedIncentiveStaff] = useState<string | null>(null);
   const [overviewStaffPopupId, setOverviewStaffPopupId] = useState<string | null>(null);
   const [momToday, setMomToday] = useState(() => new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()));
   const [selectedWeek, setSelectedWeek] = useState<string>("ALL");
@@ -394,7 +422,7 @@ export default function DigiplusOperationalEngine() {
     if (feedbackText.trim().length < 5) {setFeedbackError("Isi feedback minimal 5 karakter");return;}
     setFeedbackLoading(true);
     try {
-      const response=await fetch("/api/feedback",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({salesName:currentSalesName || "Staff",text:feedbackText.trim(),sentiment:feedbackSentiment})});
+      const response=await fetch("/api/feedback",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({salesId:currentSalesId,salesName:currentSalesName || "Staff",text:feedbackText.trim(),sentiment:feedbackSentiment})});
       const data=await response.json();
       if(!response.ok)throw new Error(data.error || "Gagal mengirim feedback");
       setFeedbackText("");
@@ -476,6 +504,16 @@ export default function DigiplusOperationalEngine() {
 
       const jsonDb = parseGviz(textDb,"DATABASE");
       const parsedTrx: RawTransaction[] = [];
+      // DATABASE R:V are recorded incentive amounts, not rates.
+      const parseIncentive = (cell: any): number => {
+        const raw = cell?.v ?? cell?.f ?? 0;
+        if (typeof raw === "number") return Number.isFinite(raw) && raw > 0 ? raw : 0;
+        const normalized = String(raw).trim().replace(/Rp\\s*/gi, "").replace(/\\s/g, "");
+        if (!normalized) return 0;
+        const cleaned = normalized.replace(/\\./g, "").replace(/,/g, ".");
+        const value = Number(cleaned);
+        return Number.isFinite(value) && value > 0 ? value : 0;
+      };
       (jsonDb.table.rows || []).forEach((r: any) => {
         const c = r.c;
         if (!c) return;
@@ -532,6 +570,7 @@ export default function DigiplusOperationalEngine() {
             groupCategory,
             weekLabel,
             supplier,
+            incentives: [17, 18, 19, 20, 21].map(i => parseIncentive(c[i])) as [number, number, number, number, number],
           });
         }
       });
@@ -596,9 +635,9 @@ export default function DigiplusOperationalEngine() {
         const idx=m?monthNames.findIndex(n=>n.toLowerCase()===m[1].toLowerCase()):-1;
         return idx>=0?monthNames[idx]+m![2]:"";
       };
-      const targetMonth=rows.map((r:any)=>normalizeMonth(cellText(r.c||[],columns.month))).find(Boolean) || "";
       const currentMonth=new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit"}).format(new Date());
       const currentMonthKey=monthNames[Number(currentMonth.slice(5,7))-1]+currentMonth.slice(0,4);
+      const targetMonth=rows.map((r:any)=>normalizeMonth(cellText(r.c||[],columns.month))).find((m:string)=>m===currentMonthKey) || "";
       const validMonth=Boolean(targetMonth);
       let parsedGrandTotal=0;
       rows.forEach((r:any)=>{
@@ -624,6 +663,11 @@ export default function DigiplusOperationalEngine() {
         targetMap[key]=perCategory.total || 0;
       });
       if(!parsedGrandTotal)parsedGrandTotal=Object.values(targetMap).reduce((a,b)=>a+b,0);
+      for(const cat of Object.keys(columns)){
+        if(cat==="month"||cat==="staff")continue;
+        if(!categoryTotals[cat])categoryTotals[cat]=Object.values(categoryByStaff).reduce((sum,targets)=>sum+(targets[cat]||0),0);
+      }
+      if(!categoryTotals.total)categoryTotals.total=parsedGrandTotal;
       setTargetSheetMonth(targetMonth);
       setStoreTotalTarget(validMonth?parsedGrandTotal:0);
       setStaffTargets(validMonth?targetMap:{});
@@ -709,7 +753,7 @@ export default function DigiplusOperationalEngine() {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordInput !== "Welcome@123") {
-      setLoginErr("Password salah! Gunakan: Welcome@123");
+      setLoginErr("Kata sandi tidak sesuai.");
       return;
     }
     const cleanId = salesIdInput.trim();
@@ -731,6 +775,7 @@ export default function DigiplusOperationalEngine() {
     setCurrentSalesId(cleanId);
     setCurrentSalesName(detectedName);
     setIsLoggedIn(true);
+    setShowWelcome(true);
     setLoginErr("");
     void recordAccess(cleanId, detectedName);
   };
@@ -739,6 +784,7 @@ export default function DigiplusOperationalEngine() {
     localStorage.removeItem("digi_ops_user");
     localStorage.removeItem("digi_ops_name");
     setIsLoggedIn(false);
+    setShowWelcome(false);
     setCurrentSalesId("");
     setCurrentSalesName("");
   };
@@ -1001,6 +1047,48 @@ export default function DigiplusOperationalEngine() {
     return transactions.filter(t=>t.isoDate>=staffSelectedWeek.start&&t.isoDate<=staffSelectedWeek.end);
   },[activeTransactions,transactions,periodType,staffSelectedWeek?.start,staffSelectedWeek?.end]);
 
+  const whiteboard = useMemo(() => {
+    const today=new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+    const month=today.slice(0,7);
+    const monthNames=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+    const monthLabel=monthNames[Number(month.slice(5,7))-1]+month.slice(0,4);
+    const days=new Date(Number(month.slice(0,4)),Number(month.slice(5,7)),0).getDate();
+    const day=Number(today.slice(8,10));
+    const valid=targetSheetMonth===monthLabel && (storeTotalTarget>0 || Object.values(categoryTargets).some(v=>v>0));
+    const rows=transactions.filter(t=>t.isoDate.startsWith(month)&&t.isoDate<=today);
+    const category=(t:RawTransaction)=>{
+      const p=(t.productName||"").toUpperCase(),brand=(t.brand||"").toUpperCase(),group=(t.groupCategory||"").toUpperCase();
+      if(p.includes("QOALA"))return "qoala";
+      if(p.includes("TELKOMSEL")||p.includes("TSEL"))return "telkomsel";
+      if(p.includes("INDOSAT"))return "indosat";
+      if(p.includes(" XL ")||p.startsWith("XL ")||p.includes("AXIATA"))return "xl";
+      if(group.includes("VAS")||group.includes("SERVICE"))return "vas";
+      if(group.includes("ACCESSOR")||["CASE","GLASS","CABLE","ADAPTER","CHARGER"].some(k=>p.includes(k)))return "accessories";
+      if(brand==="APPLE"){
+        if(p.includes("IPHONE"))return "iphone";
+        if(p.includes("IPAD"))return "ipad";
+        if(p.includes("MAC"))return "macbook";
+        if(p.includes("WATCH"))return "applewatch";
+        if(p.includes("AIRPOD"))return "airpods";
+        return "apple";
+      }
+      if(["SAMSUNG","OPPO","XIAOMI","HUAWEI","MOTOROLA","INFINIX"].includes(brand))return brand.toLowerCase();
+      return group==="DEVICES"?"android":"other";
+    };
+    const totals:Record<string,{qty:number;amount:number}>={};
+    rows.forEach(t=>{const k=category(t);if(!totals[k])totals[k]={qty:0,amount:0};totals[k].qty+=t.qty;totals[k].amount+=t.amount});
+    const sum=(keys:string[])=>keys.reduce((v,k)=>v+(totals[k]?.amount||0),0);
+    const apple=sum(["iphone","ipad","macbook","applewatch","airpods","apple"]);
+    const android=sum(["samsung","oppo","xiaomi","huawei","motorola","infinix","android"]);
+    const accessories=sum(["accessories"]);
+    const vas=sum(["qoala","telkomsel","indosat","xl","vas"]);
+    const actual=rows.reduce((v,t)=>v+t.amount,0);
+    const byStaff=new Map<string,{id:string;name:string;amount:number}>();
+    rows.forEach(t=>{const id=t.salesId||t.salesName;if(!id)return;const x=byStaff.get(id)||{id,name:t.salesName||"Sales "+id,amount:0};x.amount+=t.amount;byStaff.set(id,x)});
+    const staff=[...byStaff.values()].sort((a,b)=>b.amount-a.amount);
+    const categoryRows=[["iPhone","iphone"],["iPad","ipad"],["Mac","macbook"],["Apple Watch","applewatch"],["AirPods","airpods"],["Samsung","samsung"],["Oppo","oppo"],["Xiaomi","xiaomi"],["Huawei","huawei"],["Motorola","motorola"],["Infinix","infinix"],["Qoala","qoala"],["Telkomsel","telkomsel"],["Indosat","indosat"],["XL","xl"]];
+    return {today,monthLabel,day,days,valid,actual,apple,android,accessories,vas,staff,totals,categoryRows,targets:valid?{...categoryTargets,total:categoryTargets.total||storeTotalTarget}:{},staffTargets:valid?staffTargets:{}};
+  },[transactions,targetSheetMonth,categoryTargets,staffTargets,storeTotalTarget]);
   const staffList = useMemo(() => {
     const map: Record<string, {
       salesId: string;
@@ -1541,7 +1629,23 @@ export default function DigiplusOperationalEngine() {
     const names=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
     const selectedIdx=names.findIndex(n=>selectedMonth.toLowerCase().startsWith(n.toLowerCase()));
     const selectedPrefix=selectedIdx>=0?selectedMonth.slice(-4)+"-"+String(selectedIdx+1).padStart(2,"0"):"";
-    const filtered=bnplRecords.filter(b=>{
+    // Resolve missing product descriptions in the WEBSITE, not only the PPTX export.
+    const invoiceKey=(v:unknown)=>String(v??"").replace(/[^0-9A-Za-z]/g,"").toUpperCase();
+    const productsByInvoice=new Map<string,Set<string>>();
+    transactions.forEach(t=>{
+      const key=invoiceKey(t.invoice);
+      const product=String(t.productName||"").trim();
+      if(!key||!product)return;
+      if(!productsByInvoice.has(key))productsByInvoice.set(key,new Set());
+      productsByInvoice.get(key)!.add(product);
+    });
+    const enrichedBnpl=bnplRecords.map(b=>({
+      ...b,
+      product:String(b.product||"").trim() ||
+        [...(productsByInvoice.get(invoiceKey(b.invoice))||[])].join(" ; ") ||
+        "Produk belum teridentifikasi (Invoice "+b.invoice+")"
+    }));
+    const filtered=enrichedBnpl.filter(b=>{
       const iso=parseNormalizedDate(b.date,b.month).isoDate;
       if(selectedPrefix && !iso.startsWith(selectedPrefix))return false;
       if(periodType==="daily")return iso===selectedDate;
@@ -1796,25 +1900,281 @@ Indosat IM3 : ${isatText}`;
   const handleExportToPptx = async () => {
     setIsExportingPptx(true);
     try {
-      if (typeof window !== "undefined" && !(window as any).PptxGenJS) {
-        const script = document.createElement("script");
-        script.src = "https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js";
-        script.async = true;
-        document.body.appendChild(script);
-        await new Promise((resolve) => { script.onload = resolve; });
+      if (!transactions.length) throw new Error("Data penjualan belum tersedia. Refresh dashboard terlebih dahulu.");
+      if (!(window as any).PptxGenJS) {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = "https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js";
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error("Library PowerPoint gagal dimuat."));
+          document.body.appendChild(script);
+        });
+      }
+      const pptx = new (window as any).PptxGenJS();
+      pptx.layout = "LAYOUT_WIDE";
+      pptx.author = "Digiplus Grand Indonesia";
+      pptx.subject = "Live store performance report";
+      pptx.title = "Digiplus Grand Indonesia - Sales Performance";
+      const BLUE = "174EA6", NAVY = "102D59", MUTED = "64748B", LIGHT = "EAF3FF", WHITE = "FFFFFF", RED = "B42318", GREEN = "147D64";
+      // Embed the existing Digiplus brand asset into the PPTX (no external image links in exported file).
+      let digiplusLogoData = "";
+      try {
+        const logoResponse = await fetch("/apple-touch-icon.png");
+        if (logoResponse.ok) {
+          const blob = await logoResponse.blob();
+          digiplusLogoData = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result || ""));
+            reader.onerror = () => reject(new Error("Logo gagal dibaca"));
+            reader.readAsDataURL(blob);
+          });
+        }
+      } catch (logoError) {
+        console.warn("Logo Digiplus tidak dapat dimuat untuk PPTX", logoError);
       }
 
-      const pptx = new (window as any).PptxGenJS();
-      pptx.layout = "LAYOUT_16x9";
+      const fmt = (n: number) => "Rp " + Math.round(n).toLocaleString("id-ID");
+      const day = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+      const cutoff = day; // always use today's Jakarta cut-off, independent of dashboard filter
+      const [yy, mm, dd] = cutoff.split("-").map(Number);
+      const previousMonth = new Date(Date.UTC(yy, mm - 2, 1));
+      const previousPrefix = previousMonth.toISOString().slice(0, 7);
+      const currentPrefix = cutoff.slice(0, 7);
+      const prevLastDay = new Date(Date.UTC(yy, mm - 1, 0)).getUTCDate();
+      const priorCutoff = previousPrefix + "-" + String(Math.min(dd, prevLastDay)).padStart(2, "0");
+      const currentMTD = transactions.filter(t => t.isoDate >= currentPrefix + "-01" && t.isoDate <= cutoff);
+      const previousMTD = transactions.filter(t => t.isoDate >= previousPrefix + "-01" && t.isoDate <= priorCutoff);
+      const asDate = (iso: string) => new Date(iso + "T00:00:00Z");
+      const sundayStart = (d: Date) => { const x = new Date(d); x.setUTCDate(x.getUTCDate() - x.getUTCDay()); return x; };
+      const toIso = (d: Date) => d.toISOString().slice(0, 10);
+      const thisWeekStart = sundayStart(asDate(cutoff));
+      const lastWeekStart = new Date(thisWeekStart); lastWeekStart.setUTCDate(lastWeekStart.getUTCDate() - 7);
+      const elapsedDays = Math.floor((asDate(cutoff).getTime() - thisWeekStart.getTime()) / 86400000);
+      const lastWeekCutoff = new Date(lastWeekStart); lastWeekCutoff.setUTCDate(lastWeekCutoff.getUTCDate() + elapsedDays);
+      const currentWeek = transactions.filter(t => t.isoDate >= toIso(thisWeekStart) && t.isoDate <= cutoff);
+      const previousWeek = transactions.filter(t => t.isoDate >= toIso(lastWeekStart) && t.isoDate <= toIso(lastWeekCutoff));
+      const groups = ["Total Amount", "Apple Devices", "Android Devices", "Accessories", "VAS"];
+      const classify = (t: RawTransaction) => {
+        const p = (t.productName || "").toUpperCase();
+        const brand = (t.brand || "").toUpperCase();
+        const g = (t.groupCategory || "").toUpperCase();
+        if (g === "VAS" || /QOALA|PROTECTION|PROTEKSI/.test(p)) return "VAS";
+        if (g === "ACCESSORIES") return "Accessories";
+        if (brand === "APPLE" && (g === "DEVICES" || /IPHONE|IPAD|MAC|WATCH/.test(p))) return "Apple Devices";
+        if (g === "DEVICES" || /SAMSUNG|MOTOROLA|XIAOMI|OPPO|VIVO|HUAWEI|INFINIX/.test(brand)) return "Android Devices";
+        return "Other";
+      };
+      const detail = (t: RawTransaction) => {
+        const group = classify(t);
+        if (group === "Apple Devices") return /IPHONE/i.test(t.productName) ? "iPhone" : /IPAD/i.test(t.productName) ? "iPad" : /MAC/i.test(t.productName) ? "Mac" : /WATCH/i.test(t.productName) ? "Watch" : "Other Apple";
+        if (group === "Android Devices") return t.brand || "Other Android";
+        if (group === "VAS") return /QOALA/i.test(t.productName + " " + t.brand) ? "Qoala" : (t.brand || t.productType || "Other VAS");
+        if (group === "Accessories") return t.productType || t.brand || "Other Accessories";
+        return "Other";
+      };
+      const amount = (arr: RawTransaction[], group?: string, sub?: string) => arr.reduce((sum, t) => sum + ((!group || group === "Total Amount" || classify(t) === group) && (!sub || detail(t) === sub) ? (Number(t.amount) || 0) : 0), 0);
+      const growth = (now: number, before: number) => before > 0 ? ((now - before) / before) * 100 : now > 0 ? null : 0;
+      const growthText = (now: number, before: number) => { const g = growth(now, before); return g === null ? "NEW" : (g > 0 ? "+" : "") + g.toFixed(1) + "%"; };
+      const growthColor = (now: number, before: number) => { const g = growth(now, before); return g === null ? BLUE : g < 0 ? RED : GREEN; };
+      const makeSlide = (heading: string, subtitle: string) => {
+        const slide = pptx.addSlide();
+        slide.background = { color: WHITE };
+        if (digiplusLogoData) slide.addImage({ data: digiplusLogoData, x: 0.6, y: 0.34, w: 1.43, h: 0.6 });
 
-      const slide1 = pptx.addSlide();
-      slide1.background = { color: "0A1128" };
-      slide1.addText("STORE SALES PERFORMANCE & STAFF OPERATIONS REPORT", { x: 0.8, y: 1.8, fontSize: 24, bold: true, color: "38BDF8" });
-      slide1.addText("Evaluasi Mingguan (WoW), Kategori Produk, & Suara Lapangan\nKode Toko: QF01 | Periode: " + timeGoneStats.monthName + " | Cut-off: " + selectedDate, { x: 0.8, y: 3.2, fontSize: 14, color: "F8FAFC" });
-
-      pptx.writeFile({ fileName: `Laporan_Operasional_QF01_${selectedDate}.pptx` });
+        slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 13.333, h: 0.11, line: { color: BLUE }, fill: { color: BLUE } });
+        slide.addText(heading, { x: 2.25, y: 0.4, w: 10.45, h: 0.4, fontFace: "Aptos Display", fontSize: 23, bold: true, color: NAVY, margin: 0 });
+        slide.addText(subtitle, { x: 2.25, y: 0.92, w: 10.45, h: 0.32, fontSize: 10, color: MUTED, margin: 0 });
+        slide.addText("DIGIPLUS GRAND INDONESIA  •  QF01", { x: 0.6, y: 7.13, w: 8, h: 0.18, fontSize: 8, color: MUTED, margin: 0 });
+        slide.addText("Cut-off " + cutoff, { x: 10.4, y: 7.13, w: 2.3, h: 0.18, align: "right", fontSize: 8, color: MUTED, margin: 0 });
+        return slide;
+      };
+      const row = (slide: any, name: string, current: number, previous: number, y: number, height = 0.38, fontSize = 10, indent = 0) => {
+        slide.addShape(pptx.ShapeType.rect, { x: 0.6, y, w: 12.1, h: height, line: { color: "EDF2F8", transparency: 100 }, fill: { color: Math.round(y * 10) % 2 ? "F8FAFD" : WHITE } });
+        slide.addText(name, { x: 0.78 + indent, y: y + 0.04, w: 4.2 - indent, h: height - 0.06, fontSize, bold: indent === 0, color: indent ? MUTED : NAVY, margin: 0, breakLine: false });
+        slide.addText(fmt(current), { x: 5.1, y: y + 0.04, w: 2.7, h: height - 0.06, fontSize, align: "right", color: NAVY, margin: 0 });
+        slide.addText(fmt(previous), { x: 8.0, y: y + 0.04, w: 2.7, h: height - 0.06, fontSize, align: "right", color: MUTED, margin: 0 });
+        slide.addText(growthText(current, previous), { x: 11, y: y + 0.04, w: 1.45, h: height - 0.06, fontSize, bold: true, align: "right", color: growthColor(current, previous), margin: 0 });
+      };
+      const tableHeader = (slide: any, nowLabel: string, beforeLabel: string) => {
+        slide.addShape(pptx.ShapeType.roundRect, { x: 0.6, y: 1.5, w: 12.1, h: 0.48, rectRadius: 0.1, line: { color: LIGHT }, fill: { color: LIGHT } });
+        [["Kategori", 0.78, 4.1], [nowLabel, 5.1, 2.7], [beforeLabel, 8, 2.7], ["Growth", 11, 1.45]].forEach(([label, x, w]: any) => slide.addText(label, { x, y: 1.62, w, h: 0.2, fontSize: 10, bold: true, color: NAVY, align: x > 4 ? "right" : "left", margin: 0 }));
+      };
+      const summaryRows = (slide: any, now: RawTransaction[], before: RawTransaction[], subcategories = false) => {
+        const items: { label: string; group: string; sub?: string; indent: number }[] = [];
+        groups.forEach(group => {
+          items.push({ label: group, group, indent: 0 });
+          if (subcategories && group !== "Total Amount") {
+            const names = new Set([...now, ...before].filter(t => classify(t) === group).map(detail));
+            [...names].sort((a, b) => amount(now, group, b) - amount(now, group, a)).forEach(name => items.push({ label: "↳ " + name, group, sub: name, indent: 0.28 }));
+          }
+        });
+        // Keep all categories in the slide; adapt row height and font size to fit.
+        const available = 4.78, height = Math.min(0.43, available / Math.max(items.length, 1)), fontSize = items.length > 16 ? 7 : items.length > 12 ? 8 : 10;
+        items.forEach((item, i) => row(slide, item.label, amount(now, item.group, item.sub), amount(before, item.group, item.sub), 2.05 + i * height, height, fontSize, item.indent));
+        if (!items.length) slide.addText("Belum ada transaksi pada periode ini.", { x: 0.7, y: 2.3, w: 11, h: 0.4, color: MUTED });
+      };
+      // Slide 1: store and active staff.
+      {
+        const slide = makeSlide("STORE OVERVIEW", "Ringkasan store dan staff aktif berdasarkan transaksi MTD.");
+        slide.addShape(pptx.ShapeType.roundRect, { x: 0.6, y: 1.6, w: 12.1, h: 1.35, rectRadius: 0.2, line: { color: LIGHT }, fill: { color: LIGHT } });
+        slide.addText("DIGIPLUS GRAND INDONESIA", { x: 0.92, y: 1.92, w: 8, h: 0.35, fontSize: 24, bold: true, color: NAVY, margin: 0 });
+        slide.addText("Store QF01  •  " + currentPrefix + " MTD  •  " + fmt(amount(currentMTD)), { x: 0.92, y: 2.4, w: 10, h: 0.25, fontSize: 13, color: BLUE, margin: 0 });
+        const staff = [...new Map(currentMTD.filter(t => t.salesId || t.salesName).map(t => [t.salesId || t.salesName, t.salesName])).values()].sort();
+        slide.addText("ACTIVE STAFF (" + staff.length + ")", { x: 0.7, y: 3.35, w: 8, h: 0.3, fontSize: 17, bold: true, color: NAVY });
+        const perCol = Math.max(1, Math.ceil(staff.length / 3));
+        staff.forEach((name, i) => slide.addText(String(i + 1) + ". " + name, { x: 0.8 + Math.floor(i / perCol) * 4.1, y: 3.92 + (i % perCol) * Math.min(0.35, 2.85 / perCol), w: 3.9, h: 0.25, fontSize: 12, color: NAVY, margin: 0 }));
+        if (!staff.length) slide.addText("Tidak ada staff dengan transaksi MTD.", { x: 0.8, y: 4, w: 10, h: 0.4, color: MUTED });
+      }
+      // Slide 2: month-on-month same elapsed calendar days.
+      {
+        const slide = makeSlide("MONTH ON MONTH • SAME DAY CUT-OFF", currentPrefix + "-01 s/d " + cutoff + " vs " + previousPrefix + "-01 s/d " + priorCutoff);
+        tableHeader(slide, "Bulan ini", "Bulan lalu");
+        summaryRows(slide, currentMTD, previousMTD, true);
+      }
+      // Slide 3: weekly Sunday-to-cutoff, previous Sunday-to-same-weekday.
+      {
+        const slide = makeSlide("WEEK TO WEEK • SAME WEEKDAY CUT-OFF", toIso(thisWeekStart) + " s/d " + cutoff + " vs " + toIso(lastWeekStart) + " s/d " + toIso(lastWeekCutoff));
+        tableHeader(slide, "Minggu ini", "Minggu lalu");
+        summaryRows(slide, currentWeek, previousWeek);
+      }
+      // Slide 4: MTD performance by category, same-day last month as benchmark.
+      {
+        const slide = makeSlide("MTD SALES • CATEGORY BREAKDOWN", "Penjualan 1–" + dd + " bulan ini dibanding tanggal yang sama bulan lalu; semua nominal adalah sales amount.");
+        tableHeader(slide, "MTD saat ini", "MTD bulan lalu");
+        summaryRows(slide, currentMTD, previousMTD, true);
+      }
+      // Slide 5: ranking staff, and category contribution per staff.
+      {
+        const slide = makeSlide("STAFF SALES PERFORMANCE", "Ranking berdasarkan total penjualan MTD tertinggi ke terendah. Kolom kategori adalah nominal sales.");
+        const staff = [...new Map(currentMTD.map(t => [t.salesId || t.salesName, t.salesName])).entries()].map(([id, name]) => ({ id, name, tx: currentMTD.filter(t => (t.salesId || t.salesName) === id) })).sort((a, b) => amount(b.tx) - amount(a.tx));
+        const headers = ["Rank / Staff", "Total Amount", "Apple", "Android", "Accessories", "VAS"];
+        const x = [0.65, 4.4, 6.2, 7.9, 9.6, 11.25], w = [3.65, 1.7, 1.6, 1.6, 1.55, 1.45];
+        slide.addShape(pptx.ShapeType.rect, { x: 0.6, y: 1.48, w: 12.1, h: 0.5, line: { color: LIGHT }, fill: { color: LIGHT } });
+        headers.forEach((h, i) => slide.addText(h, { x: x[i], y: 1.62, w: w[i], h: 0.2, fontSize: 9, bold: true, color: NAVY, align: i ? "right" : "left", margin: 0 }));
+        const h = Math.min(0.46, 4.65 / Math.max(staff.length, 1));
+        staff.forEach((s, i) => {
+          const y = 2.08 + i * h;
+          const values = [String(i + 1) + ". " + s.name, fmt(amount(s.tx)), ...groups.slice(1).map(g => fmt(amount(s.tx, g)))];
+          values.forEach((v, j) => slide.addText(v, { x: x[j], y, w: w[j], h: Math.max(0.14, h - 0.05), fontSize: staff.length > 15 ? 7 : 9, bold: j === 0, color: j === 0 ? NAVY : MUTED, align: j ? "right" : "left", margin: 0 }));
+        });
+        if (!staff.length) slide.addText("Belum ada staff aktif pada MTD.", { x: 0.8, y: 2.2, w: 10, h: 0.3, color: MUTED });
+      }
+      // Slide 6: evidence-led decline, staff review, and stock opportunities.
+      {
+        const slide = makeSlide("ACTION PLAN • NEED REVIEW", "Analisa otomatis berbasis data transaksi. Indikasi, bukan penilaian personal atau keputusan stok final.");
+        const insights: string[] = [];
+        const mtdDiff = amount(currentMTD) - amount(previousMTD);
+        const weekDiff = amount(currentWeek) - amount(previousWeek);
+        insights.push("MTD: " + growthText(amount(currentMTD), amount(previousMTD)) + " (" + fmt(mtdDiff) + ") dibanding bulan lalu pada cut-off sama.");
+        insights.push("Weekly: " + growthText(amount(currentWeek), amount(previousWeek)) + " (" + fmt(weekDiff) + ") dibanding minggu lalu pada hari setara.");
+        groups.slice(1).forEach(g => {
+          const m = amount(currentMTD, g), p = amount(previousMTD, g);
+          if (p > m) insights.push("Penurunan " + g + ": " + fmt(p - m) + " (" + growthText(m, p) + "). Tinjau stok dan attach rate.");
+        });
+        const staffIds = new Set([...currentMTD, ...previousMTD].map(t => t.salesId || t.salesName));
+        const review = [...staffIds].map(id => {
+          const curr = currentMTD.filter(t => (t.salesId || t.salesName) === id);
+          const prev = previousMTD.filter(t => (t.salesId || t.salesName) === id);
+          return { name: curr[0]?.salesName || prev[0]?.salesName || id, now: amount(curr), before: amount(prev) };
+        }).filter(v => v.before > v.now && v.before > 0).sort((a, b) => (b.before - b.now) - (a.before - a.now)).slice(0, 4);
+        const productMap = new Map<string, { name: string; current: number; previous: number }>();
+        [...currentMTD, ...previousMTD].forEach(t => {
+          const key = t.sapArticle || t.productName;
+          if (!key) return;
+          if (!productMap.has(key)) productMap.set(key, { name: t.productName, current: 0, previous: 0 });
+          const item = productMap.get(key)!;
+          if (currentMTD.includes(t)) item.current += t.qty;
+          else item.previous += t.qty;
+        });
+        const opportunities = [...productMap.values()].filter(v => v.previous > v.current && v.previous >= 2).sort((a, b) => b.previous - b.current - (a.previous - a.current)).slice(0, 4);
+        const blocks = [
+          { heading: "PERFORMANCE ANALYSIS", lines: insights.slice(0, 6) },
+          { heading: "STAFF NEED REVIEW", lines: review.length ? review.map(v => v.name + ": " + fmt(v.now) + " vs " + fmt(v.before) + " (" + growthText(v.now, v.before) + ")") : ["Tidak ada penurunan staff yang dapat dibandingkan dari data MTD."] },
+          { heading: "PRODUCTS TO REVIEW / REPLENISH", lines: opportunities.length ? opportunities.map(v => v.name.slice(0, 65) + " • Qty " + v.current + " vs " + v.previous + " (cek stok & demand)") : ["Belum ada indikasi produk menurun yang memenuhi ambang perbandingan."] }
+        ];
+        let y = 1.5;
+        blocks.forEach(block => {
+          slide.addText(block.heading, { x: 0.7, y, w: 12, h: 0.25, fontSize: 12, bold: true, color: BLUE, margin: 0 });
+          y += 0.34;
+          block.lines.forEach(line => {
+            slide.addText("• " + line, { x: 0.83, y, w: 11.6, h: 0.24, fontSize: 9, color: NAVY, margin: 0 });
+            y += 0.28;
+          });
+          y += 0.22;
+        });
+        slide.addText("Catatan: evaluasi staff harus mempertimbangkan jadwal, jam kerja, traffic, ketersediaan stok, dan target individual. Rekomendasi stok perlu validasi inventory.", { x: 0.7, y: 6.75, w: 12, h: 0.26, fontSize: 8, italic: true, color: MUTED, margin: 0 });
+      }
+      // Slide 7: BNPL tender, quantity, amount, product and contribution.
+      {
+        const slide = makeSlide("BNPL • TENDER & PRODUCT CONTRIBUTION", "BNPL DATABASE • MTD " + currentPrefix + "-01 s/d " + cutoff + " • nominal, qty, dan kontribusi tender.");
+        // Resolve missing BNPL product labels from all matching sales invoice lines.
+        // Invoice normalization handles numeric/string and punctuation differences.
+        const invoiceKey = (v: unknown) => String(v ?? "").replace(/[^0-9A-Za-z]/g, "").toUpperCase();
+        const salesByInvoice = new Map<string, Set<string>>();
+        transactions.forEach(t => {
+          const key = invoiceKey(t.invoice);
+          const product = String(t.productName || "").trim();
+          if (!key || !product) return;
+          if (!salesByInvoice.has(key)) salesByInvoice.set(key, new Set());
+          salesByInvoice.get(key)!.add(product);
+        });
+        const dated = bnplRecords.map(b => {
+          const linked = [...(salesByInvoice.get(invoiceKey(b.invoice)) || [])];
+          return {
+            ...b,
+            product: String(b.product || "").trim() || linked.join(" ; ") || "Produk belum teridentifikasi (Invoice " + b.invoice + ")",
+            iso: parseNormalizedDate(b.date, b.month).isoDate
+          };
+        });
+        const bnpl = dated.filter(b => b.iso >= currentPrefix + "-01" && b.iso <= cutoff);
+        const priorBnpl = dated.filter(b => b.iso >= previousPrefix + "-01" && b.iso <= priorCutoff);
+        const bnplAmount = bnpl.reduce((n, b) => n + b.amount, 0);
+        const priorBnplAmount = priorBnpl.reduce((n, b) => n + b.amount, 0);
+        const bnplQty = bnpl.reduce((n, b) => n + b.qty, 0);
+        const contribution = amount(currentMTD) > 0 ? bnplAmount / amount(currentMTD) * 100 : 0;
+        const tenders = [...new Set(bnpl.map(b => b.tender || "Other"))].map(name => ({
+          name, amount: bnpl.filter(b => (b.tender || "Other") === name).reduce((n, b) => n + b.amount, 0),
+          qty: bnpl.filter(b => (b.tender || "Other") === name).reduce((n, b) => n + b.qty, 0)
+        })).sort((a, b) => b.amount - a.amount);
+        const products = [...new Set(bnpl.map(b => b.product || "Unknown"))].map(name => ({
+          name, amount: bnpl.filter(b => (b.product || "Unknown") === name).reduce((n, b) => n + b.amount, 0),
+          qty: bnpl.filter(b => (b.product || "Unknown") === name).reduce((n, b) => n + b.qty, 0)
+        })).sort((a, b) => b.amount - a.amount);
+        const card = (x: number, label: string, value: string, foot: string) => {
+          slide.addShape(pptx.ShapeType.roundRect, { x, y: 1.4, w: 3.85, h: 1.05, rectRadius: 0.13, line: { color: "D8E6F7" }, fill: { color: "F5F9FF" } });
+          slide.addText(label, { x: x + 0.17, y: 1.55, w: 3.5, h: 0.19, fontSize: 9, color: MUTED, margin: 0 });
+          slide.addText(value, { x: x + 0.17, y: 1.83, w: 3.5, h: 0.28, fontSize: 18, bold: true, color: NAVY, margin: 0 });
+          slide.addText(foot, { x: x + 0.17, y: 2.19, w: 3.5, h: 0.16, fontSize: 8, color: BLUE, margin: 0 });
+        };
+        card(0.6, "Total BNPL Amount", fmt(bnplAmount), "MoM " + growthText(bnplAmount, priorBnplAmount));
+        card(4.74, "Qty BNPL", String(bnplQty), "Qty transaksi produk BNPL");
+        card(8.88, "Kontribusi ke Total Sales", contribution.toFixed(1) + "%", "BNPL / Total Amount MTD");
+        slide.addText("BNPL PER TENDER", { x: 0.65, y: 2.76, w: 6, h: 0.28, fontSize: 13, bold: true, color: NAVY, margin: 0 });
+        slide.addText("DETAIL PRODUCT BNPL", { x: 7.05, y: 2.76, w: 5.7, h: 0.28, fontSize: 13, bold: true, color: NAVY, margin: 0 });
+        const addHeading = (labels: { text: string; x: number; w: number; align?: string }[], y: number) => labels.forEach(h => slide.addText(h.text, { x: h.x, y, w: h.w, h: 0.2, fontSize: 9, bold: true, color: BLUE, align: h.align || "left", margin: 0 }));
+        addHeading([{text:"Tender",x:0.7,w:2.3},{text:"Qty",x:3.2,w:0.7,align:"right"},{text:"Amount",x:4.1,w:1.7,align:"right"},{text:"Share",x:5.9,w:0.7,align:"right"}],3.18);
+        addHeading([{text:"Product",x:7.08,w:3.2},{text:"Qty",x:10.3,w:0.5,align:"right"},{text:"Amount",x:10.95,w:1.65,align:"right"}],3.18);
+        const tenderRows = tenders.slice(0, 10);
+        tenderRows.forEach((t, i) => {
+          const y = 3.52 + i * 0.29;
+          slide.addText(t.name, { x:0.7,y,w:2.4,h:0.21,fontSize:9,color:NAVY,margin:0 });
+          slide.addText(String(t.qty), { x:3.2,y,w:0.7,h:0.21,fontSize:9,color:NAVY,align:"right",margin:0 });
+          slide.addText(fmt(t.amount), { x:4.1,y,w:1.7,h:0.21,fontSize:9,color:NAVY,align:"right",margin:0 });
+          slide.addText(bnplAmount ? (t.amount/bnplAmount*100).toFixed(1)+"%" : "0%", { x:5.9,y,w:0.7,h:0.21,fontSize:9,bold:true,color:BLUE,align:"right",margin:0 });
+        });
+        products.slice(0, 10).forEach((p, i) => {
+          const y = 3.52 + i * 0.29;
+          slide.addText(p.name, { x:7.08,y,w:3.15,h:0.21,fontSize:8,color:NAVY,margin:0 });
+          slide.addText(String(p.qty), { x:10.3,y,w:0.5,h:0.21,fontSize:9,color:NAVY,align:"right",margin:0 });
+          slide.addText(fmt(p.amount), { x:10.95,y,w:1.65,h:0.21,fontSize:9,color:NAVY,align:"right",margin:0 });
+        });
+        if (!bnpl.length) slide.addText("Tidak ada data BNPL pada periode MTD.", { x:0.7,y:3.8,w:11,h:0.4,fontSize:12,color:MUTED });
+        const more = (tenders.length > 10 ? " • " + (tenders.length - 10) + " tender lain" : "") + (products.length > 10 ? " • " + (products.length - 10) + " produk lain" : "");
+        slide.addText("Top tender: " + (tenders[0]?.name || "—") + " • " + fmt(tenders[0]?.amount || 0) + more + " | Sumber: BNPL DATABASE", { x:0.7,y:6.75,w:12,h:0.23,fontSize:9,color:MUTED,margin:0 });
+      }
+      await pptx.writeFile({ fileName: "Digiplus_GI_7_Slide_Sales_Review_" + cutoff + ".pptx" });
     } catch (err) {
-      alert("Gagal mengekspor slide PowerPoint: " + err);
+      alert("Gagal mengekspor slide PowerPoint: " + (err instanceof Error ? err.message : String(err)));
     } finally {
       setIsExportingPptx(false);
     }
@@ -1930,6 +2290,9 @@ Indosat IM3 : ${isatText}`;
     { id: "weekly-sales", label: "Weekly Sales (WoW)", icon: "📈", color: "bg-blue-600", shadow: "shadow-blue-600/30" },
     { id: "qoala-ar", label: "Qoala Protection (AR %)", icon: "🛡️", color: "bg-rose-500", shadow: "shadow-rose-500/30" },
     { id: "mom-comparison", label: "MoM Growth Analysis", icon: "⚖️", color: "bg-indigo-500", shadow: "shadow-indigo-500/30" },
+    { id: "est-incentive", label: "Est. Incentive", icon: "💰", color: "bg-emerald-500", shadow: "shadow-emerald-500/30" },
+    { id: "customer-engagement", label: "Customer Engagement", icon: "🤝", color: "bg-sky-500", shadow: "shadow-sky-500/30" },
+    { id: "whiteboard", label: "Whiteboard", icon: "📊", color: "bg-cyan-600", shadow: "shadow-cyan-600/30" },
     { id: "staff-performance", label: "Staff Performance", icon: "🏆", color: "bg-amber-500", shadow: "shadow-amber-500/30" },
     { id: "daily-target", label: "Daily Target & Run Rate", icon: "🎯", color: "bg-orange-500", shadow: "shadow-orange-500/30" },
     { id: "brand-focus", label: "Brand Focus", icon: "🏷️", color: "bg-amber-500", shadow: "shadow-amber-500/30" },
@@ -2092,59 +2455,60 @@ Indosat IM3 : ${isatText}`;
     );
   };
 
+  if (isLoggedIn && showWelcome) {
+    return (
+      <div role="status" aria-live="polite" className={`relative flex min-h-[100dvh] w-full items-center justify-center overflow-hidden px-5 font-sans ${isDark ? "bg-[#030e27] text-white" : "bg-[#f6f9ff] text-slate-950"}`}>
+        <div aria-hidden="true" className={`absolute h-80 w-80 animate-pulse rounded-full blur-3xl ${isDark ? "bg-blue-600/25" : "bg-sky-300/40"}`} />
+        <div className="relative z-10 flex w-full max-w-md flex-col items-center text-center motion-safe:animate-[fadeIn_.5s_ease-out]">
+          <div className="mb-7 flex h-24 w-24 items-center justify-center rounded-[28px] bg-white p-3 shadow-2xl shadow-blue-500/15 motion-safe:animate-bounce">
+            <img src="/apple-touch-icon.png" alt="Digiplus" className="h-full w-full object-contain" />
+          </div>
+          <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-3xl font-bold text-white shadow-lg shadow-emerald-500/25">✓</div>
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.3em] text-sky-500 dark:text-sky-400">Login Berhasil</p>
+          <h1 className="max-w-full break-words text-3xl font-extrabold tracking-tight sm:text-4xl">Welcome Back,</h1>
+          <h2 className="mt-2 max-w-full break-words text-2xl font-bold text-blue-600 dark:text-sky-400 sm:text-3xl">{currentSalesName} 👋</h2>
+          <p className={`mt-5 text-sm ${isDark ? "text-slate-300" : "text-slate-500"}`}>Ready to achieve more today?</p>
+          <div className="mt-8 h-1 w-44 overflow-hidden rounded-full bg-slate-300/40"><div className="h-full w-full origin-left animate-[pulse_1s_ease-in-out_infinite] rounded-full bg-blue-500" /></div>
+          <button type="button" onClick={()=>setShowWelcome(false)} className="mt-6 text-xs font-semibold text-slate-500 underline underline-offset-4 dark:text-slate-400">Lewati animasi</button>
+        </div>
+      </div>
+    );
+  }
+
   if (!isLoggedIn) {
     return (
-      <div className={`min-h-screen ${bgMain} flex items-center justify-center p-4 ${textMain} font-sans overflow-x-hidden w-full max-w-full`}>
-        <div className={`max-w-md w-full ${cardBg} border-2 rounded-3xl p-6 md:p-8 shadow-2xl`}>
-          <div className="text-center mb-6 flex flex-col items-center justify-center">
-            <img 
-              src="/apple-touch-icon.png" 
-              alt="Logo Digiplus" 
-              className="w-16 h-16 object-contain rounded-2xl bg-white p-1 shadow-md mb-2"
-            />
-            <h2 className="font-black text-3xl tracking-wider mb-1 text-slate-950 dark:text-white">
-              QF01
-            </h2>
-            <h1 className="text-xl font-black text-slate-950 dark:text-white">DIGIPLUS GRAND INDONESIA</h1>
-            <p className={`text-xs ${accentText} mt-1 uppercase tracking-widest`}>PORTAL DASHBOARD SALES</p>
+      <div className={`relative flex min-h-[100dvh] w-full items-center justify-center overflow-hidden px-4 py-10 font-sans antialiased transition-colors duration-500 ${isDark ? "bg-[#030e27] text-white" : "bg-[#f6f9ff] text-slate-950"}`}>
+        <div aria-hidden="true" className={`pointer-events-none absolute -left-28 -top-36 h-[26rem] w-[26rem] rounded-full blur-3xl ${isDark ? "bg-blue-700/25" : "bg-blue-200/60"}`} />
+        <div aria-hidden="true" className={`pointer-events-none absolute -bottom-44 -right-28 h-[32rem] w-[32rem] rounded-full blur-3xl ${isDark ? "bg-sky-600/20" : "bg-sky-200/60"}`} />
+        <div className="relative z-10 w-full max-w-[460px]">
+          <div className="mb-7 flex flex-col items-center text-center">
+            <div className={`mb-5 flex h-20 w-20 items-center justify-center overflow-hidden rounded-[24px] p-2 shadow-xl ${isDark ? "bg-white shadow-blue-950/40" : "bg-white shadow-slate-300/50"}`}>
+              <img src="/apple-touch-icon.png" alt="Logo Digiplus" className="h-full w-full object-contain" />
+            </div>
+            <div className="mb-1 text-3xl font-black tracking-tight text-blue-600 dark:text-sky-400">QF01</div>
+            <h1 className="text-lg font-extrabold tracking-tight sm:text-xl">DIGIPLUS GRAND INDONESIA</h1>
+            <p className={`mt-2 text-[11px] font-semibold uppercase tracking-[0.25em] ${isDark ? "text-slate-400" : "text-slate-500"}`}>Sales Performance Portal</p>
           </div>
-          
-          <form onSubmit={handleLogin} className="space-y-4 font-bold">
-            <div>
-              <label className="text-xs font-black uppercase tracking-wider block text-slate-900 dark:text-slate-100">Sales ID / NIK Karyawan</label>
-              <input
-                type="text"
-                required
-                placeholder="Contoh: 24004971 atau 22008089"
-                value={salesIdInput}
-                onChange={(e) => setSalesIdInput(e.target.value)}
-                className={`w-full mt-1.5 px-4 py-3 rounded-xl ${innerBg} border text-sm font-semibold focus:outline-none text-slate-950 dark:text-white`}
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-black uppercase tracking-wider block text-slate-900 dark:text-slate-100">Kata Sandi</label>
-              <input
-                type="password"
-                required
-                placeholder="Welcome@123"
-                value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                className={`w-full mt-1.5 px-4 py-3 rounded-xl ${innerBg} border text-sm font-semibold focus:outline-none text-slate-950 dark:text-white`}
-              />
-            </div>
-
-            {loginErr && (
-              <p className="text-xs text-rose-600 font-black">{loginErr}</p>
-            )}
-
-            <button
-              type="submit"
-              className={`w-full py-3.5 ${isDark ? "bg-sky-500 text-white" : "bg-blue-600 text-white"} font-black rounded-xl text-xs uppercase tracking-wider transition mt-2 shadow-lg`}
-            >
-              Masuk Dashboard
-            </button>
-          </form>
+          <div className={`rounded-[30px] border px-6 py-8 shadow-2xl backdrop-blur-xl sm:px-9 sm:py-10 ${isDark ? "border-sky-400/25 bg-[#0d1e3c]/85 shadow-black/25" : "border-white bg-white/90 shadow-blue-950/10"}`}>
+            <h2 className="text-2xl font-extrabold tracking-tight">Selamat Datang,</h2>
+            <p className={`mb-7 mt-1 text-sm ${isDark ? "text-slate-300" : "text-slate-500"}`}>Masuk untuk mengakses dashboard penjualan.</p>
+            <form onSubmit={handleLogin} className="space-y-5">
+              <div>
+                <label htmlFor="login-sales-id" className="mb-2 block text-sm font-semibold">Sales ID / NIK Karyawan</label>
+                <input id="login-sales-id" type="text" inputMode="numeric" autoComplete="username" required value={salesIdInput} onChange={(e)=>setSalesIdInput(e.target.value)} placeholder="Masukkan Sales ID" className={`w-full rounded-2xl border px-4 py-3.5 text-base font-medium outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 ${isDark ? "border-slate-600 bg-slate-800/80 text-white placeholder:text-slate-400" : "border-slate-200 bg-slate-50 text-slate-950 placeholder:text-slate-400"}`} />
+              </div>
+              <div>
+                <label htmlFor="login-password" className="mb-2 block text-sm font-semibold">Kata Sandi</label>
+                <div className="relative">
+                  <input id="login-password" type={showLoginPassword ? "text" : "password"} autoComplete="current-password" required value={passwordInput} onChange={(e)=>setPasswordInput(e.target.value)} placeholder="Masukkan kata sandi" className={`w-full rounded-2xl border px-4 py-3.5 pr-20 text-base font-medium outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 ${isDark ? "border-slate-600 bg-slate-800/80 text-white placeholder:text-slate-400" : "border-slate-200 bg-slate-50 text-slate-950 placeholder:text-slate-400"}`} />
+                  <button type="button" onClick={()=>setShowLoginPassword(v=>!v)} aria-label={showLoginPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"} className={`absolute inset-y-0 right-3 my-auto rounded-lg px-2 text-xs font-bold ${isDark ? "text-sky-300 hover:text-white" : "text-blue-700 hover:text-blue-900"}`}>{showLoginPassword ? "Sembunyikan" : "Lihat"}</button>
+                </div>
+              </div>
+              {loginErr && <p role="alert" className="rounded-xl bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-600 dark:text-red-300">{loginErr}</p>}
+              <button type="submit" className="flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-4 text-sm font-extrabold text-white shadow-lg shadow-blue-700/20 transition hover:from-blue-500 hover:to-blue-600 active:scale-[0.99]">Masuk Dashboard <span aria-hidden="true">→</span></button>
+            </form>
+          </div>
+          <p className={`mt-7 text-center text-[10px] font-semibold uppercase tracking-[0.2em] ${isDark ? "text-slate-500" : "text-slate-400"}`}>Digiplus Grand Indonesia · QF01</p>
         </div>
       </div>
     );
@@ -2241,80 +2605,62 @@ Indosat IM3 : ${isatText}`;
         </div>
       </aside>
 
-      {/* 2. DRAWER MOBILE */}
+      {/* 2. MOBILE NAVIGATION — compact iOS-inspired drawer; desktop unchanged */}
       {mobileDrawerOpen && (
-        <div
-          onClick={() => setMobileDrawerOpen(false)}
-          className="lg:hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 transition-opacity print:hidden"
-        />
+        <div onClick={() => setMobileDrawerOpen(false)} className="lg:hidden fixed inset-0 bg-slate-950/65 backdrop-blur-[5px] z-50 print:hidden" />
       )}
-
-      <div
-        className={`lg:hidden fixed top-0 bottom-0 left-0 w-72 max-w-[80vw] z-50 transform transition-transform duration-300 ease-in-out border-r backdrop-blur-2xl p-5 flex flex-col justify-between print:hidden ${glassSidebar} ${
-          mobileDrawerOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+      <aside
+        aria-label="Navigasi mobile Digiplus GI"
+        aria-hidden={!mobileDrawerOpen}
+        className={`lg:hidden fixed inset-y-0 left-0 w-[min(328px,88vw)] z-50 transform transition-transform duration-300 ease-out border-r flex flex-col overflow-hidden print:hidden ${isDark ? "bg-[#161b23] border-white/10" : "bg-[#f8fafc] border-slate-200"} ${mobileDrawerOpen ? "translate-x-0" : "-translate-x-full pointer-events-none"}`}
+        style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <div>
-          <div className="flex items-center justify-between pb-4 border-b border-inherit">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-sky-500 text-white font-black text-sm flex items-center justify-center shadow-sm">
-                QF01
-              </div>
-              <span className="font-black text-sm text-slate-950 dark:text-white">DIGIPLUS GI</span>
+        <div className="px-5 pt-5 pb-4 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-[#0a9fe8] text-white text-[15px] font-extrabold tracking-tight flex items-center justify-center">QF01</div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[15px] font-bold tracking-tight text-slate-950 dark:text-white">DIGIPLUS GI</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">Store dashboard</p>
             </div>
-            <button
-              onClick={() => setMobileDrawerOpen(false)}
-              className="w-8 h-8 rounded-full bg-slate-700/20 dark:bg-slate-700/30 flex items-center justify-center text-xs font-bold text-slate-950 dark:text-white"
-            >
-              ✕
-            </button>
+            <button aria-label="Tutup menu" onClick={() => setMobileDrawerOpen(false)} className="w-9 h-9 rounded-full bg-slate-200/80 dark:bg-white/10 text-slate-700 dark:text-slate-200 flex items-center justify-center text-lg active:scale-95">×</button>
           </div>
-
-          <nav className="mt-4 space-y-1.5 overflow-y-auto max-h-[60vh] pr-1 custom-scrollbar">
-            {mainNavItems.map((item) => {
-              const active = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setActiveTab(item.id as MenuTab);
-                    setMobileDrawerOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs transition-all active:scale-[0.98] ${
-                    active
-                      ? isDark
-                        ? "bg-sky-500/15 border border-sky-400/30 text-white font-black shadow-sm"
-                        : "bg-sky-50 border border-sky-200 text-sky-950 font-black shadow-sm"
-                      : "font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 border border-transparent"
-                  }`}
-                >
-                  <div className={`w-7 h-7 rounded-lg ${item.color} ${item.shadow} shadow-md flex items-center justify-center text-xs shrink-0 text-white`}>
-                    {item.icon}
-                  </div>
-                  <span className="truncate">{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
         </div>
-
-        <div className="pt-4 border-t border-inherit space-y-2">
+        <div className="px-5 pb-2 shrink-0"><p className="text-[10px] font-bold tracking-[0.14em] uppercase text-slate-400">Navigation</p></div>
+        <nav className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 pb-3 space-y-0.5 custom-scrollbar">
+          {mainNavItems.map(item => {
+            const active = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                aria-current={active ? "page" : undefined}
+                onClick={() => { setActiveTab(item.id as MenuTab); setMobileDrawerOpen(false); }}
+                className={`w-full min-h-[48px] flex items-center gap-3 px-3 py-2 rounded-2xl text-left transition-colors active:scale-[0.99] ${active ? "bg-sky-500/12 dark:bg-sky-400/15 text-sky-700 dark:text-sky-300" : "text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-white/5"}`}
+              >
+                <span className={`w-9 h-9 shrink-0 rounded-xl flex items-center justify-center text-[17px] ${active ? "bg-sky-500/15 dark:bg-sky-400/15" : "bg-slate-200/70 dark:bg-white/[0.07]"}`}>{item.icon}</span>
+                <span className={`flex-1 min-w-0 text-[13px] leading-tight ${active ? "font-bold" : "font-medium"}`}>{item.label}</span>
+                {active && <span className="w-1.5 h-1.5 rounded-full bg-sky-500 shrink-0" />}
+              </button>
+            );
+          })}
+        </nav>
+        <div className="shrink-0 px-4 py-3 border-t border-slate-200 dark:border-white/10">
           <button
-            onClick={toggleTheme}
-            className={`w-full py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 ${
-              isDark ? "bg-white/5 border-white/10" : "bg-slate-200/80 border-slate-300 text-slate-950"
-            }`}
+            type="button"
+            onClick={async () => { setMobileDrawerOpen(false); await handleExportToPptx(); }}
+            disabled={isExportingPptx}
+            aria-label="Export laporan ke PowerPoint"
+            className="w-full min-h-[48px] flex items-center justify-center gap-2 rounded-xl border border-sky-500/40 bg-sky-500/15 px-3 py-3 text-sm font-bold text-sky-700 dark:text-sky-300 disabled:cursor-wait disabled:opacity-60 active:scale-[0.99]"
           >
-            <span>{isDark ? "☀️ Mode Terang" : "🌙 Mode Gelap"}</span>
-          </button>
-          <button
-            onClick={handleLogout}
-            className="w-full py-2 px-3 rounded-xl bg-rose-500/10 text-rose-600 border border-rose-500/20 text-xs font-black flex items-center justify-center gap-2"
-          >
-            <span>🚪 Keluar</span>
+            <span aria-hidden="true">📽️</span>
+            <span>{isExportingPptx ? "Membuat Slide..." : "Export ke Slide PPTX"}</span>
           </button>
         </div>
-      </div>
+        <div className="shrink-0 px-4 pt-3 pb-4 border-t border-slate-200 dark:border-white/10 space-y-2">
+          <button onClick={toggleTheme} className="w-full min-h-[44px] rounded-xl bg-slate-200/70 dark:bg-white/[0.07] text-slate-800 dark:text-slate-200 text-[13px] font-semibold flex items-center justify-center gap-2">{isDark ? "☀️ Mode Terang" : "🌙 Mode Gelap"}</button>
+          <button onClick={handleLogout} className="w-full min-h-[44px] rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[13px] font-semibold flex items-center justify-center gap-2">🚪 Keluar</button>
+        </div>
+      </aside>
 
       {/* 3. KONTEN UTAMA */}
       <div className="flex-1 flex flex-col min-w-0">
@@ -2503,6 +2849,19 @@ Indosat IM3 : ${isatText}`;
                     <button disabled={!accessPassword || accessLoading} onClick={()=>void loadAccessLog()} className="px-4 py-2 rounded-lg bg-indigo-600 text-white font-bold disabled:opacity-50">{accessLoading ? "Memuat..." : "Buka / Refresh"}</button>
                   </div>
                   {accessError && <p className="text-rose-600 text-sm">{accessError}</p>}
+                  <section className="space-y-3">
+                    <h3 className="font-black text-slate-950 dark:text-white">🏆 Ranking Aktivitas Staff</h3>
+                    <p className="text-xs text-slate-600 dark:text-slate-300">Ranking berdasarkan estimasi total durasi aktif dari heartbeat. Login hari ini dihitung menurut tanggal WIB.</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[["Staff Tercatat",accessRanking.length],["Login Hari Ini",accessRanking.reduce((n,x)=>n+x.loginsToday,0)],["Online",accessRanking.filter(x=>x.online).length]].map(([label,value])=><div key={label} className={`rounded-xl border p-3 ${innerBg}`}><p className="text-xs text-slate-600 dark:text-slate-300">{label}</p><p className="text-xl font-black text-slate-950 dark:text-white">{value}</p></div>)}
+                    </div>
+                    <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-xs text-slate-900 dark:text-slate-100">
+                      <thead><tr>{["Rank","Sales ID","Nama Staff","Total Durasi Aktif","Login Hari Ini","Login Terakhir (WIB)","Status"].map(h=><th key={h} className="p-2 text-left">{h}</th>)}</tr></thead>
+                      <tbody>{accessRanking.filter(x=>(x.id+" "+x.name).toLowerCase().includes(accessSearch.toLowerCase())).map((x,i)=><tr key={x.id} className="border-t border-slate-300 dark:border-slate-700">
+                        <td className="p-2 font-black text-sky-600 dark:text-sky-400">#{i+1}</td><td className="p-2">{x.id}</td><td className="p-2 font-semibold">{x.name}</td><td className="p-2">{Math.floor(x.duration/3600)}j {Math.floor(x.duration%3600/60)}m</td><td className="p-2">{x.loginsToday}x</td><td className="p-2">{x.lastLogin?new Date(x.lastLogin).toLocaleString("id-ID",{timeZone:"Asia/Jakarta"}):"Belum tercatat"}</td><td className="p-2">{x.online?"🟢 Online":"⚪ Offline"}</td>
+                      </tr>)}</tbody>
+                    </table>{accessRanking.length===0&&<p className="p-3 text-sm text-slate-500">Belum ada aktivitas staff yang tercatat.</p>}</div>
+                  </section>
                   <div className="space-y-2">
                     <h3 className="font-black text-slate-950 dark:text-white">📡 Staff Activity Monitor</h3>
                     <p className="text-xs text-slate-700 dark:text-slate-300">Estimasi durasi aktif berdasarkan heartbeat 60 detik saat tab terlihat dan tidak idle. Klik Refresh untuk memperbarui status.</p>
@@ -2521,6 +2880,82 @@ Indosat IM3 : ${isatText}`;
                     <thead><tr>{["Tanggal","Waktu WIB","Sales ID","Nama Sales","Lokasi","Status Lokasi"].map(h=><th key={h} className="p-3 text-left">{h}</th>)}</tr></thead>
                     <tbody>{accessRows.filter(row=>row.slice(3,5).join(" ").toLowerCase().includes(accessSearch.toLowerCase())).map((row,i)=><tr key={i} className="border-t border-slate-300 dark:border-slate-700">{[row[1],row[2],row[3],row[4],row[5],row[6]].map((v,j)=><td key={j} className="p-3">{v || "—"}</td>)}</tr>)}</tbody>
                   </table></div>
+                </div>
+              )}
+              {activeTab === "whiteboard" && (
+                <div className={`space-y-4 rounded-3xl border p-4 shadow-xl lg:hidden ${cardBg}`}>
+                  <header className="flex items-start justify-between gap-3">
+                    <div><p className="text-[11px] font-bold uppercase tracking-widest text-sky-600 dark:text-sky-400">QF01 · Digiplus Grand Indonesia</p><h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">📊 Whiteboard</h2><p className="text-xs text-slate-600 dark:text-slate-300">{whiteboard.monthLabel} · Bulan berjalan (WIB)</p></div>
+                    <span className="rounded-xl bg-sky-100 px-3 py-2 text-xs font-bold text-sky-800 dark:bg-sky-950 dark:text-sky-200">Live MTD</span>
+                  </header>
+                  {!whiteboard.valid && <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-200">Target {whiteboard.monthLabel} belum tersedia. Achievement tetap ditampilkan tanpa perkiraan target.</p>}
+                  <section className="rounded-2xl bg-slate-100 p-4 dark:bg-slate-800">
+                    <div className="mb-2 flex justify-between text-xs font-semibold text-slate-700 dark:text-slate-200"><span>Time Gone</span><span>{timeGoneStats.timeElapsedPct}%</span></div>
+                    <div className="h-2 overflow-hidden rounded-full bg-slate-300 dark:bg-slate-600"><div className="h-full rounded-full bg-blue-600" style={{width:`${whiteboard.day/whiteboard.days*100}%`}} /></div>
+                  </section>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[["Total Sales",whiteboard.actual,"total"],["Apple",whiteboard.apple,"apple"],["Android",whiteboard.android,"android"],["Accessories",whiteboard.accessories,"accessories"],["VAS",whiteboard.vas,"vas"]].map(([label,actual,key]:any)=><div key={key} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800">
+                      <p className="text-xs font-semibold text-slate-500 dark:text-slate-300">{label}</p>
+                      <p className="mt-1 break-words text-base font-extrabold text-blue-700 dark:text-sky-300">Rp {formatIDR(actual)}</p>
+                      <p className="mt-2 text-[11px] text-slate-600 dark:text-slate-300">Target: {whiteboard.valid?formatIDR(whiteboard.targets[key]||0):"—"}</p>
+                      <p className="text-xs font-bold text-slate-900 dark:text-white">{whiteboard.valid&&whiteboard.targets[key]>0?(actual/whiteboard.targets[key]*100).toFixed(1)+"% Achievement":"—"}</p>
+                    </div>)}
+                  </div>
+                  <section className="rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
+                    <h3 className="mb-3 font-black text-slate-950 dark:text-white">LOB Target vs Achievement</h3>
+                    <div className="space-y-2">{whiteboard.categoryRows.map(([label,key])=><details key={key} className="group rounded-xl bg-slate-100 px-3 py-3 dark:bg-slate-800">
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-semibold text-slate-900 dark:text-white"><span>{label}</span><span className="flex items-center gap-2 text-xs font-bold text-blue-700 dark:text-sky-300">Rp {formatIDR(whiteboard.totals[key]?.amount||0)} <span aria-hidden="true" className="transition-transform group-open:rotate-180">⌄</span></span></summary>
+                      <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-300 pt-3 text-xs dark:border-slate-600">
+                        <div><p className="text-slate-500 dark:text-slate-300">Target</p><strong className="text-slate-900 dark:text-white">{whiteboard.valid?formatIDR(whiteboard.targets[key]||0):"—"}</strong></div>
+                        <div><p className="text-slate-500 dark:text-slate-300">Qty terjual</p><strong className="text-slate-900 dark:text-white">{whiteboard.totals[key]?.qty||0}</strong></div>
+                        <div><p className="text-slate-500 dark:text-slate-300">Achievement</p><strong className="text-slate-900 dark:text-white">Rp {formatIDR(whiteboard.totals[key]?.amount||0)}</strong></div>
+                        <div><p className="text-slate-500 dark:text-slate-300">Ach %</p><strong className="text-slate-900 dark:text-white">{whiteboard.valid&&whiteboard.targets[key]>0?((whiteboard.totals[key]?.amount||0)/whiteboard.targets[key]*100).toFixed(1)+"%":"—"}</strong></div>
+                      </div>
+                    </details>)}</div>
+                  </section>
+                  <section className="rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
+                    <h3 className="mb-3 font-black text-slate-950 dark:text-white">Today Target</h3>
+                    {([["Total Value","total"],["Apple / Staff","apple"],["Android / Staff","android"],["Accessories / Staff","accessories"],["VAS / Staff","vas"]] as [string,string][]).map(([label,key])=><div key={key} className="flex justify-between gap-2 border-b border-slate-200 py-2 text-xs text-slate-900 dark:border-slate-700 dark:text-white"><span>{label}</span><strong>{whiteboard.valid?formatIDR((whiteboard.targets[key]||0)/whiteboard.days/(key==="total"?1:Math.max(1,Object.keys(whiteboard.staffTargets).length))):"—"}</strong></div>)}
+                  </section>
+                  <section className="rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
+                    <h3 className="mb-1 font-black text-slate-950 dark:text-white">Staff Monthly Performance</h3>
+                    <p className="mb-3 text-xs text-slate-500 dark:text-slate-300">Ranking berdasarkan achievement bulan berjalan</p>
+                    <div className="space-y-2">{whiteboard.staff.map((x,i)=>{const target=whiteboard.valid?(whiteboard.staffTargets[x.name.toLowerCase().trim()]||0):0;return <div key={x.id} className="rounded-xl bg-slate-100 p-3 dark:bg-slate-800">
+                      <div className="flex items-center justify-between gap-2"><span className="text-sm font-bold text-slate-900 dark:text-white">#{i+1} {x.name}</span><span className="text-sm font-extrabold text-blue-700 dark:text-sky-300">Rp {formatIDR(x.amount)}</span></div>
+                      <div className="mt-2 flex justify-between text-xs text-slate-600 dark:text-slate-300"><span>Target: {whiteboard.valid?formatIDR(target):"—"}</span><span>{target>0?(x.amount/target*100).toFixed(1)+"%":"—"}</span></div>
+                      {target>0&&<div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-300 dark:bg-slate-600"><div className="h-full rounded-full bg-blue-600" style={{width:`${Math.min(100,x.amount/target*100)}%`}} /></div>}
+                    </div>})}{whiteboard.staff.length===0&&<p className="text-sm text-slate-500">Belum ada transaksi bulan berjalan.</p>}</div>
+                  </section>
+                </div>
+              )}
+              {activeTab === "whiteboard" && (
+                <div className={`hidden space-y-6 rounded-3xl lg:block border p-4 shadow-xl sm:p-7 ${cardBg}`}>
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-300 pb-4 dark:border-slate-700">
+                    <div><h2 className="text-xl font-black text-slate-950 dark:text-white">📊 WHITEBOARD — QF01 DIGIPLUS GRAND INDONESIA</h2><p className="text-xs text-slate-600 dark:text-slate-300">Ringkasan otomatis bulan berjalan • Data transaksi sampai hari ini (WIB)</p></div>
+                    <div className="rounded-xl bg-sky-100 px-4 py-2 text-sm font-bold text-sky-800 dark:bg-sky-950 dark:text-sky-200">{new Date(whiteboard.today+"T12:00:00").toLocaleDateString("id-ID",{day:"numeric",month:"long",year:"numeric"})}</div>
+                  </div>
+                  {!whiteboard.valid && <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-200">Target bulan {whiteboard.monthLabel} belum tersedia pada sumber data. Achievement tetap ditampilkan, target dan variance tidak dihitung.</p>}
+                  <div className="text-center text-sm font-black text-slate-950 dark:text-white">TARGET THIS MONTH — TIME GONE: {timeGoneStats.timeElapsedPct}%</div>
+                  <div className="overflow-x-auto"><table className="w-full min-w-[700px] text-sm text-slate-950 dark:text-white">
+                    <thead><tr><th className="p-3 text-left">METRIC</th>{["VALUE","APPLE","ANDROID","ACCESSORIES","VAS"].map(x=><th key={x} className="p-3 text-right">{x} (Rp)</th>)}</tr></thead>
+                    <tbody>{[["TARGET",["total","apple","android","accessories","vas"].map(k=>whiteboard.valid&&whiteboard.targets[k]>0?whiteboard.targets[k]:null)],["ACHIEVEMENT",[whiteboard.actual,whiteboard.apple,whiteboard.android,whiteboard.accessories,whiteboard.vas]],["ACHIEVEMENT %",["total","apple","android","accessories","vas"].map((k,i)=>whiteboard.valid&&whiteboard.targets[k]>0?[whiteboard.actual,whiteboard.apple,whiteboard.android,whiteboard.accessories,whiteboard.vas][i]/whiteboard.targets[k]*100:null)],["VARIANCE",["total","apple","android","accessories","vas"].map((k,i)=>whiteboard.valid&&whiteboard.targets[k]>0?[whiteboard.actual,whiteboard.apple,whiteboard.android,whiteboard.accessories,whiteboard.vas][i]-whiteboard.targets[k]:null)]].map(([label,values]:any)=><tr key={label} className="border-t border-slate-300 dark:border-slate-700"><td className="p-3 font-bold">{label}</td>{values.map((v:number|null,i:number)=><td key={i} className={`p-3 text-right font-semibold ${label==="VARIANCE"&&v!==null&&v<0?"text-rose-600 dark:text-rose-400":label==="ACHIEVEMENT"?"text-blue-600 dark:text-sky-400":""}`}>{v===null?"—":label==="ACHIEVEMENT %"?v.toFixed(1)+"%":formatIDR(v)}</td>)}</tr>)}</tbody>
+                  </table></div>
+                  <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+                    <section className="rounded-2xl border border-slate-300 p-4 dark:border-slate-700 xl:col-span-1">
+                      <h3 className="mb-3 border-b pb-2 text-center font-black text-slate-950 dark:text-white">LOB TARGET VS ACHIEVEMENT</h3>
+                      <div className="overflow-x-auto"><table className="w-full text-xs text-slate-950 dark:text-white"><thead><tr>{["LOB","TARGET","QTY","ACHIEVEMENT"].map(h=><th key={h} className="p-2 text-left">{h}</th>)}</tr></thead><tbody>{whiteboard.categoryRows.map(([label,key])=><tr key={key} className="border-t border-slate-200 dark:border-slate-700"><td className="p-2 font-semibold">{label}</td><td className="p-2">{whiteboard.valid?formatIDR(whiteboard.targets[key]||0):"—"}</td><td className="p-2 text-blue-600 dark:text-sky-400">{whiteboard.totals[key]?.qty||0}</td><td className="p-2 font-bold text-blue-600 dark:text-sky-400">{formatIDR(whiteboard.totals[key]?.amount||0)}</td></tr>)}</tbody></table></div>
+                    </section>
+                    <section className="rounded-2xl border border-slate-300 p-4 dark:border-slate-700">
+                      <h3 className="mb-4 border-b pb-2 text-center font-black text-slate-950 dark:text-white">TODAY TARGET</h3>
+                      <div className="space-y-3 text-sm text-slate-900 dark:text-slate-100">{[["TOTAL VALUE","total"],["APPLE / STAFF","apple"],["ANDROID / STAFF","android"],["ACC / STAFF","accessories"],["VAS / STAFF","vas"]].map(([label,key])=><div key={key} className="flex justify-between gap-3 border-b border-slate-200 pb-2 dark:border-slate-700"><span>{label}</span><strong>{whiteboard.valid?formatIDR((whiteboard.targets[key]||0)/whiteboard.days/(key==="total"?1:Math.max(1,Object.keys(whiteboard.staffTargets).length))):"—"}</strong></div>)}</div>
+                      <p className="mt-4 text-xs text-slate-500">Target harian = target bulanan ÷ jumlah hari kalender. Target per staff = target kategori ÷ hari ÷ jumlah staff bertarget.</p>
+                    </section>
+                    <section className="rounded-2xl border border-slate-300 p-4 dark:border-slate-700">
+                      <h3 className="mb-3 border-b pb-2 text-center font-black text-slate-950 dark:text-white">STAFF MONTHLY TARGET VS ACHIEVEMENT</h3>
+                      <div className="max-h-[560px] overflow-auto"><table className="w-full text-xs text-slate-950 dark:text-white"><thead><tr>{["STAFF","TARGET","ACTUAL"].map(h=><th key={h} className="p-2 text-left">{h}</th>)}</tr></thead><tbody>{whiteboard.staff.map(x=>{const key=x.name.toLowerCase().trim();return <tr key={x.id} className="border-t border-slate-200 dark:border-slate-700"><td className="p-2 font-semibold">{x.name}</td><td className="p-2">{whiteboard.valid?formatIDR(whiteboard.staffTargets[key]||0):"—"}</td><td className="p-2 font-bold text-blue-600 dark:text-sky-400">{formatIDR(x.amount)}</td></tr>})}</tbody></table>{whiteboard.staff.length===0&&<p className="p-3 text-sm text-slate-500">Belum ada transaksi bulan ini.</p>}</div>
+                    </section>
+                  </div>
+                  <p className="text-xs text-slate-500">Whiteboard hanya menampilkan bulan berjalan ({whiteboard.monthLabel}), tidak mengikuti filter bulan pada menu lain. Kategori dihitung berdasarkan brand, nama produk, dan grup kategori dari database.</p>
                 </div>
               )}
               {activeTab === "store-overview" && (
@@ -3178,6 +3613,108 @@ Indosat IM3 : ${isatText}`;
                   </div>
                 </div>
               )}
+
+              {/* CUSTOMER ENGAGEMENT TRACKER */}
+{activeTab==="customer-engagement"&&(()=>{
+const people=new Map<string,string>();transactions.forEach(t=>{if(t.salesId&&t.salesName)people.set(t.salesId,t.salesName)});
+const now=new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+const from=engPeriod==="today"?now:engPeriod==="week"?(()=>{const d=new Date(now+"T12:00:00Z");d.setUTCDate(d.getUTCDate()-((d.getUTCDay()+6)%7));return d.toISOString().slice(0,10)})():now.slice(0,7)+"-01";
+const within=(d:string)=>d>=from&&d<=now;
+const rows=engRows.filter(r=>within(r.date)),sales=transactions.filter(t=>within(t.isoDate));
+const cats=["CX","New Member","Google Review"];
+const sums=cats.map(c=>rows.filter(r=>r.category===c).reduce((n,r)=>n+Number(r.qty||0),0));
+const invoices=new Map<string,Set<string>>();sales.forEach(t=>{if(!t.invoice?.trim())return;if(!invoices.has(t.salesId))invoices.set(t.salesId,new Set());invoices.get(t.salesId)!.add(t.invoice.trim().toUpperCase())});
+const grand=new Set(sales.map(t=>t.invoice?.trim().toUpperCase()).filter(Boolean)).size;
+const staff=[...new Set([...invoices.keys(),...rows.map(r=>r.salesId)])].filter(Boolean).map(id=>({id,name:people.get(id)||rows.find(r=>r.salesId===id)?.salesName||id,invoice:invoices.get(id)?.size||0,values:cats.map(c=>rows.filter(r=>r.salesId===id&&r.category===c).reduce((n,r)=>n+Number(r.qty||0),0))})).sort((a,b)=>b.invoice-a.invoice);
+const save=async(e:React.FormEvent)=>{e.preventDefault();setEngBusy(true);try{const r=await fetch("/api/customer-engagement",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({date:engDate,salesId:engStaff,salesName:people.get(engStaff),category:engCategory,qty:Number(engQty),enteredBy:currentSalesId})});const d=await r.json();if(!r.ok)throw Error(d.error);setEngQty("1");await loadEng()}catch(e){setEngError(String(e))}finally{setEngBusy(false)}};
+const remove=async(id:string)=>{if(!window.confirm("Hapus aktivitas ini?"))return;setEngBusy(true);try{const r=await fetch("/api/customer-engagement",{method:"DELETE",headers:{"Content-Type":"application/json","x-admin-access-password":engPassword},body:JSON.stringify({id})});const d=await r.json();if(!r.ok)throw Error(d.error);await loadEng()}catch(e){setEngError(String(e))}finally{setEngBusy(false)}};
+return <div className="space-y-5">
+<div className={`rounded-3xl border p-5 ${cardBg}`}><h2 className="text-2xl font-bold">Customer Engagement Tracker</h2><p className="opacity-70 text-sm">Manual CX · New Member · Google Review vs unique invoices</p><div className="flex gap-2 mt-4">{[["today","Today"],["week","This Week"],["month","MTD"]].map(([v,l])=><button key={v} onClick={()=>setEngPeriod(v)} className={`px-4 py-2 rounded-xl border ${engPeriod===v?"bg-blue-600 text-white":""}`}>{l}</button>)}</div></div>
+<div className="grid grid-cols-2 xl:grid-cols-4 gap-3">{[["Unique Invoice",grand],...cats.map((c,i)=>[c,sums[i]])].map(([label,value])=><div key={label} className={`rounded-2xl border p-4 ${cardBg}`}><p className="opacity-70 text-sm">{label}</p><p className="text-3xl font-bold mt-2">{value}</p></div>)}</div>
+<form onSubmit={save} className={`rounded-3xl border p-5 space-y-4 ${cardBg}`}><h3 className="text-xl font-bold">Manual Input</h3><div className="grid md:grid-cols-2 gap-3"><label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Activity Date<input type="date" required value={engDate} onChange={e=>setEngDate(e.target.value)} className="mt-1.5 block w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-slate-900 shadow-sm outline-none transition-colors focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:[color-scheme:dark] dark:focus:border-sky-400"/></label><label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Staff<select required value={engStaff} onChange={e=>setEngStaff(e.target.value)} className="mt-1.5 block w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-slate-900 shadow-sm outline-none transition-colors focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:[color-scheme:dark] dark:focus:border-sky-400"><option value="">Pilih staff</option>{[...people.entries()].sort((a,b)=>a[1].localeCompare(b[1])).map(([id,name])=><option key={id} value={id}>{name} · {id}</option>)}</select></label><label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Category<select value={engCategory} onChange={e=>setEngCategory(e.target.value)} className="mt-1.5 block w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-slate-900 shadow-sm outline-none transition-colors focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:[color-scheme:dark] dark:focus:border-sky-400">{cats.map(c=><option key={c}>{c}</option>)}</select></label><label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Qty<input type="number" min="1" max="10000" required value={engQty} onChange={e=>setEngQty(e.target.value)} className="mt-1.5 block w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-slate-900 shadow-sm outline-none transition-colors focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:[color-scheme:dark] dark:focus:border-sky-400"/></label></div><button disabled={engBusy||!currentSalesId} type="submit" className="bg-blue-600 text-white px-5 py-3 rounded-xl disabled:opacity-50">{engBusy?"Menyimpan...":"Simpan Aktivitas"}</button>{engError&&<p role="alert" className="text-rose-500 text-sm">{engError}</p>}</form>
+<div className={`rounded-3xl border p-5 overflow-x-auto ${cardBg}`}><h3 className="text-xl font-bold mb-3">Staff Performance · COUNTUNIQUE Invoice</h3><table className="w-full text-sm"><thead><tr><th className="p-2 text-left">Staff</th><th className="p-2">Invoice</th>{cats.map(c=><th className="p-2" key={c}>{c}</th>)}</tr></thead><tbody>{staff.map(r=><tr key={r.id} className="border-t border-gray-500/20"><td className="p-2">{r.name}</td><td className="p-2 text-center">{r.invoice}</td>{r.values.map((v,i)=><td className="p-2 text-center" key={i}>{v}</td>)}</tr>)}<tr className="font-bold border-t"><td className="p-2">GRAND TOTAL</td><td className="p-2 text-center">{grand}</td>{sums.map((v,i)=><td className="p-2 text-center" key={i}>{v}</td>)}</tr></tbody></table><p className="opacity-60 text-xs mt-3">Grand total invoice dihitung unik untuk seluruh store.</p></div>
+<div className={`rounded-3xl border p-5 overflow-x-auto ${cardBg}`}><h3 className="text-xl font-bold mb-3">Riwayat Input</h3>{currentSalesId===ADMIN_ID&&<input type="password" placeholder="Admin password untuk hapus" value={engPassword} onChange={e=>setEngPassword(e.target.value)} className="p-2 rounded-xl text-gray-900 mb-3"/>}<table className="w-full text-sm"><thead><tr><th>Date</th><th>Staff</th><th>Category</th><th>Qty</th>{currentSalesId===ADMIN_ID&&<th>Action</th>}</tr></thead><tbody>{rows.map(r=><tr key={r.id} className="border-t border-gray-500/20"><td className="p-2">{r.date}</td><td className="p-2">{r.salesName}</td><td className="p-2">{r.category}</td><td className="p-2 text-center">{r.qty}</td>{currentSalesId===ADMIN_ID&&<td className="p-2"><button className="text-rose-500" onClick={()=>void remove(r.id)}>Hapus</button></td>}</tr>)}</tbody></table></div>
+</div>})()}
+{/* EST. INCENTIVE V2 — finance-blue responsive dashboard, sourced from DATABASE R:V. */}
+              {activeTab === "est-incentive" && (() => {
+                const labels = ["Apple", "3rd Party", "Android", "Qoala", "Accessories"];
+                const colors = ["#0B3D91", "#1266D6", "#3293E6", "#74B6EF", "#C3DFF8"];
+                const sums = [0, 0, 0, 0, 0];
+                const staffMap = new Map<string, { id: string; name: string; amounts: number[]; transactions: RawTransaction[] }>();
+                activeTransactions.forEach(t => {
+                  const key = t.salesId || t.salesName.toLowerCase();
+                  if (!key) return;
+                  if (!staffMap.has(key)) staffMap.set(key, { id: t.salesId, name: t.salesName, amounts: [0, 0, 0, 0, 0], transactions: [] });
+                  const entry = staffMap.get(key)!;
+                  entry.transactions.push(t);
+                  t.incentives.forEach((v, i) => { entry.amounts[i] += v; sums[i] += v; });
+                });
+                const staff = [...staffMap.values()].map(v => ({ ...v, total: v.amounts.reduce((a, b) => a + b, 0) })).sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
+                const total = sums.reduce((a, b) => a + b, 0);
+                const topIndex = sums.indexOf(Math.max(...sums));
+                const maxStaff = Math.max(1, ...staff.map(v => v.total));
+                const percent = (v: number, base = total) => base ? (100 * v / base).toFixed(1).replace(".", ",") + "%" : "0%";
+                const donut = total ? "conic-gradient(" + sums.map((v, i) => {
+                  const from = sums.slice(0, i).reduce((a, b) => a + b, 0) / total * 100;
+                  return colors[i] + " " + from + "% " + (from + v / total * 100) + "%";
+                }).join(",") + ")" : "conic-gradient(#e2e8f0 0% 100%)";
+                const currentStaff = staff.find(v => (v.id || v.name) === expandedIncentiveStaff);
+                const recommendations = [
+                  { title: "Devices + Accessories", body: "Tawarkan case, charger, audio, atau aksesori kompatibel bersama perangkat.", index: 4 },
+                  { title: "Devices + Qoala", body: "Jelaskan manfaat perlindungan dan persyaratannya; tawarkan hanya jika sesuai kebutuhan pelanggan.", index: 3 },
+                  { title: "Apple / Android + 3rd Party", body: "Periksa produk pelengkap yang relevan, stok, dan nominal insentif tercatat.", index: 1 }
+                ];
+                return <div className="space-y-4 sm:space-y-6 text-slate-900">
+                  <div className="rounded-3xl border border-blue-100 bg-white p-4 sm:p-6 dark:bg-slate-950 dark:border-blue-900/40 dark:text-white">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div><div className="text-[11px] font-bold uppercase tracking-[0.2em] text-blue-600">Finance Blue · V2</div><h2 className="mt-1 text-2xl font-black tracking-tight">Est. Incentive</h2><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Executive Dashboard · Digiplus Grand Indonesia</p></div>
+                      <span className="rounded-full bg-blue-50 px-3 py-1.5 text-[11px] font-bold text-blue-800 dark:bg-blue-900/30 dark:text-blue-200">Estimasi dari DATABASE R–V</span>
+                    </div>
+                    <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Periode: {periodType === "daily" ? selectedDate : periodType === "weekly" ? selectedWeek : selectedMonth} · {staff.length} staff terdata. Mengikuti filter periode global.</p>
+                  </div>
+                  <div className="rounded-3xl bg-gradient-to-br from-blue-900 via-blue-800 to-blue-600 p-5 sm:p-7 text-white shadow-lg shadow-blue-900/10">
+                    <p className="text-sm font-medium text-blue-100">Total Est. Incentive</p><div className="mt-2 text-3xl sm:text-4xl font-black tracking-tight">{formatIDR(total)}</div>
+                    <p className="mt-3 text-xs text-blue-100">Akumulasi insentif tercatat pada periode yang dipilih · bukan nominal payout final</p>
+                  </div>
+                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                    {[
+                      { title: "Top Incentive Staff", value: staff[0]?.name || "—", sub: staff[0] ? formatIDR(staff[0].total) : "Belum ada data" },
+                      { title: "Active Staff", value: String(staff.length), sub: "Staff dengan transaksi" },
+                      { title: "Top Category", value: total ? labels[topIndex] : "—", sub: total ? percent(sums[topIndex]) + " kontribusi" : "Belum ada insentif" }
+                    ].map(item => <div key={item.title} className="rounded-2xl border border-blue-100 bg-white p-4 dark:border-blue-900/40 dark:bg-slate-950 dark:text-white"><p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{item.title}</p><div className="mt-2 text-lg sm:text-xl font-black break-words">{item.value}</div><p className="mt-1 text-xs text-blue-700 dark:text-blue-300">{item.sub}</p></div>)}
+                  </div>
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    <section className="rounded-3xl border border-blue-100 bg-white p-4 sm:p-6 dark:border-blue-900/40 dark:bg-slate-950 dark:text-white">
+                      <h3 className="font-bold text-base">Kontribusi Incentive per Kategori</h3>
+                      <div className="mt-5 flex flex-col sm:flex-row items-center gap-6">
+                        <div className="relative h-48 w-48 shrink-0 rounded-full" style={{ background: donut }}><div className="absolute inset-8 flex flex-col items-center justify-center rounded-full bg-white dark:bg-slate-950"><strong className="text-sm">{formatIDR(total)}</strong><span className="text-[10px] text-slate-500">Total Incentive</span></div></div>
+                        <div className="w-full space-y-3">{labels.map((name, i) => <div key={name} className="flex justify-between gap-3 text-xs"><span className="flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: colors[i] }}/>{name}</span><span className="text-right"><b>{percent(sums[i])}</b><span className="block text-slate-500 dark:text-slate-400">{formatIDR(sums[i])}</span></span></div>)}</div>
+                      </div>
+                    </section>
+                    <section className="rounded-3xl border border-blue-100 bg-white p-4 sm:p-6 dark:border-blue-900/40 dark:bg-slate-950 dark:text-white">
+                      <div className="flex flex-wrap justify-between items-center gap-2"><h3 className="font-bold text-base">Perbandingan Incentive per Staff</h3><div className="flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800">{(["stacked","grouped"] as const).map(mode => <button key={mode} type="button" onClick={() => setIncentiveChartMode(mode)} className={"rounded-lg px-3 py-1.5 text-xs font-semibold " + (incentiveChartMode === mode ? "bg-blue-700 text-white" : "text-slate-600 dark:text-slate-300")}>{mode === "stacked" ? "Stacked" : "Grouped"}</button>)}</div></div>
+                      <div className="mt-5 space-y-3 max-h-72 overflow-y-auto">{staff.length === 0 && <p className="text-sm text-slate-500">Tidak ada transaksi pada periode ini.</p>}{staff.map(v => <div key={v.id || v.name} className="grid grid-cols-[90px_1fr] sm:grid-cols-[120px_1fr] items-center gap-2 text-xs"><span className="truncate font-semibold" title={v.name}>{v.name}</span><div><div className="flex h-4 w-full overflow-hidden rounded-md bg-slate-100 dark:bg-slate-800" style={incentiveChartMode === "grouped" ? { gap: "3px", background: "transparent" } : {}}>{v.amounts.map((amount, i) => <div key={i} title={labels[i] + ": " + formatIDR(amount)} style={{ width: (incentiveChartMode === "grouped" ? 20 : amount / maxStaff * 100) + "%", height: incentiveChartMode === "grouped" ? (amount / maxStaff * 100) + "%" : "100%", minHeight: incentiveChartMode === "grouped" && amount > 0 ? "3px" : undefined, backgroundColor: colors[i] }} className="rounded-sm" />)}</div><span className="text-[10px] text-slate-500 dark:text-slate-400">{formatIDR(v.total)}</span></div></div>)}</div>
+                      <div className="mt-4 flex flex-wrap gap-x-3 gap-y-2">{labels.map((name, i) => <span key={name} className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400"><i className="h-2 w-2 rounded-sm" style={{ backgroundColor: colors[i] }}/>{name}</span>)}</div>
+                    </section>
+                  </div>
+                  <section className="rounded-3xl border border-blue-100 bg-white p-4 sm:p-6 dark:border-blue-900/40 dark:bg-slate-950 dark:text-white">
+                    <h3 className="font-bold text-base">Ranking Est. Incentive per Staff</h3>
+                    <div className="mt-4 space-y-2">{staff.map((v, index) => <button type="button" key={v.id || v.name} onClick={() => setExpandedIncentiveStaff(v.id || v.name)} className="flex w-full items-center gap-3 rounded-xl border border-blue-50 p-3 text-left hover:bg-blue-50/60 dark:border-blue-900/30 dark:hover:bg-blue-900/20"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 font-black text-blue-800 dark:bg-blue-900 dark:text-blue-100">{index + 1}</div><div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold">{v.name}</div><div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-full rounded-full bg-blue-600" style={{ width: (v.total / maxStaff * 100) + "%" }}/></div></div><div className="text-right"><strong className="block text-xs sm:text-sm">{formatIDR(v.total)}</strong><span className="text-[10px] text-slate-500">{percent(v.total)}</span></div><span className="text-blue-600">›</span></button>)}{staff.length === 0 && <p className="text-sm text-slate-500">Tidak ada data staff.</p>}</div>
+                  </section>
+                  <section className="rounded-3xl border border-blue-100 bg-blue-50/50 p-4 sm:p-6 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-white">
+                    <h3 className="font-bold text-base">Tips & Trick · Incentive Booster</h3><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Rekomendasi kombinasi produk, bukan jaminan tambahan insentif. Pastikan kecocokan, kebutuhan pelanggan, dan program yang berlaku.</p>
+                    <div className="mt-4 grid gap-3 md:grid-cols-3">{recommendations.map(rec => <div key={rec.title} className="rounded-2xl border border-blue-100 bg-white p-4 dark:border-blue-900/40 dark:bg-slate-950"><h4 className="text-sm font-bold">{rec.title}</h4><p className="mt-2 text-xs text-slate-600 dark:text-slate-300">{rec.body}</p><p className="mt-3 text-xs font-bold text-blue-700 dark:text-blue-300">Insentif kategori tercatat: {formatIDR(sums[rec.index])}</p></div>)}</div>
+                  </section>
+                  {currentStaff && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-3 sm:p-6" role="presentation" onClick={() => setExpandedIncentiveStaff(null)}>
+                    <section role="dialog" aria-modal="true" aria-label={"Detail incentive " + currentStaff.name} onClick={e => e.stopPropagation()} className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-5 sm:p-7 text-slate-900 shadow-2xl dark:bg-slate-950 dark:text-white">
+                      <div className="flex justify-between gap-3"><div><h3 className="text-xl font-black">{currentStaff.name}</h3><p className="text-xs text-slate-500">Detail Est. Incentive · {currentStaff.id || "Sales ID tidak tersedia"}</p></div><button type="button" aria-label="Tutup detail" onClick={() => setExpandedIncentiveStaff(null)} className="rounded-full bg-slate-100 px-3 py-1 dark:bg-slate-800">✕</button></div>
+                      <div className="mt-4 rounded-2xl bg-blue-800 p-4 text-white"><p className="text-xs text-blue-100">Total Est. Incentive</p><strong className="text-2xl">{formatIDR(currentStaff.total)}</strong></div>
+                      <div className="mt-4 grid grid-cols-2 sm:grid-cols-5 gap-2">{labels.map((name, i) => <div key={name} className="rounded-xl bg-blue-50 p-3 dark:bg-blue-950/40"><p className="text-[10px] text-slate-500">{name}</p><strong className="text-xs">{formatIDR(currentStaff.amounts[i])}</strong></div>)}</div>
+                      <h4 className="mt-5 font-bold">Rincian Transaksi</h4><div className="mt-2 overflow-x-auto"><table className="w-full min-w-[650px] text-xs"><thead><tr className="border-b text-left">{["Tanggal","Invoice","Produk","Qty",...labels].map(v => <th key={v} className="p-2">{v}</th>)}</tr></thead><tbody>{currentStaff.transactions.map((t, i) => <tr key={t.invoice + t.sapArticle + i} className="border-b border-slate-100 dark:border-slate-800"><td className="p-2">{t.isoDate}</td><td className="p-2">{t.invoice}</td><td className="p-2">{t.productName}</td><td className="p-2">{t.qty}</td>{t.incentives.map((v, j) => <td key={j} className="p-2 whitespace-nowrap">{formatIDR(v)}</td>)}</tr>)}</tbody></table></div>
+                    </section>
+                  </div>}
+                </div>;
+              })()}
 
               {/* TAB: MoM GROWTH ANALYSIS */}
               {activeTab === "mom-comparison" && renderComparisonSection(momAnalytics)}
@@ -3945,11 +4482,11 @@ Indosat IM3 : ${isatText}`;
                     <h2 className="font-black text-lg text-slate-950 dark:text-white">💬 Feedback Tim — Semua Perangkat</h2>
                     <p className="text-xs text-slate-500">Feedback tersimpan online dan dapat dibaca semua pengguna dashboard. Jangan memasukkan data pribadi pelanggan.</p>
                     <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">Pengirim: {currentSalesName || "Staff"}</div>
-                    <select value={feedbackSentiment} onChange={e=>setFeedbackSentiment(e.target.value as FeedbackItem["sentiment"])} className="w-full rounded-xl p-3 border bg-white text-slate-900">
+                    <select value={feedbackSentiment} onChange={e=>setFeedbackSentiment(e.target.value as FeedbackItem["sentiment"])} className="w-full rounded-xl p-3 border border-slate-300 bg-white text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:[color-scheme:dark]">
                       <option>Luar Biasa</option><option>Cukup Baik</option><option>Kecewa</option>
                     </select>
-                    <textarea value={feedbackText} maxLength={1500} onChange={e=>setFeedbackText(e.target.value)} placeholder="Tulis feedback atau masukan untuk tim..." className="w-full min-h-28 rounded-xl p-3 border bg-white text-slate-900"/>
-                    <button type="button" disabled={feedbackLoading || feedbackText.trim().length<5} onClick={()=>void submitFeedback()} className="px-5 py-3 bg-sky-600 text-white font-black rounded-xl disabled:opacity-50">Kirim Feedback</button>
+                    <textarea value={feedbackText} maxLength={1500} onChange={e=>setFeedbackText(e.target.value)} placeholder="Tulis feedback atau masukan untuk tim..." className="w-full min-h-28 rounded-xl p-3 border border-slate-300 bg-white text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-400"/>
+                    <button type="button" disabled={feedbackLoading || !currentSalesId || feedbackText.trim().length<5} onClick={()=>void submitFeedback()} className="px-5 py-3 bg-sky-600 text-white font-black rounded-xl disabled:opacity-50">Kirim Feedback</button>
                     {feedbackError && <p role="alert" className="text-red-600 text-sm">{feedbackError}</p>}
                   </div>
                   {currentSalesId===ADMIN_ID && (
