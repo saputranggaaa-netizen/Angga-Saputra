@@ -2644,6 +2644,18 @@ Indosat IM3 : ${isatText}`;
             );
           })}
         </nav>
+        <div className="shrink-0 px-4 py-3 border-t border-slate-200 dark:border-white/10">
+          <button
+            type="button"
+            onClick={async () => { setMobileDrawerOpen(false); await handleExportToPptx(); }}
+            disabled={isExportingPptx}
+            aria-label="Export laporan ke PowerPoint"
+            className="w-full min-h-[48px] flex items-center justify-center gap-2 rounded-xl border border-sky-500/40 bg-sky-500/15 px-3 py-3 text-sm font-bold text-sky-700 dark:text-sky-300 disabled:cursor-wait disabled:opacity-60 active:scale-[0.99]"
+          >
+            <span aria-hidden="true">📽️</span>
+            <span>{isExportingPptx ? "Membuat Slide..." : "Export ke Slide PPTX"}</span>
+          </button>
+        </div>
         <div className="shrink-0 px-4 pt-3 pb-4 border-t border-slate-200 dark:border-white/10 space-y-2">
           <button onClick={toggleTheme} className="w-full min-h-[44px] rounded-xl bg-slate-200/70 dark:bg-white/[0.07] text-slate-800 dark:text-slate-200 text-[13px] font-semibold flex items-center justify-center gap-2">{isDark ? "☀️ Mode Terang" : "🌙 Mode Gelap"}</button>
           <button onClick={handleLogout} className="w-full min-h-[44px] rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[13px] font-semibold flex items-center justify-center gap-2">🚪 Keluar</button>
