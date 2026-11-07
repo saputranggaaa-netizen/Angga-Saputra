@@ -2,6 +2,35 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 
+
+const PRICE_SEED = [
+ {article:"SSUSM-S741BZKCXID",name:"GALAXY S26 FE 8/256GB GRAPHITE",brand:"Samsung",category:"Android",qty:4,price:null,source:"SOH 31/10/2026"},
+ {article:"SSUSM-S741BZVCXID",name:"GALAXY S26 FE 8/256GB BLUEBERRY",brand:"Samsung",category:"Android",qty:3,price:null,source:"SOH 31/10/2026"},
+ {article:"APPMFY M4ID/A".replace(" ",""),name:"IPHONE 17 PRO MAX 256GB SILVER",brand:"Apple",category:"Apple",qty:12,price:null,source:"SOH 31/10/2026"},
+ {article:"APPMTP13ID/A",name:"IPHONE 15 128GB PINK",brand:"Apple",category:"Apple",qty:23,price:null,source:"SOH 31/10/2026"},
+ {article:"XMI83018",name:"REDMI 17 6/128GB BLACK",brand:"Xiaomi",category:"Android",qty:1,price:3299000,source:"Price List Nasional 15/10/2026"},
+ {article:"XMI83022",name:"REDMI 17 6/128GB LOTUS PURPLE",brand:"Xiaomi",category:"Android",qty:1,price:3299000,source:"Price List Nasional 15/10/2026"},
+ {article:"OPPCPH28176128PNK",name:"OPPO A6 6/128GB PINK",brand:"Oppo",category:"Android",qty:2,price:null,source:"SOH 31/10/2026"},
+ {article:"MRLXT2503-6AMZ",name:"MOTOROLA EDGE 60 FUSION 12/256GB AMAZONI",brand:"Motorola",category:"Android",qty:2,price:null,source:"SOH 31/10/2026"}
+];
+function PriceCenter({isAdmin,isDark}:{isAdmin:boolean,isDark:boolean}) {
+ const [tab,setTab]=useState<"Android"|"Apple"|"Promo"|"History">("Android");
+ const [query,setQuery]=useState("");
+ const [brand,setBrand]=useState("Semua");
+ const [onlyStock,setOnlyStock]=useState(false);
+ const [expanded,setExpanded]=useState<string|null>(null);
+ const [more,setMore]=useState(false);
+ const currency=(v:number|null)=>v==null?"Belum tercocokkan":"Rp "+v.toLocaleString("id-ID");
+ const list=PRICE_SEED.filter(p=>p.category===tab&&(!onlyStock||p.qty>0)&&(!query||[p.name,p.article,p.brand].join(" ").toLowerCase().includes(query.toLowerCase()))&&(brand==="Semua"||p.brand===brand));
+ const brands=["Semua",...Array.from(new Set(PRICE_SEED.filter(p=>p.category===tab).map(p=>p.brand)))];
+ return <section className={`space-y-4 rounded-3xl border p-4 sm:p-6 ${isDark?"bg-slate-900/70 border-slate-700 text-white":"bg-white border-slate-200 text-slate-900"}`}>
+ <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-widest text-sky-500">QF01 · Grand Indonesia</p><h2 className="text-2xl font-black mt-1">Price List & Stock Center</h2><p className="text-xs opacity-70 mt-1">Data referensi: price list Oktober 2026 · SOH 31 Oktober 2026. Bukan stok real-time.</p></div><span className="rounded-full px-3 py-1 text-xs font-bold bg-amber-500/15 text-amber-600">Data lama · perlu update</span></div>
+ <div className="grid grid-cols-4 gap-1 rounded-2xl p-1 bg-slate-500/10">{(["Android","Apple","Promo","History"] as const).map(t=><button key={t} onClick={()=>{setTab(t);setBrand("Semua");setMore(false)}} className={`rounded-xl py-3 text-xs sm:text-sm font-bold ${tab===t?"bg-sky-600 text-white shadow":"opacity-70 hover:bg-slate-500/10"}`}>{t==="History"?"Riwayat":t}</button>)}</div>
+ {(tab==="Android"||tab==="Apple")?<><div className="flex flex-col sm:flex-row gap-2"><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Cari produk, SAP article, kapasitas..." className={`flex-1 rounded-xl border px-4 py-3 text-sm ${isDark?"bg-slate-800 border-slate-700":"bg-slate-50 border-slate-200"}`}/><label className="flex items-center gap-2 text-xs font-semibold px-3"><input type="checkbox" checked={onlyStock} onChange={e=>setOnlyStock(e.target.checked)}/> Stok tersedia</label></div><div className="flex flex-wrap gap-2">{brands.map(b=><button key={b} onClick={()=>setBrand(b)} className={`rounded-full px-3 py-2 text-xs font-bold ${brand===b?"bg-sky-600 text-white":"bg-slate-500/10"}`}>{b}</button>)}</div><div className="grid gap-3 md:grid-cols-2">{list.slice(0,more?list.length:6).map(p=><div key={p.article} className="rounded-2xl border border-slate-500/20 p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-wide text-sky-500">{p.brand}</p><h3 className="font-black text-sm mt-1">{p.name}</h3><p className="text-xs opacity-60 mt-1">{p.article}</p></div><span className={`shrink-0 rounded-xl px-2 py-1 text-xs font-bold ${p.qty>0?"bg-emerald-500/15 text-emerald-500":"bg-rose-500/15 text-rose-500"}`}>{p.qty} unit</span></div><div className="mt-4 flex justify-between items-end gap-3"><div><p className="text-[10px] opacity-60">Harga referensi</p><p className="text-base font-black">{currency(p.price)}</p></div><button onClick={()=>setExpanded(expanded===p.article?null:p.article)} className="text-xs font-bold text-sky-500">{expanded===p.article?"Tutup":"Detail ›"}</button></div>{expanded===p.article&&<div className="mt-3 border-t border-slate-500/20 pt-3 text-xs space-y-2"><p>Sumber: {p.source}</p><p>Harga dan SOH harus diverifikasi ulang sebelum transaksi.</p><button onClick={()=>{const message=`Digiplus Grand Indonesia\\n${p.name}\\nArticle: ${p.article}\\nHarga referensi: ${currency(p.price)}\\nSOH per 31/10/2026: ${p.qty} unit\\nMohon konfirmasi harga & stok terbaru.`;window.open("https://wa.me/?text="+encodeURIComponent(message),"_blank","noopener,noreferrer")}} className="rounded-lg bg-emerald-600 text-white px-3 py-2 font-bold">Share WhatsApp</button></div>}</div>)}</div>{list.length===0&&<p className="text-sm opacity-70 py-8 text-center">Tidak ada produk sesuai filter.</p>}{list.length>6&&<button onClick={()=>setMore(!more)} className="w-full rounded-xl bg-slate-500/10 py-3 text-xs font-bold">{more?"Show Less":"Show More ("+ (list.length-6) +")"}</button>}</>:tab==="Promo"?<div className="space-y-3"><div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4"><p className="font-bold">Promo Samsung Oktober 2026 — Arsip / Expired</p><p className="text-sm mt-2">Dokumen yang tersedia berlaku 1–31 Oktober 2026, termasuk PWP, EIP, dan Trade-In. Tidak ditandai aktif tanpa dokumen terbaru.</p></div><p className="text-xs opacity-70">Promo November belum tersedia. Upload dokumen terbaru diperlukan untuk menampilkan promo aktif.</p></div>:<div className="rounded-2xl border border-slate-500/20 p-5"><h3 className="font-bold">Riwayat Price List</h3><p className="text-sm mt-2 opacity-75">Referensi awal: Apple 11 Oktober 2026, Android Nasional 15 Oktober 2026, SOH 31 Oktober 2026, Samsung Promo 1–31 Oktober 2026.</p><p className="text-xs mt-3 opacity-60">Perubahan harga baru dapat dihitung setelah file versi berikutnya diimpor.</p></div>}
+ {isAdmin&&<div className="rounded-2xl border border-dashed border-sky-500/40 p-4"><p className="text-sm font-bold">📤 Import File · Store Leader Admin</p><p className="text-xs opacity-70 mt-1">Upload Excel/PDF ke database bersama belum diaktifkan pada versi awal. Data baru akan diproses setelah mekanisme import dan validasi file selesai, agar tidak mengubah harga atau stok secara keliru.</p></div>}
+ </section>
+}
+
 export const UploadRawSalesModal = ({ isOpen, onClose }: any) => {
   return null;
 };
@@ -23,7 +52,8 @@ type MenuTab =
   | "mom-comparison"
   | "est-incentive"
   | "customer-engagement"
-  | "whiteboard";
+  | "whiteboard"
+  | "price-center";
 
 type ThemeMode = "dark" | "light";
 type PeriodType = "daily" | "weekly" | "monthly";
@@ -2300,6 +2330,7 @@ Indosat IM3 : ${isatText}`;
     { id: "mom-comparison", label: "MoM Growth Analysis", icon: "⚖️", color: "bg-indigo-500", shadow: "shadow-indigo-500/30" },
     { id: "est-incentive", label: "Est. Incentive", icon: "💰", color: "bg-emerald-500", shadow: "shadow-emerald-500/30" },
     { id: "customer-engagement", label: "Customer Engagement", icon: "🤝", color: "bg-sky-500", shadow: "shadow-sky-500/30" },
+    { id: "price-center", label: "Price List & Stock", icon: "🏷️", color: "bg-indigo-600", shadow: "shadow-indigo-600/30" },
     { id: "whiteboard", label: "Whiteboard", icon: "📊", color: "bg-cyan-600", shadow: "shadow-cyan-600/30" },
     { id: "staff-performance", label: "Staff Performance", icon: "🏆", color: "bg-amber-500", shadow: "shadow-amber-500/30" },
     { id: "daily-target", label: "Daily Target & Run Rate", icon: "🎯", color: "bg-orange-500", shadow: "shadow-orange-500/30" },
@@ -2890,6 +2921,7 @@ Indosat IM3 : ${isatText}`;
                   </table></div>
                 </div>
               )}
+              {activeTab === "price-center" && <PriceCenter isAdmin={currentSalesId===ADMIN_ID} isDark={isDark}/>}
               {activeTab === "whiteboard" && (
                 <div className={`space-y-4 rounded-3xl border p-4 shadow-xl lg:hidden ${cardBg}`}>
                   <header className="flex items-start justify-between gap-3">
