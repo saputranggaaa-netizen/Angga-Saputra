@@ -2021,7 +2021,7 @@ Indosat IM3 : ${isatText}`;
         const p = (t.productName || "").toUpperCase();
         const brand = (t.brand || "").toUpperCase();
         const g = (t.groupCategory || "").toUpperCase();
-        if (g === "VAS" || /QOALA|PROTECTION|PROTEKSI/.test(p)) return "VAS";
+        if (g === "VAS" || /QOALA|PROTECTION|PROTEKSI|TELKOMSEL|INDOSAT|MYPRIO|(^|\\W)XL(\\W|$)/.test(p+" "+brand)) return "VAS";
         if (g === "ACCESSORIES") return "Accessories";
         if (brand === "APPLE" && (g === "DEVICES" || /IPHONE|IPAD|MAC|WATCH/.test(p))) return "Apple Devices";
         if (g === "DEVICES" || /SAMSUNG|MOTOROLA|XIAOMI|OPPO|VIVO|HUAWEI|INFINIX/.test(brand)) return "Android Devices";
@@ -2088,11 +2088,32 @@ Indosat IM3 : ${isatText}`;
         staff.forEach((name, i) => slide.addText(String(i + 1) + ". " + name, { x: 0.8 + Math.floor(i / perCol) * 4.1, y: 3.92 + (i % perCol) * Math.min(0.35, 2.85 / perCol), w: 3.9, h: 0.25, fontSize: 12, color: NAVY, margin: 0 }));
         if (!staff.length) slide.addText("Tidak ada staff dengan transaksi MTD.", { x: 0.8, y: 4, w: 10, h: 0.4, color: MUTED });
       }
-      // Slide 2: month-on-month same elapsed calendar days.
+      // Slide 2: unified MoM and YoY overview using the same WIB day cutoff.
       {
-        const slide = makeSlide("MONTH ON MONTH • SAME DAY CUT-OFF", currentPrefix + "-01 s/d " + cutoff + " vs " + previousPrefix + "-01 s/d " + priorCutoff);
-        tableHeader(slide, "Bulan ini", "Bulan lalu");
-        summaryRows(slide, currentMTD, previousMTD, true);
+        const lastYearPrefix=String(yy-1)+"-"+String(mm).padStart(2,"0");
+        const lyCutoff=lastYearPrefix+"-"+String(Math.min(dd,new Date(Date.UTC(yy-1,mm,0)).getUTCDate())).padStart(2,"0");
+        const lyRows=lastYearRows.filter(r=>r.date>=lastYearPrefix+"-01"&&r.date<=lyCutoff);
+        const classifyLy=(r:typeof lastYearRows[number])=>{
+          const value=(r.brand+" "+r.group+" "+r.category+" "+r.description).toUpperCase();
+          if(/QOALA|TELKOMSEL|INDOSAT|MYPRIO|PROTEKSI|PROTECTION|(^|\\W)XL(\\W|$)/.test(value))return "VAS";
+          if(r.group.includes("ACCESSOR")||r.category.includes("ACCESSOR"))return "Accessories";
+          if(r.brand==="APPLE"||r.division.includes("APPLE")||r.group.includes("APPLE"))return "Apple Devices";
+          if(/SAMSUNG|OPPO|XIAOMI|REDMI|MOTOROLA|HUAWEI|INFINIX|VIVO|REALME|HONOR/.test(r.brand))return "Android Devices";
+          return "Unmapped";
+        };
+        const slide=makeSlide("MTM / LFL • MoM & LAST YEAR","Tanggal setara 1–"+dd+" | "+currentPrefix+" vs "+previousPrefix+" vs "+lastYearPrefix+" (WIB)");
+        const x=[0.7,4.1,6.2,8.3,10.35],w=[3.25,1.95,1.95,1.9,2.2];
+        ["Kategori","Current MTD","Last Month","Last Year","MoM / YoY"].forEach((label,i)=>slide.addText(label,{x:x[i],y:1.65,w:w[i],h:0.3,fontSize:11,bold:true,color:NAVY,margin:0}));
+        const growth=(now:number,old:number)=>old>0?((now-old)/old*100).toFixed(1)+"%":"N/A";
+        groups.forEach((g,i)=>{
+          const y=2.2+i*0.7;
+          const now=amount(currentMTD,g),prev=amount(previousMTD,g);
+          const ly=g==="Total Amount"?lyRows.reduce((n,r)=>n+r.amount,0):lyRows.filter(r=>classifyLy(r)===g).reduce((n,r)=>n+r.amount,0);
+          const values=[g,fmt(now),fmt(prev),lastYearState==="ready"?fmt(ly):"N/A",growth(now,prev)+" / "+(lastYearState==="ready"?growth(now,ly):"N/A")];
+          values.forEach((value,j)=>slide.addText(value,{x:x[j],y,w:w[j],h:0.36,fontSize:j===4?10:11,bold:j===0,color:j===0?NAVY:MUTED,margin:0}));
+        });
+        slide.addText("VAS = Qoala + Telkomsel + XL + Indosat.",{x:0.7,y:6.05,w:11.8,h:0.3,fontSize:11,bold:true,color:BLUE,margin:0});
+        slide.addText(lastYearState==="ready"?"Last Year: breakdwon MSR G–O | Nilai unmapped tetap termasuk Total Amount.":"Last Year belum tersedia / gagal dimuat; nilai YoY ditampilkan N/A.",{x:0.7,y:6.45,w:12,h:0.3,fontSize:9,color:MUTED,margin:0});
       }
       // Slide 3: weekly Sunday-to-cutoff, previous Sunday-to-same-weekday.
       {
@@ -2352,7 +2373,7 @@ Indosat IM3 : ${isatText}`;
     { id: "store-overview", label: "Overview Store", icon: "📊", color: "bg-emerald-500", shadow: "shadow-emerald-500/30" },
     { id: "weekly-sales", label: "Weekly Sales (WoW)", icon: "📈", color: "bg-blue-600", shadow: "shadow-blue-600/30" },
     { id: "qoala-ar", label: "Qoala Protection (AR %)", icon: "🛡️", color: "bg-rose-500", shadow: "shadow-rose-500/30" },
-    { id: "mom-comparison", label: "MoM Growth Analysis", icon: "⚖️", color: "bg-indigo-500", shadow: "shadow-indigo-500/30" },
+    { id: "mom-comparison", label: "MTM / LFL Comparison", icon: "⚖️", color: "bg-indigo-500", shadow: "shadow-indigo-500/30" },
     { id: "est-incentive", label: "Est. Incentive", icon: "💰", color: "bg-emerald-500", shadow: "shadow-emerald-500/30" },
     { id: "customer-engagement", label: "Customer Engagement", icon: "🤝", color: "bg-sky-500", shadow: "shadow-sky-500/30" },
     { id: "price-center", label: "Price List & Stock", icon: "🏷️", color: "bg-indigo-600", shadow: "shadow-indigo-600/30" },
@@ -2374,16 +2395,18 @@ Indosat IM3 : ${isatText}`;
     const pctText=(current:number,previous:number)=>{const v=percent(current,previous);return v===null?"N/A":(v>0?"+":"")+v.toFixed(1)+"%";};
     const categories=["All Categories","Apple Devices","Android Devices","Accessories","VAS"];
     const categoryOf=(t:RawTransaction)=>{
+      if(/QOALA|TELKOMSEL|INDOSAT|MYPRIO|PROTEKSI|PROTECTION|(^|\\W)XL(\\W|$)/i.test((t.brand||"")+" "+(t.productName||""))||t.groupCategory==="VAS")return "VAS";
       if(t.groupCategory==="ACCESSORIES")return "Accessories";
       if(t.groupCategory==="DEVICES")return t.brand==="APPLE"?"Apple Devices":"Android Devices";
       return "VAS";
     };
     const inCat=(t:RawTransaction)=>growthCategory==="All Categories"||categoryOf(t)===growthCategory;
     const cut=Number(momToday.slice(-2))||1;
-    const lastYearDate=momToday.slice(0,4).replace(/^\d{4}$/,"2025")+"-"+momToday.slice(5,7);
+    
     const selectedMonthLastYear=String(Number(momToday.slice(0,4))-1)+"-"+momToday.slice(5,7);
     const lastYearFiltered=lastYearRows.filter(r=>r.date.startsWith(selectedMonthLastYear)&&Number(r.date.slice(8,10))<=cut);
     const lyCategory=(r:typeof lastYearRows[number])=>{
+      if(["QOALA","TELKOMSEL","INDOSAT","XL","MYPRIO","VAS","PROTECTION","PROTEKSI"].some(b=>(r.brand+" "+r.group+" "+r.category+" "+r.description).includes(b)))return "VAS";
       if(r.group.includes("ACCESSOR")||r.category.includes("ACCESSOR"))return "Accessories";
       if(r.brand==="APPLE"||r.division.includes("APPLE")||r.group.includes("APPLE"))return "Apple Devices";
       if(["SAMSUNG","OPPO","XIAOMI","REDMI","MOTOROLA","HUAWEI","INFINIX","VIVO","REALME","HONOR"].some(b=>r.brand.includes(b)))return "Android Devices";
