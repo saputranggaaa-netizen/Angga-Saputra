@@ -3500,7 +3500,8 @@ Indosat IM3 : ${isatText}`;
                     </div>
                   </div>
                 </div>
-                </>\n              )}
+                </>
+              )}
 
               {/* TAB 2: WEEKLY SALES (WoW) */}
               {activeTab === "weekly-sales" && (
