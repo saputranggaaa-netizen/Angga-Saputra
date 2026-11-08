@@ -20,6 +20,7 @@ type MenuTab =
   | "admin-audit"
   | "access-log"
   | "product-search"
+  | "price-list"
   | "qoala-ar"
   | "mom-comparison";
 
@@ -1938,6 +1939,7 @@ Indosat IM3 : ${isatText}`;
     { id: "feedback", label: "Feedback Tim", icon: "💬", color: "bg-teal-500", shadow: "shadow-teal-500/30" },
     { id: "bnpl", label: "BNPL Transactions", icon: "💳", color: "bg-purple-500", shadow: "shadow-purple-500/30" },
     { id: "product-search", label: "Cari Produk Terjual", icon: "🔍", color: "bg-pink-500", shadow: "shadow-pink-500/30" },
+    { id: "price-list", label: "Price List Reference", icon: "📄", color: "bg-cyan-600", shadow: "shadow-cyan-600/30" },
     { id: "sales-detail", label: "Rincian Transaksi Log", icon: "📋", color: "bg-slate-600", shadow: "shadow-slate-600/30" },
     ...(currentSalesId === ADMIN_ID ? [{ id: "access-log", label: "Access Log (Admin)", icon: "🔐", color: "bg-indigo-600", shadow: "shadow-indigo-600/30" }] : []),
   ];
@@ -2213,13 +2215,13 @@ Indosat IM3 : ${isatText}`;
             </div>
 
             <button
-              onClick={() => setUploadModalOpen(true)}
+              onClick={() => setActiveTab("price-list")}
               className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 border border-transparent active:scale-[0.98]"
             >
               <div className="w-7 h-7 rounded-lg bg-cyan-500 shadow-md shadow-cyan-500/30 flex items-center justify-center text-xs shrink-0 text-white">
                 📤
               </div>
-              <span>Upload Bukti RAW</span>
+              <span>Upload Price List</span>
             </button>
           </nav>
 
@@ -4062,10 +4064,11 @@ Indosat IM3 : ${isatText}`;
                 </div>
               )}
 
+              {activeTab === "price-list" && <PriceListReference />}
+
               {/* TAB 9: CARI PRODUK TERJUAL */}
               {activeTab === "product-search" && (
                 <div className="space-y-6">
-                  <PriceListReference />
                   <div className={`p-6 ${cardBg} border rounded-2xl shadow-xl space-y-4`}>
                     <h2 className="text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
                       <span>🔍</span> PENCARIAN PRODUK TERJUAL
