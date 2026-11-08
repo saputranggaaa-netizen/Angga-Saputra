@@ -1133,7 +1133,7 @@ export default function DigiplusOperationalEngine() {
       if(brand==="APPLE"){
         if(p.includes("IPHONE"))return "iphone";
         if(p.includes("IPAD"))return "ipad";
-        if(p.includes("MAC"))return "macbook";
+        if((t.productType||"").toUpperCase()==="MAC"||/\b(MACBOOK|MAC MINI|MAC STUDIO|MAC PRO|MBA|MBP|MBN)\b/.test(p))return "macbook";
         if(p.includes("WATCH"))return "applewatch";
         if(p.includes("AIRPOD"))return "airpods";
         return "apple";
