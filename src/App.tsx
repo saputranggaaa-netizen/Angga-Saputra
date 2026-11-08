@@ -21,6 +21,7 @@ type MenuTab =
   | "access-log"
   | "product-search"
   | "price-list"
+  | "customer-engagement"
   | "qoala-ar"
   | "mom-comparison";
 
@@ -1931,7 +1932,7 @@ Indosat IM3 : ${isatText}`;
     { id: "store-overview", label: "Overview Store", icon: "📊", color: "bg-emerald-500", shadow: "shadow-emerald-500/30" },
     { id: "weekly-sales", label: "Weekly Sales (WoW)", icon: "📈", color: "bg-blue-600", shadow: "shadow-blue-600/30" },
     { id: "qoala-ar", label: "Qoala Protection (AR %)", icon: "🛡️", color: "bg-rose-500", shadow: "shadow-rose-500/30" },
-    { id: "mom-comparison", label: "MoM Growth Analysis", icon: "⚖️", color: "bg-indigo-500", shadow: "shadow-indigo-500/30" },
+    { id: "mom-comparison", label: "MTM / LFL Comparison", icon: "⚖️", color: "bg-indigo-500", shadow: "shadow-indigo-500/30" },
     { id: "staff-performance", label: "Staff Performance", icon: "🏆", color: "bg-amber-500", shadow: "shadow-amber-500/30" },
     { id: "daily-target", label: "Daily Target & Run Rate", icon: "🎯", color: "bg-orange-500", shadow: "shadow-orange-500/30" },
     { id: "brand-focus", label: "Brand Focus", icon: "🏷️", color: "bg-amber-500", shadow: "shadow-amber-500/30" },
@@ -1939,6 +1940,7 @@ Indosat IM3 : ${isatText}`;
     { id: "feedback", label: "Feedback Tim", icon: "💬", color: "bg-teal-500", shadow: "shadow-teal-500/30" },
     { id: "bnpl", label: "BNPL Transactions", icon: "💳", color: "bg-purple-500", shadow: "shadow-purple-500/30" },
     { id: "product-search", label: "Cari Produk Terjual", icon: "🔍", color: "bg-pink-500", shadow: "shadow-pink-500/30" },
+    { id: "customer-engagement", label: "Customer Engagement", icon: "🤝", color: "bg-teal-600", shadow: "shadow-teal-600/30" },
     { id: "price-list", label: "Price List Reference", icon: "📄", color: "bg-cyan-600", shadow: "shadow-cyan-600/30" },
     { id: "sales-detail", label: "Rincian Transaksi Log", icon: "📋", color: "bg-slate-600", shadow: "shadow-slate-600/30" },
     ...(currentSalesId === ADMIN_ID ? [{ id: "access-log", label: "Access Log (Admin)", icon: "🔐", color: "bg-indigo-600", shadow: "shadow-indigo-600/30" }] : []),
@@ -1951,7 +1953,7 @@ Indosat IM3 : ${isatText}`;
           <div>
             <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
               <span>⚖️</span>
-              <span>ANALISIS PERTUMBUHAN MONTH TO MONTH (MoM)</span>
+              <span>MTM / LFL COMPARISON</span>
             </h2>
           </div>
 
@@ -2045,6 +2047,20 @@ Indosat IM3 : ${isatText}`;
               ))}
             </div>
           </div>
+        </div>
+
+        <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-4`}>
+          <h3 className="text-base font-black">📊 Analisa Faktor Kenaikan & Penurunan</h3>
+          <p className="text-xs opacity-70">Kontributor perubahan omzet berdasarkan transaksi pada periode yang dipilih. Ini indikator kuantitatif, bukan bukti penyebab operasional seperti stok, traffic, atau promosi.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className={`rounded-xl p-4 border ${innerBg}`}><div className="text-xs opacity-70">Selisih Omzet</div><div className="font-black text-lg">{formatIDR(data.totalM2-data.totalM1)}</div></div>
+            <div className={`rounded-xl p-4 border ${innerBg}`}><div className="text-xs opacity-70">Staf Bertumbuh</div><div className="font-black text-lg">{data.staffSales.filter(x=>x.m2>x.m1).length}</div></div>
+            <div className={`rounded-xl p-4 border ${innerBg}`}><div className="text-xs opacity-70">Staf Menurun</div><div className="font-black text-lg">{data.staffSales.filter(x=>x.m2<x.m1).length}</div></div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[{title:"Kontributor Kenaikan",items:[...data.staffSales].filter(x=>x.m2>x.m1).sort((a,b)=>(b.m2-b.m1)-(a.m2-a.m1))},{title:"Kontributor Penurunan",items:[...data.staffSales].filter(x=>x.m2<x.m1).sort((a,b)=>(a.m2-a.m1)-(b.m2-b.m1))}].map(group=><div key={group.title} className={`p-4 rounded-xl border ${innerBg}`}><h4 className="text-sm font-black mb-3">{group.title}</h4>{group.items.length?group.items.slice(0,5).map(x=><div key={x.name} className="flex justify-between gap-2 py-2 text-xs border-b border-slate-500/10"><span>{x.name}</span><strong>{formatIDR(x.m2-x.m1)}</strong></div>):<p className="text-xs opacity-60">Tidak ada perubahan teridentifikasi.</p>}</div>)}
+          </div>
+          <p className="text-xs opacity-70">LFL dalam arti ketat memerlukan basis toko dan periode yang benar-benar sebanding. Perbandingan saat ini memakai transaksi toko yang tersedia.</p>
         </div>
 
         <div className={`${cardBg} rounded-3xl border-2 border-rose-500/30 overflow-hidden shadow-xl`}>
@@ -3181,6 +3197,24 @@ Indosat IM3 : ${isatText}`;
                   </div>
                 </div>
               )}
+
+              {activeTab === "customer-engagement" && (() => {
+                const rows=activeTransactions;
+                const invoices=new Set(rows.map(t=>t.invoice).filter(Boolean));
+                const units=rows.reduce((sum,t)=>sum+(Number(t.qty)||0),0);
+                const revenue=rows.reduce((sum,t)=>sum+(Number(t.amount)||0),0);
+                const productGroups=Array.from(rows.reduce((map,t)=>{const key=t.groupCategory||t.productType||"Lainnya";const prev=map.get(key)||{name:key,qty:0,amount:0};prev.qty+=Number(t.qty)||0;prev.amount+=Number(t.amount)||0;map.set(key,prev);return map;},new Map<string,{name:string,qty:number,amount:number}>()).values()).sort((a,b)=>b.amount-a.amount);
+                return <div className="space-y-5">
+                  <div className={`p-5 rounded-2xl border ${cardBg}`}>
+                    <h2 className="text-lg font-black mb-2">🤝 Customer Engagement</h2>
+                    <p className="text-xs opacity-70">Indikator transaksi sebagai proksi engagement, mengikuti filter periode dashboard. Tidak mengukur pengunjung, percakapan, atau conversion rate karena data tersebut belum tersedia.</p>
+                  </div>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    {[["Invoice Unik",String(invoices.size)],["Unit Terjual",String(units)],["UPT",invoices.size?(units/invoices.size).toFixed(2):"0"],["Nilai / Invoice",formatIDR(invoices.size?revenue/invoices.size:0)]].map(([label,value])=><div key={label} className={`p-4 rounded-2xl border ${cardBg}`}><p className="text-xs opacity-70">{label}</p><p className="text-xl font-black mt-2">{value}</p></div>)}
+                  </div>
+                  <div className={`p-5 rounded-2xl border ${cardBg}`}><h3 className="font-black mb-3">Kategori Produk yang Dibeli</h3>{productGroups.length?productGroups.map(g=><div key={g.name} className="flex justify-between gap-3 border-b border-slate-500/10 py-2 text-xs"><span>{g.name} · {g.qty} unit</span><strong>{formatIDR(g.amount)}</strong></div>):<p className="text-sm opacity-60">Belum ada transaksi pada periode ini.</p>}</div>
+                </div>;
+              })()}
 
               {/* TAB: MoM GROWTH ANALYSIS */}
               {activeTab === "mom-comparison" && renderComparisonSection(momAnalytics)}
