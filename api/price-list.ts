@@ -1,8 +1,7 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { list } from "@vercel/blob";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { timingSafeEqual } from "node:crypto";
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "no-store");
   if (!process.env.BLOB_READ_WRITE_TOKEN) return res.status(503).json({ error: "Blob storage belum terhubung" });
   try {
