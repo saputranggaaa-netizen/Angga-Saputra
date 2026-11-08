@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import PriceListReference from "./PriceListReference";
 
 export const UploadRawSalesModal = ({ isOpen, onClose }: any) => {
   return null;
@@ -4064,6 +4065,7 @@ Indosat IM3 : ${isatText}`;
               {/* TAB 9: CARI PRODUK TERJUAL */}
               {activeTab === "product-search" && (
                 <div className="space-y-6">
+                  <PriceListReference />
                   <div className={`p-6 ${cardBg} border rounded-2xl shadow-xl space-y-4`}>
                     <h2 className="text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
                       <span>🔍</span> PENCARIAN PRODUK TERJUAL
