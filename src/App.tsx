@@ -31,6 +31,7 @@ function PriceCenter({isAdmin,isDark}:{isAdmin:boolean,isDark:boolean}) {
    let table:any[][]=[];
    if(ext==="pdf"){
     const pdfjs=await import("pdfjs-dist");
+    pdfjs.GlobalWorkerOptions.workerSrc=new URL("pdfjs-dist/build/pdf.worker.min.mjs",import.meta.url).toString();
     const pdf=await pdfjs.getDocument({data:new Uint8Array(await f.arrayBuffer()),useSystemFonts:true,disableFontFace:true}).promise;
     const lines:string[]=[];
     for(let i=1;i<=Math.min(pdf.numPages,30);i++){const page=await pdf.getPage(i);const content=await page.getTextContent();const items=content.items.filter((v:any)=>"str" in v) as any[];const byY=new Map<number,string[]>();for(const item of items){const y=Math.round(item.transform[5]/4)*4;byY.set(y,[...(byY.get(y)||[]),String(item.str)]);}for(const parts of byY.values())lines.push(parts.join(" ").trim());}
