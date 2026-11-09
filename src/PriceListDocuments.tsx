@@ -12,25 +12,51 @@ const isNonProduct=(name:string)=>/^(description|marketing name|storage|harga|pr
 const inferVariant=(name:string)=>{const match=name.match(/(?:\d{1,2}\s*\/\s*)?(?:\d{2,4}\s*(?:GB|TB)|\d{1,2}\s*TB)(?:\s*\/\s*\d{2,4}\s*(?:GB|TB))?/i);return match?match[0].replace(/\s+/g,"").toUpperCase():"Standar";};
 const inferColor=(name:string)=>{const match=name.match(/\b(Black|White|Blue|Pink|Green|Gray|Grey|Graphite|Silver|Gold|Purple|Lavender|Cream|Navy|Titanium|Violet|Red|Teal|Orange)\b/i);return match?match[0]:"Umum";};
 const normalizeName=(name:string)=>cleanProduct(name.replace(/\b\d{2,4}\s*(?:GB|TB)(?:\s*\/\s*\d{2,4}\s*(?:GB|TB))?\b/gi,"").replace(/\b(Black|White|Blue|Pink|Green|Gray|Grey|Graphite|Silver|Gold|Purple|Lavender|Cream|Navy|Titanium|Violet|Red|Teal|Orange)\b$/i,""));
+
 const parseDocument=async(file:File,fallback:Category):Promise<Product[]>=>{
  const ext=file.name.split(".").pop()?.toLowerCase();
- let rows:any[][]=[];
- if(ext==="pdf"){
-  const pdfjs=await import("pdfjs-dist");
-  pdfjs.GlobalWorkerOptions.workerSrc=new URL("pdfjs-dist/build/pdf.worker.min.mjs",import.meta.url).toString();
-  const doc=await pdfjs.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
-  for(let page=1;page<=Math.min(doc.numPages,30);page++){const p=await doc.getPage(page);const content=await p.getTextContent();const byY=new Map<number,string[]>();for(const item of content.items as any[]){if(!("str" in item))continue;const y=Math.round(item.transform[5]/4)*4;byY.set(y,[...(byY.get(y)||[]),text(item.str)]);}rows.push(...Array.from(byY.values()).map(parts=>parts.join(" ").split(/\s{2,}|\t|\|/).map(text)));}
- }else{
-  const XLSX=await import("xlsx");const book=XLSX.read(await file.arrayBuffer(),{type:"array"});
-  for(const sheet of book.SheetNames)rows.push(...XLSX.utils.sheet_to_json<any[]>(book.Sheets[sheet],{header:1,defval:"",raw:false}));
+ if(ext==="pdf")throw Error("PDF disimpan sebagai referensi; ekstraksi tabel harga dari PDF tidak otomatis dilakukan.");
+ const XLSX=await import("xlsx");
+ const book=XLSX.read(await file.arrayBuffer(),{type:"array"});
+ const upper=file.name.toUpperCase();
+ const apple=/DIGIMAP/.test(upper),national=/PRICE LIST PROMO DIGIPLUS/.test(upper),samsung=/LIST PROMO AKTIF SAMSUNG/.test(upper);
+ const sheetNames=apple?["PRICE LIST APPLE DEVICE"]:national?["PRICE LIST DIGIPLUS NASIONAL"]:samsung?["List Promo Samsung","PWP FOLDABLE 8","Trade In Foldable 8","Trade In S26FE","Trade In S26 Series","TRADE IN TAB S12","PWP Watch 9 & Watch Ultra 2","PWP Watch 8 Classic"]:book.SheetNames;
+ const results:Product[]=[];
+ const val=(r:any[],i:number)=>text(r[i]);
+ const cash=(v:unknown)=>{const n=number(v);return n!==null&&Number.isInteger(n)&&n>=10000&&n<=300000000?n:null};
+ const colorFrom=(raw:string)=>{const m=raw.match(/\\b(MIDNIGHT BLACK|TITAN GRAY|SANDY PURPLE|SKY BLUE|PINK GOLD|SILVER SHADOW|COBALT VIOLET|LIGHT BLUE|OAK GREEN|LOTUS PURPLE|BLUEBERRY|PISTACHIO|GRAPHITE|LAVENDER|CREAM|PURPLE|BLACK|WHITE|BLUE|GREEN|GRAY|GREY|PINK|SILVER|GOLD|NAVY|RED|BEIGE)\\b$/i);return m?m[0]:"Umum"};
+ const add=(raw:string,brand:string,article:string,price:number|null,promo:string,kind:Category,variantHint="")=>{
+  if(!raw||!article||!/[A-Z]/i.test(raw)||isNonProduct(raw))return;
+  const color=colorFrom(raw);
+  const variant=variantHint||inferVariant(raw);
+  let name=cleanProduct(raw);
+  if(color!=="Umum")name=name.slice(0,-color.length).trim();
+  if(variant!=="Standar")name=cleanProduct(name.replace(variant.replace("/",String.raw`\\s*\\/\\s*`),""));
+  name=cleanProduct(name.replace(/\\b(?:\\d{1,2}\\s*\\/\\s*)?\\d{2,4}\\s*(?:GB|TB)(?:\\s*\\/\\s*\\d{2,4}\\s*(?:GB|TB))?\\b/gi,""));
+  if(!name||isNonProduct(name))return;
+  results.push({name,brand:brand||"Lainnya",category:kind,variant,color,article,price,promo,source:file.name,updated:new Date().toISOString()});
+ };
+ for(const sheetName of sheetNames){
+  const ws=book.Sheets[sheetName];if(!ws)continue;
+  const rows=XLSX.utils.sheet_to_json<any[]>(ws,{header:1,defval:"",raw:false});
+  if(national){for(const r of rows.slice(2)){const brand=val(r,0),article=val(r,1),desc=val(r,2),kind=val(r,3);if(!/^[A-Z0-9-]{5,}$/i.test(article))continue;add(desc,brand,article,cash(r[6]),"",/ACCESSOR|CASE|CABLE|CHARGER|WATCH|BUDS|ADAPTER/i.test(kind)?"Aksesoris":"Android",val(r,4).match(/\\d+\\s*\\/\\s*\\d+\\s*GB/i)?.[0]||"");}continue;}
+  if(apple){for(const r of rows.slice(5)){const article=val(r,1),desc=val(r,2),kind=val(r,3);if(!/^[A-Z0-9-]{6,}$/i.test(article)||!desc)continue;const normal=cash(r[5]),promo=cash(r[6]);add(desc,/MAC/i.test(desc)?"Mac":/IPAD/i.test(desc)?"iPad":/WATCH/i.test(desc)?"Apple Watch":/AIRPODS/i.test(desc)?"AirPods":"iPhone",article,promo??normal,promo!==null&&normal!==null&&promo<normal?"Harga normal Rp "+normal.toLocaleString("id-ID"):"","Apple");}continue;}
+  if(samsung){
+   if(sheetName==="List Promo Samsung"){for(const r of rows.slice(1)){const name=val(r,2);if(!name)continue;results.push({name,brand:"Samsung",category:"Promo",variant:val(r,1)||"Promo",color:"Umum",article:"",price:null,promo:[val(r,3),val(r,4),val(r,5)].filter(Boolean).join(" | "),source:file.name,updated:new Date().toISOString()});}continue;}
+   const header=rows.findIndex(r=>r.some(v=>/description|deskripsi/i.test(text(v)))&&r.some(v=>/article|artikel|sku/i.test(text(v))));
+   if(header<0)continue;const h=rows[header].map(v=>text(v).toLowerCase());
+   const articleCol=h.findIndex(v=>/article|artikel|sku/.test(v)),descCol=h.findIndex(v=>/description|deskripsi/.test(v)),priceCol=h.findIndex(v=>/harga normal|normal price/.test(v)),cashCol=h.findIndex(v=>/cashback|nilai cashback/.test(v));
+   for(const r of rows.slice(header+1)){const article=val(r,articleCol),desc=val(r,descCol);if(!/^[A-Z0-9-]{8,}$/i.test(article)||!desc)continue;const cb=cashCol>=0?cash(r[cashCol]):null;add(desc,"Samsung",article,priceCol>=0?cash(r[priceCol]):null,cb!==null?sheetName+" · Cashback Rp "+cb.toLocaleString("id-ID"):sheetName,"Promo");}
+   continue;
+  }
+  const header=rows.findIndex(r=>r.some(v=>/^(product description|sapdescription|nama produk|description)$/i.test(text(v)))&&r.some(v=>/^(current price|harga|price|normal price|promotion price|current price cicilan\\/cash)$/i.test(text(v))));
+  if(header<0)throw Error("Header nama produk dan harga tidak ditemukan pada "+sheetName);
+  const h=rows[header].map(v=>text(v).toLowerCase());const ix=(re:RegExp)=>h.findIndex(v=>re.test(v));
+  const ni=ix(/product description|sapdescription|nama produk|description/),ai=ix(/article|sku/),bi=ix(/^brand$/),pi=ix(/current price|promotion price|harga|^price$/);
+  for(const r of rows.slice(header+1))add(val(r,ni),val(r,bi),val(r,ai),cash(r[pi]),"",fallback);
  }
- const aliases={name:/product|produk|description|deskripsi|model|tipe|item name/i,brand:/brand|merek/i,article:/article|sku|sap|kode|material/i,variant:/variant|varian|capacity|kapasitas|memory|storage|ram/i,color:/warna|color|colour/i,price:/harga|price|srp|retail|normal price/i,promo:/promo|cashback|benefit|program/i,category:/kategori|category|jenis/i};
- const header=rows.findIndex(row=>row.some(v=>/^(product|nama produk|product name|nama barang|description|deskripsi|marketing name|model|tipe|item name)$/i.test(text(v)))&&row.some(v=>/^(harga|price|current price|srp|retail|normal price|article|sku|sap|kode|material|brand|merek)$/i.test(text(v))));
- if(header<0)throw Error("Header produk/harga tidak ditemukan. Gunakan Excel dengan kolom Nama Produk, Brand, Harga dan opsional Varian, Warna, Promo.");
- const cols:any={};for(const [k,re] of Object.entries(aliases))cols[k]=rows[header].findIndex(v=>re.test(text(v)));cols.name=rows[header].findIndex(v=>/^(product|nama produk|product name|nama barang|description|deskripsi|marketing name|model|tipe|item name)$/i.test(text(v)));cols.price=rows[header].findIndex(v=>/^(harga|price|current price|srp|retail|normal price)$/i.test(text(v)));
- if(cols.name<0)throw Error("Kolom Nama Produk tidak ditemukan.");
- const get=(r:any[],k:string)=>cols[k]>=0?text(r[cols[k]]):"";
- return rows.slice(header+1).map(r=>{const rawName=get(r,"name");const name=normalizeName(rawName);const brand=get(r,"brand")||(/iphone|ipad|macbook/i.test(name)?"Apple":/samsung|galaxy/i.test(name)?"Samsung":"Lainnya");return {name,brand,category:category(get(r,"category")||name,fallback),variant:get(r,"variant")||inferVariant(rawName),color:get(r,"color")||inferColor(rawName),article:get(r,"article"),price:cols.price>=0&&number(r[cols.price])!==null&&number(r[cols.price])! >= 10000?number(r[cols.price]):null,promo:get(r,"promo"),source:file.name,updated:new Date().toISOString()};}).filter(p=>p.name&&p.name.length>2&&!isNonProduct(p.name)).slice(0,5000);
+ if(!results.length)throw Error("Tidak ditemukan baris produk valid pada sheet yang dipilih.");
+ return results.slice(0,10000);
 };
 export default function PriceListDocuments({isAdmin,isDark}:{isAdmin:boolean;isDark:boolean}){
  const [tab,setTab]=useState<Category>("Android"),[files,setFiles]=useState<Item[]>([]);
