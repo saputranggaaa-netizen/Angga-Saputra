@@ -3,66 +3,10 @@
 import React, { useState, useEffect, useMemo } from "react";
 
 
-const PRICE_SEED = [
- {article:"SSUSM-S741BZKCXID",name:"GALAXY S26 FE 8/256GB GRAPHITE",brand:"Samsung",category:"Android",qty:4,price:null,source:"SOH 31/10/2026"},
- {article:"SSUSM-S741BZVCXID",name:"GALAXY S26 FE 8/256GB BLUEBERRY",brand:"Samsung",category:"Android",qty:3,price:null,source:"SOH 31/10/2026"},
- {article:"APPMFY M4ID/A".replace(" ",""),name:"IPHONE 17 PRO MAX 256GB SILVER",brand:"Apple",category:"Apple",qty:12,price:null,source:"SOH 31/10/2026"},
- {article:"APPMTP13ID/A",name:"IPHONE 15 128GB PINK",brand:"Apple",category:"Apple",qty:23,price:null,source:"SOH 31/10/2026"},
- {article:"XMI83018",name:"REDMI 17 6/128GB BLACK",brand:"Xiaomi",category:"Android",qty:1,price:3299000,source:"Price List Nasional 15/10/2026"},
- {article:"XMI83022",name:"REDMI 17 6/128GB LOTUS PURPLE",brand:"Xiaomi",category:"Android",qty:1,price:3299000,source:"Price List Nasional 15/10/2026"},
- {article:"OPPCPH28176128PNK",name:"OPPO A6 6/128GB PINK",brand:"Oppo",category:"Android",qty:2,price:null,source:"SOH 31/10/2026"},
- {article:"MRLXT2503-6AMZ",name:"MOTOROLA EDGE 60 FUSION 12/256GB AMAZONI",brand:"Motorola",category:"Android",qty:2,price:null,source:"SOH 31/10/2026"}
-];
-type PriceRow={article:string;name:string;brand:string;category:string;qty:number|null;price:number|null;source:string;promo?:string;from?:string;until?:string;batch?:string;at?:string;type?:string};
+import PriceListDocuments from "./PriceListDocuments";
+
 function PriceCenter({isAdmin,isDark}:{isAdmin:boolean,isDark:boolean}) {
- const [tab,setTab]=useState<"Android"|"Apple"|"Promo"|"History">("Android");
- const [query,setQuery]=useState(""),[brand,setBrand]=useState("Semua"),[onlyStock,setOnlyStock]=useState(false),[expanded,setExpanded]=useState<string|null>(null),[more,setMore]=useState(false);
- const [records,setRecords]=useState<PriceRow[]>([]),[status,setStatus]=useState(""),[busy,setBusy]=useState(false),[file,setFile]=useState<File|null>(null);
- const [importType,setImportType]=useState<"Apple"|"Android"|"SOH"|"Promo">("Android"),[preview,setPreview]=useState<PriceRow[]>([]),[password,setPassword]=useState("");
- const currency=(v:number|null)=>v==null?"Belum tercocokkan":"Rp "+v.toLocaleString("id-ID");
- const refresh=async()=>{try{const r=await fetch("/api/price-center",{cache:"no-store"});const d=await r.json();if(!r.ok)throw Error(d.error||"Gagal memuat");setRecords((d.rows||[]).filter((x:any)=>x.status==="Active").map((x:any)=>({...x,source:x.filename+" · "+x.at})));}catch(e){setStatus(e instanceof Error?e.message:"Gagal membaca database")}};
- useEffect(()=>{refresh()},[]);
- const norm=(v:any)=>String(v??"").trim();
- const num=(v:any):number|null=>{if(v===null||v===undefined||String(v).trim()==="")return null;const x=String(v).replace(/[^0-9,.-]/g,"");if(!x)return null;const n=Number(x.includes(",")?x.replace(/\./g,"").replace(",","."):x.replace(/\.(?=\d{3}(?:\D|$))/g,""));return Number.isFinite(n)?n:null};
- const parse=async(f:File)=>{
-  setBusy(true);setStatus("");setPreview([]);
-  try{
-   const ext=f.name.split(".").pop()?.toLowerCase();
-   let table:any[][]=[];
-   if(ext==="pdf"){
-    const pdfjs=await import("pdfjs-dist");
-    pdfjs.GlobalWorkerOptions.workerSrc=new URL("pdfjs-dist/build/pdf.worker.min.mjs",import.meta.url).toString();
-    const pdf=await pdfjs.getDocument({data:new Uint8Array(await f.arrayBuffer()),useSystemFonts:true,disableFontFace:true}).promise;
-    const lines:string[]=[];
-    for(let i=1;i<=Math.min(pdf.numPages,30);i++){const page=await pdf.getPage(i);const content=await page.getTextContent();const items=content.items.filter((v:any)=>"str" in v) as any[];const byY=new Map<number,string[]>();for(const item of items){const y=Math.round(item.transform[5]/4)*4;byY.set(y,[...(byY.get(y)||[]),String(item.str)]);}for(const parts of byY.values())lines.push(parts.join(" ").trim());}
-    table=lines.filter(Boolean).map(x=>x.split(/\s{2,}|\t|\|/).map(v=>v.trim()));
-    if(table.every(r=>r.length<2))throw Error("PDF belum memiliki tabel terstruktur yang dapat dikenali. Gunakan Excel/CSV agar harga dan stok tidak salah terbaca.");
-   }else{
-    const XLSX=await import("xlsx");const workbook=XLSX.read(await f.arrayBuffer(),{type:"array",cellDates:false});for(const sheet of workbook.SheetNames){const rows=XLSX.utils.sheet_to_json<any[]>(workbook.Sheets[sheet],{header:1,defval:"",raw:false});if(rows.length>1)table.push(...rows);}
-   }
-   const keys=["article","name","brand","price","qty","promo","from","until"];
-   const aliases:any={article:/article|sku|sap|kode|item code|material/i,name:/description|product name|nama produk|product|model|tipe|type/i,brand:/brand|merek/i,price:/harga|price|srp|retail/i,qty:/stock|stok|soh|qty|quantity/i,promo:/promo|program|benefit|mechanic/i,from:/start|mulai|valid from|periode awal/i,until:/end|akhir|expired|valid until/i};
-   const headerIndex=table.findIndex(r=>r.some(c=>/article|sku|sap|description|nama produk|product|harga|price|stock|soh/i.test(norm(c))));
-   if(headerIndex<0)throw Error("Header tabel tidak dikenali. Gunakan kolom SAP Article, Product, Brand, Price, Qty atau Promo.");
-   const header=table[headerIndex].map(norm);
-   const col:any={};keys.forEach(k=>col[k]=header.findIndex(h=>aliases[k].test(h)));
-   if(col.article<0&&col.name<0)throw Error("Kolom produk atau SAP Article tidak ditemukan");
-   const parsed=table.slice(headerIndex+1).map(r=>({article:col.article>=0?norm(r[col.article]):"",name:col.name>=0?norm(r[col.name]):"",brand:col.brand>=0?norm(r[col.brand]):"",category:importType==="SOH"?"Android":importType,price:col.price>=0?num(r[col.price]):null,qty:col.qty>=0?num(r[col.qty]):null,promo:col.promo>=0?norm(r[col.promo]):"",from:col.from>=0?norm(r[col.from]):"",until:col.until>=0?norm(r[col.until]):"",source:f.name})).filter(r=>r.article||r.name).slice(0,2000);
-   if(!parsed.length)throw Error("Tidak ada baris produk yang dapat diproses");
-   setPreview(parsed);setStatus(parsed.length+" baris siap ditinjau. Periksa harga, stok, dan kategori sebelum menyimpan.");
-  }catch(e){setStatus(e instanceof Error?e.message:"File gagal dibaca")}finally{setBusy(false)}
- };
- const save=async()=>{if(!file||!preview.length)return;setBusy(true);try{const r=await fetch("/api/price-center",{method:"POST",headers:{"Content-Type":"application/json","x-admin-access-password":password},body:JSON.stringify({filename:file.name,type:importType,uploadedBy:"Store Leader Admin",rows:preview})});const d=await r.json();if(!r.ok)throw Error(d.error||"Gagal menyimpan");setStatus("Berhasil menyimpan "+d.count+" baris ke database bersama.");setPreview([]);setFile(null);setPassword("");await refresh();}catch(e){setStatus(e instanceof Error?e.message:"Import gagal")}finally{setBusy(false)}};
- const latest=new Map<string,PriceRow>();for(const r of records){const key=(r.article||r.name).toUpperCase();if(!key)continue;const old=latest.get(key);if(!old)latest.set(key,{...r});else{if(r.price!==null&&r.price!==undefined)old.price=r.price;if(r.qty!==null&&r.qty!==undefined)old.qty=r.qty;if(r.name)old.name=r.name;if(r.brand)old.brand=r.brand;if(r.type!=="SOH")old.category=r.category;old.source=r.source;}}
- const data:PriceRow[]=records.length?Array.from(latest.values()):PRICE_SEED.map(p=>({...p} as PriceRow));
- const list=data.filter(p=>p.category===tab&&(!onlyStock||(p.qty??0)>0)&&(!query||[p.name,p.article,p.brand].join(" ").toLowerCase().includes(query.toLowerCase()))&&(brand==="Semua"||p.brand===brand));
- const brands=["Semua",...Array.from(new Set(data.filter(p=>p.category===tab).map(p=>p.brand)))];
- return <section className={`space-y-4 rounded-3xl border p-4 sm:p-6 ${isDark?"bg-slate-900/70 border-slate-700 text-white":"bg-white border-slate-200 text-slate-900"}`}>
- <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-widest text-sky-500">QF01 · Grand Indonesia</p><h2 className="text-2xl font-black mt-1">Price List & Stock Center</h2><p className="text-xs opacity-70 mt-1">{records.length?"Data import bersama · periksa tanggal sumber dan validitas promo":"Referensi awal Oktober 2026 · bukan stok real-time"}</p></div><span className="rounded-full px-3 py-1 text-xs font-bold bg-sky-500/15 text-sky-600">{records.length?records.length+" baris tersimpan":"Menunggu update"}</span></div>
- <div className="grid grid-cols-4 gap-1 rounded-2xl p-1 bg-slate-500/10">{(["Android","Apple","Promo","History"] as const).map(t=><button key={t} onClick={()=>{setTab(t);setBrand("Semua");setMore(false)}} className={`rounded-xl py-3 text-xs sm:text-sm font-bold ${tab===t?"bg-sky-600 text-white shadow":"opacity-70 hover:bg-slate-500/10"}`}>{t==="History"?"Riwayat":t}</button>)}</div>
- {(tab==="Android"||tab==="Apple")?<><div className="flex flex-col sm:flex-row gap-2"><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Cari produk, SAP article, kapasitas..." className={`flex-1 rounded-xl border px-4 py-3 text-sm ${isDark?"bg-slate-800 border-slate-700":"bg-slate-50 border-slate-200"}`}/><label className="flex items-center gap-2 text-xs font-semibold px-3"><input type="checkbox" checked={onlyStock} onChange={e=>setOnlyStock(e.target.checked)}/> Stok tersedia</label></div><div className="flex flex-wrap gap-2">{brands.map(b=><button key={b} onClick={()=>setBrand(b)} className={`rounded-full px-3 py-2 text-xs font-bold ${brand===b?"bg-sky-600 text-white":"bg-slate-500/10"}`}>{b}</button>)}</div><div className="grid gap-3 md:grid-cols-2">{list.slice(0,more?list.length:6).map(p=><div key={p.article||p.name} className="rounded-2xl border border-slate-500/20 p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-wide text-sky-500">{p.brand}</p><h3 className="font-black text-sm mt-1">{p.name}</h3><p className="text-xs opacity-60 mt-1">{p.article}</p></div><span className="shrink-0 rounded-xl px-2 py-1 text-xs font-bold bg-slate-500/10">{p.qty==null?"Stok N/A":p.qty+" unit"}</span></div><div className="mt-4 flex justify-between items-end gap-3"><div><p className="text-[10px] opacity-60">Harga referensi</p><p className="text-base font-black">{currency(p.price)}</p></div><button onClick={()=>setExpanded(expanded===(p.article||p.name)?null:(p.article||p.name))} className="text-xs font-bold text-sky-500">{expanded===(p.article||p.name)?"Tutup":"Detail ›"}</button></div>{expanded===(p.article||p.name)&&<div className="mt-3 border-t border-slate-500/20 pt-3 text-xs space-y-2"><p>Sumber: {p.source}</p><p>Konfirmasi harga dan stok sebelum transaksi.</p><button onClick={()=>window.open("https://wa.me/?text="+encodeURIComponent("Digiplus Grand Indonesia\n"+p.name+"\nHarga: "+currency(p.price)+"\nStok referensi: "+(p.qty??"N/A")),"_blank","noopener,noreferrer")} className="rounded-lg bg-emerald-600 text-white px-3 py-2 font-bold">Share WhatsApp</button></div>}</div>)}</div>{!list.length&&<p className="text-sm opacity-70 py-8 text-center">Tidak ada produk sesuai filter.</p>}{list.length>6&&<button onClick={()=>setMore(!more)} className="w-full rounded-xl bg-slate-500/10 py-3 text-xs font-bold">{more?"Show Less":"Show More ("+(list.length-6)+")"}</button>}</>:tab==="Promo"?<div className="space-y-3">{records.filter(p=>p.type==="Promo").length?records.filter(p=>p.type==="Promo").slice(-30).map((p,i)=><div key={i} className="rounded-xl border p-3 text-sm"><strong>{p.name||p.brand}</strong><p>{p.promo||"Detail promo tidak tercantum"}</p><p className="text-xs opacity-70">Berlaku: {p.from||"Belum tercantum"} – {p.until||"Belum tercantum"} · {p.source}</p></div>):<p className="rounded-xl bg-amber-500/10 p-4 text-sm">Belum ada promo terbaru yang diimpor. Promo lama tidak ditandai aktif.</p>}</div>:<div className="space-y-2"><h3 className="font-bold">Riwayat Import</h3>{Array.from(new Map(records.map(r=>[r.batch,{batch:r.batch,at:r.at,source:r.source,type:r.type}])).values()).reverse().map(r=><div key={r.batch} className="rounded-xl border p-3 text-xs">{r.type} · {r.source} · Batch {r.batch}</div>)}{!records.length&&<p className="text-sm opacity-70">Belum ada import tersimpan.</p>}</div>}
- {isAdmin&&<div className="rounded-2xl border border-dashed border-sky-500/40 p-4 space-y-3"><p className="text-sm font-bold">📤 Import Excel / PDF · Store Leader Admin</p><p className="text-xs opacity-70">Upload Excel/CSV atau PDF bertabel, tinjau hasil ekstraksi, lalu simpan ke Google Sheets bersama. PDF scan/gambar belum didukung. File asli tidak diarsipkan, hanya data terstruktur yang disimpan.</p><div className="flex flex-wrap gap-2"><select value={importType} onChange={e=>{setImportType(e.target.value as any);setPreview([])}} className="rounded-lg border bg-slate-800 text-white p-2 text-xs"><option>Android</option><option>Apple</option><option>SOH</option><option>Promo</option></select><input type="file" accept=".xlsx,.xls,.csv,.pdf" onChange={e=>{setFile(e.target.files?.[0]||null);setPreview([])}} className="text-xs max-w-full"/><button type="button" disabled={!file||busy} onClick={()=>file&&parse(file)} className="rounded-lg bg-blue-600 px-4 py-2 text-white text-xs font-bold disabled:opacity-40">{busy?"Memproses...":"Baca & Preview"}</button></div>{status&&<p className="text-xs text-sky-500">{status}</p>}{preview.length>0&&<><div className="overflow-x-auto max-h-64"><table className="w-full text-xs"><thead><tr>{["Article","Produk","Harga","Stok","Promo"].map(h=><th key={h} className="text-left p-2">{h}</th>)}</tr></thead><tbody>{preview.slice(0,20).map((r,i)=><tr key={i} className="border-t border-slate-500/20"><td className="p-2">{r.article}</td><td className="p-2">{r.name}</td><td className="p-2">{currency(r.price)}</td><td className="p-2">{r.qty??"N/A"}</td><td className="p-2">{r.promo}</td></tr>)}</tbody></table></div><p className="text-xs opacity-70">Menampilkan 20 dari {preview.length} baris. Pastikan kategori, harga, stok dan masa promo benar.</p><input type="password" autoComplete="off" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Password khusus Access Log Admin" className="rounded-lg border bg-slate-800 text-white p-3 text-xs w-full sm:w-72"/><button type="button" disabled={busy||!password} onClick={save} className="rounded-lg bg-emerald-600 px-4 py-3 text-white text-xs font-black disabled:opacity-40">Konfirmasi & Simpan {preview.length} Baris</button></>}</div>}
- </section>;
+ return <PriceListDocuments isAdmin={isAdmin} isDark={isDark}/>;
 }
 
 export const UploadRawSalesModal = ({ isOpen, onClose }: any) => {
@@ -2413,7 +2357,7 @@ Indosat IM3 : ${isatText}`;
     { id: "mom-comparison", label: "MTM / LFL Comparison", icon: "⚖️", color: "bg-indigo-500", shadow: "shadow-indigo-500/30" },
     { id: "est-incentive", label: "Est. Incentive", icon: "💰", color: "bg-emerald-500", shadow: "shadow-emerald-500/30" },
     { id: "customer-engagement", label: "Customer Engagement", icon: "🤝", color: "bg-sky-500", shadow: "shadow-sky-500/30" },
-    { id: "price-center", label: "Price List & Stock", icon: "🏷️", color: "bg-indigo-600", shadow: "shadow-indigo-600/30" },
+    { id: "price-center", label: "Price List & Promo", icon: "🏷️", color: "bg-indigo-600", shadow: "shadow-indigo-600/30" },
     { id: "whiteboard", label: "Whiteboard", icon: "📊", color: "bg-cyan-600", shadow: "shadow-cyan-600/30" },
     { id: "staff-performance", label: "Staff Performance", icon: "🏆", color: "bg-amber-500", shadow: "shadow-amber-500/30" },
     { id: "daily-target", label: "Daily Target & Run Rate", icon: "🎯", color: "bg-orange-500", shadow: "shadow-orange-500/30" },
