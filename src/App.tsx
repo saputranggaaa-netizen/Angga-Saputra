@@ -35,7 +35,7 @@ function StoreForecastOverview({transactions,selectedMonth}:{transactions:RawTra
   </div>
  </div>;
 }
-function StoreTraffic({transactions,isAdmin,salesId,salesName}:{transactions:RawTransaction[],isAdmin:boolean,salesId:string,salesName:string}) {
+function StoreTraffic({transactions,isAdmin,salesId,salesName,isDark}:{transactions:RawTransaction[],isAdmin:boolean,salesId:string,salesName:string,isDark:boolean}) {
  const [month,setMonth]=React.useState(()=>new Date().toLocaleDateString("en-CA",{timeZone:"Asia/Jakarta"}).slice(0,7));
  const [rows,setRows]=React.useState<Record<string,number>>({});
  const [loading,setLoading]=React.useState(true);
@@ -55,23 +55,32 @@ function StoreTraffic({transactions,isAdmin,salesId,salesName}:{transactions:Raw
  },[reload]);
  const invoices=React.useMemo(()=>{const byDate:Record<string,Set<string>>={};for(const t of transactions){if(!t.isoDate||!t.invoice?.trim())continue;(byDate[t.isoDate]??=new Set()).add(t.invoice.trim());}return byDate},[transactions]);
  const dates=React.useMemo(()=>{const [y,m]=month.split("-").map(Number);return Array.from({length:new Date(y,m,0).getDate()},(_,i)=>month+"-"+String(i+1).padStart(2,"0"))},[month]);
- const totalTraffic=dates.reduce((a,d)=>a+(rows[d]||0),0),unique=new Set(transactions.filter(t=>t.isoDate.startsWith(month)).map(t=>t.invoice?.trim()).filter(Boolean)).size;
- return <section className="space-y-5 rounded-3xl border border-slate-700 bg-slate-900 p-5 text-slate-100">
-  <div><h2 className="text-2xl font-semibold">Store Traffic & Conversion</h2><p className="text-sm text-slate-400">QF01 · Input harian toko · Invoice unik dari DATABASE</p></div>
-  <div className="flex flex-wrap items-center gap-3"><label htmlFor="traffic-month">Periode</label><input id="traffic-month" type="month" value={month} onChange={e=>setMonth(e.target.value)} className="rounded-lg border border-slate-600 bg-slate-800 p-2 text-white"/></div>
-  <div className="grid grid-cols-2 gap-3 md:grid-cols-3">{[["Traffic",totalTraffic],["Unique Invoice",unique],["Invoice Conversion",totalTraffic?(unique/totalTraffic*100).toFixed(1)+"%":"N/A"]].map(([k,v])=><div key={String(k)} className="rounded-xl bg-slate-800 p-4"><div className="text-xs text-slate-400">{k}</div><div className="text-xl font-semibold">{v}</div></div>)}</div>
-  <form className="grid gap-3 rounded-xl border border-slate-700 bg-slate-800 p-4" onSubmit={async e=>{e.preventDefault();setSaving(true);setMessage("");setSaveSuccess(false);try{const r=await fetch("/api/store-traffic",{method:"POST",headers:{"Content-Type":"application/json",...(isAdmin&&adminPassword?{"x-admin-access-password":adminPassword}:{})},body:JSON.stringify({date,traffic:Number(count),notes,salesId,salesName})});const d=await r.json();if(!r.ok)throw Error(d.error||"Gagal menyimpan");setMessage(d.updated?"Koreksi traffic berhasil disimpan ke Google Sheets.":"Traffic berhasil disimpan ke Google Sheets.");setSaveSuccess(true);setCount("");setNotes("");setAdminPassword("");setRows(previous=>({...previous,[date]:Number(count)}));setReload(v=>v+1);}catch(err:any){setSaveSuccess(false);setMessage(err.message||"Gagal menyimpan")}finally{setSaving(false)}}}>
+ const totalTraffic=dates.reduce((a,d)=>a+(rows[d]||0),0);
+ const coveredDates=new Set(dates.filter(d=>Object.hasOwn(rows,d)));
+ const unique=new Set(transactions.filter(t=>coveredDates.has(t.isoDate)).map(t=>String(t.invoice||"").trim()).filter(Boolean)).size;
+ const todayJakarta=new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+ const expectedDays=dates.filter(d=>d<=todayJakarta).length;
+ const completedDays=dates.filter(d=>d<=todayJakarta&&coveredDates.has(d)).length;
+ const sectionTheme=isDark?"border-slate-700 bg-slate-900 text-slate-100":"border-slate-200 bg-white text-slate-900";
+ const panelTheme=isDark?"border-slate-700 bg-slate-800":"border-slate-200 bg-slate-50";
+ const inputTheme=isDark?"border-slate-600 bg-slate-900 text-white":"border-slate-300 bg-white text-slate-900";
+ const mutedTheme=isDark?"text-slate-400":"text-slate-600";
+ return <section className={"space-y-5 rounded-3xl border p-5 "+sectionTheme}>
+  <div><h2 className="text-2xl font-semibold">Store Traffic & Conversion</h2><p className={"text-sm "+mutedTheme}>QF01 · Input harian toko · Invoice unik dari DATABASE</p></div>
+  <div className="flex flex-wrap items-center gap-3"><label htmlFor="traffic-month">Periode</label><input id="traffic-month" type="month" value={month} onChange={e=>setMonth(e.target.value)} className={"rounded-lg border p-2 "+inputTheme}/></div>
+  <div className="grid grid-cols-2 gap-3 md:grid-cols-4">{[["Traffic",totalTraffic],["Unique Invoice",unique],["Invoice Conversion",totalTraffic?(unique/totalTraffic*100).toFixed(1)+"%":"N/A"],["Input Completeness",completedDays+" / "+expectedDays+" hari"]].map(([k,v])=><div key={String(k)} className={"rounded-xl border p-4 "+panelTheme}><div className={"text-xs "+mutedTheme}>{k}</div><div className="text-xl font-semibold">{v}</div></div>)}</div>
+  <form className={"grid gap-3 rounded-xl border p-4 "+panelTheme} onSubmit={async e=>{e.preventDefault();setSaving(true);setMessage("");setSaveSuccess(false);try{const r=await fetch("/api/store-traffic",{method:"POST",headers:{"Content-Type":"application/json",...(isAdmin&&adminPassword?{"x-admin-access-password":adminPassword}:{})},body:JSON.stringify({date,traffic:Number(count),notes,salesId,salesName})});const d=await r.json();if(!r.ok)throw Error(d.error||"Gagal menyimpan");setMessage(d.updated?"Koreksi traffic berhasil disimpan ke Google Sheets.":"Traffic berhasil disimpan ke Google Sheets.");setSaveSuccess(true);setCount("");setNotes("");setAdminPassword("");setRows(previous=>({...previous,[date]:Number(count)}));setReload(v=>v+1);}catch(err:any){setSaveSuccess(false);setMessage(err.message||"Gagal menyimpan")}finally{setSaving(false)}}}>
     <h3 className="font-semibold">Input Traffic Harian</h3>
-    <label className="text-sm">Tanggal<input required type="date" value={date} onChange={e=>{setDate(e.target.value);setSaveSuccess(false);setMessage("");}} className="mt-1 block w-full rounded-lg border border-slate-600 bg-slate-900 p-2 text-white"/></label>
-    <label className="text-sm">Total Traffic Toko<input required type="number" min="0" max="100000" step="1" value={count} onChange={e=>{setCount(e.target.value);setSaveSuccess(false);setMessage("");}} className="mt-1 block w-full rounded-lg border border-slate-600 bg-slate-900 p-2 text-white"/></label>
-    <label className="text-sm">Catatan<input maxLength={500} value={notes} onChange={e=>{setNotes(e.target.value);setSaveSuccess(false);setMessage("");}} className="mt-1 block w-full rounded-lg border border-slate-600 bg-slate-900 p-2 text-white"/></label>
-    {isAdmin&&Object.hasOwn(rows,date)&&<label className="text-sm">Password khusus admin untuk koreksi<input type="password" value={adminPassword} onChange={e=>setAdminPassword(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-600 bg-slate-900 p-2 text-white"/></label>}
+    <label className="text-sm">Tanggal<input required type="date" value={date} onChange={e=>{setDate(e.target.value);setSaveSuccess(false);setMessage("");}} className={"mt-1 block w-full rounded-lg border p-2 "+inputTheme}/></label>
+    <label className="text-sm">Total Traffic Toko<input required type="number" min="0" max="100000" step="1" value={count} onChange={e=>{setCount(e.target.value);setSaveSuccess(false);setMessage("");}} className={"mt-1 block w-full rounded-lg border p-2 "+inputTheme}/></label>
+    <label className="text-sm">Catatan<input maxLength={500} value={notes} onChange={e=>{setNotes(e.target.value);setSaveSuccess(false);setMessage("");}} className={"mt-1 block w-full rounded-lg border p-2 "+inputTheme}/></label>
+    {isAdmin&&Object.hasOwn(rows,date)&&<label className="text-sm">Password khusus admin untuk koreksi<input type="password" value={adminPassword} onChange={e=>setAdminPassword(e.target.value)} className={"mt-1 block w-full rounded-lg border p-2 "+inputTheme}/></label>}
     {Object.hasOwn(rows,date)&&!isAdmin?<p className="text-amber-300 text-sm">Tanggal sudah diinput. Hanya admin dapat mengedit.</p>:null}
     <button disabled={saving||!count||(Object.hasOwn(rows,date)&&!isAdmin)} className="rounded-xl bg-sky-600 px-4 py-2 font-semibold text-white disabled:opacity-40">{saving?"Menyimpan...":Object.hasOwn(rows,date)?"Simpan Koreksi (Admin)":"Simpan ke Google Sheets"}</button>
-    {message&&<div role="status" aria-live="polite" className={"flex items-center gap-3 rounded-xl border px-4 py-3 text-sm "+(saveSuccess?"border-emerald-600/50 bg-emerald-950/60 text-emerald-200":"border-rose-600/50 bg-rose-950/50 text-rose-200")}>{saveSuccess?<span aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-lg font-bold text-white">✓</span>:<span aria-hidden="true" className="text-lg">!</span>}<span>{message}</span></div>}
+    {message&&<div role="status" aria-live="polite" className={"flex items-center gap-3 rounded-xl border px-4 py-3 text-sm "+(saveSuccess?(isDark?"border-emerald-600/50 bg-emerald-950/60 text-emerald-200":"border-emerald-300 bg-emerald-50 text-emerald-800"):(isDark?"border-rose-600/50 bg-rose-950/50 text-rose-200":"border-rose-300 bg-rose-50 text-rose-800"))}>{saveSuccess?<span aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-lg font-bold text-white">✓</span>:<span aria-hidden="true" className="text-lg">!</span>}<span>{message}</span></div>}
   </form>
   {error&&<p className="text-sm text-rose-300">{error}</p>}
-  <div className="grid grid-cols-7 gap-1">{["Sen","Sel","Rab","Kam","Jum","Sab","Min"].map(d=><div key={d} className="py-2 text-center text-xs text-slate-400">{d}</div>)}{Array.from({length:(new Date(dates[0]+"T12:00:00").getDay()+6)%7},(_,i)=><div key={"pad"+i}/>)}{dates.map(d=><div key={d} title={d} className={"rounded-lg border p-2 text-center text-xs "+(Object.hasOwn(rows,d)?"border-emerald-700 bg-emerald-950":"border-slate-700 bg-slate-800")}><div>{Number(d.slice(-2))}</div><div className="mt-1 text-[10px]">{Object.hasOwn(rows,d)?rows[d]:"—"}</div></div>)}</div>
+  <div className="grid grid-cols-7 gap-1">{["Sen","Sel","Rab","Kam","Jum","Sab","Min"].map(d=><div key={d} className={"py-2 text-center text-xs "+mutedTheme}>{d}</div>)}{Array.from({length:(new Date(dates[0]+"T12:00:00").getDay()+6)%7},(_,i)=><div key={"pad"+i}/>)}{dates.map(d=><div key={d} title={d} className={"rounded-lg border p-2 text-center text-xs "+(Object.hasOwn(rows,d)?(isDark?"border-emerald-700 bg-emerald-950 text-emerald-100":"border-emerald-300 bg-emerald-50 text-emerald-900"):(isDark?"border-slate-700 bg-slate-800":"border-slate-200 bg-slate-50"))}><div>{Number(d.slice(-2))}</div><div className="mt-1 text-[10px]">{Object.hasOwn(rows,d)?rows[d]:"—"}</div></div>)}</div>
   <p className="text-xs text-slate-400">{loading?"Memuat traffic...":"Hijau: sudah diinput · Abu-abu: belum diinput"} · {isAdmin?"Admin dapat koreksi dengan password khusus":"Staff dapat input tanggal yang belum terisi"}</p>
  </section>
 }
@@ -2941,7 +2950,7 @@ Indosat IM3 : ${isatText}`;
                   </table></div>
                 </div>
               )}
-              {activeTab === "store-traffic" && <StoreTraffic transactions={transactions} isAdmin={currentSalesId===ADMIN_ID} salesId={currentSalesId} salesName={currentSalesName}/>}
+              {activeTab === "store-traffic" && <StoreTraffic transactions={transactions} isAdmin={currentSalesId===ADMIN_ID} salesId={currentSalesId} salesName={currentSalesName} isDark={isDark}/>}
               {activeTab === "price-center" && <PriceCenter isAdmin={currentSalesId===ADMIN_ID} isDark={isDark}/>}
               {activeTab === "whiteboard" && (
                 <div className={`space-y-4 rounded-3xl border p-4 shadow-xl lg:hidden ${cardBg}`}>
