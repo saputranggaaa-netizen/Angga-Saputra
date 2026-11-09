@@ -9,6 +9,43 @@ function PriceCenter({isAdmin,isDark}:{isAdmin:boolean,isDark:boolean}) {
  return <PriceListDocuments isAdmin={isAdmin} isDark={isDark}/>;
 }
 
+function StoreForecastOverview({transactions,selectedMonth}:{transactions:RawTransaction[],selectedMonth:string}){
+ const [trafficRows,setTrafficRows]=React.useState<{date:string,traffic:number}[]>([]);
+ const [trafficError,setTrafficError]=React.useState(false);
+ React.useEffect(()=>{let active=true;fetch("/api/store-traffic").then(async r=>{if(!r.ok)throw Error("Traffic unavailable");return r.json()}).then(d=>{if(active)setTrafficRows(d.rows||[])}).catch(()=>{if(active)setTrafficError(true)});return ()=>{active=false}},[]);
+ const today=new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+ const names=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+ const match=names.findIndex(n=>selectedMonth.startsWith(n));
+ const year=Number(selectedMonth.slice(-4)),month=match+1;
+ const valid=month>0&&Number.isInteger(year)&&year>=2020;
+ const prefix=valid?year+"-"+String(month).padStart(2,"0"):"";
+ const isCurrent=prefix===today.slice(0,7);
+ const isPast=valid&&prefix<today.slice(0,7);
+ const totalDays=valid?new Date(year,month,0).getDate():0;
+ const elapsed=isCurrent?Number(today.slice(-2)):isPast?totalDays:0;
+ const monthTx=transactions.filter(t=>t.isoDate?.startsWith(prefix)&&prefix&&(!isCurrent||t.isoDate<=today));
+ const actual=monthTx.reduce((sum,t)=>sum+(Number(t.amount)||0),0);
+ const projected=elapsed>0?Math.round(actual*totalDays/elapsed):null;
+ const periodTraffic=trafficRows.filter(r=>r.date.startsWith(prefix)&&(!isCurrent||r.date<=today));
+ const totalTraffic=periodTraffic.reduce((sum,r)=>sum+(Number(r.traffic)||0),0);
+ const coveredDates=new Set(periodTraffic.map(r=>r.date));
+ const invoiceCount=new Set(monthTx.filter(t=>coveredDates.has(t.isoDate)).map(t=>String(t.invoice||"").trim()).filter(Boolean)).size;
+ const conversion=totalTraffic>0?invoiceCount/totalTraffic*100:null;
+ return <div className="grid gap-3 md:grid-cols-2">
+  <div className="rounded-2xl border border-sky-500/30 bg-slate-900 p-5 text-white">
+   <div className="mb-1 text-sm text-sky-300">{isPast?"Actual Final Sales":"Estimated Month-End Sales · Run Rate"}</div>
+   <div className="text-2xl font-bold">{projected!==null?formatIDR(projected):"N/A"}</div>
+   <div className="mt-2 text-xs text-slate-300">Actual MTD: {formatIDR(actual)}</div>
+   <div className="mt-1 text-xs text-slate-400">{isPast?"Bulan selesai · aktual final":elapsed>0?"Actual MTD × "+totalDays+" hari ÷ "+elapsed+" hari berjalan":"Pilih bulan berjalan untuk estimasi"}</div>
+  </div>
+  <div className="rounded-2xl border border-sky-500/30 bg-slate-900 p-5 text-white">
+   <div className="mb-1 text-sm text-sky-300">Invoice Conversion · Traffic Terinput</div>
+   <div className="text-2xl font-bold">{conversion===null?"N/A":conversion.toFixed(1)+"%"}</div>
+   <div className="mt-2 text-xs text-slate-300">Traffic: {trafficError?"Tidak tersedia":totalTraffic.toLocaleString("id-ID")} · Unique Invoice: {invoiceCount.toLocaleString("id-ID")}</div>
+   <div className="mt-1 text-xs text-slate-400">Hanya invoice pada tanggal yang traffic-nya sudah diinput. Conversion berbasis invoice, bukan customer unik.</div>
+  </div>
+ </div>;
+}
 function StoreTraffic({transactions,isAdmin,salesId,salesName}:{transactions:RawTransaction[],isAdmin:boolean,salesId:string,salesName:string}) {
  const [month,setMonth]=React.useState(()=>new Date().toLocaleDateString("en-CA",{timeZone:"Asia/Jakarta"}).slice(0,7));
  const [rows,setRows]=React.useState<Record<string,number>>({});
@@ -2996,6 +3033,7 @@ Indosat IM3 : ${isatText}`;
               {activeTab === "store-overview" && (
                 <>
                 <div className="space-y-4 pb-24 lg:pb-6">
+                  <StoreForecastOverview transactions={transactions} selectedMonth={selectedMonth}/>
                   {(() => {
                     const catData = [
                       {name:"Apple Devices",icon:"🍎",items:overviewStats.appleItems,target:overviewStats.lobs[0].target},
