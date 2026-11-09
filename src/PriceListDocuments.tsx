@@ -7,6 +7,11 @@ const money=(n:number|null)=>n===null?"Belum tercocokkan":"Rp "+n.toLocaleString
 const text=(v:unknown)=>String(v??"").trim();
 const number=(v:unknown):number|null=>{if(v==null||text(v)==="")return null;const raw=text(v).replace(/[^\d.,-]/g,"");if(!raw)return null;const normalized=raw.includes(",")?raw.replace(/\./g,"").replace(",","."):raw.replace(/\.(?=\d{3}(?:\D|$))/g,"");const n=Number(normalized);return Number.isFinite(n)&&n>=0?n:null};
 const category=(raw:string,fallback:Category):Category=>/accessor|aksesor|casing|case|adapter|charger|earphone|watch|buds|cable/i.test(raw)?"Aksesoris":/apple|iphone|ipad|macbook|airpods/i.test(raw)?"Apple":fallback==="Promo"?"Promo":"Android";
+const cleanProduct=(raw:string)=>raw.replace(/\\s+/g," ").trim();
+const isNonProduct=(name:string)=>/^(description|marketing name|storage|harga|price|article|sap|brand|variant|color|warna|model|cashback|trade.?in|normal|promo|discount|diskon|benefit|program|category|kategori|total|remarks|notes|no\\.?|\\d[\\d.,]*)$/i.test(name.trim())||!/\\p{L}/u.test(name);
+const inferVariant=(name:string)=>{const match=name.match(/(?:\\d{1,2}\\s*\\/\\s*)?(?:\\d{2,4}\\s*(?:GB|TB)|\\d{1,2}\\s*TB)(?:\\s*\\/\\s*\\d{2,4}\\s*(?:GB|TB))?/i);return match?match[0].replace(/\\s+/g,"").toUpperCase():"Standar";};
+const inferColor=(name:string)=>{const match=name.match(/\\b(Black|White|Blue|Pink|Green|Gray|Grey|Graphite|Silver|Gold|Purple|Lavender|Cream|Navy|Titanium|Violet|Red|Teal|Orange)\\b/i);return match?match[0]:"Umum";};
+const normalizeName=(name:string)=>cleanProduct(name.replace(/\\b\\d{2,4}\\s*(?:GB|TB)(?:\\s*\\/\\s*\\d{2,4}\\s*(?:GB|TB))?\\b/gi,"").replace(/\\b(Black|White|Blue|Pink|Green|Gray|Grey|Graphite|Silver|Gold|Purple|Lavender|Cream|Navy|Titanium|Violet|Red|Teal|Orange)\\b$/i,""));
 const parseDocument=async(file:File,fallback:Category):Promise<Product[]>=>{
  const ext=file.name.split(".").pop()?.toLowerCase();
  let rows:any[][]=[];
@@ -20,12 +25,12 @@ const parseDocument=async(file:File,fallback:Category):Promise<Product[]>=>{
   for(const sheet of book.SheetNames)rows.push(...XLSX.utils.sheet_to_json<any[]>(book.Sheets[sheet],{header:1,defval:"",raw:false}));
  }
  const aliases={name:/product|produk|description|deskripsi|model|tipe|item name/i,brand:/brand|merek/i,article:/article|sku|sap|kode|material/i,variant:/variant|varian|capacity|kapasitas|memory|storage|ram/i,color:/warna|color|colour/i,price:/harga|price|srp|retail|normal price/i,promo:/promo|cashback|benefit|program/i,category:/kategori|category|jenis/i};
- const header=rows.findIndex(row=>row.some(v=>/product|produk|description|nama barang|harga|price|sku|article|sap/i.test(text(v))));
+ const header=rows.findIndex(row=>row.filter(v=>Object.values(aliases).some(re=>re.test(text(v)))).length>=2);
  if(header<0)throw Error("Header produk/harga tidak ditemukan. Gunakan Excel dengan kolom Nama Produk, Brand, Harga dan opsional Varian, Warna, Promo.");
  const cols:any={};for(const [k,re] of Object.entries(aliases))cols[k]=rows[header].findIndex(v=>re.test(text(v)));
  if(cols.name<0)throw Error("Kolom Nama Produk tidak ditemukan.");
  const get=(r:any[],k:string)=>cols[k]>=0?text(r[cols[k]]):"";
- return rows.slice(header+1).map(r=>{const name=get(r,"name");const brand=get(r,"brand")||(/iphone|ipad|macbook/i.test(name)?"Apple":/samsung|galaxy/i.test(name)?"Samsung":"Lainnya");return {name,brand,category:category(get(r,"category")||name,fallback),variant:get(r,"variant")||"Standar",color:get(r,"color")||"Umum",article:get(r,"article"),price:cols.price>=0?number(r[cols.price]):null,promo:get(r,"promo"),source:file.name,updated:new Date().toISOString()};}).filter(p=>p.name&&p.name.length>2).slice(0,5000);
+ return rows.slice(header+1).map(r=>{const rawName=get(r,"name");const name=normalizeName(rawName);const brand=get(r,"brand")||(/iphone|ipad|macbook/i.test(name)?"Apple":/samsung|galaxy/i.test(name)?"Samsung":"Lainnya");return {name,brand,category:category(get(r,"category")||name,fallback),variant:get(r,"variant")||inferVariant(rawName),color:get(r,"color")||inferColor(rawName),article:get(r,"article"),price:cols.price>=0?number(r[cols.price]):null,promo:get(r,"promo"),source:file.name,updated:new Date().toISOString()};}).filter(p=>p.name&&p.name.length>2&&!isNonProduct(p.name)).slice(0,5000);
 };
 export default function PriceListDocuments({isAdmin,isDark}:{isAdmin:boolean;isDark:boolean}){
  const [tab,setTab]=useState<Category>("Android"),[files,setFiles]=useState<Item[]>([]);
@@ -40,21 +45,21 @@ export default function PriceListDocuments({isAdmin,isDark}:{isAdmin:boolean;isD
  const visible=useMemo(()=>rows.filter(p=>tab==="Promo"?!!p.promo||p.category==="Promo":p.category===tab),[rows,tab]);
  const brands=useMemo(()=>["Semua",...Array.from(new Set(visible.map(p=>p.brand))).sort()],[visible]);
  const filtered=useMemo(()=>visible.filter(p=>(brand==="Semua"||p.brand===brand)&&(!query||[p.name,p.brand,p.variant,p.article].join(" ").toLowerCase().includes(query.toLowerCase()))),[visible,brand,query]);
- const names=Array.from(new Set(filtered.map(p=>p.name)));
+ const names=Array.from(new Set(filtered.map(p=>p.name))).sort((a,b)=>a.localeCompare(b,"id",{numeric:true}));
  const current=names.includes(chosen)?chosen:names[0]||"";
  const variants=Array.from(new Set(filtered.filter(p=>p.name===current).map(p=>p.variant)));
  const selectedVariant=variants.includes(variant)?variant:variants[0]||"";
  const selected=filtered.filter(p=>p.name===current&&p.variant===selectedVariant);
  const currentPrice=selected.find(p=>p.price!==null)?.price??null;
  const documents=files.filter(f=>f.pathname.startsWith("reference-price-promo/"+(tab==="Aksesoris"?"Android":tab)+"/")).sort((a,b)=>new Date(b.uploadedAt).getTime()-new Date(a.uploadedAt).getTime());
- return <section className={`space-y-5 rounded-3xl border p-4 sm:p-6 ${isDark?"bg-slate-900/70 border-slate-700 text-white":"bg-slate-50 border-slate-200 text-slate-900"}`}>
+ return <section className={`space-y-5 rounded-3xl border p-4 sm:p-6 ${isDark?"bg-slate-50 border-slate-200 text-slate-900":"bg-slate-50 border-slate-200 text-slate-900"}`}>
   <div><p className="text-xs font-bold uppercase tracking-widest text-blue-500">QF01 · Grand Indonesia</p><h2 className="text-2xl font-black mt-1">Price List</h2><p className="text-xs opacity-70 mt-2">Katalog referensi dari dokumen Excel/PDF · Tidak mengubah database penjualan, master produk, SAP Article, atau SOH</p></div>
   <div className="grid grid-cols-4 gap-1 bg-slate-500/10 rounded-2xl p-1">{(["Android","Apple","Aksesoris","Promo"] as Category[]).map(t=><button key={t} type="button" onClick={()=>{setTab(t);setBrand("Semua");setChosen("");setVariant("");setQuery("");}} className={`rounded-xl py-3 text-xs sm:text-sm font-bold ${tab===t?"bg-blue-600 text-white":"opacity-75 hover:bg-slate-500/10"}`}>{t}</button>)}</div>
   {loading&&<p className="text-xs text-blue-500">Memuat dokumen referensi...</p>}
   <div className="flex flex-wrap gap-2 items-center"><span className="text-[10px] font-black uppercase tracking-widest opacity-60">Pilih Brand</span>{brands.map(b=><button key={b} type="button" onClick={()=>{setBrand(b);setChosen("");setVariant("");}} className={`rounded-xl px-3 py-2 text-xs font-bold ${brand===b?"bg-slate-900 text-white dark:bg-blue-600":"bg-slate-500/10"}`}>{b}</button>)}</div>
   <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.7fr)_minmax(300px,1fr)] gap-4 items-start">
-   <div className={`rounded-2xl border p-4 space-y-4 ${isDark?"bg-slate-800/70 border-slate-700":"bg-white border-slate-200"}`}>
-    <input value={query} onChange={e=>{setQuery(e.target.value);setChosen("");setVariant("");}} placeholder="Cari tipe produk, kapasitas atau SAP Article..." className={`w-full rounded-xl border px-4 py-3 text-sm ${isDark?"bg-slate-900 border-slate-600 text-white":"bg-white border-slate-200"}`}/>
+   <div className={`rounded-2xl border p-4 space-y-4 ${isDark?"bg-white border-slate-200":"bg-white border-slate-200"}`}>
+    <input value={query} onChange={e=>{setQuery(e.target.value);setChosen("");setVariant("");}} placeholder="Cari tipe produk, kapasitas atau SAP Article..." className={`w-full rounded-xl border px-4 py-3 text-sm ${isDark?"bg-white border-slate-200 text-slate-900":"bg-white border-slate-200"}`}/>
     <h3 className="text-xs font-black uppercase tracking-widest opacity-70">Pilih Tipe</h3>
     <div className="flex flex-wrap gap-2">{names.slice(0,showAll?names.length:80).map(name=><button key={name} type="button" onClick={()=>{setChosen(name);setVariant("");}} className={`rounded-xl px-3 py-2 text-xs font-bold ${current===name?"bg-blue-600 text-white":"bg-slate-500/10 hover:bg-blue-500/10"}`}>{name}</button>)}</div>
     {names.length>80&&<button type="button" onClick={()=>setShowAll(!showAll)} className="text-xs font-bold text-blue-500">{showAll?"Lebih sedikit":"Tampilkan semua "+names.length+" produk"}</button>}
