@@ -20,9 +20,6 @@ function StoreForecastOverview({transactions,selectedMonth}:{transactions:RawTra
  const valid=month>0&&Number.isInteger(year)&&year>=2020;
  const prefix=valid?year+"-"+String(month).padStart(2,"0"):"";
  const isCurrent=prefix===today.slice(0,7);
- const isPast=valid&&prefix<today.slice(0,7);
- const totalDays=valid?new Date(year,month,0).getDate():0;
- const elapsed=isCurrent?Number(today.slice(-2)):isPast?totalDays:0;
  const monthTx=transactions.filter(t=>t.isoDate?.startsWith(prefix)&&prefix&&(!isCurrent||t.isoDate<=today));
  const periodTraffic=trafficRows.filter(r=>r.date.startsWith(prefix)&&(!isCurrent||r.date<=today));
  const totalTraffic=periodTraffic.reduce((sum,r)=>sum+(Number(r.traffic)||0),0);
