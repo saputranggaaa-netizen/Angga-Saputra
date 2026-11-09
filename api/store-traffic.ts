@@ -22,11 +22,11 @@ export default async function handler(req:any,res:any){
  if(req.method!=="GET"&&req.method!=="POST")return res.status(405).json({error:"Method not allowed"});
  try{
   const values=(await request("GET",range)).values||[];
-  const rows=values.slice(1).map((v:any[],i:number)=>({index:i+2,date:String(v[0]||""),traffic:Number(v[2]),notes:String(v[3]||""),createdBy:String(v[5]||"")})).filter((v:any)=>/^\\d{4}-\\d{2}-\\d{2}$/.test(v.date));
+  const rows=values.slice(1).map((v:any[],i:number)=>({index:i+2,date:String(v[0]||""),traffic:Number(v[2]),notes:String(v[3]||""),createdBy:String(v[5]||"")})).filter((v:any)=>/^\d{4}-\d{2}-\d{2}$/.test(v.date));
   if(req.method==="GET")return res.status(200).json({rows:rows.map(({index,...rest}:any)=>rest)});
   const {date,traffic,notes,salesId,salesName}=req.body||{};
   const d=String(date||""),n=Number(traffic),id=String(salesId||""),name=String(salesName||"").trim();
-  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(d)||new Date(d+"T12:00:00Z").toISOString().slice(0,10)!==d||!Number.isSafeInteger(n)||n<0||n>100000||!/^[0-9]{4,20}$/.test(id)||!name||name.length>120||String(notes||"").length>500)return res.status(400).json({error:"Input traffic tidak valid"});
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(d)||new Date(d+"T12:00:00Z").toISOString().slice(0,10)!==d||!Number.isSafeInteger(n)||n<0||n>100000||!/^[0-9]{4,20}$/.test(id)||!name||name.length>120||String(notes||"").length>500)return res.status(400).json({error:"Input traffic tidak valid"});
   const existing=rows.find((v:any)=>v.date===d),now=new Date().toISOString(),safeNotes=String(notes||"").trim().replace(/^[=+@-]/,"'");
   if(existing){
    const expected=process.env.ADMIN_ACCESS_LOG_PASSWORD;
