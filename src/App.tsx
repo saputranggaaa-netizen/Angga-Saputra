@@ -23,7 +23,7 @@ function StoreTraffic({transactions,isAdmin,salesId,salesName}:{transactions:Raw
  const [reload,setReload]=React.useState(0);
  React.useEffect(()=>{
   let active=true;setLoading(true);
-  fetch("/api/store-traffic").then(async r=>{const d=await r.json();if(!r.ok)throw Error(d.error||"Gagal memuat traffic");return d}).then(d=>{const next:Record<string,number>={};for(const row of d.rows||[])if(/^\\d{4}-\\d{2}-\\d{2}$/.test(row.date))next[row.date]=Number(row.traffic);if(active){setRows(next);setError("");}}).catch(e=>{if(active)setError(e.message||"Tidak dapat memuat traffic")}).finally(()=>{if(active)setLoading(false)});
+  fetch("/api/store-traffic").then(async r=>{const d=await r.json();if(!r.ok)throw Error(d.error||"Gagal memuat traffic");return d}).then(d=>{const next:Record<string,number>={};for(const row of d.rows||[])if(/^\d{4}-\d{2}-\d{2}$/.test(row.date))next[row.date]=Number(row.traffic);if(active){setRows(next);setError("");}}).catch(e=>{if(active)setError(e.message||"Tidak dapat memuat traffic")}).finally(()=>{if(active)setLoading(false)});
   return ()=>{active=false};
  },[reload]);
  const invoices=React.useMemo(()=>{const byDate:Record<string,Set<string>>={};for(const t of transactions){if(!t.isoDate||!t.invoice?.trim())continue;(byDate[t.isoDate]??=new Set()).add(t.invoice.trim());}return byDate},[transactions]);
