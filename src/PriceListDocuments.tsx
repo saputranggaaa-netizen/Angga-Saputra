@@ -24,22 +24,22 @@ const parseDocument=async(file:File,fallback:Category):Promise<Product[]>=>{
  const results:Product[]=[];
  const val=(r:any[],i:number)=>text(r[i]);
  const cash=(v:unknown)=>{const n=number(v);return n!==null&&Number.isInteger(n)&&n>=10000&&n<=300000000?n:null};
- const colorFrom=(raw:string)=>{const m=raw.match(/\\b(MIDNIGHT BLACK|TITAN GRAY|SANDY PURPLE|SKY BLUE|PINK GOLD|SILVER SHADOW|COBALT VIOLET|LIGHT BLUE|OAK GREEN|LOTUS PURPLE|BLUEBERRY|PISTACHIO|GRAPHITE|LAVENDER|CREAM|PURPLE|BLACK|WHITE|BLUE|GREEN|GRAY|GREY|PINK|SILVER|GOLD|NAVY|RED|BEIGE)\\b$/i);return m?m[0]:"Umum"};
+ const colorFrom=(raw:string)=>{const m=raw.match(/\b(MIDNIGHT BLACK|TITAN GRAY|SANDY PURPLE|SKY BLUE|PINK GOLD|SILVER SHADOW|COBALT VIOLET|LIGHT BLUE|OAK GREEN|LOTUS PURPLE|BLUEBERRY|PISTACHIO|GRAPHITE|LAVENDER|CREAM|PURPLE|BLACK|WHITE|BLUE|GREEN|GRAY|GREY|PINK|SILVER|GOLD|NAVY|RED|BEIGE)\b$/i);return m?m[0]:"Umum"};
  const add=(raw:string,brand:string,article:string,price:number|null,promo:string,kind:Category,variantHint="")=>{
   if(!raw||!article||!/[A-Z]/i.test(raw)||isNonProduct(raw))return;
   const color=colorFrom(raw);
   const variant=variantHint||inferVariant(raw);
   let name=cleanProduct(raw);
   if(color!=="Umum")name=name.slice(0,-color.length).trim();
-  if(variant!=="Standar")name=cleanProduct(name.replace(variant.replace("/",String.raw`\\s*\\/\\s*`),""));
-  name=cleanProduct(name.replace(/\\b(?:\\d{1,2}\\s*\\/\\s*)?\\d{2,4}\\s*(?:GB|TB)(?:\\s*\\/\\s*\\d{2,4}\\s*(?:GB|TB))?\\b/gi,""));
+  if(variant!=="Standar")name=cleanProduct(name.replace(variant,""));
+  name=cleanProduct(name.replace(/\b(?:\d{1,2}\s*\/\s*)?\d{2,4}\s*(?:GB|TB)(?:\s*\/\s*\d{2,4}\s*(?:GB|TB))?\b/gi,""));
   if(!name||isNonProduct(name))return;
   results.push({name,brand:brand||"Lainnya",category:kind,variant,color,article,price,promo,source:file.name,updated:new Date().toISOString()});
  };
  for(const sheetName of sheetNames){
   const ws=book.Sheets[sheetName];if(!ws)continue;
   const rows=XLSX.utils.sheet_to_json<any[]>(ws,{header:1,defval:"",raw:false});
-  if(national){for(const r of rows.slice(2)){const brand=val(r,0),article=val(r,1),desc=val(r,2),kind=val(r,3);if(!/^[A-Z0-9-]{5,}$/i.test(article))continue;add(desc,brand,article,cash(r[6]),"",/ACCESSOR|CASE|CABLE|CHARGER|WATCH|BUDS|ADAPTER/i.test(kind)?"Aksesoris":"Android",val(r,4).match(/\\d+\\s*\\/\\s*\\d+\\s*GB/i)?.[0]||"");}continue;}
+  if(national){for(const r of rows.slice(2)){const brand=val(r,0),article=val(r,1),desc=val(r,2),kind=val(r,3);if(!/^[A-Z0-9-]{5,}$/i.test(article))continue;add(desc,brand,article,cash(r[6]),"",/ACCESSOR|CASE|CABLE|CHARGER|WATCH|BUDS|ADAPTER/i.test(kind)?"Aksesoris":"Android",val(r,4).match(/\d+\s*\/\s*\d+\s*GB/i)?.[0]||"");}continue;}
   if(apple){for(const r of rows.slice(5)){const article=val(r,1),desc=val(r,2),kind=val(r,3);if(!/^[A-Z0-9-]{6,}$/i.test(article)||!desc)continue;const normal=cash(r[5]),promo=cash(r[6]);add(desc,/MAC/i.test(desc)?"Mac":/IPAD/i.test(desc)?"iPad":/WATCH/i.test(desc)?"Apple Watch":/AIRPODS/i.test(desc)?"AirPods":"iPhone",article,promo??normal,promo!==null&&normal!==null&&promo<normal?"Harga normal Rp "+normal.toLocaleString("id-ID"):"","Apple");}continue;}
   if(samsung){
    if(sheetName==="List Promo Samsung"){for(const r of rows.slice(1)){const name=val(r,2);if(!name)continue;results.push({name,brand:"Samsung",category:"Promo",variant:val(r,1)||"Promo",color:"Umum",article:"",price:null,promo:[val(r,3),val(r,4),val(r,5)].filter(Boolean).join(" | "),source:file.name,updated:new Date().toISOString()});}continue;}
@@ -49,7 +49,7 @@ const parseDocument=async(file:File,fallback:Category):Promise<Product[]>=>{
    for(const r of rows.slice(header+1)){const article=val(r,articleCol),desc=val(r,descCol);if(!/^[A-Z0-9-]{8,}$/i.test(article)||!desc)continue;const cb=cashCol>=0?cash(r[cashCol]):null;add(desc,"Samsung",article,priceCol>=0?cash(r[priceCol]):null,cb!==null?sheetName+" · Cashback Rp "+cb.toLocaleString("id-ID"):sheetName,"Promo");}
    continue;
   }
-  const header=rows.findIndex(r=>r.some(v=>/^(product description|sapdescription|nama produk|description)$/i.test(text(v)))&&r.some(v=>/^(current price|harga|price|normal price|promotion price|current price cicilan\\/cash)$/i.test(text(v))));
+  const header=rows.findIndex(r=>r.some(v=>/^(product description|sapdescription|nama produk|description)$/i.test(text(v)))&&r.some(v=>/^(current price|harga|price|normal price|promotion price|current price cicilan\/cash)$/i.test(text(v))));
   if(header<0)throw Error("Header nama produk dan harga tidak ditemukan pada "+sheetName);
   const h=rows[header].map(v=>text(v).toLowerCase());const ix=(re:RegExp)=>h.findIndex(v=>re.test(v));
   const ni=ix(/product description|sapdescription|nama produk|description/),ai=ix(/article|sku/),bi=ix(/^brand$/),pi=ix(/current price|promotion price|harga|^price$/);
