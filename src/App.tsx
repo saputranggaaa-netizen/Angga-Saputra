@@ -24,21 +24,13 @@ function StoreForecastOverview({transactions,selectedMonth}:{transactions:RawTra
  const totalDays=valid?new Date(year,month,0).getDate():0;
  const elapsed=isCurrent?Number(today.slice(-2)):isPast?totalDays:0;
  const monthTx=transactions.filter(t=>t.isoDate?.startsWith(prefix)&&prefix&&(!isCurrent||t.isoDate<=today));
- const actual=monthTx.reduce((sum,t)=>sum+(Number(t.amount)||0),0);
- const projected=elapsed>0?Math.round(actual*totalDays/elapsed):null;
  const periodTraffic=trafficRows.filter(r=>r.date.startsWith(prefix)&&(!isCurrent||r.date<=today));
  const totalTraffic=periodTraffic.reduce((sum,r)=>sum+(Number(r.traffic)||0),0);
  const coveredDates=new Set(periodTraffic.map(r=>r.date));
  const invoiceCount=new Set(monthTx.filter(t=>coveredDates.has(t.isoDate)).map(t=>String(t.invoice||"").trim()).filter(Boolean)).size;
  const conversion=totalTraffic>0?invoiceCount/totalTraffic*100:null;
- return <div className="grid gap-3 md:grid-cols-2">
-  <div className="rounded-2xl border border-sky-500/30 bg-slate-900 p-5 text-white">
-   <div className="mb-1 text-sm text-sky-300">{isPast?"Actual Final Sales":"Estimated Month-End Sales · Run Rate"}</div>
-   <div className="text-2xl font-bold">{projected!==null?formatIDR(projected):"N/A"}</div>
-   <div className="mt-2 text-xs text-slate-300">Actual MTD: {formatIDR(actual)}</div>
-   <div className="mt-1 text-xs text-slate-400">{isPast?"Bulan selesai · aktual final":elapsed>0?"Actual MTD × "+totalDays+" hari ÷ "+elapsed+" hari berjalan":"Pilih bulan berjalan untuk estimasi"}</div>
-  </div>
-  <div className="rounded-2xl border border-sky-500/30 bg-slate-900 p-5 text-white">
+ return <div className="mt-3">
+  <div className="rounded-2xl border border-slate-700 bg-slate-800 p-3 text-white">
    <div className="mb-1 text-sm text-sky-300">Invoice Conversion · Traffic Terinput</div>
    <div className="text-2xl font-bold">{conversion===null?"N/A":conversion.toFixed(1)+"%"}</div>
    <div className="mt-2 text-xs text-slate-300">Traffic: {trafficError?"Tidak tersedia":totalTraffic.toLocaleString("id-ID")} · Unique Invoice: {invoiceCount.toLocaleString("id-ID")}</div>
@@ -3033,7 +3025,6 @@ Indosat IM3 : ${isatText}`;
               {activeTab === "store-overview" && (
                 <>
                 <div className="space-y-4 pb-24 lg:pb-6">
-                  <StoreForecastOverview transactions={transactions} selectedMonth={selectedMonth}/>
                   {(() => {
                     const catData = [
                       {name:"Apple Devices",icon:"🍎",items:overviewStats.appleItems,target:overviewStats.lobs[0].target},
@@ -3056,13 +3047,27 @@ Indosat IM3 : ${isatText}`;
                       return [...grouped.values()].sort((a,b)=>b.amount-a.amount);
                     };
                     const ranking=[...staffList].sort((a,b)=>mobileOverviewRankBy==="upt"?Number(b.upt)-Number(a.upt):mobileOverviewRankBy==="totalAmount"?b.totalAmount-a.totalAmount:b.achvPct-a.achvPct||b.totalAmount-a.totalAmount);
-                    const report=["*DIGIPLUS GRAND INDONESIA*","*OVERVIEW STORE*","Periode: "+(periodType==="monthly"?selectedMonth:periodType==="daily"?selectedDate:"Weekly"),"Sales: "+formatIDR(overviewStats.actual),"Target: "+(overviewStats.target>0?formatIDR(overviewStats.target):"Belum tersedia"),"Achievement: "+(overviewStats.target>0?overviewStats.achv+"%":"—"),"Time Elapsed: "+timeGoneStats.timeElapsedPct+"%",...catData.map(c=>c.name+": "+formatIDR(totalFor(c.items)))].join("\n");
+                    const monthNamesOverview=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+                    const monthIndexOverview=monthNamesOverview.findIndex(n=>selectedMonth.startsWith(n));
+                    const yearOverview=Number(selectedMonth.slice(-4));
+                    const prefixOverview=monthIndexOverview>=0&&yearOverview>=2020?yearOverview+"-"+String(monthIndexOverview+1).padStart(2,"0"):"";
+                    const todayOverview=new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+                    const totalDaysOverview=prefixOverview?new Date(yearOverview,monthIndexOverview+1,0).getDate():0;
+                    const isCurrentOverview=prefixOverview===todayOverview.slice(0,7);
+                    const isPastOverview=!!prefixOverview&&prefixOverview<todayOverview.slice(0,7);
+                    const elapsedOverview=isCurrentOverview?Number(todayOverview.slice(-2)):isPastOverview?totalDaysOverview:0;
+                    const actualMonthOverview=transactions.filter(t=>prefixOverview&&t.isoDate?.startsWith(prefixOverview)&&(!isCurrentOverview||t.isoDate<=todayOverview)).reduce((sum,t)=>sum+(Number(t.amount)||0),0);
+                    const estimateOverview=elapsedOverview>0?Math.round(actualMonthOverview*totalDaysOverview/elapsedOverview):null;
+                    const estimatePctOverview=estimateOverview!==null&&overviewStats.target>0?estimateOverview/overviewStats.target*100:null;
+                    const estimateGapOverview=estimateOverview!==null&&overviewStats.target>0?estimateOverview-overviewStats.target:null;
+                    const report=["*DIGIPLUS GRAND INDONESIA*","*OVERVIEW STORE*","Periode: "+(periodType==="monthly"?selectedMonth:periodType==="daily"?selectedDate:"Weekly"),"Sales: "+formatIDR(overviewStats.actual),"Target: "+(overviewStats.target>0?formatIDR(overviewStats.target):"Belum tersedia"),"Achievement: "+(overviewStats.target>0?overviewStats.achv+"%":"—"),"Time Elapsed: "+timeGoneStats.timeElapsedPct+"%", "Estimated Month-End: "+(estimateOverview===null?"N/A":formatIDR(estimateOverview)), "Projected Achievement: "+(estimatePctOverview===null?"N/A":estimatePctOverview.toFixed(1)+"%"),"Estimated Gap vs Target: "+(estimateGapOverview===null?"N/A":(estimateGapOverview>=0?"+":"-")+formatIDR(Math.abs(estimateGapOverview))),...catData.map(c=>c.name+": "+formatIDR(totalFor(c.items)))].join("\n");
                     const card="rounded-[22px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1d2734] shadow-sm";
                     return <>
                       <div className="flex justify-between items-center gap-2"><div><p className="text-[10px] font-bold uppercase tracking-widest text-sky-600 dark:text-sky-400">QF01 · Store Command Center</p><h2 className="text-xl font-black text-slate-950 dark:text-white">Overview Store</h2><p className="text-xs text-slate-600 dark:text-slate-300">{periodType==="monthly"?selectedMonth:periodType==="daily"?selectedDate:"Weekly"}</p></div><button type="button" onClick={()=>window.open("https://wa.me/?text="+encodeURIComponent(report),"_blank")} className="rounded-xl bg-emerald-600 text-white text-xs font-bold px-3 py-3">↗ Share</button></div>
                       {mobileOverviewTab==="overview"&&<>
-                        <div className="rounded-[24px] bg-gradient-to-br from-blue-700 via-blue-600 to-sky-500 text-white p-5 shadow-lg"><p className="text-sm font-semibold opacity-90">Sales Achievement</p><p className="text-3xl font-black mt-2">{formatIDR(overviewStats.actual)}</p><div className="flex justify-between text-xs mt-2"><span>Target: {overviewStats.target>0?formatIDR(overviewStats.target):"Belum tersedia"}</span><strong>{overviewStats.target>0?overviewStats.achv+"%":"—"}</strong></div><div className="h-2 rounded-full bg-white/25 overflow-hidden mt-3"><div className="h-full bg-cyan-200 rounded-full" style={{width:(overviewStats.target>0?Math.min(100,overviewStats.actual/overviewStats.target*100):0)+"%"}}/></div></div>
+                        <div className="rounded-[24px] bg-gradient-to-br from-blue-700 via-blue-600 to-sky-500 text-white p-5 shadow-lg"><p className="text-sm font-semibold opacity-90">Sales Achievement</p><p className="text-3xl font-black mt-2">{formatIDR(overviewStats.actual)}</p><div className="flex justify-between text-xs mt-2"><span>Target: {overviewStats.target>0?formatIDR(overviewStats.target):"Belum tersedia"}</span><strong>{overviewStats.target>0?overviewStats.achv+"%":"—"}</strong></div><div className="h-2 rounded-full bg-white/25 overflow-hidden mt-3"><div className="h-full bg-cyan-200 rounded-full" style={{width:(overviewStats.target>0?Math.min(100,overviewStats.actual/overviewStats.target*100):0)+"%"}}/></div><div className="mt-4 grid grid-cols-1 gap-3 border-t border-white/30 pt-3 sm:grid-cols-2"><div><p className="text-xs text-blue-100">{isPastOverview?"Final Sales":"Estimated Month-End · Run Rate"}</p><p className="mt-1 text-lg font-black">{estimateOverview===null?"N/A":formatIDR(estimateOverview)}</p><p className="text-[11px] text-blue-100">{elapsedOverview?totalDaysOverview+" hari / "+elapsedOverview+" hari berjalan":"Data periode tidak tersedia"}</p></div><div><p className="text-xs text-blue-100">Projected Achievement</p><p className="mt-1 text-lg font-black">{estimatePctOverview===null?"N/A":estimatePctOverview.toFixed(1)+"%"}</p><p className="text-[11px] text-blue-100">Est. Gap vs Target: {estimateGapOverview===null?"N/A":(estimateGapOverview>=0?"+":"-")+formatIDR(Math.abs(estimateGapOverview))}</p></div></div></div>
                         <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">{[{label:"Time Elapsed",value:timeGoneStats.timeElapsedPct+"%",icon:"⏱️"},{label:"UPT · Physical",value:upt===null?"—":upt.toFixed(2),icon:"📦"},{label:"ASP · All Items",value:asp===null?"—":formatIDR(asp),icon:"📈"},{label:"ATV",value:atv===null?"—":formatIDR(atv),icon:"🧾"},{label:"Gap to Target",value:overviewStats.target>0?formatIDR(Math.max(0,overviewStats.target-overviewStats.actual)):"—",icon:"🎯"}].map(k=><div key={k.label} className={card+" p-3"}><p className="text-[11px] text-slate-500 dark:text-slate-300">{k.icon} {k.label}</p><p className="text-lg font-black text-slate-950 dark:text-white mt-1">{k.value}</p></div>)}</div>
+                        <StoreForecastOverview transactions={transactions} selectedMonth={selectedMonth}/>
                         <div className={card+" p-4"}><div className="flex justify-between items-center"><h3 className="font-black text-slate-950 dark:text-white">Daily Sales Trend</h3><span className="text-xs text-slate-500">Actual vs Target</span></div><div className="mt-4 flex gap-1.5 items-end h-32 overflow-x-auto pb-1">{dailyTrendStats.filter(d=>d.dayLabel && (periodType!=="monthly" || Number(d.dayLabel.slice(0,2))<=timeGoneStats.elapsedDays)).map((d,i,arr)=><button type="button" key={i} title={d.dayLabel+" · "+formatIDR(d.actual)+" / Target "+formatIDR(d.target)} onClick={()=>{const msg=d.dayLabel+" · Actual "+formatIDR(d.actual)+" · Target "+formatIDR(d.target);window.alert(msg)}} className="min-w-[22px] flex-1 flex flex-col justify-end items-center gap-1 h-full"><div className="w-full rounded-t-md bg-gradient-to-t from-blue-700 to-sky-400" style={{height:Math.max(3,d.actual/Math.max(1,...arr.map(v=>v.actual),...arr.map(v=>v.target))*100)+"%"}}/><span className="text-[9px] text-slate-500 dark:text-slate-300">{d.dayLabel.slice(0,2)}</span></button>)}</div><p className="text-[10px] text-slate-500 mt-2">Ketuk batang untuk melihat nilai harian.</p></div>
                         <button type="button" onClick={()=>setMobileOverviewTab("categories")} className={card+" p-4 w-full text-left flex justify-between items-center"}><div><h3 className="font-black text-slate-950 dark:text-white">Category Explorer</h3><p className="text-xs text-slate-500 dark:text-slate-300">Apple · Android · Accessories · VAS</p></div><span className="text-sky-600 font-bold">Lihat →</span></button>
                         <button type="button" onClick={()=>setMobileOverviewTab("staff")} className={card+" p-4 w-full text-left flex justify-between items-center"}><div><h3 className="font-black text-slate-950 dark:text-white">Staff Leaderboard</h3><p className="text-xs text-slate-500 dark:text-slate-300">Ranking achievement dan UPT</p></div><span className="text-sky-600 font-bold">Lihat →</span></button>
