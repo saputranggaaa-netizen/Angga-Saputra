@@ -9,6 +9,31 @@ function PriceCenter({isAdmin,isDark}:{isAdmin:boolean,isDark:boolean}) {
  return <PriceListDocuments isAdmin={isAdmin} isDark={isDark}/>;
 }
 
+function StoreTraffic({transactions,isAdmin}:{transactions:RawTransaction[],isAdmin:boolean}) {
+ const [month,setMonth]=React.useState(()=>new Date().toLocaleDateString("en-CA",{timeZone:"Asia/Jakarta"}).slice(0,7));
+ const [rows,setRows]=React.useState<Record<string,number>>({});
+ const [loading,setLoading]=React.useState(true);
+ const [error,setError]=React.useState("");
+ React.useEffect(()=>{
+  let active=true;setLoading(true);
+  fetch("https://docs.google.com/spreadsheets/d/1v_QCLTDKORjVnByrzo9qRiivdU8CGO99nJri9jBETWM/gviz/tq?tqx=out:json&gid=620300263")
+   .then(r=>r.text()).then(t=>{const start=t.indexOf("{"),end=t.lastIndexOf("}");if(start<0||end<0)throw Error("Data traffic belum dapat diakses");const obj=JSON.parse(t.slice(start,end+1));const next:Record<string,number>={};for(const row of obj.table?.rows||[]){const d=String(row.c?.[0]?.f||row.c?.[0]?.v||"");const iso=d.match(/\\d{4}-\\d{2}-\\d{2}/)?.[0];const val=Number(row.c?.[2]?.v);if(iso&&Number.isFinite(val))next[iso]=val;}if(active){setRows(next);setError("");}})
+   .catch(e=>{if(active)setError(e.message||"Tidak dapat memuat traffic")}).finally(()=>{if(active)setLoading(false)});
+  return ()=>{active=false};
+ },[]);
+ const invoices=React.useMemo(()=>{const byDate:Record<string,Set<string>>={};for(const t of transactions){if(!t.isoDate||!t.invoice?.trim())continue;(byDate[t.isoDate]??=new Set()).add(t.invoice.trim());}return byDate},[transactions]);
+ const dates=React.useMemo(()=>{const [y,m]=month.split("-").map(Number);return Array.from({length:new Date(y,m,0).getDate()},(_,i)=>month+"-"+String(i+1).padStart(2,"0"))},[month]);
+ const totalTraffic=dates.reduce((a,d)=>a+(rows[d]||0),0),unique=new Set(transactions.filter(t=>t.isoDate.startsWith(month)).map(t=>t.invoice?.trim()).filter(Boolean)).size;
+ return <section className="space-y-5 rounded-3xl border border-slate-700 bg-slate-900 p-5 text-slate-100">
+  <div><h2 className="text-2xl font-semibold">Store Traffic & Conversion</h2><p className="text-sm text-slate-400">QF01 · Input harian toko · Invoice unik dari DATABASE</p></div>
+  <div className="flex flex-wrap items-center gap-3"><label htmlFor="traffic-month">Periode</label><input id="traffic-month" type="month" value={month} onChange={e=>setMonth(e.target.value)} className="rounded-lg border border-slate-600 bg-slate-800 p-2 text-white"/></div>
+  <div className="grid grid-cols-2 gap-3 md:grid-cols-3">{[["Traffic",totalTraffic],["Unique Invoice",unique],["Invoice Conversion",totalTraffic?(unique/totalTraffic*100).toFixed(1)+"%":"N/A"]].map(([k,v])=><div key={String(k)} className="rounded-xl bg-slate-800 p-4"><div className="text-xs text-slate-400">{k}</div><div className="text-xl font-semibold">{v}</div></div>)}</div>
+  <p className="text-sm text-amber-300">Penyimpanan input belum diaktifkan: koneksi tulis Google Sheets dan otorisasi edit admin harus dikonfigurasi di server. Data yang tampil bersifat baca saja.</p>
+  {error&&<p className="text-sm text-rose-300">{error}</p>}
+  <div className="grid grid-cols-7 gap-1">{["Sen","Sel","Rab","Kam","Jum","Sab","Min"].map(d=><div key={d} className="py-2 text-center text-xs text-slate-400">{d}</div>)}{Array.from({length:(new Date(dates[0]+"T12:00:00").getDay()+6)%7},(_,i)=><div key={"pad"+i}/>)}{dates.map(d=><div key={d} title={d} className={"rounded-lg border p-2 text-center text-xs "+(Object.hasOwn(rows,d)?"border-emerald-700 bg-emerald-950":"border-slate-700 bg-slate-800")}><div>{Number(d.slice(-2))}</div><div className="mt-1 text-[10px]">{Object.hasOwn(rows,d)?rows[d]:"—"}</div></div>)}</div>
+  <p className="text-xs text-slate-400">{loading?"Memuat traffic...":"Hijau: sudah diinput · Abu-abu: belum diinput"} · {isAdmin?"Admin: hak koreksi akan tersedia setelah koneksi aman aktif":"Staff: hak input akan tersedia setelah koneksi aman aktif"}</p>
+ </section>
+}
 export const UploadRawSalesModal = ({ isOpen, onClose }: any) => {
   return null;
 };
@@ -31,7 +56,8 @@ type MenuTab =
   | "est-incentive"
   | "customer-engagement"
   | "whiteboard"
-  | "price-center";
+  | "price-center"
+  | "store-traffic";
 
 type ThemeMode = "dark" | "light";
 type PeriodType = "daily" | "weekly" | "monthly";
@@ -2357,6 +2383,7 @@ Indosat IM3 : ${isatText}`;
     { id: "mom-comparison", label: "MTM / LFL Comparison", icon: "⚖️", color: "bg-indigo-500", shadow: "shadow-indigo-500/30" },
     { id: "est-incentive", label: "Est. Incentive", icon: "💰", color: "bg-emerald-500", shadow: "shadow-emerald-500/30" },
     { id: "customer-engagement", label: "Customer Engagement", icon: "🤝", color: "bg-sky-500", shadow: "shadow-sky-500/30" },
+    { id: "store-traffic", label: "Store Traffic", icon: "👥", color: "bg-sky-600", shadow: "shadow-sky-600/30" },
     { id: "price-center", label: "Price List & Promo", icon: "🏷️", color: "bg-indigo-600", shadow: "shadow-indigo-600/30" },
     { id: "whiteboard", label: "Whiteboard", icon: "📊", color: "bg-cyan-600", shadow: "shadow-cyan-600/30" },
     { id: "staff-performance", label: "Staff Performance", icon: "🏆", color: "bg-amber-500", shadow: "shadow-amber-500/30" },
@@ -2873,6 +2900,7 @@ Indosat IM3 : ${isatText}`;
                   </table></div>
                 </div>
               )}
+              {activeTab === "store-traffic" && <StoreTraffic transactions={transactions} isAdmin={currentSalesId===ADMIN_ID}/>}
               {activeTab === "price-center" && <PriceCenter isAdmin={currentSalesId===ADMIN_ID} isDark={isDark}/>}
               {activeTab === "whiteboard" && (
                 <div className={`space-y-4 rounded-3xl border p-4 shadow-xl lg:hidden ${cardBg}`}>
