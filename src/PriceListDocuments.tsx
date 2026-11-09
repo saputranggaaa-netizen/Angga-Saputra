@@ -7,11 +7,11 @@ const money=(n:number|null)=>n===null?"Belum tercocokkan":"Rp "+n.toLocaleString
 const text=(v:unknown)=>String(v??"").trim();
 const number=(v:unknown):number|null=>{if(v==null||text(v)==="")return null;const raw=text(v).replace(/[^\d.,-]/g,"");if(!raw)return null;const normalized=raw.includes(",")?raw.replace(/\./g,"").replace(",","."):raw.replace(/\.(?=\d{3}(?:\D|$))/g,"");const n=Number(normalized);return Number.isFinite(n)&&n>=0?n:null};
 const category=(raw:string,fallback:Category):Category=>/accessor|aksesor|casing|case|adapter|charger|earphone|watch|buds|cable/i.test(raw)?"Aksesoris":/apple|iphone|ipad|macbook|airpods/i.test(raw)?"Apple":fallback==="Promo"?"Promo":"Android";
-const cleanProduct=(raw:string)=>raw.replace(/\\s+/g," ").trim();
-const isNonProduct=(name:string)=>/^(description|marketing name|storage|harga|price|article|sap|brand|variant|color|warna|model|cashback|trade.?in|normal|promo|discount|diskon|benefit|program|category|kategori|total|remarks|notes|no\\.?|\\d[\\d.,]*)$/i.test(name.trim())||!/\\p{L}/u.test(name);
-const inferVariant=(name:string)=>{const match=name.match(/(?:\\d{1,2}\\s*\\/\\s*)?(?:\\d{2,4}\\s*(?:GB|TB)|\\d{1,2}\\s*TB)(?:\\s*\\/\\s*\\d{2,4}\\s*(?:GB|TB))?/i);return match?match[0].replace(/\\s+/g,"").toUpperCase():"Standar";};
-const inferColor=(name:string)=>{const match=name.match(/\\b(Black|White|Blue|Pink|Green|Gray|Grey|Graphite|Silver|Gold|Purple|Lavender|Cream|Navy|Titanium|Violet|Red|Teal|Orange)\\b/i);return match?match[0]:"Umum";};
-const normalizeName=(name:string)=>cleanProduct(name.replace(/\\b\\d{2,4}\\s*(?:GB|TB)(?:\\s*\\/\\s*\\d{2,4}\\s*(?:GB|TB))?\\b/gi,"").replace(/\\b(Black|White|Blue|Pink|Green|Gray|Grey|Graphite|Silver|Gold|Purple|Lavender|Cream|Navy|Titanium|Violet|Red|Teal|Orange)\\b$/i,""));
+const cleanProduct=(raw:string)=>raw.replace(/\s+/g," ").trim();
+const isNonProduct=(name:string)=>/^(description|marketing name|storage|harga|price|article|sap|brand|variant|color|warna|model|cashback|trade.?in|normal|promo|discount|diskon|benefit|program|category|kategori|total|remarks|notes|no\.?|\d[\d.,]*)$/i.test(name.trim())||!/\p{L}/u.test(name);
+const inferVariant=(name:string)=>{const match=name.match(/(?:\d{1,2}\s*\/\s*)?(?:\d{2,4}\s*(?:GB|TB)|\d{1,2}\s*TB)(?:\s*\/\s*\d{2,4}\s*(?:GB|TB))?/i);return match?match[0].replace(/\s+/g,"").toUpperCase():"Standar";};
+const inferColor=(name:string)=>{const match=name.match(/\b(Black|White|Blue|Pink|Green|Gray|Grey|Graphite|Silver|Gold|Purple|Lavender|Cream|Navy|Titanium|Violet|Red|Teal|Orange)\b/i);return match?match[0]:"Umum";};
+const normalizeName=(name:string)=>cleanProduct(name.replace(/\b\d{2,4}\s*(?:GB|TB)(?:\s*\/\s*\d{2,4}\s*(?:GB|TB))?\b/gi,"").replace(/\b(Black|White|Blue|Pink|Green|Gray|Grey|Graphite|Silver|Gold|Purple|Lavender|Cream|Navy|Titanium|Violet|Red|Teal|Orange)\b$/i,""));
 const parseDocument=async(file:File,fallback:Category):Promise<Product[]>=>{
  const ext=file.name.split(".").pop()?.toLowerCase();
  let rows:any[][]=[];
