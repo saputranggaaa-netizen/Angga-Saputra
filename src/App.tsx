@@ -35,6 +35,48 @@ function StoreForecastOverview({transactions,selectedMonth,isDark}:{transactions
   </div>
  </div>;
 }
+function NirwanaTracking({staff,salesId,salesName,isDark}:{staff:{salesId:string,name:string}[],salesId:string,salesName:string,isDark:boolean}){
+ const today=()=>new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+ const labels=["Find My","Camera Remote","Communication from Watch","Health Demo (Heart Rate, dll.)","Fitness App - CYR"];
+ const [date,setDate]=React.useState(today);
+ const [month,setMonth]=React.useState(()=>today().slice(0,7));
+ const [chosen,setChosen]=React.useState(salesId);
+ const [features,setFeatures]=React.useState<boolean[]>([false,false,false,false,false]);
+ const [notes,setNotes]=React.useState("");
+ const [rows,setRows]=React.useState<any[]>([]);
+ const [busy,setBusy]=React.useState(false),[loading,setLoading]=React.useState(true),[message,setMessage]=React.useState(""),[success,setSuccess]=React.useState(false);
+ const [error,setError]=React.useState("");
+ const load=async()=>{setLoading(true);try{const r=await fetch("/api/nirwana",{cache:"no-store"}),d=await r.json();if(!r.ok)throw Error(d.error||"Gagal memuat data");setRows(d.rows||[]);setError("");}catch(e:any){setError(e.message||"Gagal memuat data")}finally{setLoading(false)}};
+ React.useEffect(()=>{load()},[]);
+ const roster=React.useMemo(()=>{const m=new Map<string,string>();if(salesId)m.set(salesId,salesName);for(const x of staff)if(x.salesId&&x.name)m.set(x.salesId,x.name);return [...m].sort((a,b)=>a[1].localeCompare(b[1]));},[staff,salesId,salesName]);
+ const monthRows=rows.filter(r=>r.date.startsWith(month));
+ const todayRows=monthRows.filter(r=>r.date===today());
+ const full=monthRows.filter(r=>r.status==="FULL").length;
+ const ranking=[...new Map(roster.map(([id,name])=>[id,{id,name,count:0,full:0}])).values()];
+ for(const r of monthRows){let x=ranking.find(x=>x.id===r.salesId);if(!x){x={id:r.salesId,name:r.salesName,count:0,full:0};ranking.push(x)}x.count++;if(r.status==="FULL")x.full++;}
+ ranking.sort((a,b)=>b.count-a.count||b.full-a.full);
+ const panel=isDark?"border-slate-700 bg-slate-800 text-white":"border-slate-200 bg-white text-slate-900";
+ const input=isDark?"border-slate-600 bg-slate-900 text-white":"border-slate-300 bg-white text-slate-900";
+ const muted=isDark?"text-slate-300":"text-slate-600";
+ const share=["*NIRWANA · APPLE WATCH DEMO*","QF01 · "+month,"Total Demo: "+monthRows.length,"Full Demo: "+full,"Partial Demo: "+(monthRows.length-full),"Completion Rate: "+(monthRows.length?(full/monthRows.length*100).toFixed(1)+"%":"N/A"),"*Top Sales*",...ranking.filter(x=>x.count>0).map((x,i)=>(i+1)+". "+x.name+": "+x.count+" demo ("+x.full+" full)")].join("\n");
+ return <section className={"space-y-4 rounded-3xl border p-4 md:p-5 "+(isDark?"border-slate-700 bg-slate-900 text-white":"border-slate-200 bg-slate-50 text-slate-900")}>
+ <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-2xl font-bold">⌚ Nirwana · Apple Watch Demo</h2><p className={"text-sm "+muted}>QF01 · Setiap formulir mewakili satu pelanggan yang menerima demo</p></div><button type="button" onClick={()=>window.open("https://wa.me/?text="+encodeURIComponent(share),"_blank")} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white">↗ Share WhatsApp</button></div>
+ <label className={"block text-sm "+muted}>Periode <input type="month" value={month} onChange={e=>setMonth(e.target.value)} className={"ml-2 rounded-lg border px-2 py-2 "+input}/></label>
+ <div className="grid grid-cols-2 gap-2 md:grid-cols-4">{[["Demo MTD",monthRows.length],["Demo Today",todayRows.length],["Full Demo",full],["Completion",monthRows.length?(full/monthRows.length*100).toFixed(1)+"%":"N/A"]].map(([k,v])=><div key={String(k)} className={"rounded-xl border p-3 "+panel}><p className={"text-xs "+muted}>{k}</p><p className="mt-1 text-xl font-bold">{v}</p></div>)}</div>
+ <form className={"space-y-3 rounded-xl border p-4 "+panel} onSubmit={async e=>{e.preventDefault();setBusy(true);setMessage("");setSuccess(false);try{const selected=roster.find(x=>x[0]===chosen);if(!selected)throw Error("Pilih sales terlebih dahulu");const r=await fetch("/api/nirwana",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({date,salesId:chosen,salesName:selected[1],features,notes,createdBy:salesId})}),d=await r.json();if(!r.ok)throw Error(d.error||"Gagal menyimpan");setFeatures([false,false,false,false,false]);setNotes("");setSuccess(true);setMessage("Demo Apple Watch berhasil disimpan ke Google Sheets.");await load();}catch(e:any){setMessage(e.message||"Gagal menyimpan")}finally{setBusy(false)}}}>
+ <h3 className="font-bold">Input Demo Pelanggan</h3>
+ <div className="grid gap-3 sm:grid-cols-2"><label className="text-sm">Tanggal<input type="date" required max={today()} value={date} onChange={e=>setDate(e.target.value)} className={"mt-1 block w-full rounded-lg border p-2 "+input}/></label><label className="text-sm">Nama Sales<select required value={chosen} onChange={e=>setChosen(e.target.value)} className={"mt-1 block w-full rounded-lg border p-2 "+input}><option value="">Pilih sales</option>{roster.map(([id,name])=><option key={id} value={id}>{name} · {id}</option>)}</select></label></div>
+ <p className={"text-xs "+muted}>Centang fitur yang benar-benar didemokan kepada pelanggan. Minimal satu fitur.</p>
+ <div className="grid gap-2 sm:grid-cols-2">{labels.map((label,i)=><label key={label} className={"flex cursor-pointer items-center gap-3 rounded-lg border p-3 "+panel}><input type="checkbox" checked={features[i]} onChange={e=>setFeatures(v=>v.map((x,j)=>i===j?e.target.checked:x))} className="h-4 w-4 accent-sky-600"/><span className="text-sm">{label}</span></label>)}</div>
+ <p className={"text-xs "+muted}>Status: {features.every(Boolean)?"Full Demo · 5/5 fitur":features.some(Boolean)?"Partial Demo · "+features.filter(Boolean).length+"/5 fitur":"Belum ada fitur dipilih"}</p>
+ <label className="block text-sm">Catatan (opsional)<textarea maxLength={500} rows={2} value={notes} onChange={e=>setNotes(e.target.value)} className={"mt-1 block w-full rounded-lg border p-2 "+input}/></label>
+ <button type="submit" disabled={busy||!chosen||!features.some(Boolean)} className="rounded-xl bg-sky-600 px-4 py-2 font-semibold text-white disabled:opacity-40">{busy?"Menyimpan...":"Simpan Demo Nirwana"}</button>
+ {message&&<div role="status" className={"rounded-lg border p-3 text-sm "+(success?"border-emerald-400 bg-emerald-50 text-emerald-800":"border-rose-400 bg-rose-50 text-rose-800")}>{success?"✓ ":"⚠ "}{message}</div>}
+ </form>
+ <div className="grid gap-3 lg:grid-cols-2"><div className={"rounded-xl border p-4 "+panel}><h3 className="mb-3 font-bold">Ranking Sales · MTD</h3>{ranking.filter(x=>x.count>0).length===0?<p className={"text-sm "+muted}>Belum ada demo tercatat.</p>:ranking.filter(x=>x.count>0).map((x,i)=><div key={x.id} className="flex justify-between border-b border-slate-400/20 py-2 text-sm"><span>{i+1}. {x.name}</span><strong>{x.count} demo · {x.full} full</strong></div>)}</div><div className={"rounded-xl border p-4 "+panel}><h3 className="mb-3 font-bold">Frekuensi Fitur · MTD</h3>{labels.map((x,i)=><div key={x} className="flex justify-between border-b border-slate-400/20 py-2 text-sm"><span>{x}</span><strong>{monthRows.filter(r=>r.features?.[i]).length}</strong></div>)}</div></div>
+ <div className={"rounded-xl border p-4 "+panel}><h3 className="mb-3 font-bold">Riwayat Demo</h3>{error&&<p className="text-sm text-rose-500">{error}</p>}{loading?<p className={"text-sm "+muted}>Memuat...</p>:monthRows.length===0?<p className={"text-sm "+muted}>Belum ada data untuk periode ini.</p>:<div className="max-h-80 overflow-auto"><table className="w-full min-w-[560px] text-left text-xs"><thead><tr>{["Tanggal","Sales","Fitur","Status","Catatan"].map(x=><th key={x} className="border-b p-2">{x}</th>)}</tr></thead><tbody>{[...monthRows].reverse().map(r=><tr key={r.id} className="border-b border-slate-400/20"><td className="p-2">{r.date}</td><td className="p-2">{r.salesName}</td><td className="p-2">{r.features.filter(Boolean).length}/5</td><td className="p-2">{r.status}</td><td className="p-2">{r.notes||"—"}</td></tr>)}</tbody></table></div>}</div>
+ </section>;
+}
 function StoreTraffic({transactions,isAdmin,salesId,salesName,isDark}:{transactions:RawTransaction[],isAdmin:boolean,salesId:string,salesName:string,isDark:boolean}) {
  const [month,setMonth]=React.useState(()=>new Date().toLocaleDateString("en-CA",{timeZone:"Asia/Jakarta"}).slice(0,7));
  const [rows,setRows]=React.useState<Record<string,number>>({});
@@ -107,7 +149,8 @@ type MenuTab =
   | "customer-engagement"
   | "whiteboard"
   | "price-center"
-  | "store-traffic";
+  | "store-traffic"
+  | "nirwana";
 
 type ThemeMode = "dark" | "light";
 type PeriodType = "daily" | "weekly" | "monthly";
@@ -2434,6 +2477,7 @@ Indosat IM3 : ${isatText}`;
     { id: "est-incentive", label: "Est. Incentive", icon: "💰", color: "bg-emerald-500", shadow: "shadow-emerald-500/30" },
     { id: "customer-engagement", label: "Customer Engagement", icon: "🤝", color: "bg-sky-500", shadow: "shadow-sky-500/30" },
     { id: "store-traffic", label: "Store Traffic", icon: "👥", color: "bg-sky-600", shadow: "shadow-sky-600/30" },
+    { id: "nirwana", label: "Nirwana · Apple Watch Demo", icon: "⌚", color: "bg-violet-600", shadow: "shadow-violet-600/30" },
     { id: "price-center", label: "Price List & Promo", icon: "🏷️", color: "bg-indigo-600", shadow: "shadow-indigo-600/30" },
     { id: "whiteboard", label: "Whiteboard", icon: "📊", color: "bg-cyan-600", shadow: "shadow-cyan-600/30" },
     { id: "staff-performance", label: "Staff Performance", icon: "🏆", color: "bg-amber-500", shadow: "shadow-amber-500/30" },
@@ -2950,6 +2994,7 @@ Indosat IM3 : ${isatText}`;
                   </table></div>
                 </div>
               )}
+              {activeTab === "nirwana" && <NirwanaTracking staff={staffList} salesId={currentSalesId} salesName={currentSalesName} isDark={isDark}/>}
               {activeTab === "store-traffic" && <StoreTraffic transactions={transactions} isAdmin={currentSalesId===ADMIN_ID} salesId={currentSalesId} salesName={currentSalesName} isDark={isDark}/>}
               {activeTab === "price-center" && <PriceCenter isAdmin={currentSalesId===ADMIN_ID} isDark={isDark}/>}
               {activeTab === "whiteboard" && (
