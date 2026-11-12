@@ -1221,17 +1221,18 @@ export default function DigiplusOperationalEngine() {
     const rows=transactions.filter(t=>t.isoDate.startsWith(month)&&t.isoDate<=today);
     const category=(t:RawTransaction)=>{
       const p=(t.productName||"").toUpperCase(),brand=(t.brand||"").toUpperCase(),group=(t.groupCategory||"").toUpperCase();
-      if(p.includes("QOALA"))return "qoala";
-      if(p.includes("TELKOMSEL")||p.includes("TSEL"))return "telkomsel";
-      if(p.includes("INDOSAT"))return "indosat";
-      if(p.includes(" XL ")||p.startsWith("XL ")||p.includes("AXIATA"))return "xl";
+      const type=(t.productType||"").toUpperCase();
+      if(brand==="QOALA"||p.includes("QOALA")||(group==="VAS"&&type==="PROTEKSI"&&p.includes("PROTEKSI")))return "qoala";
+      if(brand==="TELKOMSEL"||p.includes("TELKOMSEL")||p.includes("TSEL")||(type==="PROVIDER"&&p.includes("HALO")))return "telkomsel";
+      if(brand==="INDOSAT"||p.includes("INDOSAT")||p.includes("IM3"))return "indosat";
+      if(brand==="XXL"||brand==="XL"||(type==="PROVIDER"&&(p.includes("MYPRIO")||p.includes("AXIATA")||p.startsWith("XL "))))return "xl";
       if(group.includes("VAS")||group.includes("SERVICE"))return "vas";
       if(group.includes("ACCESSOR")||["CASE","GLASS","CABLE","ADAPTER","CHARGER"].some(k=>p.includes(k)))return "accessories";
       if(brand==="APPLE"){
         if(p.includes("IPHONE"))return "iphone";
         if(p.includes("IPAD"))return "ipad";
         if((t.productType||"").toUpperCase()==="MAC"||/\b(MACBOOK|MAC MINI|MAC STUDIO|MAC PRO|MBA|MBP|MBN)\b/.test(p))return "macbook";
-        if(p.includes("WATCH"))return "applewatch";
+        if(p.includes("WATCH")||type==="APPLE WATCH"||type==="SMARTWATCH"&&brand==="APPLE")return "applewatch";
         if(p.includes("AIRPOD"))return "airpods";
         return "apple";
       }
@@ -3024,7 +3025,7 @@ Indosat IM3 : ${isatText}`;
                         <div><p className="text-slate-500 dark:text-slate-300">Target</p><strong className="text-slate-900 dark:text-white">{whiteboard.valid?formatIDR(whiteboard.targets[key]||0):"—"}</strong></div>
                         <div><p className="text-slate-500 dark:text-slate-300">Qty terjual</p><strong className="text-slate-900 dark:text-white">{whiteboard.totals[key]?.qty||0}</strong></div>
                         <div><p className="text-slate-500 dark:text-slate-300">Achievement</p><strong className="text-slate-900 dark:text-white">Rp {formatIDR(whiteboard.totals[key]?.amount||0)}</strong></div>
-                        <div><p className="text-slate-500 dark:text-slate-300">Ach %</p><strong className="text-slate-900 dark:text-white">{whiteboard.valid&&whiteboard.targets[key]>0?((whiteboard.totals[key]?.amount||0)/whiteboard.targets[key]*100).toFixed(1)+"%":"—"}</strong></div>
+                        <div><p className="text-slate-500 dark:text-slate-300">Ach %</p><strong className="text-slate-900 dark:text-white">{whiteboard.valid&&whiteboard.targets[key]>0?((whiteboard.totals[key]?.amount||0)/whiteboard.targets[key]*100).toFixed(1)+"%":"—"}</strong></div><div className="col-span-2"><p className="text-slate-500 dark:text-slate-300">Variance / Kekurangan Target</p><strong className={whiteboard.valid&&(whiteboard.totals[key]?.amount||0)<(whiteboard.targets[key]||0)?"text-rose-600 dark:text-rose-400":"text-emerald-600 dark:text-emerald-400"}>{whiteboard.valid&&whiteboard.targets[key]>0?formatIDR((whiteboard.totals[key]?.amount||0)-whiteboard.targets[key]):"—"}</strong></div>
                       </div>
                     </details>)}</div>
                   </section>
@@ -3058,7 +3059,7 @@ Indosat IM3 : ${isatText}`;
                   <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
                     <section className="rounded-2xl border border-slate-300 p-4 dark:border-slate-700 xl:col-span-1">
                       <h3 className="mb-3 border-b pb-2 text-center font-black text-slate-950 dark:text-white">LOB TARGET VS ACHIEVEMENT</h3>
-                      <div className="overflow-x-auto"><table className="w-full text-xs text-slate-950 dark:text-white"><thead><tr>{["LOB","TARGET","QTY","ACHIEVEMENT"].map(h=><th key={h} className="p-2 text-left">{h}</th>)}</tr></thead><tbody>{whiteboard.categoryRows.map(([label,key])=><tr key={key} className="border-t border-slate-200 dark:border-slate-700"><td className="p-2 font-semibold">{label}</td><td className="p-2">{whiteboard.valid?formatIDR(whiteboard.targets[key]||0):"—"}</td><td className="p-2 text-blue-600 dark:text-sky-400">{whiteboard.totals[key]?.qty||0}</td><td className="p-2 font-bold text-blue-600 dark:text-sky-400">{formatIDR(whiteboard.totals[key]?.amount||0)}</td></tr>)}</tbody></table></div>
+                      <div className="overflow-x-auto"><table className="w-full text-xs text-slate-950 dark:text-white"><thead><tr>{["LOB","TARGET","QTY","ACHIEVEMENT","ACHIEVEMENT %","VARIANCE"].map(h=><th key={h} className="p-2 text-left">{h}</th>)}</tr></thead><tbody>{whiteboard.categoryRows.map(([label,key])=><tr key={key} className="border-t border-slate-200 dark:border-slate-700"><td className="p-2 font-semibold">{label}</td><td className="p-2">{whiteboard.valid?formatIDR(whiteboard.targets[key]||0):"—"}</td><td className="p-2 text-blue-600 dark:text-sky-400">{whiteboard.totals[key]?.qty||0}</td><td className="p-2 font-bold text-blue-600 dark:text-sky-400">{formatIDR(whiteboard.totals[key]?.amount||0)}</td><td className="p-2 font-semibold">{whiteboard.valid&&whiteboard.targets[key]>0?(((whiteboard.totals[key]?.amount||0)/whiteboard.targets[key])*100).toFixed(1)+"%":"—"}</td><td className={"p-2 font-semibold "+(whiteboard.valid&&(whiteboard.totals[key]?.amount||0)<(whiteboard.targets[key]||0)?"text-rose-500":"text-emerald-500")}>{whiteboard.valid&&whiteboard.targets[key]>0?formatIDR((whiteboard.totals[key]?.amount||0)-whiteboard.targets[key]):"—"}</td></tr>)}</tbody></table></div>
                     </section>
                     <section className="rounded-2xl border border-slate-300 p-4 dark:border-slate-700">
                       <h3 className="mb-4 border-b pb-2 text-center font-black text-slate-950 dark:text-white">TODAY TARGET</h3>
