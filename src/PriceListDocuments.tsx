@@ -40,7 +40,7 @@ export const parseDocument=async(file:File,fallback:Category):Promise<Product[]>
   const ws=book.Sheets[sheetName];if(!ws)continue;
   const rows=XLSX.utils.sheet_to_json<any[]>(ws,{header:1,defval:"",raw:false});
   if(national){for(const r of rows.slice(2)){const brand=val(r,0),article=val(r,1),desc=val(r,2),kind=val(r,3);if(!/^[A-Z0-9-]{5,}$/i.test(article))continue;add(desc,brand,article,cash(r[6]),"",/ACCESSOR|CASE|CABLE|CHARGER|WATCH|BUDS|ADAPTER/i.test(kind)?"Aksesoris":"Android",val(r,4).match(/\d+\s*\/\s*\d+\s*GB/i)?.[0]||"");}continue;}
-  if(apple){for(const r of rows.slice(5)){const article=val(r,1),desc=val(r,2),kind=val(r,3);if(!/^[A-Z0-9-]{6,}$/i.test(article)||!desc)continue;const normal=cash(r[5]),promo=cash(r[6]);add(desc,/MAC/i.test(desc)?"Mac":/IPAD/i.test(desc)?"iPad":/WATCH/i.test(desc)?"Apple Watch":/AIRPODS/i.test(desc)?"AirPods":"iPhone",article,promo??normal,promo!==null&&normal!==null&&promo<normal?"Harga normal Rp "+normal.toLocaleString("id-ID"):"","Apple");}continue;}
+  if(apple){for(const r of rows.slice(5)){const article=val(r,1),desc=val(r,2),kind=val(r,3);if(!/^[A-Z0-9][A-Z0-9/_-]{5,}$/i.test(article)||!desc)continue;const normal=cash(r[5]),promo=cash(r[6]);add(desc,/MAC/i.test(desc)?"Mac":/IPAD/i.test(desc)?"iPad":/WATCH/i.test(desc)?"Apple Watch":/AIRPODS/i.test(desc)?"AirPods":"iPhone",article,promo??normal,promo!==null&&normal!==null&&promo<normal?"Harga normal Rp "+normal.toLocaleString("id-ID"):"","Apple");}continue;}
   if(samsung){
    if(sheetName==="List Promo Samsung"){for(const r of rows.slice(1)){const name=val(r,2);if(!name)continue;results.push({name,brand:"Samsung",category:"Promo",variant:val(r,1)||"Promo",color:"Umum",article:"",price:null,promo:[val(r,3),val(r,4),val(r,5)].filter(Boolean).join(" | "),source:file.name,updated:new Date().toISOString()});}continue;}
    const header=rows.findIndex(r=>r.some(v=>/description|deskripsi/i.test(text(v)))&&r.some(v=>/article|artikel|sku/i.test(text(v))));
@@ -55,7 +55,7 @@ export const parseDocument=async(file:File,fallback:Category):Promise<Product[]>
   const ni=ix(/product description|sapdescription|nama produk|description/),ai=ix(/article|sku/),bi=ix(/^brand$/),pi=ix(/current price|promotion price|harga|^price$/);
   for(const r of rows.slice(header+1))add(val(r,ni),val(r,bi),val(r,ai),cash(r[pi]),"",fallback);
  }
- if(!results.length)throw Error("Tidak ditemukan baris produk valid pada sheet yang dipilih.");
+ if(!results.length)throw Error("Tidak ditemukan baris produk valid pada sheet yang dipilih. Periksa format SAP Article dan kolom harga.");
  return results.slice(0,10000);
 };
 export default function PriceListDocuments({isAdmin,isDark}:{isAdmin:boolean;isDark:boolean}){
