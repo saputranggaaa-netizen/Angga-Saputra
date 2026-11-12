@@ -13,7 +13,7 @@ const inferVariant=(name:string)=>{const match=name.match(/(?:\d{1,2}\s*\/\s*)?(
 const inferColor=(name:string)=>{const match=name.match(/\b(Black|White|Blue|Pink|Green|Gray|Grey|Graphite|Silver|Gold|Purple|Lavender|Cream|Navy|Titanium|Violet|Red|Teal|Orange)\b/i);return match?match[0]:"Umum";};
 const normalizeName=(name:string)=>cleanProduct(name.replace(/\b\d{2,4}\s*(?:GB|TB)(?:\s*\/\s*\d{2,4}\s*(?:GB|TB))?\b/gi,"").replace(/\b(Black|White|Blue|Pink|Green|Gray|Grey|Graphite|Silver|Gold|Purple|Lavender|Cream|Navy|Titanium|Violet|Red|Teal|Orange)\b$/i,""));
 
-const parseDocument=async(file:File,fallback:Category):Promise<Product[]>=>{
+export const parseDocument=async(file:File,fallback:Category):Promise<Product[]>=>{
  const ext=file.name.split(".").pop()?.toLowerCase();
  if(ext==="pdf")throw Error("PDF disimpan sebagai referensi; ekstraksi tabel harga dari PDF tidak otomatis dilakukan.");
  const XLSX=await import("xlsx");
