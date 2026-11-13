@@ -5,9 +5,10 @@ import React, { useState, useEffect, useMemo } from "react";
 
 import PriceListDocuments from "./PriceListDocuments";
 import ProductCatalog from "./ProductCatalog";
+import LivePriceCatalog from "./LivePriceCatalog";
 
 function PriceCenter({isAdmin,isDark}:{isAdmin:boolean,isDark:boolean}) {
- return <PriceListDocuments isAdmin={isAdmin} isDark={isDark}/>;
+ return <LivePriceCatalog isDark={isDark}/>;
 }
 
 function StoreForecastOverview({transactions,selectedMonth,isDark}:{transactions:RawTransaction[],selectedMonth:string,isDark:boolean}){
@@ -3000,7 +3001,7 @@ Indosat IM3 : ${isatText}`;
               )}
               {activeTab === "nirwana" && <NirwanaTracking staff={staffList} salesId={currentSalesId} salesName={currentSalesName} isDark={isDark}/>}
               {activeTab === "store-traffic" && <StoreTraffic transactions={transactions} isAdmin={currentSalesId===ADMIN_ID} salesId={currentSalesId} salesName={currentSalesName} isDark={isDark}/>}
-              {activeTab === "product-catalog" && <ProductCatalog isAdmin={currentSalesId===ADMIN_ID} isDark={isDark}/>}
+              {activeTab === "product-catalog" && <LivePriceCatalog isDark={isDark}/>}
               {activeTab === "price-center" && <PriceCenter isAdmin={currentSalesId===ADMIN_ID} isDark={isDark}/>}
               {activeTab === "whiteboard" && (
                 <div className={`space-y-4 rounded-3xl border p-4 shadow-xl lg:hidden ${cardBg}`}>
