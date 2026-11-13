@@ -915,9 +915,9 @@ export default function DigiplusOperationalEngine() {
     fetchLiveGoogleSheets();
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (passwordInput !== "Welcome@123") {
+    if (salesIdInput.trim() !== ADMIN_ID && passwordInput !== "Welcome@123") {
       setLoginErr("Kata sandi tidak sesuai.");
       return;
     }
@@ -927,6 +927,7 @@ export default function DigiplusOperationalEngine() {
       return;
     }
 
+    if(cleanId===ADMIN_ID){try{const r=await fetch("/api/admin-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:passwordInput})});const d=await r.json();if(!r.ok||!d.admin){setLoginErr(d.error||"Verifikasi admin gagal");return}}catch{setLoginErr("Server autentikasi admin tidak tersedia");return}}
     let detectedName = `Sales ${cleanId}`;
     if (cleanId === ADMIN_ID) {
       detectedName = "Store Leader Admin";
@@ -946,6 +947,7 @@ export default function DigiplusOperationalEngine() {
   };
 
   const handleLogout = () => {
+    void fetch("/api/admin-session",{method:"DELETE"}).catch(()=>{});
     localStorage.removeItem("digi_ops_user");
     localStorage.removeItem("digi_ops_name");
     setIsLoggedIn(false);
