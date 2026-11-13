@@ -150,7 +150,6 @@ type MenuTab =
   | "est-incentive"
   | "customer-engagement"
   | "whiteboard"
-  | "product-catalog"
   | "price-center"
   | "store-traffic"
   | "nirwana";
@@ -2483,7 +2482,6 @@ Indosat IM3 : ${isatText}`;
     { id: "store-traffic", label: "Store Traffic", icon: "👥", color: "bg-sky-600", shadow: "shadow-sky-600/30" },
     { id: "nirwana", label: "Nirwana · Apple Watch Demo", icon: "⌚", color: "bg-violet-600", shadow: "shadow-violet-600/30" },
     { id: "price-center", label: "Price List & Promo", icon: "🏷️", color: "bg-indigo-600", shadow: "shadow-indigo-600/30" },
-    { id: "product-catalog", label: "Product Catalog", icon: "📚", color: "bg-blue-600", shadow: "shadow-blue-600/30" },
     { id: "whiteboard", label: "Whiteboard", icon: "📊", color: "bg-cyan-600", shadow: "shadow-cyan-600/30" },
     { id: "staff-performance", label: "Staff Performance", icon: "🏆", color: "bg-amber-500", shadow: "shadow-amber-500/30" },
     { id: "daily-target", label: "Daily Target & Run Rate", icon: "🎯", color: "bg-orange-500", shadow: "shadow-orange-500/30" },
@@ -3001,7 +2999,6 @@ Indosat IM3 : ${isatText}`;
               )}
               {activeTab === "nirwana" && <NirwanaTracking staff={staffList} salesId={currentSalesId} salesName={currentSalesName} isDark={isDark}/>}
               {activeTab === "store-traffic" && <StoreTraffic transactions={transactions} isAdmin={currentSalesId===ADMIN_ID} salesId={currentSalesId} salesName={currentSalesName} isDark={isDark}/>}
-              {activeTab === "product-catalog" && <LivePriceCatalog isDark={isDark}/>}
               {activeTab === "price-center" && <PriceCenter isAdmin={currentSalesId===ADMIN_ID} isDark={isDark}/>}
               {activeTab === "whiteboard" && (
                 <div className={`space-y-4 rounded-3xl border p-4 shadow-xl lg:hidden ${cardBg}`}>
