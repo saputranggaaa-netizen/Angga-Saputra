@@ -1,0 +1,6 @@
+import {createHmac,timingSafeEqual} from "node:crypto";
+const COOKIE="digiplus_admin_session";
+const secret=()=>process.env.PRICE_LIST_UPLOAD_ADMIN_KEY||"";
+export function issueSession(){const key=secret();if(key.length<20)throw Error("Admin session secret belum dikonfigurasi");const payload=Buffer.from(JSON.stringify({role:"store-leader",exp:Date.now()+8*60*60*1000})).toString("base64url");const signature=createHmac("sha256",key).update(payload).digest("base64url");return payload+"."+signature}
+export function validSession(req:any){const raw=String(req.headers.cookie||"").split(";").map(x=>x.trim()).find(x=>x.startsWith(COOKIE+"="))?.slice(COOKIE.length+1)||"";const [payload,signature,...extra]=raw.split(".");if(!payload||!signature||extra.length||secret().length<20)return false;const expected=createHmac("sha256",secret()).update(payload).digest();let provided:Buffer;try{provided=Buffer.from(signature,"base64url")}catch{return false}if(provided.length!==expected.length||!timingSafeEqual(provided,expected))return false;try{const p=JSON.parse(Buffer.from(payload,"base64url").toString());return p.role==="store-leader"&&typeof p.exp==="number"&&p.exp>Date.now()}catch{return false}}
+export function sessionCookie(value:string,maxAge:number){return COOKIE+"="+value+"; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age="+maxAge}
