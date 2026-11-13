@@ -8,7 +8,7 @@ import ProductCatalog from "./ProductCatalog";
 import LivePriceCatalog from "./LivePriceCatalog";
 
 function PriceCenter({isAdmin,isDark}:{isAdmin:boolean,isDark:boolean}) {
- return <LivePriceCatalog isDark={isDark}/>;
+ return <LivePriceCatalog isDark={isDark} isAdmin={isAdmin}/>;
 }
 
 function StoreForecastOverview({transactions,selectedMonth,isDark}:{transactions:RawTransaction[],selectedMonth:string,isDark:boolean}){
