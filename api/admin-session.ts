@@ -1,3 +1,11 @@
+import {createHmac} from "node:crypto";
+
+const COOKIE="digiplus_admin_session";
+const secret=()=>process.env.PRICE_LIST_UPLOAD_ADMIN_KEY||"";
+function issueSession(){const key=secret();if(key.length<20)throw Error("Admin session secret belum dikonfigurasi");const payload=Buffer.from(JSON.stringify({role:"store-leader",exp:Date.now()+8*60*60*1000})).toString("base64url");const signature=createHmac("sha256",key).update(payload).digest("base64url");return payload+"."+signature}
+function validSession(req:any){const raw=String(req.headers.cookie||"").split(";").map(x=>x.trim()).find(x=>x.startsWith(COOKIE+"="))?.slice(COOKIE.length+1)||"";const [payload,signature,...extra]=raw.split(".");if(!payload||!signature||extra.length||secret().length<20)return false;const expected=createHmac("sha256",secret()).update(payload).digest();let provided:Buffer;try{provided=Buffer.from(signature,"base64url")}catch{return false}if(provided.length!==expected.length||!timingSafeEqual(provided,expected))return false;try{const p=JSON.parse(Buffer.from(payload,"base64url").toString());return p.role==="store-leader"&&typeof p.exp==="number"&&p.exp>Date.now()}catch{return false}}
+function sessionCookie(value:string,maxAge:number){return COOKIE+"="+value+"; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age="+maxAge}
+
 import {timingSafeEqual} from "node:crypto";
-import {issueSession,sessionCookie,validSession} from "./_admin-session";
+
 export default async function handler(req:any,res:any){res.setHeader("Cache-Control","no-store");if(req.method==="GET")return res.status(200).json({admin:validSession(req)});if(req.method==="DELETE"){res.setHeader("Set-Cookie",sessionCookie("",0));return res.status(200).json({admin:false})}if(req.method!=="POST")return res.status(405).json({error:"Method not allowed"});const password=String(req.body?.password||"");const expected=process.env.ADMIN_ACCESS_LOG_PASSWORD||"";if(expected.length<12)return res.status(503).json({error:"Password admin server belum dikonfigurasi dengan aman"});const a=Buffer.from(password),b=Buffer.from(expected);if(a.length!==b.length||!timingSafeEqual(a,b))return res.status(401).json({error:"Password Store Leader Admin tidak sesuai"});try{res.setHeader("Set-Cookie",sessionCookie(issueSession(),8*60*60));return res.status(200).json({admin:true})}catch(e){return res.status(503).json({error:e instanceof Error?e.message:"Gagal membuat sesi admin"})}}
