@@ -927,7 +927,7 @@ export default function DigiplusOperationalEngine() {
       return;
     }
 
-    if(cleanId===ADMIN_ID){try{const r=await fetch("/api/admin-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:passwordInput})});const d=await r.json();if(!r.ok||!d.admin){setLoginErr(d.error||"Verifikasi admin gagal");return}}catch{setLoginErr("Server autentikasi admin tidak tersedia");return}}
+    if(cleanId===ADMIN_ID){try{const r=await fetch("/api/admin-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:passwordInput})});const contentType=r.headers.get("content-type")||"";const d=contentType.includes("application/json")?await r.json():null;if(!r.ok||!d?.admin){setLoginErr(d?.error||(r.status===404?"API login admin belum tersedia pada deployment ini":`Autentikasi admin gagal (HTTP ${r.status}). Periksa konfigurasi Vercel.`));return}}catch{setLoginErr("Tidak dapat menghubungi API login admin. Periksa koneksi atau konfigurasi deployment.");return}}
     let detectedName = `Sales ${cleanId}`;
     if (cleanId === ADMIN_ID) {
       detectedName = "Store Leader Admin";
