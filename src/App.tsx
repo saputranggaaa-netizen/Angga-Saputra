@@ -61,7 +61,7 @@ function NirwanaTracking({staff,salesId,salesName,isDark}:{staff:{salesId:string
  const input=isDark?"border-slate-600 bg-slate-900 text-white":"border-slate-300 bg-white text-slate-900";
  const muted=isDark?"text-slate-300":"text-slate-600";
  const share=["*NIRWANA · APPLE WATCH DEMO*","QF01 · "+month,"Total Demo: "+monthRows.length,"Full Demo: "+full,"Partial Demo: "+(monthRows.length-full),"Completion Rate: "+(monthRows.length?(full/monthRows.length*100).toFixed(1)+"%":"N/A"),"*Top Sales*",...ranking.filter(x=>x.count>0).map((x,i)=>(i+1)+". "+x.name+": "+x.count+" demo ("+x.full+" full)")].join("\n");
- return <section className={"space-y-4 rounded-3xl border p-4 md:p-5 "+(isDark?"border-slate-700 bg-slate-900 text-white":"border-slate-200 bg-slate-50 text-slate-900")}>
+ return <section className={"space-y-4 dg-scroll-reveal rounded-3xl border p-4 md:p-5 "+(isDark?"border-slate-700 bg-slate-900 text-white":"border-slate-200 bg-slate-50 text-slate-900")}>
  <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-2xl font-bold">⌚ Nirwana · Apple Watch Demo</h2><p className={"text-sm "+muted}>QF01 · Setiap formulir mewakili satu pelanggan yang menerima demo</p></div><button type="button" onClick={()=>window.open("https://wa.me/?text="+encodeURIComponent(share),"_blank")} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white">↗ Share WhatsApp</button></div>
  <label className={"block text-sm "+muted}>Periode <input type="month" value={month} onChange={e=>setMonth(e.target.value)} className={"ml-2 rounded-lg border px-2 py-2 "+input}/></label>
  <div className="grid grid-cols-2 gap-2 md:grid-cols-4">{[["Demo MTD",monthRows.length],["Demo Today",todayRows.length],["Full Demo",full],["Completion",monthRows.length?(full/monthRows.length*100).toFixed(1)+"%":"N/A"]].map(([k,v])=><div key={String(k)} className={"rounded-xl border p-3 "+panel}><p className={"text-xs "+muted}>{k}</p><p className="mt-1 text-xl font-bold">{v}</p></div>)}</div>
@@ -109,7 +109,7 @@ function StoreTraffic({transactions,isAdmin,salesId,salesName,isDark}:{transacti
  const panelTheme=isDark?"border-slate-700 bg-slate-800":"border-slate-200 bg-slate-50";
  const inputTheme=isDark?"border-slate-600 bg-slate-900 text-white":"border-slate-300 bg-white text-slate-900";
  const mutedTheme=isDark?"text-slate-400":"text-slate-600";
- return <section className={"space-y-5 rounded-3xl border p-5 "+sectionTheme}>
+ return <section className={"space-y-5 dg-scroll-reveal rounded-3xl border p-5 "+sectionTheme}>
   <div><h2 className="text-2xl font-semibold">Store Traffic & Conversion</h2><p className={"text-sm "+mutedTheme}>QF01 · Input harian toko · Invoice unik dari DATABASE</p></div>
   <div className="flex flex-wrap items-center gap-3"><label htmlFor="traffic-month">Periode</label><input id="traffic-month" type="month" value={month} onChange={e=>setMonth(e.target.value)} className={"rounded-lg border p-2 "+inputTheme}/></div>
   <div className="grid grid-cols-2 gap-3 md:grid-cols-4">{[["Traffic",totalTraffic],["Unique Invoice",unique],["Invoice Conversion",totalTraffic?(unique/totalTraffic*100).toFixed(1)+"%":"N/A"],["Input Completeness",completedDays+" / "+expectedDays+" hari"]].map(([k,v])=><div key={String(k)} className={"rounded-xl border p-4 "+panelTheme}><div className={"text-xs "+mutedTheme}>{k}</div><div className="text-xl font-semibold">{v}</div></div>)}</div>
@@ -302,6 +302,46 @@ export default function DigiplusOperationalEngine() {
   const [incentiveChartMode, setIncentiveChartMode] = useState<"stacked" | "grouped">("stacked");
   const [productSearchQuery, setProductSearchQuery] = useState("");
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState<boolean>(false);
+  // Edge swipe opens navigation; left swipe closes it. Ignore gestures over horizontal scrollers.
+  useEffect(() => {
+    let startX = 0, startY = 0, eligible = false;
+    const begin = (e: TouchEvent) => {
+      if (window.innerWidth >= 1024 || e.touches.length !== 1) return;
+      const target = e.target as HTMLElement;
+      if (target.closest('input,textarea,select,[role="dialog"],[data-no-nav-swipe]')) return;
+      startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+      eligible = startX < 28 || Boolean(target.closest('[aria-label="Navigasi mobile Digiplus GI"]'));
+    };
+    const end = (e: TouchEvent) => {
+      if (!eligible || !e.changedTouches.length) return;
+      eligible = false;
+      const dx = e.changedTouches[0].clientX - startX;
+      const dy = e.changedTouches[0].clientY - startY;
+      if (Math.abs(dx) < 75 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+      if (dx > 0 && startX < 28) setMobileDrawerOpen(true);
+      if (dx < 0) setMobileDrawerOpen(false);
+    };
+    document.addEventListener('touchstart', begin, { passive: true });
+    document.addEventListener('touchend', end, { passive: true });
+    return () => { document.removeEventListener('touchstart', begin); document.removeEventListener('touchend', end); };
+  }, []);
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          (entry.target as HTMLElement).classList.add('dg-revealed');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.08, rootMargin: '0px 0px 80px 0px' });
+    const scan = () => document.querySelectorAll('main .dg-scroll-reveal:not(.dg-revealed)').forEach(el => observer.observe(el));
+    scan();
+    const mutation = new MutationObserver(scan);
+    mutation.observe(document.body, { childList: true, subtree: true });
+    return () => { mutation.disconnect(); observer.disconnect(); };
+  }, []);
+
   // Floating mobile shortcut: solid at top, faded while scrolling content.
   const [isMobileScrolled, setIsMobileScrolled] = useState(false);
   useEffect(() => {
@@ -2634,6 +2674,17 @@ Indosat IM3 : ${isatText}`;
   return (
     <div className={`min-h-screen flex ${bgMain} ${isDark ? "text-slate-100" : "text-slate-900"} font-sans antialiased overflow-x-hidden w-full max-w-full relative`}>
       
+      <style>{`
+        @media (hover: hover) and (pointer: fine) and (min-width: 1024px) {
+          .dg-nav-item:hover { transform: translateX(5px) scale(1.025); box-shadow: 0 5px 18px rgba(14, 165, 233, .10); }
+        }
+        .dg-nav-item { transform-origin: left center; will-change: transform; }
+        .dg-main .dg-scroll-reveal.dg-revealed { animation: dg-reveal .42s cubic-bezier(.2,.75,.3,1) both; }
+        @keyframes dg-reveal { from { opacity: .72; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        @media (prefers-reduced-motion: reduce) {
+          .dg-nav-item, .dg-main *, [aria-label="Navigasi mobile Digiplus GI"] { animation: none !important; transition-duration: .01ms !important; }
+        }
+      `}</style>
       {/* 1. SIDEBAR DESKTOP */}
       <aside
         className={`hidden lg:flex flex-col justify-between w-64 xl:w-72 h-screen sticky top-0 shrink-0 border-r backdrop-blur-2xl z-30 transition-all ${glassSidebar}`}
@@ -2665,7 +2716,7 @@ Indosat IM3 : ${isatText}`;
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id as MenuTab)}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs transition-all active:scale-[0.98] ${
+                  className={`dg-nav-item w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs transition-all active:scale-[0.98] ${
                     active
                       ? isDark
                         ? "bg-sky-500/15 border border-sky-400/30 text-white font-black shadow-sm"
@@ -2752,7 +2803,7 @@ Indosat IM3 : ${isatText}`;
                 type="button"
                 aria-current={active ? "page" : undefined}
                 onClick={() => { setActiveTab(item.id as MenuTab); setMobileDrawerOpen(false); }}
-                className={`w-full min-h-[48px] flex items-center gap-3 px-3 py-2 rounded-2xl text-left transition-colors active:scale-[0.99] ${active ? "bg-sky-500/12 dark:bg-sky-400/15 text-sky-700 dark:text-sky-300" : "text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-white/5"}`}
+                className={`dg-nav-item w-full min-h-[48px] flex items-center gap-3 px-3 py-2 rounded-2xl text-left transition-all duration-200 active:scale-[0.98] ${active ? "bg-sky-500/12 dark:bg-sky-400/15 text-sky-700 dark:text-sky-300" : "text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-white/5"}`}
               >
                 <span className={`w-9 h-9 shrink-0 rounded-xl flex items-center justify-center text-[17px] ${active ? "bg-sky-500/15 dark:bg-sky-400/15" : "bg-slate-200/70 dark:bg-white/[0.07]"}`}>{item.icon}</span>
                 <span className={`flex-1 min-w-0 text-[13px] leading-tight ${active ? "font-bold" : "font-medium"}`}>{item.label}</span>
@@ -2823,7 +2874,7 @@ Indosat IM3 : ${isatText}`;
           </div>
         </header>
         
-        <main className="p-3 sm:p-6 lg:p-8 w-full max-w-[1700px] mx-auto flex-1 overflow-x-hidden pb-20 lg:pb-6">
+        <main className="dg-main p-3 sm:p-6 lg:p-8 w-full max-w-[1700px] mx-auto flex-1 overflow-x-hidden pb-20 lg:pb-6">
           <header className="mb-3 sm:mb-6 border-b border-inherit pb-3 sm:pb-5 print:hidden">
             <div className="flex flex-wrap justify-between items-center gap-2 sm:gap-4 mb-2 sm:mb-4">
               <div>
@@ -3003,7 +3054,7 @@ Indosat IM3 : ${isatText}`;
               {activeTab === "store-traffic" && <StoreTraffic transactions={transactions} isAdmin={currentSalesId===ADMIN_ID} salesId={currentSalesId} salesName={currentSalesName} isDark={isDark}/>}
               {activeTab === "price-center" && <PriceCenter isAdmin={currentSalesId===ADMIN_ID} isDark={isDark}/>}
               {activeTab === "whiteboard" && (
-                <div className={`space-y-4 rounded-3xl border p-4 shadow-xl lg:hidden ${cardBg}`}>
+                <div className={`space-y-4 dg-scroll-reveal rounded-3xl border p-4 shadow-xl lg:hidden ${cardBg}`}>
                   <header className="flex items-start justify-between gap-3">
                     <div><p className="text-[11px] font-bold uppercase tracking-widest text-sky-600 dark:text-sky-400">QF01 · Digiplus Grand Indonesia</p><h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">📊 Whiteboard</h2><p className="text-xs text-slate-600 dark:text-slate-300">{whiteboard.monthLabel} · Bulan berjalan (WIB)</p></div>
                     <span className="rounded-xl bg-sky-100 px-3 py-2 text-xs font-bold text-sky-800 dark:bg-sky-950 dark:text-sky-200">Live MTD</span>
@@ -3806,11 +3857,11 @@ const staff=[...new Set([...invoices.keys(),...rows.map(r=>r.salesId)])].filter(
 const save=async(e:React.FormEvent)=>{e.preventDefault();setEngBusy(true);try{const r=await fetch("/api/customer-engagement",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({date:engDate,salesId:engStaff,salesName:people.get(engStaff),category:engCategory,qty:Number(engQty),enteredBy:currentSalesId})});const d=await r.json();if(!r.ok)throw Error(d.error);setEngQty("1");await loadEng()}catch(e){setEngError(String(e))}finally{setEngBusy(false)}};
 const remove=async(id:string)=>{if(!window.confirm("Hapus aktivitas ini?"))return;setEngBusy(true);try{const r=await fetch("/api/customer-engagement",{method:"DELETE",headers:{"Content-Type":"application/json","x-admin-access-password":engPassword},body:JSON.stringify({id})});const d=await r.json();if(!r.ok)throw Error(d.error);await loadEng()}catch(e){setEngError(String(e))}finally{setEngBusy(false)}};
 return <div className="space-y-5">
-<div className={`rounded-3xl border p-5 ${cardBg}`}><h2 className="text-2xl font-bold">Customer Engagement Tracker</h2><p className="opacity-70 text-sm">Manual CX · New Member · Google Review vs unique invoices</p><div className="flex gap-2 mt-4">{[["today","Today"],["week","This Week"],["month","MTD"]].map(([v,l])=><button key={v} onClick={()=>setEngPeriod(v)} className={`px-4 py-2 rounded-xl border ${engPeriod===v?"bg-blue-600 text-white":""}`}>{l}</button>)}</div></div>
+<div className={`dg-scroll-reveal rounded-3xl border p-5 ${cardBg}`}><h2 className="text-2xl font-bold">Customer Engagement Tracker</h2><p className="opacity-70 text-sm">Manual CX · New Member · Google Review vs unique invoices</p><div className="flex gap-2 mt-4">{[["today","Today"],["week","This Week"],["month","MTD"]].map(([v,l])=><button key={v} onClick={()=>setEngPeriod(v)} className={`px-4 py-2 rounded-xl border ${engPeriod===v?"bg-blue-600 text-white":""}`}>{l}</button>)}</div></div>
 <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">{[["Unique Invoice",grand],...cats.map((c,i)=>[c,sums[i]])].map(([label,value])=><div key={label} className={`rounded-2xl border p-4 ${cardBg}`}><p className="opacity-70 text-sm">{label}</p><p className="text-3xl font-bold mt-2">{value}</p></div>)}</div>
-<form onSubmit={save} className={`rounded-3xl border p-5 space-y-4 ${cardBg}`}><h3 className="text-xl font-bold">Manual Input</h3><div className="grid md:grid-cols-2 gap-3"><label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Activity Date<input type="date" required value={engDate} onChange={e=>setEngDate(e.target.value)} className="mt-1.5 block w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-slate-900 shadow-sm outline-none transition-colors focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:[color-scheme:dark] dark:focus:border-sky-400"/></label><label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Staff<select required value={engStaff} onChange={e=>setEngStaff(e.target.value)} className="mt-1.5 block w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-slate-900 shadow-sm outline-none transition-colors focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:[color-scheme:dark] dark:focus:border-sky-400"><option value="">Pilih staff</option>{[...people.entries()].sort((a,b)=>a[1].localeCompare(b[1])).map(([id,name])=><option key={id} value={id}>{name} · {id}</option>)}</select></label><label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Category<select value={engCategory} onChange={e=>setEngCategory(e.target.value)} className="mt-1.5 block w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-slate-900 shadow-sm outline-none transition-colors focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:[color-scheme:dark] dark:focus:border-sky-400">{cats.map(c=><option key={c}>{c}</option>)}</select></label><label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Qty<input type="number" min="1" max="10000" required value={engQty} onChange={e=>setEngQty(e.target.value)} className="mt-1.5 block w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-slate-900 shadow-sm outline-none transition-colors focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:[color-scheme:dark] dark:focus:border-sky-400"/></label></div><button disabled={engBusy||!currentSalesId} type="submit" className="bg-blue-600 text-white px-5 py-3 rounded-xl disabled:opacity-50">{engBusy?"Menyimpan...":"Simpan Aktivitas"}</button>{engError&&<p role="alert" className="text-rose-500 text-sm">{engError}</p>}</form>
-<div className={`rounded-3xl border p-5 overflow-x-auto ${cardBg}`}><h3 className="text-xl font-bold mb-3">Staff Performance · COUNTUNIQUE Invoice</h3><table className="w-full text-sm"><thead><tr><th className="p-2 text-left">Staff</th><th className="p-2">Invoice</th>{cats.map(c=><th className="p-2" key={c}>{c}</th>)}</tr></thead><tbody>{staff.map(r=><tr key={r.id} className="border-t border-gray-500/20"><td className="p-2">{r.name}</td><td className="p-2 text-center">{r.invoice}</td>{r.values.map((v,i)=><td className="p-2 text-center" key={i}>{v}</td>)}</tr>)}<tr className="font-bold border-t"><td className="p-2">GRAND TOTAL</td><td className="p-2 text-center">{grand}</td>{sums.map((v,i)=><td className="p-2 text-center" key={i}>{v}</td>)}</tr></tbody></table><p className="opacity-60 text-xs mt-3">Grand total invoice dihitung unik untuk seluruh store.</p></div>
-<div className={`rounded-3xl border p-5 overflow-x-auto ${cardBg}`}><h3 className="text-xl font-bold mb-3">Riwayat Input</h3>{currentSalesId===ADMIN_ID&&<input type="password" placeholder="Admin password untuk hapus" value={engPassword} onChange={e=>setEngPassword(e.target.value)} className="p-2 rounded-xl text-gray-900 mb-3"/>}<table className="w-full text-sm"><thead><tr><th>Date</th><th>Staff</th><th>Category</th><th>Qty</th>{currentSalesId===ADMIN_ID&&<th>Action</th>}</tr></thead><tbody>{rows.map(r=><tr key={r.id} className="border-t border-gray-500/20"><td className="p-2">{r.date}</td><td className="p-2">{r.salesName}</td><td className="p-2">{r.category}</td><td className="p-2 text-center">{r.qty}</td>{currentSalesId===ADMIN_ID&&<td className="p-2"><button className="text-rose-500" onClick={()=>void remove(r.id)}>Hapus</button></td>}</tr>)}</tbody></table></div>
+<form onSubmit={save} className={`dg-scroll-reveal rounded-3xl border p-5 space-y-4 ${cardBg}`}><h3 className="text-xl font-bold">Manual Input</h3><div className="grid md:grid-cols-2 gap-3"><label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Activity Date<input type="date" required value={engDate} onChange={e=>setEngDate(e.target.value)} className="mt-1.5 block w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-slate-900 shadow-sm outline-none transition-colors focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:[color-scheme:dark] dark:focus:border-sky-400"/></label><label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Staff<select required value={engStaff} onChange={e=>setEngStaff(e.target.value)} className="mt-1.5 block w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-slate-900 shadow-sm outline-none transition-colors focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:[color-scheme:dark] dark:focus:border-sky-400"><option value="">Pilih staff</option>{[...people.entries()].sort((a,b)=>a[1].localeCompare(b[1])).map(([id,name])=><option key={id} value={id}>{name} · {id}</option>)}</select></label><label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Category<select value={engCategory} onChange={e=>setEngCategory(e.target.value)} className="mt-1.5 block w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-slate-900 shadow-sm outline-none transition-colors focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:[color-scheme:dark] dark:focus:border-sky-400">{cats.map(c=><option key={c}>{c}</option>)}</select></label><label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Qty<input type="number" min="1" max="10000" required value={engQty} onChange={e=>setEngQty(e.target.value)} className="mt-1.5 block w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-slate-900 shadow-sm outline-none transition-colors focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:[color-scheme:dark] dark:focus:border-sky-400"/></label></div><button disabled={engBusy||!currentSalesId} type="submit" className="bg-blue-600 text-white px-5 py-3 rounded-xl disabled:opacity-50">{engBusy?"Menyimpan...":"Simpan Aktivitas"}</button>{engError&&<p role="alert" className="text-rose-500 text-sm">{engError}</p>}</form>
+<div className={`dg-scroll-reveal rounded-3xl border p-5 overflow-x-auto ${cardBg}`}><h3 className="text-xl font-bold mb-3">Staff Performance · COUNTUNIQUE Invoice</h3><table className="w-full text-sm"><thead><tr><th className="p-2 text-left">Staff</th><th className="p-2">Invoice</th>{cats.map(c=><th className="p-2" key={c}>{c}</th>)}</tr></thead><tbody>{staff.map(r=><tr key={r.id} className="border-t border-gray-500/20"><td className="p-2">{r.name}</td><td className="p-2 text-center">{r.invoice}</td>{r.values.map((v,i)=><td className="p-2 text-center" key={i}>{v}</td>)}</tr>)}<tr className="font-bold border-t"><td className="p-2">GRAND TOTAL</td><td className="p-2 text-center">{grand}</td>{sums.map((v,i)=><td className="p-2 text-center" key={i}>{v}</td>)}</tr></tbody></table><p className="opacity-60 text-xs mt-3">Grand total invoice dihitung unik untuk seluruh store.</p></div>
+<div className={`dg-scroll-reveal rounded-3xl border p-5 overflow-x-auto ${cardBg}`}><h3 className="text-xl font-bold mb-3">Riwayat Input</h3>{currentSalesId===ADMIN_ID&&<input type="password" placeholder="Admin password untuk hapus" value={engPassword} onChange={e=>setEngPassword(e.target.value)} className="p-2 rounded-xl text-gray-900 mb-3"/>}<table className="w-full text-sm"><thead><tr><th>Date</th><th>Staff</th><th>Category</th><th>Qty</th>{currentSalesId===ADMIN_ID&&<th>Action</th>}</tr></thead><tbody>{rows.map(r=><tr key={r.id} className="border-t border-gray-500/20"><td className="p-2">{r.date}</td><td className="p-2">{r.salesName}</td><td className="p-2">{r.category}</td><td className="p-2 text-center">{r.qty}</td>{currentSalesId===ADMIN_ID&&<td className="p-2"><button className="text-rose-500" onClick={()=>void remove(r.id)}>Hapus</button></td>}</tr>)}</tbody></table></div>
 </div>})()}
 {/* EST. INCENTIVE V2 — finance-blue responsive dashboard, sourced from DATABASE R:V. */}
               {activeTab === "est-incentive" && (() => {
