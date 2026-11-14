@@ -1,4 +1,12 @@
-import {validSession} from "./_admin-session";
+import {createHmac} from "node:crypto";
+
+const COOKIE="digiplus_admin_session";
+const secret=()=>process.env.PRICE_LIST_UPLOAD_ADMIN_KEY||"";
+function issueSession(){const key=secret();if(key.length<20)throw Error("Admin session secret belum dikonfigurasi");const payload=Buffer.from(JSON.stringify({role:"store-leader",exp:Date.now()+8*60*60*1000})).toString("base64url");const signature=createHmac("sha256",key).update(payload).digest("base64url");return payload+"."+signature}
+function validSession(req:any){const raw=String(req.headers.cookie||"").split(";").map(x=>x.trim()).find(x=>x.startsWith(COOKIE+"="))?.slice(COOKIE.length+1)||"";const [payload,signature,...extra]=raw.split(".");if(!payload||!signature||extra.length||secret().length<20)return false;const expected=createHmac("sha256",secret()).update(payload).digest();let provided:Buffer;try{provided=Buffer.from(signature,"base64url")}catch{return false}if(provided.length!==expected.length||!timingSafeEqual(provided,expected))return false;try{const p=JSON.parse(Buffer.from(payload,"base64url").toString());return p.role==="store-leader"&&typeof p.exp==="number"&&p.exp>Date.now()}catch{return false}}
+function sessionCookie(value:string,maxAge:number){return COOKIE+"="+value+"; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age="+maxAge}
+
+
 import {createSign,timingSafeEqual} from "node:crypto";
 const ID="14_E-3MB9Fly4nMO3Go2jnU4hev_FgtiMDn0QtLZvh5A";
 const allowed:Record<string,{cols:number;header:string;headerRow:number;gid:number;maxRows:number}>={"Android":{cols:12,header:"SAP Article",headerRow:3,gid:125073665,maxRows:1220},"Apple":{cols:14,header:"SAP Article",headerRow:4,gid:0,maxRows:1214},"Stock Position Report":{cols:10,header:"Store :",headerRow:0,gid:672642649,maxRows:1608}};
