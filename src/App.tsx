@@ -3441,7 +3441,7 @@ Indosat IM3 : ${isatText}`;
                               {subList.map((sub, idx) => {
                                 const subItems = items.filter((t) => (t.productName || "").toUpperCase().includes(sub.filterKey));
                                 const subActual = subItems.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-                                const subTarget = appleSubTarget(sub.targetKey);
+                                const subTarget = selectedMonth !== targetSheetMonth ? 0 : Math.round((categoryTargets[sub.targetKey] || 0) * (periodType === "monthly" ? 1 : overviewStats.target > 0 && storeTotalTarget > 0 ? overviewStats.target / storeTotalTarget : 0));
                                 const subAchv = subTarget>0?calcAchv(subActual, subTarget):null;
                                 const subGap = subActual - subTarget;
 
