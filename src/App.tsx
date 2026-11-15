@@ -2708,6 +2708,19 @@ Indosat IM3 : ${isatText}`;
     <div className={`min-h-screen flex ${bgMain} ${isDark ? "text-slate-100" : "text-slate-900"} font-sans antialiased overflow-x-hidden w-full max-w-full relative`}>
       
       <style>{`
+        /* Unified responsive typography: section titles grow, captions/table labels stay compact. */
+        .dg-main h1 { font-size: clamp(1.5rem, 3.3vw, 2rem) !important; line-height: 1.25; letter-spacing: -.02em; }
+        .dg-main h2 { font-size: clamp(1.28rem, 2.5vw, 1.65rem) !important; line-height: 1.3; letter-spacing: -.015em; }
+        .dg-main h3 { font-size: clamp(1.07rem, 1.8vw, 1.25rem) !important; line-height: 1.35; }
+        .dg-main h4 { font-size: clamp(.98rem, 1.5vw, 1.12rem) !important; line-height: 1.4; }
+        .dg-main h1, .dg-main h2, .dg-main h3, .dg-main h4 { overflow-wrap: anywhere; }
+        @media (max-width: 639px) {
+          .dg-main h1 { font-size: 1.45rem !important; }
+          .dg-main h2 { font-size: 1.3rem !important; }
+          .dg-main h3 { font-size: 1.1rem !important; }
+          .dg-main h4 { font-size: 1rem !important; }
+        }
+        /* Intentionally do not alter captions, descriptive text, table headers or numerical KPI values. */
         @media (hover: hover) and (pointer: fine) and (min-width: 1024px) {
           .dg-nav-item:hover { transform: translateX(5px) scale(1.025); box-shadow: 0 5px 18px rgba(14, 165, 233, .10); }
         }
