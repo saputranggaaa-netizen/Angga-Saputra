@@ -3394,7 +3394,12 @@ Indosat IM3 : ${isatText}`;
                         const achv = calcAchv(actual, target);
                         const gap = actual - target;
 
-                        const subList = appleSubCategories;
+                        const subList = [
+                          {label:"iPhone",filterKey:"IPHONE",targetKey:"iphone"},
+                          {label:"iPad",filterKey:"IPAD",targetKey:"ipad"},
+                          {label:"MacBook",filterKey:"MAC",targetKey:"macbook"},
+                          {label:"Apple Watch",filterKey:"WATCH",targetKey:"applewatch"}
+                        ];
 
 
                         return (
