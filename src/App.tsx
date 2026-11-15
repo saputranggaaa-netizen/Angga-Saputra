@@ -3098,9 +3098,13 @@ Indosat IM3 : ${isatText}`;
                   <div className="grid grid-cols-2 gap-3">
                     {[["Total Sales",whiteboard.actual,"total"],["Apple",whiteboard.apple,"apple"],["Android",whiteboard.android,"android"],["Accessories",whiteboard.accessories,"accessories"],["VAS",whiteboard.vas,"vas"]].map(([label,actual,key]:any)=><div key={key} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800">
                       <p className="text-xs font-semibold text-slate-500 dark:text-slate-300">{label}</p>
-                      <p className="mt-1 break-words text-base font-extrabold text-blue-700 dark:text-sky-300">Rp {formatIDR(actual)}</p>
+                      <p className="mt-1 min-w-0 break-all text-[clamp(0.78rem,3.1vw,1.12rem)] font-extrabold leading-snug text-blue-700 dark:text-sky-300">{formatIDR(actual)}</p>
                       <p className="mt-2 text-[11px] text-slate-600 dark:text-slate-300">Target: {whiteboard.valid?formatIDR(whiteboard.targets[key]||0):"—"}</p>
                       <p className="text-xs font-bold text-slate-900 dark:text-white">{whiteboard.valid&&whiteboard.targets[key]>0?(actual/whiteboard.targets[key]*100).toFixed(1)+"% Achievement":"—"}</p>
+                      <div className="mt-2 border-t border-slate-200 pt-2 dark:border-slate-700">
+                        <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-300">Variance vs Target</p>
+                        <p className={`mt-0.5 break-all text-[clamp(0.7rem,2.7vw,0.92rem)] font-bold leading-snug ${whiteboard.valid&&whiteboard.targets[key]>0&&actual-whiteboard.targets[key]<0?"text-rose-600 dark:text-rose-400":"text-emerald-600 dark:text-emerald-400"}`}>{whiteboard.valid&&whiteboard.targets[key]>0?formatIDR(actual-whiteboard.targets[key]):"—"}</p>
+                      </div>
                     </div>)}
                   </div>
                   <section className="rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
