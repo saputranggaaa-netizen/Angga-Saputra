@@ -611,6 +611,11 @@ export default function DigiplusOperationalEngine() {
   const [dataLoadError, setDataLoadError] = useState("");
   const [feedbackAdminKey, setFeedbackAdminKey] = useState("");
   const [isExportingPptx, setIsExportingPptx] = useState<boolean>(false);
+  const [pptxConfigOpen, setPptxConfigOpen] = useState(false);
+  const [pptxCutoff, setPptxCutoff] = useState("2026-11-16");
+  const [pptxWeeklyMode, setPptxWeeklyMode] = useState<"current"|"previous">("current");
+  const [pptxComparison, setPptxComparison] = useState<"previous"|"none">("previous");
+  const [pptxIncludeAnalysis, setPptxIncludeAnalysis] = useState(true);
 
   const loadFeedbacks = async () => {
     try {
@@ -2150,7 +2155,8 @@ Indosat IM3 : ${isatText}`;
 
       const fmt = (n: number) => "Rp " + Math.round(n).toLocaleString("id-ID");
       const day = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
-      const cutoff = day; // always use today's Jakarta cut-off, independent of dashboard filter
+      const cutoff = pptxCutoff;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(cutoff) || cutoff > day || Number.isNaN(Date.parse(cutoff+"T00:00:00Z"))) throw new Error("Tanggal cut-off tidak valid atau di masa depan.");
       const [yy, mm, dd] = cutoff.split("-").map(Number);
       const previousMonth = new Date(Date.UTC(yy, mm - 2, 1));
       const previousPrefix = previousMonth.toISOString().slice(0, 7);
@@ -2160,14 +2166,16 @@ Indosat IM3 : ${isatText}`;
       const currentMTD = transactions.filter(t => t.isoDate >= currentPrefix + "-01" && t.isoDate <= cutoff);
       const previousMTD = transactions.filter(t => t.isoDate >= previousPrefix + "-01" && t.isoDate <= priorCutoff);
       const asDate = (iso: string) => new Date(iso + "T00:00:00Z");
-      const sundayStart = (d: Date) => { const x = new Date(d); x.setUTCDate(x.getUTCDate() - x.getUTCDay()); return x; };
+      const mondayStart = (d: Date) => { const x = new Date(d); x.setUTCDate(x.getUTCDate() - ((x.getUTCDay()+6)%7)); return x; };
       const toIso = (d: Date) => d.toISOString().slice(0, 10);
-      const thisWeekStart = sundayStart(asDate(cutoff));
+      const thisWeekStart = mondayStart(asDate(cutoff));
+      if(pptxWeeklyMode==="previous")thisWeekStart.setUTCDate(thisWeekStart.getUTCDate()-7);
       const lastWeekStart = new Date(thisWeekStart); lastWeekStart.setUTCDate(lastWeekStart.getUTCDate() - 7);
-      const elapsedDays = Math.floor((asDate(cutoff).getTime() - thisWeekStart.getTime()) / 86400000);
+      const weekCutoffDate = pptxWeeklyMode==="previous" ? new Date(thisWeekStart.getTime()+6*86400000) : asDate(cutoff);
+      const elapsedDays = Math.floor((weekCutoffDate.getTime() - thisWeekStart.getTime()) / 86400000);
       const lastWeekCutoff = new Date(lastWeekStart); lastWeekCutoff.setUTCDate(lastWeekCutoff.getUTCDate() + elapsedDays);
-      const currentWeek = transactions.filter(t => t.isoDate >= toIso(thisWeekStart) && t.isoDate <= cutoff);
-      const previousWeek = transactions.filter(t => t.isoDate >= toIso(lastWeekStart) && t.isoDate <= toIso(lastWeekCutoff));
+      const currentWeek = transactions.filter(t => t.isoDate >= toIso(thisWeekStart) && t.isoDate <= toIso(weekCutoffDate));
+      const previousWeek = pptxComparison==="previous" ? transactions.filter(t => t.isoDate >= toIso(lastWeekStart) && t.isoDate <= toIso(lastWeekCutoff)) : [];
       // Read-only operational snapshot for the PPTX; never mutate source Sheets.
       const readRows = async (url: string): Promise<any[] | null> => {
         try { const response = await fetch(url, {cache:"no-store"}); if(!response.ok) return null;
@@ -2187,7 +2195,7 @@ Indosat IM3 : ${isatText}`;
         return {traffic:count,invoices,days:covered.size,cvr:count>0?invoices/count*100:null};
       };
       const mtdTraffic = trafficInRange(currentPrefix+"-01",cutoff);
-      const weekTraffic = trafficInRange(toIso(thisWeekStart),cutoff);
+      const weekTraffic = trafficInRange(toIso(thisWeekStart),toIso(weekCutoffDate));
       const previousWeekTraffic = trafficInRange(toIso(lastWeekStart),toIso(lastWeekCutoff));
       const cvrLabel=(x:ReturnType<typeof trafficInRange>)=>x?.cvr==null?"N/A":x.cvr.toFixed(1)+"%";
       const countLabel=(v:number|null|undefined)=>v==null?"N/A":v.toLocaleString("id-ID");
@@ -2352,8 +2360,8 @@ Indosat IM3 : ${isatText}`;
         slide.addText("Samsung: "+samsungNames.map(n=>n+" "+fmt(currentMTD.filter(t=>(t.brand||"").toUpperCase().includes("SAMSUNG")&&samsungSub(t)===n).reduce((a,t)=>a+(Number(t.amount)||0),0))).join("  |  ").slice(0,210),{x:0.7,y:6.56,w:12,h:0.22,fontSize:8,color:NAVY,margin:0});
         slide.addText("Apple total "+fmt(appleTotal)+" • Samsung total "+fmt(samsungTotal)+" • CVR staff N/A tanpa traffic per staff • Achievement N/A tanpa target staff.",{x:0.7,y:6.84,w:12,h:0.17,fontSize:8,color:MUTED,margin:0});
       }
-      // Slide 6: evidence-led decline, staff review, and stock opportunities.
-      {
+      // Slide 6: optional analysis and action plan.
+      if(pptxIncludeAnalysis) {
         const slide = makeSlide("ACTION PLAN • NEED REVIEW", "Analisa otomatis berbasis data transaksi. Indikasi, bukan penilaian personal atau keputusan stok final.");
         const insights: string[] = [];
         const mtdDiff = amount(currentMTD) - amount(previousMTD);
@@ -2430,7 +2438,8 @@ Indosat IM3 : ${isatText}`;
         slide.addText("Catatan: New Member ditampilkan sebagai MAPCLUB jika sumber memakai kategori New Member; validasi definisi operasional diperlukan.",{x:0.7,y:6.88,w:12,h:0.18,fontSize:8,color:MUTED,margin:0});
       }
 
-      await pptx.writeFile({ fileName: "Digiplus_GI_7_Slide_Weekly_MTD_LOB_" + cutoff + ".pptx" });
+      await pptx.writeFile({ fileName: "Digiplus_GI_MTD_" + cutoff + "_WTD_" + toIso(thisWeekStart) + "_" + toIso(weekCutoffDate) + ".pptx" });
+      setPptxConfigOpen(false);
     } catch (err) {
       alert("Gagal mengekspor slide PowerPoint: " + (err instanceof Error ? err.message : String(err)));
     } finally {
@@ -2776,7 +2785,7 @@ Indosat IM3 : ${isatText}`;
 
             <div className="pt-2">
               <button
-                onClick={handleExportToPptx}
+                onClick={() => setPptxConfigOpen(true)}
                 disabled={isExportingPptx}
                 className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-gradient-to-r from-sky-500/20 to-blue-500/20 hover:from-sky-500/30 hover:to-blue-500/30 border border-sky-500/40 text-sky-700 dark:text-sky-400 font-black text-xs shadow-md transition active:scale-95"
               >
@@ -2859,7 +2868,7 @@ Indosat IM3 : ${isatText}`;
         <div className="shrink-0 px-4 py-3 border-t border-slate-200 dark:border-white/10">
           <button
             type="button"
-            onClick={async () => { setMobileDrawerOpen(false); await handleExportToPptx(); }}
+            onClick={() => { setMobileDrawerOpen(false); setPptxConfigOpen(true); }}
             disabled={isExportingPptx}
             aria-label="Export laporan ke PowerPoint"
             className="w-full min-h-[48px] flex items-center justify-center gap-2 rounded-xl border border-sky-500/40 bg-sky-500/15 px-3 py-3 text-sm font-bold text-sky-700 dark:text-sky-300 disabled:cursor-wait disabled:opacity-60 active:scale-[0.99]"
@@ -5007,6 +5016,19 @@ return <div className="space-y-5">
         <span className="text-lg leading-none" aria-hidden="true">☰</span>
       </button>
 
+      {pptxConfigOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 p-4 print:hidden" role="dialog" aria-modal="true" aria-label="Filter Export PowerPoint">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 text-slate-900 shadow-2xl dark:bg-slate-900 dark:text-white space-y-4">
+            <div className="flex items-center justify-between"><h2 className="text-xl font-bold">Export Sales Presentation</h2><button onClick={()=>setPptxConfigOpen(false)} aria-label="Tutup" className="text-lg">✕</button></div>
+            <label className="block text-sm font-semibold">MTD Cut-off Date<input type="date" value={pptxCutoff} max={new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date())} onChange={e=>setPptxCutoff(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-transparent p-2 dark:border-slate-600"/></label>
+            <label className="block text-sm font-semibold">Weekly Period<select value={pptxWeeklyMode} onChange={e=>setPptxWeeklyMode(e.target.value as "current"|"previous")} className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-slate-900"><option value="current">Current Week (Senin – cut-off)</option><option value="previous">Previous Full Week (Senin – Minggu)</option></select></label>
+            <label className="block text-sm font-semibold">Weekly Comparison<select value={pptxComparison} onChange={e=>setPptxComparison(e.target.value as "previous"|"none")} className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-slate-900"><option value="previous">Vs Previous Week (hari setara)</option><option value="none">Tanpa pembanding</option></select></label>
+            <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={pptxIncludeAnalysis} onChange={e=>setPptxIncludeAnalysis(e.target.checked)}/>Sertakan Analysis &amp; Action Plan</label>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Filter hanya berlaku untuk file PPTX. Data transaksi dan Google Sheets tidak diubah.</p>
+            <button disabled={isExportingPptx || !pptxCutoff} onClick={handleExportToPptx} className="w-full rounded-xl bg-blue-600 p-3 font-bold text-white disabled:opacity-50">{isExportingPptx?"Membuat PPTX...":"Generate & Download PPTX"}</button>
+          </div>
+        </div>
+      )}
       {/* BOTTOM SHEET MODAL DRILLDOWN */}
       {bottomSheetOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm transition-opacity animate-in fade-in overflow-hidden p-0 sm:p-4">
