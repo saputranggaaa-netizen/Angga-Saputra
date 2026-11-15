@@ -2275,21 +2275,44 @@ Indosat IM3 : ${isatText}`;
         tableHeader(slide, "MTD saat ini", "MTD bulan lalu");
         summaryRows(slide, currentMTD, previousMTD, true);
       }
-      // Slide 5: ranking staff, and category contribution per staff.
+      // Slide 5: staff achievement by LOB, with product-family contributions.
       {
-        const slide = makeSlide("STAFF SALES PERFORMANCE", "Ranking berdasarkan total penjualan MTD tertinggi ke terendah. Kolom kategori adalah nominal sales.");
-        const staff = [...new Map(currentMTD.map(t => [t.salesId || t.salesName, t.salesName])).entries()].map(([id, name]) => ({ id, name, tx: currentMTD.filter(t => (t.salesId || t.salesName) === id) })).sort((a, b) => amount(b.tx) - amount(a.tx));
-        const headers = ["Rank / Staff", "Total Amount", "Apple", "Android", "Accessories", "VAS"];
-        const x = [0.65, 4.4, 6.2, 7.9, 9.6, 11.25], w = [3.65, 1.7, 1.6, 1.6, 1.55, 1.45];
-        slide.addShape(pptx.ShapeType.rect, { x: 0.6, y: 1.48, w: 12.1, h: 0.5, line: { color: LIGHT }, fill: { color: LIGHT } });
-        headers.forEach((h, i) => slide.addText(h, { x: x[i], y: 1.62, w: w[i], h: 0.2, fontSize: 9, bold: true, color: NAVY, align: i ? "right" : "left", margin: 0 }));
-        const h = Math.min(0.46, 4.65 / Math.max(staff.length, 1));
-        staff.forEach((s, i) => {
-          const y = 2.08 + i * h;
-          const values = [String(i + 1) + ". " + s.name, fmt(amount(s.tx)), ...groups.slice(1).map(g => fmt(amount(s.tx, g)))];
-          values.forEach((v, j) => slide.addText(v, { x: x[j], y, w: w[j], h: Math.max(0.14, h - 0.05), fontSize: staff.length > 15 ? 7 : 9, bold: j === 0, color: j === 0 ? NAVY : MUTED, align: j ? "right" : "left", margin: 0 }));
+        const slide = makeSlide("STAFF ACHIEVEMENT BY LOB", "MTD staff ranking • Sales Value • Qty • Contribution • UPT • CVR (if traffic per staff is available)");
+        const staff = [...new Map(currentMTD.filter(t=>t.salesId||t.salesName).map(t => [t.salesId || t.salesName, t.salesName])).entries()]
+          .map(([id,name]) => ({ id, name, tx: currentMTD.filter(t => (t.salesId || t.salesName) === id) }))
+          .sort((a,b)=>amount(b.tx)-amount(a.tx));
+        const cols = [
+          {label:"Staff",x:0.66,w:2.13},{label:"Apple",x:2.85,w:1.45},{label:"Android",x:4.34,w:1.45},
+          {label:"Accessories",x:5.84,w:1.43},{label:"VAS",x:7.32,w:1.34},
+          {label:"Total Sales",x:8.72,w:1.66},{label:"Qty",x:10.46,w:0.54},
+          {label:"UPT",x:11.08,w:0.66},{label:"CVR",x:11.85,w:0.67}
+        ];
+        slide.addShape(pptx.ShapeType.rect,{x:0.6,y:1.48,w:12.1,h:0.47,line:{color:LIGHT},fill:{color:LIGHT}});
+        cols.forEach((v,i)=>slide.addText(v.label,{x:v.x,y:1.61,w:v.w,h:0.2,fontSize:9,bold:true,color:NAVY,align:i?"right":"left",margin:0}));
+        const uniqueInvoices=(tx:RawTransaction[])=>new Set(tx.map(t=>t.invoice).filter(Boolean)).size;
+        const physical=(t:RawTransaction)=>classify(t)!=="VAS";
+        const staffRows=staff.slice(0,11);
+        const rowHeight=Math.min(0.34,3.65/Math.max(staffRows.length,1));
+        staffRows.forEach((s,i)=>{
+          const y=2.03+i*rowHeight;
+          if(i%2===0)slide.addShape(pptx.ShapeType.rect,{x:0.6,y:y-0.03,w:12.1,h:rowHeight,line:{color:"F7F9FC",transparency:100},fill:{color:"F7F9FC"}});
+          const qty=s.tx.filter(physical).reduce((n,t)=>n+(Number(t.qty)||0),0);
+          const invoices=uniqueInvoices(s.tx);
+          const upt=invoices? (qty/invoices).toFixed(2):"N/A";
+          const vals=[String(i+1)+". "+s.name,...groups.slice(1).map(g=>fmt(amount(s.tx,g))),fmt(amount(s.tx)),String(qty),upt,"N/A"];
+          vals.forEach((v,j)=>slide.addText(v,{x:cols[j].x,y,w:cols[j].w,h:rowHeight-.04,fontSize:staffRows.length>8?7.2:8.5,bold:j===0,color:j===0?NAVY:MUTED,align:j?"right":"left",margin:0,breakLine:false}));
         });
-        if (!staff.length) slide.addText("Belum ada staff aktif pada MTD.", { x: 0.8, y: 2.2, w: 10, h: 0.3, color: MUTED });
+        if(staff.length>11)slide.addText("+"+(staff.length-11)+" staff lain tidak ditampilkan karena batas ruang slide.",{x:0.7,y:5.83,w:11,h:0.22,fontSize:9,color:MUTED,margin:0});
+        slide.addText("PRODUCT CONTRIBUTION • APPLE / SAMSUNG", {x:0.7,y:6.0,w:11.7,h:0.23,fontSize:11,bold:true,color:BLUE,margin:0});
+        const appleNames=["iPhone","iPad","MacBook","Apple Watch","AirPods"];
+        const samsungNames=["Phone","Tablet","Watch","Accessories"];
+        const appleSub=(t:RawTransaction)=>{const p=t.productName.toUpperCase();return /AIRPODS/.test(p)?"AirPods":/IPHONE/.test(p)?"iPhone":/IPAD/.test(p)?"iPad":/MACBOOK|(^|\\W)MAC(\\W|$)/.test(p)?"MacBook":/WATCH/.test(p)?"Apple Watch":"Other Apple";};
+        const samsungSub=(t:RawTransaction)=>{const p=(t.productName+" "+t.productType).toUpperCase();return /TABLET|GALAXY TAB/.test(p)?"Tablet":/WATCH/.test(p)?"Watch":/BUDS|CASE|CHARGER|ACCESSOR|COVER/.test(p)?"Accessories":"Phone";};
+        const appleTotal=currentMTD.filter(t=>classify(t)==="Apple Devices").reduce((n,t)=>n+(Number(t.amount)||0),0);
+        const samsungTotal=currentMTD.filter(t=>(t.brand||"").toUpperCase().includes("SAMSUNG")).reduce((n,t)=>n+(Number(t.amount)||0),0);
+        slide.addText("Apple: "+appleNames.map(n=>n+" "+fmt(currentMTD.filter(t=>classify(t)==="Apple Devices"&&appleSub(t)===n).reduce((a,t)=>a+(Number(t.amount)||0),0))).join("  |  ").slice(0,210),{x:0.7,y:6.3,w:12,h:0.22,fontSize:8,color:NAVY,margin:0});
+        slide.addText("Samsung: "+samsungNames.map(n=>n+" "+fmt(currentMTD.filter(t=>(t.brand||"").toUpperCase().includes("SAMSUNG")&&samsungSub(t)===n).reduce((a,t)=>a+(Number(t.amount)||0),0))).join("  |  ").slice(0,210),{x:0.7,y:6.56,w:12,h:0.22,fontSize:8,color:NAVY,margin:0});
+        slide.addText("Apple total "+fmt(appleTotal)+" • Samsung total "+fmt(samsungTotal)+" • CVR staff N/A tanpa traffic per staff • Achievement N/A tanpa target staff.",{x:0.7,y:6.84,w:12,h:0.17,fontSize:8,color:MUTED,margin:0});
       }
       // Slide 6: evidence-led decline, staff review, and stock opportunities.
       {
@@ -2336,75 +2359,7 @@ Indosat IM3 : ${isatText}`;
         });
         slide.addText("Catatan: evaluasi staff harus mempertimbangkan jadwal, jam kerja, traffic, ketersediaan stok, dan target individual. Rekomendasi stok perlu validasi inventory.", { x: 0.7, y: 6.75, w: 12, h: 0.26, fontSize: 8, italic: true, color: MUTED, margin: 0 });
       }
-      // Slide 7: BNPL tender, quantity, amount, product and contribution.
-      {
-        const slide = makeSlide("BNPL • TENDER & PRODUCT CONTRIBUTION", "BNPL DATABASE • MTD " + currentPrefix + "-01 s/d " + cutoff + " • nominal, qty, dan kontribusi tender.");
-        // Resolve missing BNPL product labels from all matching sales invoice lines.
-        // Invoice normalization handles numeric/string and punctuation differences.
-        const invoiceKey = (v: unknown) => String(v ?? "").replace(/[^0-9A-Za-z]/g, "").toUpperCase();
-        const salesByInvoice = new Map<string, Set<string>>();
-        transactions.forEach(t => {
-          const key = invoiceKey(t.invoice);
-          const product = String(t.productName || "").trim();
-          if (!key || !product) return;
-          if (!salesByInvoice.has(key)) salesByInvoice.set(key, new Set());
-          salesByInvoice.get(key)!.add(product);
-        });
-        const dated = bnplRecords.map(b => {
-          const linked = [...(salesByInvoice.get(invoiceKey(b.invoice)) || [])];
-          return {
-            ...b,
-            product: String(b.product || "").trim() || linked.join(" ; ") || "Produk belum teridentifikasi (Invoice " + b.invoice + ")",
-            iso: parseNormalizedDate(b.date, b.month).isoDate
-          };
-        });
-        const bnpl = dated.filter(b => b.iso >= currentPrefix + "-01" && b.iso <= cutoff);
-        const priorBnpl = dated.filter(b => b.iso >= previousPrefix + "-01" && b.iso <= priorCutoff);
-        const bnplAmount = bnpl.reduce((n, b) => n + b.amount, 0);
-        const priorBnplAmount = priorBnpl.reduce((n, b) => n + b.amount, 0);
-        const bnplQty = bnpl.reduce((n, b) => n + b.qty, 0);
-        const contribution = amount(currentMTD) > 0 ? bnplAmount / amount(currentMTD) * 100 : 0;
-        const tenders = [...new Set(bnpl.map(b => b.tender || "Other"))].map(name => ({
-          name, amount: bnpl.filter(b => (b.tender || "Other") === name).reduce((n, b) => n + b.amount, 0),
-          qty: bnpl.filter(b => (b.tender || "Other") === name).reduce((n, b) => n + b.qty, 0)
-        })).sort((a, b) => b.amount - a.amount);
-        const products = [...new Set(bnpl.map(b => b.product || "Unknown"))].map(name => ({
-          name, amount: bnpl.filter(b => (b.product || "Unknown") === name).reduce((n, b) => n + b.amount, 0),
-          qty: bnpl.filter(b => (b.product || "Unknown") === name).reduce((n, b) => n + b.qty, 0)
-        })).sort((a, b) => b.amount - a.amount);
-        const card = (x: number, label: string, value: string, foot: string) => {
-          slide.addShape(pptx.ShapeType.roundRect, { x, y: 1.4, w: 3.85, h: 1.05, rectRadius: 0.13, line: { color: "D8E6F7" }, fill: { color: "F5F9FF" } });
-          slide.addText(label, { x: x + 0.17, y: 1.55, w: 3.5, h: 0.19, fontSize: 9, color: MUTED, margin: 0 });
-          slide.addText(value, { x: x + 0.17, y: 1.83, w: 3.5, h: 0.28, fontSize: 18, bold: true, color: NAVY, margin: 0 });
-          slide.addText(foot, { x: x + 0.17, y: 2.19, w: 3.5, h: 0.16, fontSize: 8, color: BLUE, margin: 0 });
-        };
-        card(0.6, "Total BNPL Amount", fmt(bnplAmount), "MoM " + growthText(bnplAmount, priorBnplAmount));
-        card(4.74, "Qty BNPL", String(bnplQty), "Qty transaksi produk BNPL");
-        card(8.88, "Kontribusi ke Total Sales", contribution.toFixed(1) + "%", "BNPL / Total Amount MTD");
-        slide.addText("BNPL PER TENDER", { x: 0.65, y: 2.76, w: 6, h: 0.28, fontSize: 13, bold: true, color: NAVY, margin: 0 });
-        slide.addText("DETAIL PRODUCT BNPL", { x: 7.05, y: 2.76, w: 5.7, h: 0.28, fontSize: 13, bold: true, color: NAVY, margin: 0 });
-        const addHeading = (labels: { text: string; x: number; w: number; align?: string }[], y: number) => labels.forEach(h => slide.addText(h.text, { x: h.x, y, w: h.w, h: 0.2, fontSize: 9, bold: true, color: BLUE, align: h.align || "left", margin: 0 }));
-        addHeading([{text:"Tender",x:0.7,w:2.3},{text:"Qty",x:3.2,w:0.7,align:"right"},{text:"Amount",x:4.1,w:1.7,align:"right"},{text:"Share",x:5.9,w:0.7,align:"right"}],3.18);
-        addHeading([{text:"Product",x:7.08,w:3.2},{text:"Qty",x:10.3,w:0.5,align:"right"},{text:"Amount",x:10.95,w:1.65,align:"right"}],3.18);
-        const tenderRows = tenders.slice(0, 10);
-        tenderRows.forEach((t, i) => {
-          const y = 3.52 + i * 0.29;
-          slide.addText(t.name, { x:0.7,y,w:2.4,h:0.21,fontSize:9,color:NAVY,margin:0 });
-          slide.addText(String(t.qty), { x:3.2,y,w:0.7,h:0.21,fontSize:9,color:NAVY,align:"right",margin:0 });
-          slide.addText(fmt(t.amount), { x:4.1,y,w:1.7,h:0.21,fontSize:9,color:NAVY,align:"right",margin:0 });
-          slide.addText(bnplAmount ? (t.amount/bnplAmount*100).toFixed(1)+"%" : "0%", { x:5.9,y,w:0.7,h:0.21,fontSize:9,bold:true,color:BLUE,align:"right",margin:0 });
-        });
-        products.slice(0, 10).forEach((p, i) => {
-          const y = 3.52 + i * 0.29;
-          slide.addText(p.name, { x:7.08,y,w:3.15,h:0.21,fontSize:8,color:NAVY,margin:0 });
-          slide.addText(String(p.qty), { x:10.3,y,w:0.5,h:0.21,fontSize:9,color:NAVY,align:"right",margin:0 });
-          slide.addText(fmt(p.amount), { x:10.95,y,w:1.65,h:0.21,fontSize:9,color:NAVY,align:"right",margin:0 });
-        });
-        if (!bnpl.length) slide.addText("Tidak ada data BNPL pada periode MTD.", { x:0.7,y:3.8,w:11,h:0.4,fontSize:12,color:MUTED });
-        const more = (tenders.length > 10 ? " • " + (tenders.length - 10) + " tender lain" : "") + (products.length > 10 ? " • " + (products.length - 10) + " produk lain" : "");
-        slide.addText("Top tender: " + (tenders[0]?.name || "—") + " • " + fmt(tenders[0]?.amount || 0) + more + " | Sumber: BNPL DATABASE", { x:0.7,y:6.75,w:12,h:0.23,fontSize:9,color:MUTED,margin:0 });
-      }
-      await pptx.writeFile({ fileName: "Digiplus_GI_7_Slide_Sales_Review_" + cutoff + ".pptx" });
+      await pptx.writeFile({ fileName: "Digiplus_GI_6_Slide_Weekly_MTD_LOB_" + cutoff + ".pptx" });
     } catch (err) {
       alert("Gagal mengekspor slide PowerPoint: " + (err instanceof Error ? err.message : String(err)));
     } finally {
