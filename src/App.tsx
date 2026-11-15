@@ -1273,6 +1273,8 @@ export default function DigiplusOperationalEngine() {
       if(brand==="TELKOMSEL"||p.includes("TELKOMSEL")||p.includes("TSEL")||(type==="PROVIDER"&&p.includes("HALO")))return "telkomsel";
       if(brand==="INDOSAT"||p.includes("INDOSAT")||p.includes("IM3"))return "indosat";
       if(brand==="XXL"||brand==="XL"||(type==="PROVIDER"&&(p.includes("MYPRIO")||p.includes("AXIATA")||p.startsWith("XL "))))return "xl";
+      // AirPods are Apple Devices even when source brand/group marks them as accessories.
+      if(/\\bAIRPODS?\\b/.test(p))return "airpods";
       if(group.includes("VAS")||group.includes("SERVICE"))return "vas";
       if(group.includes("ACCESSOR")||["CASE","GLASS","CABLE","ADAPTER","CHARGER"].some(k=>p.includes(k)))return "accessories";
       if(brand==="APPLE"){
