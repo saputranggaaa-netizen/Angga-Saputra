@@ -35,8 +35,16 @@ export default async function handler(req:any,res:any){
   if(req.method==="GET")return res.status(200).json({rows:(await allRows()).filter((r:any)=>r.status!=="Deleted").sort((a:any,b:any)=>String(b.createdAt).localeCompare(String(a.createdAt)))});
   if(req.method==="POST"){
    const {date,salesId,salesName,category,qty,enteredBy}=req.body||{};
-   if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!/^\d{4,20}$/.test(String(salesId||""))||!["CX","New Member","Google Review"].includes(category)||!Number.isSafeInteger(qty)||qty<1||qty>10000||!clean(salesName)||!/^\d{4,20}$/.test(String(enteredBy||"")))return res.status(400).json({error:"Data tidak valid"});
-   const row={id:randomUUID(),date,salesId:clean(salesId),salesName:clean(salesName),category,qty,enteredBy:clean(enteredBy),createdAt:new Date().toISOString(),status:"Active"};
+   const normalizedDate=clean(date), normalizedSalesId=clean(salesId), normalizedEnteredBy=clean(enteredBy), normalizedName=clean(salesName);
+   const validId=(v:string)=>/^[A-Za-z0-9][A-Za-z0-9._@-]{0,119}$/.test(v);
+   // Staff identifiers may be alphanumeric in the source sheet; do not require only digits.
+   if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(normalizedDate))return res.status(400).json({error:"Tanggal aktivitas tidak valid"});
+   if(!validId(normalizedSalesId))return res.status(400).json({error:"Sales ID staf tidak valid"});
+   if(!normalizedName)return res.status(400).json({error:"Nama staf tidak ditemukan. Muat ulang data staf."});
+   if(!["CX","New Member","Google Review"].includes(category))return res.status(400).json({error:"Kategori aktivitas tidak valid"});
+   if(!Number.isSafeInteger(qty)||qty<1||qty>10000)return res.status(400).json({error:"Jumlah harus berupa angka 1–10.000"});
+   if(!validId(normalizedEnteredBy))return res.status(400).json({error:"ID pengguna login tidak valid. Silakan login ulang."});
+   const row={id:randomUUID(),date:normalizedDate,salesId:normalizedSalesId,salesName:normalizedName,category,qty,enteredBy:normalizedEnteredBy,createdAt:new Date().toISOString(),status:"Active"};
    await sheets("POST",tab+"!A:J",{values:[[row.id,row.date,row.salesId,row.salesName,row.category,row.qty,row.enteredBy,row.createdAt,row.status,""]]},"?valueInputOption=RAW&insertDataOption=INSERT_ROWS");
    return res.status(201).json({row});
   }
