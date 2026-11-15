@@ -2166,16 +2166,15 @@ Indosat IM3 : ${isatText}`;
       const currentMTD = transactions.filter(t => t.isoDate >= currentPrefix + "-01" && t.isoDate <= cutoff);
       const previousMTD = transactions.filter(t => t.isoDate >= previousPrefix + "-01" && t.isoDate <= priorCutoff);
       const asDate = (iso: string) => new Date(iso + "T00:00:00Z");
-      const mondayStart = (d: Date) => { const x = new Date(d); x.setUTCDate(x.getUTCDate() - ((x.getUTCDay()+6)%7)); return x; };
+      const sundayStart = (d: Date) => { const x = new Date(d); x.setUTCDate(x.getUTCDate() - x.getUTCDay()); return x; };
       const toIso = (d: Date) => d.toISOString().slice(0, 10);
       const selectedCutoffDate = asDate(cutoff);
-      // Sunday belongs to no reporting week; use the last completed Monday-Saturday period.
+      // Weekly reporting period is Sunday through Saturday (7 days).
       const weeklyReferenceDate = new Date(selectedCutoffDate);
-      if(weeklyReferenceDate.getUTCDay()===0) weeklyReferenceDate.setUTCDate(weeklyReferenceDate.getUTCDate()-1);
-      const thisWeekStart = mondayStart(weeklyReferenceDate);
+      const thisWeekStart = sundayStart(weeklyReferenceDate);
       if(pptxWeeklyMode==="previous")thisWeekStart.setUTCDate(thisWeekStart.getUTCDate()-7);
       const lastWeekStart = new Date(thisWeekStart); lastWeekStart.setUTCDate(lastWeekStart.getUTCDate() - 7);
-      const weekCutoffDate = pptxWeeklyMode==="previous" ? new Date(thisWeekStart.getTime()+5*86400000) : weeklyReferenceDate;
+      const weekCutoffDate = pptxWeeklyMode==="previous" ? new Date(thisWeekStart.getTime()+6*86400000) : weeklyReferenceDate;
       const elapsedDays = Math.floor((weekCutoffDate.getTime() - thisWeekStart.getTime()) / 86400000);
       const lastWeekCutoff = new Date(lastWeekStart); lastWeekCutoff.setUTCDate(lastWeekCutoff.getUTCDate() + elapsedDays);
       const currentWeek = transactions.filter(t => t.isoDate >= toIso(thisWeekStart) && t.isoDate <= toIso(weekCutoffDate));
@@ -5025,10 +5024,10 @@ return <div className="space-y-5">
           <div className="w-full max-w-md rounded-2xl bg-white p-5 text-slate-900 shadow-2xl dark:bg-slate-900 dark:text-white space-y-4">
             <div className="flex items-center justify-between"><h2 className="text-xl font-bold">Export Sales Presentation</h2><button onClick={()=>setPptxConfigOpen(false)} aria-label="Tutup" className="text-lg">✕</button></div>
             <label className="block text-sm font-semibold">MTD Cut-off Date<input type="date" value={pptxCutoff} max={new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date())} onChange={e=>setPptxCutoff(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-transparent p-2 dark:border-slate-600"/></label>
-            <label className="block text-sm font-semibold">Weekly Period<select value={pptxWeeklyMode} onChange={e=>setPptxWeeklyMode(e.target.value as "current"|"previous")} className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-slate-900"><option value="current">Current Week (Senin – cut-off, maks. Sabtu)</option><option value="previous">Previous Full Week (Senin – Sabtu)</option></select></label>
+            <label className="block text-sm font-semibold">Weekly Period<select value={pptxWeeklyMode} onChange={e=>setPptxWeeklyMode(e.target.value as "current"|"previous")} className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-slate-900"><option value="current">Current Week (Minggu – cut-off)</option><option value="previous">Previous Full Week (Minggu – Sabtu)</option></select></label>
             <label className="block text-sm font-semibold">Weekly Comparison<select value={pptxComparison} onChange={e=>setPptxComparison(e.target.value as "previous"|"none")} className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-slate-900"><option value="previous">Vs Previous Week (hari setara)</option><option value="none">Tanpa pembanding</option></select></label>
             <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={pptxIncludeAnalysis} onChange={e=>setPptxIncludeAnalysis(e.target.checked)}/>Sertakan Analysis &amp; Action Plan</label>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Periode Weekly: Senin–Sabtu (6 hari), hari Minggu tidak dihitung. Filter hanya berlaku untuk file PPTX. Data transaksi dan Google Sheets tidak diubah.</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Periode Weekly: Minggu–Sabtu (7 hari), termasuk hari Minggu. Filter hanya berlaku untuk file PPTX. Data transaksi dan Google Sheets tidak diubah.</p>
             <button disabled={isExportingPptx || !pptxCutoff} onClick={handleExportToPptx} className="w-full rounded-xl bg-blue-600 p-3 font-bold text-white disabled:opacity-50">{isExportingPptx?"Membuat PPTX...":"Generate & Download PPTX"}</button>
           </div>
         </div>
