@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { LayoutDashboard, ChartNoAxesColumnIncreasing, ShieldCheck, ChartLine, Wallet, Handshake, Footprints, Watch, Tags, ClipboardList, Users, Target, Layers, CalendarDays, MessageSquare, CreditCard, Search, ListChecks, History, ChevronDown } from "lucide-react";
 
 
 import PriceListDocuments from "./PriceListDocuments";
@@ -302,6 +303,8 @@ export default function DigiplusOperationalEngine() {
   const [incentiveChartMode, setIncentiveChartMode] = useState<"stacked" | "grouped">("stacked");
   const [productSearchQuery, setProductSearchQuery] = useState("");
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState<boolean>(false);
+  const [collapsedNavGroups, setCollapsedNavGroups] = useState<string[]>([]);
+  const toggleNavGroup = (group: string) => setCollapsedNavGroups(prev => prev.includes(group) ? prev.filter(x => x !== group) : [...prev, group]);
   // Edge swipe opens navigation; left swipe closes it. Ignore gestures over horizontal scrollers.
   useEffect(() => {
     let startX = 0, startY = 0, eligible = false;
@@ -2515,27 +2518,31 @@ Indosat IM3 : ${isatText}`;
     : "bg-white/95 border-[#dce3eb]";
 
   const mainNavItems = [
-    { id: "store-overview", label: "Overview Store", icon: "📊", color: "bg-emerald-500", shadow: "shadow-emerald-500/30" },
-    { id: "weekly-sales", label: "Weekly Sales (WoW)", icon: "📈", color: "bg-blue-600", shadow: "shadow-blue-600/30" },
-    { id: "qoala-ar", label: "Qoala Protection (AR %)", icon: "🛡️", color: "bg-rose-500", shadow: "shadow-rose-500/30" },
-    { id: "mom-comparison", label: "MTM / LFL Comparison", icon: "⚖️", color: "bg-indigo-500", shadow: "shadow-indigo-500/30" },
-    { id: "est-incentive", label: "Est. Incentive", icon: "💰", color: "bg-emerald-500", shadow: "shadow-emerald-500/30" },
-    { id: "customer-engagement", label: "Customer Engagement", icon: "🤝", color: "bg-sky-500", shadow: "shadow-sky-500/30" },
-    { id: "store-traffic", label: "Store Traffic", icon: "👥", color: "bg-sky-600", shadow: "shadow-sky-600/30" },
-    { id: "nirwana", label: "Nirwana · Apple Watch Demo", icon: "⌚", color: "bg-violet-600", shadow: "shadow-violet-600/30" },
-    { id: "price-center", label: "Price List & Promo", icon: "🏷️", color: "bg-indigo-600", shadow: "shadow-indigo-600/30" },
-    { id: "whiteboard", label: "Whiteboard", icon: "📊", color: "bg-cyan-600", shadow: "shadow-cyan-600/30" },
-    { id: "staff-performance", label: "Staff Performance", icon: "🏆", color: "bg-amber-500", shadow: "shadow-amber-500/30" },
-    { id: "daily-target", label: "Daily Target & Run Rate", icon: "🎯", color: "bg-orange-500", shadow: "shadow-orange-500/30" },
-    { id: "brand-focus", label: "Brand Focus", icon: "🏷️", color: "bg-amber-500", shadow: "shadow-amber-500/30" },
-    { id: "schedule", label: "Jadwal Shift 1 Minggu", icon: "📅", color: "bg-sky-500", shadow: "shadow-sky-500/30" },
-    { id: "feedback", label: "Feedback Tim", icon: "💬", color: "bg-teal-500", shadow: "shadow-teal-500/30" },
-    { id: "bnpl", label: "BNPL Transactions", icon: "💳", color: "bg-purple-500", shadow: "shadow-purple-500/30" },
-    { id: "product-search", label: "Cari Produk Terjual", icon: "🔍", color: "bg-pink-500", shadow: "shadow-pink-500/30" },
-    { id: "sales-detail", label: "Rincian Transaksi Log", icon: "📋", color: "bg-slate-600", shadow: "shadow-slate-600/30" },
-    ...(currentSalesId === ADMIN_ID ? [{ id: "access-log", label: "Access Log (Admin)", icon: "🔐", color: "bg-indigo-600", shadow: "shadow-indigo-600/30" }] : []),
+    { id: "store-overview", label: "Overview Store", icon: LayoutDashboard, group: "Dashboard" },
+    { id: "weekly-sales", label: "Weekly Sales (WoW)", icon: ChartNoAxesColumnIncreasing, group: "Dashboard" },
+    { id: "qoala-ar", label: "Qoala Protection (AR %)", icon: ShieldCheck, group: "Dashboard" },
+    { id: "mom-comparison", label: "MTM / LFL Comparison", icon: ChartLine, group: "Dashboard" },
+    { id: "est-incentive", label: "Est. Incentive", icon: Wallet, group: "Dashboard" },
+    { id: "staff-performance", label: "Staff Performance", icon: Users, group: "Dashboard" },
+    { id: "daily-target", label: "Daily Target & Run Rate", icon: Target, group: "Dashboard" },
+    { id: "price-center", label: "Price List & Promo", icon: Tags, group: "Operations" },
+    { id: "store-traffic", label: "Store Traffic", icon: Footprints, group: "Operations" },
+    { id: "customer-engagement", label: "Customer Engagement", icon: Handshake, group: "Operations" },
+    { id: "nirwana", label: "Nirwana · Apple Watch Demo", icon: Watch, group: "Operations" },
+    { id: "whiteboard", label: "Whiteboard", icon: ClipboardList, group: "Operations" },
+    { id: "brand-focus", label: "Brand Focus", icon: Layers, group: "Operations" },
+    { id: "schedule", label: "Jadwal Shift 1 Minggu", icon: CalendarDays, group: "Operations" },
+    { id: "feedback", label: "Feedback Tim", icon: MessageSquare, group: "Operations" },
+    { id: "bnpl", label: "BNPL Transactions", icon: CreditCard, group: "Reports" },
+    { id: "product-search", label: "Cari Produk Terjual", icon: Search, group: "Reports" },
+    { id: "sales-detail", label: "Rincian Transaksi Log", icon: ListChecks, group: "Reports" },
+    ...(currentSalesId === ADMIN_ID ? [{ id: "access-log", label: "Access Log (Admin)", icon: History, group: "Reports" }] : []),
   ];
-
+  const navGroups = ["Dashboard", "Operations", "Reports"] as const;
+  const navGroupOf = (id: string) => mainNavItems.find(item => item.id === id)?.group || "Dashboard";
+  const navGroupItems = (group: string) => mainNavItems.filter(item => item.group === group);
+  const navItemClass = (active: boolean, mobile: boolean) => `dg-nav-item w-full flex items-center gap-3 rounded-xl text-left transition-all duration-200 active:scale-[0.98] ${mobile ? "min-h-[48px] px-3 py-2 text-[13px]" : "px-3 py-2.5 text-xs"} ${active ? "bg-sky-500/10 text-sky-700 dark:text-sky-300 font-semibold" : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 font-medium"}`;
+  const navGroupButtonClass = "w-full flex items-center justify-between px-3 py-2 text-[10px] uppercase tracking-[0.14em] font-bold text-slate-500 dark:text-slate-400";
   const renderComparisonSection = (data: typeof momAnalytics) => {
     const money=(n:number)=>formatIDR(n);
     const percent=(current:number,previous:number)=>previous>0?((current-previous)/previous*100):null;
@@ -2710,27 +2717,23 @@ Indosat IM3 : ${isatText}`;
           </div>
 
           <nav className="mt-5 space-y-1.5 overflow-y-auto flex-1 pr-1 custom-scrollbar">
-            {mainNavItems.map((item) => {
-              const active = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveTab(item.id as MenuTab)}
-                  className={`dg-nav-item w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs transition-all active:scale-[0.98] ${
-                    active
-                      ? isDark
-                        ? "bg-sky-500/15 border border-sky-400/30 text-white font-black shadow-sm"
-                        : "bg-sky-50 border border-sky-200 text-sky-950 font-black shadow-sm"
-                      : "font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 border border-transparent"
-                  }`}
-                >
-                  <div className={`w-7 h-7 rounded-lg ${item.color} ${item.shadow} shadow-md flex items-center justify-center text-xs shrink-0 text-white`}>
-                    {item.icon}
-                  </div>
-                  <span className="truncate">{item.label}</span>
+            {navGroups.map(group => (
+              <div key={group} className="mb-2">
+                <button type="button" aria-expanded={!collapsedNavGroups.includes(group)} onClick={() => toggleNavGroup(group)} className={navGroupButtonClass}>
+                  <span>{group}</span><ChevronDown size={14} className={`transition-transform duration-200 ${collapsedNavGroups.includes(group) ? "-rotate-90" : ""}`}/>
                 </button>
-              );
-            })}
+                {!collapsedNavGroups.includes(group) && <div className="space-y-0.5">
+                  {navGroupItems(group).map(item => {
+                    const Icon = item.icon;
+                    const active = activeTab === item.id;
+                    return <button key={item.id} type="button" aria-current={active ? "page" : undefined} onClick={() => setActiveTab(item.id as MenuTab)} className={navItemClass(active,false)}>
+                      <Icon size={19} strokeWidth={1.8} className="shrink-0"/><span className="truncate flex-1">{item.label}</span>
+                      {active && <span className="h-4 w-[3px] rounded-full bg-sky-600 dark:bg-sky-400"/>}
+                    </button>;
+                  })}
+                </div>}
+              </div>
+            ))}
 
             <div className="pt-2">
               <button
@@ -2795,22 +2798,24 @@ Indosat IM3 : ${isatText}`;
         </div>
         <div className="px-5 pb-2 shrink-0"><p className="text-[10px] font-bold tracking-[0.14em] uppercase text-slate-400">Navigation</p></div>
         <nav className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 pb-3 space-y-0.5 custom-scrollbar">
-          {mainNavItems.map(item => {
-            const active = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                aria-current={active ? "page" : undefined}
-                onClick={() => { setActiveTab(item.id as MenuTab); setMobileDrawerOpen(false); }}
-                className={`dg-nav-item w-full min-h-[48px] flex items-center gap-3 px-3 py-2 rounded-2xl text-left transition-all duration-200 active:scale-[0.98] ${active ? "bg-sky-500/12 dark:bg-sky-400/15 text-sky-700 dark:text-sky-300" : "text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-white/5"}`}
-              >
-                <span className={`w-9 h-9 shrink-0 rounded-xl flex items-center justify-center text-[17px] ${active ? "bg-sky-500/15 dark:bg-sky-400/15" : "bg-slate-200/70 dark:bg-white/[0.07]"}`}>{item.icon}</span>
-                <span className={`flex-1 min-w-0 text-[13px] leading-tight ${active ? "font-bold" : "font-medium"}`}>{item.label}</span>
-                {active && <span className="w-1.5 h-1.5 rounded-full bg-sky-500 shrink-0" />}
+          {navGroups.map(group => (
+            <div key={group} className="mb-2">
+              <button type="button" aria-expanded={!collapsedNavGroups.includes(group)} onClick={() => toggleNavGroup(group)} className={navGroupButtonClass}>
+                <span>{group}</span><ChevronDown size={15} className={`transition-transform duration-200 ${collapsedNavGroups.includes(group) ? "-rotate-90" : ""}`}/>
               </button>
-            );
-          })}
+              {!collapsedNavGroups.includes(group) && <div className="space-y-0.5">
+                {navGroupItems(group).map(item => {
+                  const Icon = item.icon;
+                  const active = activeTab === item.id;
+                  return <button key={item.id} type="button" aria-current={active ? "page" : undefined} onClick={() => { setActiveTab(item.id as MenuTab); setMobileDrawerOpen(false); }} className={navItemClass(active,true)}>
+                    <Icon size={21} strokeWidth={1.8} className="shrink-0"/><span className="flex-1 min-w-0 truncate">{item.label}</span>
+                    {active && <span className="h-4 w-[3px] rounded-full bg-sky-500"/>}
+                  </button>;
+                })}
+              </div>}
+            </div>
+          ))}
+
         </nav>
         <div className="shrink-0 px-4 py-3 border-t border-slate-200 dark:border-white/10">
           <button
