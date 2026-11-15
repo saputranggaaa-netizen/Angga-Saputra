@@ -2164,6 +2164,29 @@ Indosat IM3 : ${isatText}`;
       const lastWeekCutoff = new Date(lastWeekStart); lastWeekCutoff.setUTCDate(lastWeekCutoff.getUTCDate() + elapsedDays);
       const currentWeek = transactions.filter(t => t.isoDate >= toIso(thisWeekStart) && t.isoDate <= cutoff);
       const previousWeek = transactions.filter(t => t.isoDate >= toIso(lastWeekStart) && t.isoDate <= toIso(lastWeekCutoff));
+      // Read-only operational snapshot for the PPTX; never mutate source Sheets.
+      const readRows = async (url: string): Promise<any[] | null> => {
+        try { const response = await fetch(url, {cache:"no-store"}); if(!response.ok) return null;
+          const data = await response.json(); return Array.isArray(data.rows) ? data.rows : null;
+        } catch { return null; }
+      };
+      const [trafficRowsExport, engagementRowsExport, nirwanaRowsExport] = await Promise.all([
+        readRows("/api/store-traffic"), readRows("/api/customer-engagement"), readRows("/api/nirwana")
+      ]);
+      const trafficInRange = (from:string,to:string) => {
+        if(!trafficRowsExport) return null;
+        const byDay = new Map<string,number>();
+        trafficRowsExport.forEach((r:any)=>{const date=String(r.date||"");if(date>=from&&date<=to)byDay.set(date,Number(r.traffic)||0);});
+        const covered=new Set(byDay.keys());
+        const count=[...byDay.values()].reduce((n,v)=>n+v,0);
+        const invoices=new Set(transactions.filter(t=>t.isoDate>=from&&t.isoDate<=to&&covered.has(t.isoDate)).map(t=>String(t.invoice||"").trim().toUpperCase()).filter(Boolean)).size;
+        return {traffic:count,invoices,days:covered.size,cvr:count>0?invoices/count*100:null};
+      };
+      const mtdTraffic = trafficInRange(currentPrefix+"-01",cutoff);
+      const weekTraffic = trafficInRange(toIso(thisWeekStart),cutoff);
+      const previousWeekTraffic = trafficInRange(toIso(lastWeekStart),toIso(lastWeekCutoff));
+      const cvrLabel=(x:ReturnType<typeof trafficInRange>)=>x?.cvr==null?"N/A":x.cvr.toFixed(1)+"%";
+      const countLabel=(v:number|null|undefined)=>v==null?"N/A":v.toLocaleString("id-ID");
       const groups = ["Total Amount", "Apple Devices", "Android Devices", "Accessories", "VAS"];
       const classify = (t: RawTransaction) => {
         const p = (t.productName || "").toUpperCase();
@@ -2230,6 +2253,13 @@ Indosat IM3 : ${isatText}`;
         slide.addShape(pptx.ShapeType.roundRect, { x: 0.6, y: 1.6, w: 12.1, h: 1.35, rectRadius: 0.2, line: { color: LIGHT }, fill: { color: LIGHT } });
         slide.addText("DIGIPLUS GRAND INDONESIA", { x: 0.92, y: 1.92, w: 8, h: 0.35, fontSize: 24, bold: true, color: NAVY, margin: 0 });
         slide.addText("Store QF01  •  " + currentPrefix + " MTD  •  " + fmt(amount(currentMTD)), { x: 0.92, y: 2.4, w: 10, h: 0.25, fontSize: 13, color: BLUE, margin: 0 });
+        const cvrOverview = [
+          "CVR BASED ON INPUT TRAFFIC • MTD",
+          "Traffic: "+countLabel(mtdTraffic?.traffic),
+          "Unique Invoice (covered dates): "+countLabel(mtdTraffic?.invoices),
+          "CVR = Invoice / Traffic: "+cvrLabel(mtdTraffic)
+        ];
+        slide.addText(cvrOverview.join("    |    "),{x:0.8,y:3.06,w:11.6,h:0.25,fontSize:9,bold:true,color:BLUE,margin:0});
         const staff = [...new Map(currentMTD.filter(t => t.salesId || t.salesName).map(t => [t.salesId || t.salesName, t.salesName])).values()].sort();
         slide.addText("ACTIVE STAFF (" + staff.length + ")", { x: 0.7, y: 3.35, w: 8, h: 0.3, fontSize: 17, bold: true, color: NAVY });
         const perCol = Math.max(1, Math.ceil(staff.length / 3));
@@ -2274,6 +2304,9 @@ Indosat IM3 : ${isatText}`;
         const slide = makeSlide("MTD SALES • CATEGORY BREAKDOWN", "Penjualan 1–" + dd + " bulan ini dibanding tanggal yang sama bulan lalu; semua nominal adalah sales amount.");
         tableHeader(slide, "MTD saat ini", "MTD bulan lalu");
         summaryRows(slide, currentMTD, previousMTD, true);
+        slide.addShape(pptx.ShapeType.roundRect,{x:0.6,y:6.88,w:12.1,h:0.19,rectRadius:0.05,line:{color:LIGHT},fill:{color:LIGHT}});
+        slide.addText("CVR COMPARISON • Current MTD: Traffic "+countLabel(mtdTraffic?.traffic)+" | Invoice "+countLabel(mtdTraffic?.invoices)+" | CVR "+cvrLabel(mtdTraffic)+"    •    Weekly: "+cvrLabel(weekTraffic)+" vs "+cvrLabel(previousWeekTraffic),{x:0.7,y:6.9,w:11.9,h:0.16,fontSize:7.6,bold:true,color:BLUE,margin:0});
+
       }
       // Slide 5: staff achievement by LOB, with product-family contributions.
       {
@@ -2359,7 +2392,40 @@ Indosat IM3 : ${isatText}`;
         });
         slide.addText("Catatan: evaluasi staff harus mempertimbangkan jadwal, jam kerja, traffic, ketersediaan stok, dan target individual. Rekomendasi stok perlu validasi inventory.", { x: 0.7, y: 6.75, w: 12, h: 0.26, fontSize: 8, italic: true, color: MUTED, margin: 0 });
       }
-      await pptx.writeFile({ fileName: "Digiplus_GI_6_Slide_Weekly_MTD_LOB_" + cutoff + ".pptx" });
+      // Slide 7: Nirwana, CX, Google Review and MAPCLUB New Member activities.
+      {
+        const slide=makeSlide("CUSTOMER ENGAGEMENT & NIRWANA","MTD operational activities • CX • Google Review • New Member MAPCLUB • Apple Watch demo");
+        const eng=engagementRowsExport?.filter((r:any)=>String(r.date||"")>=currentPrefix+"-01"&&String(r.date||"")<=cutoff)||[];
+        const nir=nirwanaRowsExport?.filter((r:any)=>String(r.date||"")>=currentPrefix+"-01"&&String(r.date||"")<=cutoff)||[];
+        const sumCategory=(names:string[])=>engagementRowsExport===null?"N/A":String(eng.filter((r:any)=>names.includes(String(r.category||"").trim().toUpperCase())).reduce((n:number,r:any)=>n+(Number(r.qty)||0),0));
+        const kpis=[
+          ["NIRWANA DEMO",nirwanaRowsExport===null?"N/A":String(nir.length)],
+          ["CX",sumCategory(["CX"])],
+          ["GOOGLE REVIEW",sumCategory(["GOOGLE REVIEW","GR"])],
+          ["NEW MEMBER MAPCLUB",sumCategory(["NEW MEMBER MAPCLUB","MAPCLUB","NEW MEMBER"])]
+        ];
+        kpis.forEach((k,i)=>{
+          const x=0.6+(i%2)*6.18,y=1.52+Math.floor(i/2)*1.13;
+          slide.addShape(pptx.ShapeType.roundRect,{x,y,w:5.9,h:1.0,rectRadius:0.14,line:{color:"D8E6F7"},fill:{color:"F5F9FF"}});
+          slide.addText(k[0],{x:x+0.18,y:y+0.13,w:5.4,h:0.2,fontSize:10,bold:true,color:MUTED,margin:0});
+          slide.addText(k[1],{x:x+0.18,y:y+0.42,w:5.4,h:0.4,fontSize:23,bold:true,color:NAVY,margin:0});
+        });
+        const nirFull=nirwanaRowsExport===null?"N/A":String(nir.filter((r:any)=>r.status==="FULL").length);
+        const nirPartial=nirwanaRowsExport===null?"N/A":String(nir.filter((r:any)=>r.status!=="FULL").length);
+        slide.addText("NIRWANA ACTIVITY BREAKDOWN",{x:0.7,y:4.05,w:11.6,h:0.28,fontSize:13,bold:true,color:BLUE,margin:0});
+        slide.addText("Full Demo: "+nirFull+"     |     Partial Demo: "+nirPartial,{x:0.7,y:4.46,w:11.6,h:0.3,fontSize:12,color:NAVY,margin:0});
+        const staffMap=new Map<string,{name:string;nir:number;cx:number;gr:number;member:number}>();
+        const getStaff=(r:any)=>{const id=String(r.salesId||r.salesName||"Unknown");if(!staffMap.has(id))staffMap.set(id,{name:String(r.salesName||id),nir:0,cx:0,gr:0,member:0});return staffMap.get(id)!;};
+        nir.forEach((r:any)=>getStaff(r).nir++);
+        eng.forEach((r:any)=>{const x=getStaff(r),cat=String(r.category||"").toUpperCase(),qty=Number(r.qty)||0;if(cat==="CX")x.cx+=qty;else if(cat==="GR"||cat==="GOOGLE REVIEW")x.gr+=qty;else if(cat.includes("MEMBER")||cat.includes("MAPCLUB"))x.member+=qty;});
+        slide.addText("STAFF CONTRIBUTION • NIRWANA / CX / GR / MEMBER",{x:0.7,y:5.04,w:11.6,h:0.28,fontSize:12,bold:true,color:BLUE,margin:0});
+        const ranked=[...staffMap.values()].sort((a,b)=>(b.nir+b.cx+b.gr+b.member)-(a.nir+a.cx+a.gr+a.member)).slice(0,5);
+        ranked.forEach((r,i)=>slide.addText((i+1)+". "+r.name+"  |  Nirwana "+r.nir+"  •  CX "+r.cx+"  •  GR "+r.gr+"  •  Member "+r.member,{x:0.75,y:5.42+i*0.27,w:11.7,h:0.23,fontSize:9,color:NAVY,margin:0}));
+        if(!ranked.length)slide.addText("Belum ada aktivitas tercatat / sumber tidak tersedia.",{x:0.75,y:5.5,w:11.7,h:0.3,fontSize:10,color:MUTED,margin:0});
+        slide.addText("Catatan: New Member ditampilkan sebagai MAPCLUB jika sumber memakai kategori New Member; validasi definisi operasional diperlukan.",{x:0.7,y:6.88,w:12,h:0.18,fontSize:8,color:MUTED,margin:0});
+      }
+
+      await pptx.writeFile({ fileName: "Digiplus_GI_7_Slide_Weekly_MTD_LOB_" + cutoff + ".pptx" });
     } catch (err) {
       alert("Gagal mengekspor slide PowerPoint: " + (err instanceof Error ? err.message : String(err)));
     } finally {
