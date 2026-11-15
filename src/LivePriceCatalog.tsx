@@ -13,8 +13,8 @@ const rp=(n:number|null)=>n===null?"Belum tersedia":"Rp "+n.toLocaleString("id-I
 const appleType=(p:P)=>{const t=(p.name+" "+p.category).toUpperCase();if(/IPHONE/.test(t))return "iPhone";if(/MACBOOK|\\bMBA\\b|\\bMBP\\b|\\bMAC\\b|IMAC/.test(t))return "MacBook";if(/WATCH/.test(t))return "Apple Watch";if(/IPAD/.test(t))return "iPad";return "Lainnya"};
 const isDevice=(p:P)=>{
   const t=(p.name+" "+p.category).toUpperCase();
-  // SOH is limited to sellable device units. Exclude demo/display stock and accessories.
-  if(/\b(DEMO|DUMMY|DISPLAY|DISPLAY UNIT|NOT FOR SALE|NFS|MOCKUP|MOCK UP|SAMPLE UNIT)\b|(?:^|[\s/_-])(?:DEMO|DUMMY)(?:$|[\s/_-])/.test(t))return false;
+  // SOH only includes regular sellable devices; exclude demo/display and accessories.
+  if(/\b(DEMO|DUMMY|DISPLAY|DISPLAY UNIT|NOT FOR SALE|NFS|MOCKUP|MOCK UP|SAMPLE UNIT)\b/.test(t))return false;
   if(/CASE|CASING|COVER|SCREEN PROTECTOR|TEMPERED|GLASS|CHARGER|CHARGING|ADAPTER|CABLE|KABEL|STRAP|WRISTBAND|WATCH BAND|KEYBOARD|MOUSE|PENCIL|STYLUS|EARPHONE|HEADPHONE|HEADSET|BUDS|AIRPODS|SPEAKER|POWER BANK|POWERBANK|DOCK|HOLDER|POUCH|SLEEVE|GIFT CARD|VOUCHER|PROTECTION|INSURANCE|GARANSI|SERVICE|AKSESORI|ACCESSOR|SCREEN GUARD|MEMORY CARD|MICROSD|USB HUB|HUB USB|BATTERY PACK|WIRELESS CHARG|TRIPOD|SELFIE STICK|EARBUD|SMART TAG|SMARTTAG|TRACKER|WALL PLUG|ADAPTOR|CLEANING KIT/.test(t))return false;
   return /IPHONE|IPAD|MACBOOK|\bMBA\b|\bMBP\b|IMAC|MAC MINI|MAC STUDIO|MAC PRO|APPLE WATCH|GALAXY (?:S|Z|A|M|F|TAB|WATCH)|SAMSUNG (?:S|Z|A|M|F|TAB|WATCH)|FOLD\s*\d|FLIP\s*\d|SMARTPHONE|HANDPHONE|MOBILE PHONE|\bTABLET\b|LAPTOP|NOTEBOOK|ULTRABOOK|SMARTWATCH|SMART WATCH|MOTOROLA|XIAOMI|REDMI|POCO|OPPO|VIVO|REALME|INFINIX|TECNO|HUAWEI|HONOR|PIXEL/.test(t);
 };
