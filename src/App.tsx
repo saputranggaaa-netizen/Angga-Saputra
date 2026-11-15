@@ -3152,6 +3152,41 @@ Indosat IM3 : ${isatText}`;
                     const atv=invoiceCount?overviewStats.actual/invoiceCount:null;
                     const unitCount=activeTransactions.reduce((a,t)=>a+Math.max(0,Number(t.qty)||0),0);
                     const asp=unitCount?overviewStats.actual/unitCount:null;
+                    const appleSubCategories = [
+                      {label:"iPhone",filterKey:"IPHONE",targetKey:"iphone"},
+                      {label:"iPad",filterKey:"IPAD",targetKey:"ipad"},
+                      {label:"MacBook",filterKey:"MAC",targetKey:"macbook"},
+                      {label:"Apple Watch",filterKey:"WATCH",targetKey:"applewatch"}
+                    ];
+                    const appleSubTarget=(key:string)=>{
+                      if(selectedMonth!==targetSheetMonth)return 0;
+                      const full=categoryTargets[key]||0;
+                      return Math.round(full*(periodType==="monthly"?1:overviewStats.target>0&&storeTotalTarget>0?overviewStats.target/storeTotalTarget:0));
+                    };
+                    const appleSubDetails=(items:typeof activeTransactions)=>(
+                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                        {appleSubCategories.map(sub=>{
+                          const matched=items.filter(t=>(t.productName||"").toUpperCase().includes(sub.filterKey));
+                          const value=matched.reduce((a,t)=>a+(Number(t.amount)||0),0);
+                          const qty=matched.reduce((a,t)=>a+Math.max(0,Number(t.qty)||0),0);
+                          const target=appleSubTarget(sub.targetKey);
+                          const pct=target>0?value/target*100:null;
+                          const contribution=totalFor(items)>0?value/totalFor(items)*100:0;
+                          return <div key={sub.label} className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-3 space-y-2">
+                            <div className="flex justify-between gap-2 items-center"><strong className="text-sm text-slate-900 dark:text-white">{sub.label}</strong><span className="text-xs font-bold text-blue-600 dark:text-sky-300">{pct===null?"N/A":pct.toFixed(1)+"%"}</span></div>
+                            <div className="h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden"><div className="h-full bg-blue-600 rounded-full" style={{width:Math.min(100,pct||0)+"%"}}/></div>
+                            <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 dark:text-slate-300">
+                              <div><p>Target Value</p><strong className="text-slate-900 dark:text-white">{target>0?formatIDR(target):"Belum tersedia"}</strong></div>
+                              <div><p>Achievement Value</p><strong className="text-slate-900 dark:text-white">{formatIDR(value)}</strong></div>
+                              <div><p>Achievement Qty</p><strong className="text-slate-900 dark:text-white">{qty} unit</strong></div>
+                              <div><p>Gap to Target</p><strong className="text-slate-900 dark:text-white">{target>0?formatIDR(target-value):"N/A"}</strong></div>
+                              <div><p>Contribution</p><strong className="text-slate-900 dark:text-white">{contribution.toFixed(1)}%</strong></div>
+                            </div>
+                            <button type="button" onClick={()=>openLobDetailSheet("Transaksi "+sub.label,matched)} className="w-full rounded-lg border border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300 py-2 text-xs font-semibold">Lihat Transaksi & Invoice</button>
+                          </div>;
+                        })}
+                      </div>
+                    );
                     const selected=mobileOverviewCategory===null?null:catData[mobileOverviewCategory];
                     const groupBy=(items:typeof activeTransactions,key:"brand"|"product"|"staff")=>{
                       const grouped=new Map<string,{name:string,amount:number,qty:number,items:typeof activeTransactions}>();
@@ -3184,7 +3219,7 @@ Indosat IM3 : ${isatText}`;
                         <button type="button" onClick={()=>setMobileOverviewTab("categories")} className={card+" p-4 w-full text-left flex justify-between items-center"}><div><h3 className="font-black text-slate-950 dark:text-white">Category Explorer</h3><p className="text-xs text-slate-500 dark:text-slate-300">Apple · Android · Accessories · VAS</p></div><span className="text-sky-600 font-bold">Lihat →</span></button>
                         <button type="button" onClick={()=>setMobileOverviewTab("staff")} className={card+" p-4 w-full text-left flex justify-between items-center"}><div><h3 className="font-black text-slate-950 dark:text-white">Staff Leaderboard</h3><p className="text-xs text-slate-500 dark:text-slate-300">Ranking achievement dan UPT</p></div><span className="text-sky-600 font-bold">Lihat →</span></button>
                       </>}
-                      {mobileOverviewTab==="categories"&&<><h3 className="font-black text-lg text-slate-950 dark:text-white">Kategori Penjualan</h3><div className="grid grid-cols-2 lg:grid-cols-4 gap-2">{catData.map((c,i)=><button key={c.name} type="button" onClick={()=>{setMobileOverviewCategory(i);setMobileOverviewDetailTab("brand");setMobileOverviewShowAll(false)}} className={card+" text-left p-3 border-2 "+(mobileOverviewCategory===i?"!border-blue-500":"")}><span className="text-2xl">{c.icon}</span><p className="text-sm font-black text-slate-950 dark:text-white mt-2">{c.name}</p><p className="text-sm font-bold text-blue-600 dark:text-sky-400">{formatIDR(totalFor(c.items))}</p><p className="text-xs text-slate-500 dark:text-slate-300">{c.target>0?(totalFor(c.items)/c.target*100).toFixed(1)+"% of target":"Target belum tersedia"}</p></button>)}</div>{selected&&<div className={card+" p-4 space-y-3"}><div className="flex justify-between items-center"><h3 className="font-black text-slate-950 dark:text-white">{selected.icon} Detail {selected.name}</h3><button type="button" onClick={()=>setMobileOverviewCategory(null)} aria-label="Tutup detail" className="text-slate-500 p-2">✕</button></div><div className="grid grid-cols-2 gap-2 text-sm"><div><p className="text-slate-500 text-xs">Sales Value</p><strong className="text-slate-950 dark:text-white">{formatIDR(totalFor(selected.items))}</strong></div><div><p className="text-slate-500 text-xs">Qty</p><strong className="text-slate-950 dark:text-white">{selected.items.reduce((a,t)=>a+(Number(t.qty)||0),0)}</strong></div></div><div className="flex gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-1">{(["brand","product","staff"] as const).map(tab=><button key={tab} type="button" onClick={()=>{setMobileOverviewDetailTab(tab);setMobileOverviewShowAll(false)}} className={"flex-1 rounded-lg px-2 py-2 text-xs font-bold "+(mobileOverviewDetailTab===tab?"bg-blue-600 text-white":"text-slate-600 dark:text-slate-300")}>Per {tab==="brand"?"Brand":tab==="product"?"Produk":"Staff"}</button>)}</div>{groupBy(selected.items,mobileOverviewDetailTab).slice(0,mobileOverviewShowAll?undefined:5).map(g=><button key={g.name} type="button" onClick={()=>openLobDetailSheet(g.name,g.items)} className="w-full flex justify-between gap-2 items-center border-b border-slate-200 dark:border-slate-700 py-3 text-left"><div className="min-w-0"><p className="font-bold text-sm text-slate-950 dark:text-white truncate">{g.name}</p><p className="text-xs text-slate-500">{g.qty} Qty</p></div><span className="font-bold text-sm text-sky-600 shrink-0">{formatIDR(g.amount)} ›</span></button>)}{groupBy(selected.items,mobileOverviewDetailTab).length>5&&<button type="button" onClick={()=>setMobileOverviewShowAll(!mobileOverviewShowAll)} className="w-full text-center text-sm font-bold text-blue-600 py-2">{mobileOverviewShowAll?"Show Less":"Show More"}</button>}<button type="button" onClick={()=>openLobDetailSheet("Rincian Transaksi "+selected.name,selected.items)} className="w-full rounded-xl bg-blue-600 text-white py-3 text-sm font-bold">Lihat Semua Transaksi & Invoice →</button></div>}</>}
+                      {mobileOverviewTab==="categories"&&<><h3 className="font-black text-lg text-slate-950 dark:text-white">Kategori Penjualan</h3><div className="grid grid-cols-2 lg:grid-cols-4 gap-2">{catData.map((c,i)=><button key={c.name} type="button" onClick={()=>{setMobileOverviewCategory(i);setMobileOverviewDetailTab("brand");setMobileOverviewShowAll(false)}} className={card+" text-left p-3 border-2 "+(mobileOverviewCategory===i?"!border-blue-500":"")}><span className="text-2xl">{c.icon}</span><p className="text-sm font-black text-slate-950 dark:text-white mt-2">{c.name}</p><p className="text-sm font-bold text-blue-600 dark:text-sky-400">{formatIDR(totalFor(c.items))}</p><p className="text-xs text-slate-500 dark:text-slate-300">{c.target>0?(totalFor(c.items)/c.target*100).toFixed(1)+"% of target":"Target belum tersedia"}</p></button>)}</div>{selected&&<div className={card+" p-4 space-y-3"}><div className="flex justify-between items-center"><h3 className="font-black text-slate-950 dark:text-white">{selected.icon} Detail {selected.name}</h3><button type="button" onClick={()=>setMobileOverviewCategory(null)} aria-label="Tutup detail" className="text-slate-500 p-2">✕</button></div><div className="grid grid-cols-2 gap-2 text-sm"><div><p className="text-slate-500 text-xs">Sales Value</p><strong className="text-slate-950 dark:text-white">{formatIDR(totalFor(selected.items))}</strong></div><div><p className="text-slate-500 text-xs">Qty</p><strong className="text-slate-950 dark:text-white">{selected.items.reduce((a,t)=>a+(Number(t.qty)||0),0)}</strong></div></div>{selected.name==="Apple Devices"&&appleSubDetails(selected.items)}<div className="flex gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-1">{(["brand","product","staff"] as const).map(tab=><button key={tab} type="button" onClick={()=>{setMobileOverviewDetailTab(tab);setMobileOverviewShowAll(false)}} className={"flex-1 rounded-lg px-2 py-2 text-xs font-bold "+(mobileOverviewDetailTab===tab?"bg-blue-600 text-white":"text-slate-600 dark:text-slate-300")}>Per {tab==="brand"?"Brand":tab==="product"?"Produk":"Staff"}</button>)}</div>{groupBy(selected.items,mobileOverviewDetailTab).slice(0,mobileOverviewShowAll?undefined:5).map(g=><button key={g.name} type="button" onClick={()=>openLobDetailSheet(g.name,g.items)} className="w-full flex justify-between gap-2 items-center border-b border-slate-200 dark:border-slate-700 py-3 text-left"><div className="min-w-0"><p className="font-bold text-sm text-slate-950 dark:text-white truncate">{g.name}</p><p className="text-xs text-slate-500">{g.qty} Qty</p></div><span className="font-bold text-sm text-sky-600 shrink-0">{formatIDR(g.amount)} ›</span></button>)}{groupBy(selected.items,mobileOverviewDetailTab).length>5&&<button type="button" onClick={()=>setMobileOverviewShowAll(!mobileOverviewShowAll)} className="w-full text-center text-sm font-bold text-blue-600 py-2">{mobileOverviewShowAll?"Show Less":"Show More"}</button>}<button type="button" onClick={()=>openLobDetailSheet("Rincian Transaksi "+selected.name,selected.items)} className="w-full rounded-xl bg-blue-600 text-white py-3 text-sm font-bold">Lihat Semua Transaksi & Invoice →</button></div>}</>}
                       {mobileOverviewTab==="staff"&&<div className={card+" p-4 space-y-3"}><h3 className="font-black text-lg text-slate-950 dark:text-white">Staff Leaderboard</h3><div className="flex gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">{([{key:"achvPct",label:"Achievement"},{key:"totalAmount",label:"Sales Value"},{key:"upt",label:"UPT"}] as const).map(m=><button type="button" key={m.key} onClick={()=>setMobileOverviewRankBy(m.key)} className={"flex-1 py-2 rounded-lg text-[11px] font-bold "+(mobileOverviewRankBy===m.key?"bg-blue-600 text-white":"text-slate-600 dark:text-slate-300")}>{m.label}</button>)}</div>{ranking.slice(0,mobileOverviewShowAll?undefined:5).map((st,i)=><button type="button" key={st.salesId} onClick={()=>{setSelectedStaffId(st.salesId);setActiveTab("staff-performance")}} className="w-full flex gap-3 items-center py-3 border-b border-slate-200 dark:border-slate-700 text-left"><span className="font-black text-amber-500 w-6">#{i+1}</span><span className="w-10 h-10 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center">{st.initials}</span><div className="min-w-0 flex-1"><p className="font-bold text-sm text-slate-950 dark:text-white truncate">{st.name}</p><p className="text-xs text-slate-500">{formatIDR(st.totalAmount)}</p></div><span className="font-black text-sky-600">{mobileOverviewRankBy==="upt"?st.upt:mobileOverviewRankBy==="totalAmount"?formatIDR(st.totalAmount):st.targetAmount>0?st.achvPct+"%":"—"}</span></button>)}{ranking.length>5&&<button type="button" onClick={()=>setMobileOverviewShowAll(!mobileOverviewShowAll)} className="w-full py-2 text-sm font-bold text-blue-600">{mobileOverviewShowAll?"Show Less":"Show More"}</button>}</div>}
                       {mobileOverviewTab==="insights"&&<div className={card+" p-4 space-y-4"}><h3 className="text-lg font-black text-slate-950 dark:text-white">Store Insights</h3>{overviewStats.target>0?<p className="text-sm text-slate-700 dark:text-slate-200">{overviewStats.achv<timeGoneStats.timeElapsedPct?"⚠️ Achievement di bawah Time Elapsed. Prioritaskan closing dan follow-up pelanggan.":"✅ Achievement berada di atas atau sama dengan Time Elapsed."}</p>:<p className="text-sm text-slate-600 dark:text-slate-300">Target store belum tersedia untuk periode ini.</p>}{catData.filter(c=>c.target>0&&totalFor(c.items)<c.target).map(c=><div key={c.name} className="rounded-xl bg-blue-500/10 p-3 text-sm text-slate-800 dark:text-slate-200"><strong>{c.name}</strong> · Gap {formatIDR(c.target-totalFor(c.items))}. Evaluasi kontribusi kategori dan peluang cross-sell.</div>)}<p className="text-xs text-slate-500 dark:text-slate-300">Insights berbasis aturan dari data transaksi, bukan prediksi AI.</p></div>}
                       <nav aria-label="Navigasi Overview Store mobile" className="sticky bottom-2 lg:bottom-auto lg:top-2 z-30 grid grid-cols-4 gap-1 rounded-2xl bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-700 p-2 shadow-xl backdrop-blur">{([{id:"overview",label:"Overview",icon:"⌂"},{id:"categories",label:"Kategori",icon:"▦"},{id:"staff",label:"Staff",icon:"♙"},{id:"insights",label:"Insights",icon:"ϟ"}] as const).map(t=><button type="button" key={t.id} onClick={()=>{setMobileOverviewTab(t.id);setMobileOverviewShowAll(false)}} aria-current={mobileOverviewTab===t.id?"page":undefined} className={"rounded-xl py-2 flex flex-col items-center gap-1 text-[11px] font-bold "+(mobileOverviewTab===t.id?"bg-blue-600 text-white":"text-slate-600 dark:text-slate-300")}><span className="text-lg">{t.icon}</span>{t.label}</button>)}</nav>
@@ -3359,13 +3394,8 @@ Indosat IM3 : ${isatText}`;
                         const achv = calcAchv(actual, target);
                         const gap = actual - target;
 
-                        const subList = [
-                          { label: "iPhone", filterKey: "IPHONE", targetWeight: 0.72 },
-                          { label: "iPad", filterKey: "IPAD", targetWeight: 0.12 },
-                          { label: "MacBook", filterKey: "MAC", targetWeight: 0.08 },
-                          { label: "Apple Watch", filterKey: "WATCH", targetWeight: 0.05 },
-                          { label: "AirPods", filterKey: "AIRPOD", targetWeight: 0.03 },
-                        ];
+                        const subList = appleSubCategories;
+
 
                         return (
                           <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-4`}>
@@ -3406,8 +3436,8 @@ Indosat IM3 : ${isatText}`;
                               {subList.map((sub, idx) => {
                                 const subItems = items.filter((t) => (t.productName || "").toUpperCase().includes(sub.filterKey));
                                 const subActual = subItems.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-                                const subTarget = Math.round(target * sub.targetWeight);
-                                const subAchv = calcAchv(subActual, subTarget);
+                                const subTarget = appleSubTarget(sub.targetKey);
+                                const subAchv = subTarget>0?calcAchv(subActual, subTarget):null;
                                 const subGap = subActual - subTarget;
 
                                 return (
@@ -3415,13 +3445,13 @@ Indosat IM3 : ${isatText}`;
                                     <div className="flex justify-between items-center">
                                       <span className="font-black text-[#17212f] dark:text-[#f4f7fb] uppercase tracking-wider">{sub.label}</span>
                                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${subAchv >= 100 ? "bg-emerald-500/15 text-[#087443] dark:text-[#75e4a9]" : "bg-amber-100 text-[#8b5500] dark:bg-amber-900/40 dark:text-[#ffd07d]"}`}>
-                                        {subAchv}%
+                                        {subAchv===null?"N/A":subAchv+"%"}
                                       </span>
                                     </div>
                                     <div className="text-[11px] font-mono text-[#334155] dark:text-[#d3dce7] space-y-0.5">
                                       <div><strong>T/A:</strong> {formatIDR(subTarget)} / <span className="font-bold text-[#087443] dark:text-[#75e4a9]">{formatIDR(subActual)}</span></div>
                                       <div><strong>-/+:</strong> <span className={subGap >= 0 ? "text-[#087443] dark:text-[#75e4a9]" : "text-[#b42342] dark:text-[#ff8da4]"}>{subGap >= 0 ? `+${formatIDR(subGap)}` : formatIDR(subGap)}</span></div>
-                                      <div><strong>Estimate:</strong> {formatIDR(calcEst(subActual))}</div>
+                                      <div><strong>Achievement Qty:</strong> {subItems.reduce((a,t)=>a+Math.max(0,Number(t.qty)||0),0)} unit</div><div><strong>Contribution:</strong> {actual>0?(subActual/actual*100).toFixed(1):"0.0"}%</div>
                                     </div>
                                     <div className="pt-1 border-t border-inherit/40 flex justify-end">
                                       <button
