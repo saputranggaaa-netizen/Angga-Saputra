@@ -1398,6 +1398,7 @@ export default function DigiplusOperationalEngine() {
     const b = (t.brand || "").toUpperCase();
     const g = (t.groupCategory || "").toUpperCase();
 
+    if (/\bAIRPODS?\b/.test(p)) return "AirPods";
     if (b === "APPLE") {
       if (p.includes("IPHONE")) return "iPhone";
       if (p.includes("IPAD")) return "iPad";
@@ -1444,7 +1445,7 @@ export default function DigiplusOperationalEngine() {
   };
 
   const buildAppleSubCategoryData = (trxP1: RawTransaction[], trxP2: RawTransaction[]) => {
-    const appleItemsP1 = (trxP1 || []).filter((t) => t.brand === "APPLE" && t.groupCategory === "DEVICES");
+    const appleItemsP1 = (trxP1 || []).filter((t) => (t.brand === "APPLE" && t.groupCategory === "DEVICES" || /\bAIRPODS?\b/i.test(t.productName || "")));
     const appleItemsP2 = (trxP2 || []).filter((t) => t.brand === "APPLE" && t.groupCategory === "DEVICES");
     const appleCategories = ["iPhone", "iPad", "MacBook", "Apple Watch", "AirPods"];
 
@@ -1714,6 +1715,7 @@ export default function DigiplusOperationalEngine() {
     const categoryOf = (t: RawTransaction) => {
       const name = (t.productName || "").toUpperCase(), type = (t.productType || "").toUpperCase();
       const p = name + " " + type;
+      if (/\bAIRPODS?\b/.test(p)) return "AirPods";
       if (t.brand === "APPLE") {
         if (p.includes("IPHONE")) return "iPhone";
         if (p.includes("IPAD")) return "iPad";
@@ -2195,6 +2197,7 @@ Indosat IM3 : ${isatText}`;
         const brand = (t.brand || "").toUpperCase();
         const g = (t.groupCategory || "").toUpperCase();
         if (g === "VAS" || /QOALA|PROTECTION|PROTEKSI|TELKOMSEL|INDOSAT|MYPRIO|(^|\\W)XL(\\W|$)/.test(p+" "+brand)) return "VAS";
+        if (/\bAIRPODS?\b/.test(p)) return "Apple Devices";
         if (g === "ACCESSORIES") return "Accessories";
         if (brand === "APPLE" && (g === "DEVICES" || /IPHONE|IPAD|MAC|WATCH/.test(p))) return "Apple Devices";
         if (g === "DEVICES" || /SAMSUNG|MOTOROLA|XIAOMI|OPPO|VIVO|HUAWEI|INFINIX/.test(brand)) return "Android Devices";
@@ -2202,7 +2205,7 @@ Indosat IM3 : ${isatText}`;
       };
       const detail = (t: RawTransaction) => {
         const group = classify(t);
-        if (group === "Apple Devices") return /IPHONE/i.test(t.productName) ? "iPhone" : /IPAD/i.test(t.productName) ? "iPad" : /MAC/i.test(t.productName) ? "Mac" : /WATCH/i.test(t.productName) ? "Watch" : "Other Apple";
+        if (group === "Apple Devices") return /IPHONE/i.test(t.productName) ? "iPhone" : /IPAD/i.test(t.productName) ? "iPad" : /MAC/i.test(t.productName) ? "Mac" : /WATCH/i.test(t.productName) ? "Watch" : /AIRPODS?/i.test(t.productName) ? "AirPods" : "Other Apple";
         if (group === "Android Devices") return t.brand || "Other Android";
         if (group === "VAS") return /QOALA/i.test(t.productName + " " + t.brand) ? "Qoala" : (t.brand || t.productType || "Other VAS");
         if (group === "Accessories") return t.productType || t.brand || "Other Accessories";
@@ -4018,9 +4021,9 @@ return <div className="space-y-5">
                     if (!st) return null;
                     const rows = staffPeriodTransactions.filter(t => t.salesId === st.salesId);
                     const sum = (items: RawTransaction[]) => ({qty:items.reduce((n,t)=>n+(Number(t.qty)||0),0),amount:items.reduce((n,t)=>n+(Number(t.amount)||0),0)});
-                    const apple = rows.filter(t=>t.brand==="APPLE" && t.groupCategory==="DEVICES");
+                    const apple = rows.filter(t=>(t.brand==="APPLE" && t.groupCategory==="DEVICES") || /\bAIRPODS?\b/i.test(t.productName||""));
                     const android = rows.filter(t=>t.groupCategory==="DEVICES" && ["SAMSUNG","OPPO","HUAWEI","XIAOMI","REDMI","MOTOROLA","INFINIX"].includes(t.brand));
-                    const accessories = rows.filter(t=>t.groupCategory==="ACCESSORIES");
+                    const accessories = rows.filter(t=>t.groupCategory==="ACCESSORIES" && !/\bAIRPODS?\b/i.test(t.productName||""));
                     const vas = rows.filter(t=>t.groupCategory==="VAS");
                     const name = (t:RawTransaction)=>(t.productName||"").toUpperCase();
                     const groups = [
