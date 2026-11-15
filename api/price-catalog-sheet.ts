@@ -14,11 +14,11 @@ for(const row of (stockRows||[]).slice(2)){
   const article=match?.[1]?.trim().toUpperCase()||"";
   const qty=Number(str(row[7]).replace(/,/g,""));
   if(!article||!Number.isFinite(qty))continue;
-  stockByArticle.set(article,(stockByArticle.get(article)||0)+qty);
   const brand=str(row[0]), category=str(row[2]).toUpperCase(), subtype=str(row[3]);
   const name=description.replace(/^\s*[^\s]+\s+\/\s+/,"").trim();
   // Only inventory explicitly classified as DEVICES is eligible for the SOH view.
   if(category!=="DEVICES"||/\b(DEMO|DUMMY|DISPLAY|MOCKUP|SAMPLE|NFS)\b/i.test(name))continue;
+  stockByArticle.set(article,(stockByArticle.get(article)||0)+qty);
   const previous=stockProductsByArticle.get(article);
   stockProductsByArticle.set(article,{
     source:"Stock",brand:brand||"Unknown",article,name,category:subtype||"Devices",
