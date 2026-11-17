@@ -38,7 +38,7 @@ export default async function handler(req:any,res:any){
    const normalizedDate=clean(date), normalizedSalesId=clean(salesId), normalizedEnteredBy=clean(enteredBy), normalizedName=clean(salesName);
    const validId=(v:string)=>/^[A-Za-z0-9][A-Za-z0-9._@-]{0,119}$/.test(v);
    // Staff identifiers may be alphanumeric in the source sheet; do not require only digits.
-   if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(normalizedDate))return res.status(400).json({error:"Tanggal aktivitas tidak valid"});
+   if(!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate))return res.status(400).json({error:"Tanggal aktivitas tidak valid"});
    if(!validId(normalizedSalesId))return res.status(400).json({error:"Sales ID staf tidak valid"});
    if(!normalizedName)return res.status(400).json({error:"Nama staf tidak ditemukan. Muat ulang data staf."});
    if(!["CX","New Member","Google Review"].includes(category))return res.status(400).json({error:"Kategori aktivitas tidak valid"});
