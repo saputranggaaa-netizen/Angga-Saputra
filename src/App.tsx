@@ -4395,7 +4395,7 @@ return <div className="space-y-5">
                         <div className="space-y-4">
                           <div className="flex justify-between items-center pb-2 border-b border-inherit/40">
                             <h4 className="text-sm font-black uppercase tracking-wider text-slate-950 dark:text-white flex items-center gap-2">
-                              <span>📦</span>
+                              <Package size={17}/>
                               <span>Total Achievement :</span>
                             </h4>
                             <span className="text-base font-black font-mono text-emerald-600 dark:text-emerald-400">
@@ -4433,27 +4433,27 @@ return <div className="space-y-5">
                             </span>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 text-xs font-semibold">
                               <div className={`p-2.5 rounded-xl border ${cardBg} flex justify-between items-center`}>
-                                <span className="text-slate-700 dark:text-slate-300">- Samsung :</span>
+                                <span className="inline-flex min-w-0 items-center gap-1.5 text-slate-700 dark:text-slate-300"><RetailBrandLogo brand="Samsung" size={15}/> Samsung :</span>
                                 <strong className="font-mono text-slate-950 dark:text-white">{androidSamsung.qty} / {formatIDR(androidSamsung.amount)}</strong>
                               </div>
                               <div className={`p-2.5 rounded-xl border ${cardBg} flex justify-between items-center`}>
-                                <span className="text-slate-700 dark:text-slate-300">- Oppo :</span>
+                                <span className="inline-flex min-w-0 items-center gap-1.5 text-slate-700 dark:text-slate-300"><RetailBrandLogo brand="Oppo" size={15}/> Oppo :</span>
                                 <strong className="font-mono text-slate-950 dark:text-white">{androidOppo.qty} / {formatIDR(androidOppo.amount)}</strong>
                               </div>
                               <div className={`p-2.5 rounded-xl border ${cardBg} flex justify-between items-center`}>
-                                <span className="text-slate-700 dark:text-slate-300">- Huawei :</span>
+                                <span className="inline-flex min-w-0 items-center gap-1.5 text-slate-700 dark:text-slate-300"><RetailBrandLogo brand="Huawei" size={15}/> Huawei :</span>
                                 <strong className="font-mono text-slate-950 dark:text-white">{androidHuawei.qty} / {formatIDR(androidHuawei.amount)}</strong>
                               </div>
                               <div className={`p-2.5 rounded-xl border ${cardBg} flex justify-between items-center`}>
-                                <span className="text-slate-700 dark:text-slate-300">- Xiaomi :</span>
+                                <span className="inline-flex min-w-0 items-center gap-1.5 text-slate-700 dark:text-slate-300"><RetailBrandLogo brand="Xiaomi" size={15}/> Xiaomi :</span>
                                 <strong className="font-mono text-slate-950 dark:text-white">{androidXiaomi.qty} / {formatIDR(androidXiaomi.amount)}</strong>
                               </div>
                               <div className={`p-2.5 rounded-xl border ${cardBg} flex justify-between items-center`}>
-                                <span className="text-slate-700 dark:text-slate-300">- Motorola :</span>
+                                <span className="inline-flex min-w-0 items-center gap-1.5 text-slate-700 dark:text-slate-300"><RetailBrandLogo brand="Motorola" size={15}/> Motorola :</span>
                                 <strong className="font-mono text-slate-950 dark:text-white">{androidMoto.qty} / {formatIDR(androidMoto.amount)}</strong>
                               </div>
                               <div className={`p-2.5 rounded-xl border ${cardBg} flex justify-between items-center`}>
-                                <span className="text-slate-700 dark:text-slate-300">- Infinix :</span>
+                                <span className="inline-flex min-w-0 items-center gap-1.5 text-slate-700 dark:text-slate-300"><RetailBrandLogo brand="Infinix" size={15}/> Infinix :</span>
                                 <strong className="font-mono text-slate-950 dark:text-white">{androidInfinix.qty} / {formatIDR(androidInfinix.amount)}</strong>
                               </div>
                             </div>
@@ -4462,7 +4462,7 @@ return <div className="space-y-5">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className={`p-4 rounded-2xl border ${innerBg} space-y-2.5`}>
                               <span className="text-xs font-black text-amber-600 dark:text-amber-400 flex items-center gap-1.5 uppercase">
-                                <span>🔌</span> 1. Accessories :
+                                <RetailBrandLogo brand="Accessories" size={17}/> 1. Accessories :
                               </span>
                               <div className={`p-3 rounded-xl border ${cardBg} flex justify-between items-center text-xs font-semibold`}>
                                 <span className="text-slate-700 dark:text-slate-300">Total Accessories Terjual:</span>
@@ -4472,7 +4472,7 @@ return <div className="space-y-5">
 
                             <div className={`p-4 rounded-2xl border ${innerBg} space-y-2.5`}>
                               <span className="text-xs font-black text-purple-600 dark:text-purple-400 flex items-center gap-1.5 uppercase">
-                                <span>🛡️</span> 2. VAS :
+                                <RetailBrandLogo brand="VAS" size={17}/> 2. VAS :
                               </span>
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-semibold">
                                 <div className={`p-2 rounded-xl border ${cardBg} flex justify-between items-center`}>
