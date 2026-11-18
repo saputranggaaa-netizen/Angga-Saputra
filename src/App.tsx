@@ -2286,185 +2286,117 @@ Indosat IM3 : ${isatText}`;
         items.forEach((item, i) => row(slide, item.label, amount(now, item.group, item.sub), amount(before, item.group, item.sub), 2.05 + i * height, height, fontSize, item.indent));
         if (!items.length) slide.addText("Belum ada transaksi pada periode ini.", { x: 0.7, y: 2.3, w: 11, h: 0.4, color: MUTED });
       };
-      // Slide 1: store and active staff.
+      // Seven-slide operational report aligned with Digiplus_GI_7_Slides_FIXED reference.
+      // All figures are computed from live transactions; no example values are hardcoded.
+      const totalQty = (tx: RawTransaction[]) => tx.reduce((n,t)=>n+(Number(t.qty)||0),0);
+      const normalizedStaff = (t:RawTransaction) => String(t.salesName||t.salesId||"Unknown").trim();
+      const staffNames = [...new Set(currentMTD.map(normalizedStaff))].sort((a,b)=>amount(currentMTD.filter(t=>normalizedStaff(t)===a))-amount(currentMTD.filter(t=>normalizedStaff(t)===b))).reverse();
+      const getStaffRows=(name:string)=>currentMTD.filter(t=>normalizedStaff(t)===name);
+      const targetValid=targetSheetMonth===currentPrefix;
+      const targetFor=(name:string)=>targetValid?(staffTargets[name.toLowerCase().trim()]||0):0;
+      const storeTarget=targetValid?storeTotalTarget:0;
+      const catTargets=targetValid?categoryTargets:{};
+      const pct=(n:number,d:number)=>d>0?(n/d*100).toFixed(1)+"%":"N/A";
+      const compact=(n:number)=>"Rp "+(n/1000000).toLocaleString("id-ID",{maximumFractionDigits:2})+" jt";
+      const appleKind=(t:RawTransaction)=>{
+        const p=String(t.productName||"").toUpperCase();
+        return /IPHONE/.test(p)?"iPhone":/IPAD/.test(p)?"iPad":/MACBOOK|(^|\W)MAC(\W|$)/.test(p)?"MacBook":/WATCH/.test(p)?"Apple Watch":"Other";
+      };
+      const androidBrands=["Samsung","Oppo","Xiaomi","Huawei","Motorola","Infinix"];
+      const androidKind=(t:RawTransaction)=>{
+        const b=String(t.brand||"").toUpperCase(),p=String(t.productName||"").toUpperCase();
+        return androidBrands.find(v=>(b+" "+p).includes(v.toUpperCase()))||"Other";
+      };
+      const slideHeader=(heading:string,index:number)=>{
+        const slide=pptx.addSlide();
+        slide.background={color:WHITE};
+        slide.addShape(pptx.ShapeType.rect,{x:0,y:0,w:13.333,h:0.10,line:{color:BLUE},fill:{color:BLUE}});
+        if(digiplusLogoData)slide.addImage({data:digiplusLogoData,x:0.57,y:0.28,w:0.62,h:0.62});
+        slide.addText(heading,{x:1.35,y:0.33,w:11.2,h:0.5,fontFace:"Aptos Display",fontSize:21,bold:true,color:NAVY,margin:0});
+        slide.addText("DIGIPLUS  •  GRAND INDONESIA QF01   |   "+currentPrefix+"   |   "+String(index).padStart(2,"0")+"/07",{x:0.6,y:7.13,w:12.1,h:0.19,fontSize:8,color:MUTED,margin:0});
+        return slide;
+      };
+      const table=(slide:any,headers:string[],data:string[][],widths:number[],top=1.45)=>{
+        const left=0.57,full=12.2,headerH=0.48,rowH=Math.min(0.43,5.15/Math.max(data.length,1));
+        slide.addShape(pptx.ShapeType.rect,{x:left,y:top,w:full,h:headerH,line:{color:LIGHT},fill:{color:LIGHT}});
+        let x=left;
+        headers.forEach((h,i)=>{slide.addText(h,{x:x+0.07,y:top+0.1,w:widths[i]-0.14,h:0.28,fontSize:headers.length>6?8:9,bold:true,color:NAVY,margin:0,breakLine:false});x+=widths[i];});
+        data.forEach((values,i)=>{
+          const y=top+headerH+i*rowH;
+          if(i%2===0)slide.addShape(pptx.ShapeType.rect,{x:left,y,w:full,h:rowH,line:{color:"F5F8FC",transparency:100},fill:{color:"F5F8FC"}});
+          let xx=left;
+          values.forEach((v,j)=>{slide.addText(String(v),{x:xx+0.07,y:y+0.07,w:widths[j]-0.14,h:rowH-0.09,fontSize:headers.length>6||data.length>9?7.2:8.7,bold:j===0,color:j===0?NAVY:MUTED,margin:0,breakLine:false,fit:"shrink"});xx+=widths[j];});
+        });
+      };
+      const cell=(tx:RawTransaction[])=>totalQty(tx)+" / "+compact(amount(tx));
+      const by=(tx:RawTransaction[],fn:(t:RawTransaction)=>boolean)=>tx.filter(fn);
+      // 01 — Store Overview: target, achievement and four LOB rows.
       {
-        const slide = makeSlide("STORE OVERVIEW", "Ringkasan store dan staff aktif berdasarkan transaksi MTD.");
-        slide.addShape(pptx.ShapeType.roundRect, { x: 0.6, y: 1.6, w: 12.1, h: 1.35, rectRadius: 0.2, line: { color: LIGHT }, fill: { color: LIGHT } });
-        slide.addText("DIGIPLUS GRAND INDONESIA", { x: 0.92, y: 1.92, w: 8, h: 0.35, fontSize: 24, bold: true, color: NAVY, margin: 0 });
-        slide.addText("Store QF01  •  " + currentPrefix + " MTD  •  " + fmt(amount(currentMTD)), { x: 0.92, y: 2.4, w: 10, h: 0.25, fontSize: 13, color: BLUE, margin: 0 });
-        const cvrOverview = [
-          "CVR BASED ON INPUT TRAFFIC • MTD",
-          "Traffic: "+countLabel(mtdTraffic?.traffic),
-          "Unique Invoice (covered dates): "+countLabel(mtdTraffic?.invoices),
-          "CVR = Invoice / Traffic: "+cvrLabel(mtdTraffic)
-        ];
-        slide.addText(cvrOverview.join("    |    "),{x:0.8,y:3.06,w:11.6,h:0.25,fontSize:9,bold:true,color:BLUE,margin:0});
-        const staff = [...new Map(currentMTD.filter(t => t.salesId || t.salesName).map(t => [t.salesId || t.salesName, t.salesName])).values()].sort();
-        slide.addText("ACTIVE STAFF (" + staff.length + ")", { x: 0.7, y: 3.35, w: 8, h: 0.3, fontSize: 17, bold: true, color: NAVY });
-        const perCol = Math.max(1, Math.ceil(staff.length / 3));
-        staff.forEach((name, i) => slide.addText(String(i + 1) + ". " + name, { x: 0.8 + Math.floor(i / perCol) * 4.1, y: 3.92 + (i % perCol) * Math.min(0.35, 2.85 / perCol), w: 3.9, h: 0.25, fontSize: 12, color: NAVY, margin: 0 }));
-        if (!staff.length) slide.addText("Tidak ada staff dengan transaksi MTD.", { x: 0.8, y: 4, w: 10, h: 0.4, color: MUTED });
+        const slide=slideHeader("STORE OVERVIEW",1);
+        slide.addText("MTD 1–"+dd+" "+new Intl.DateTimeFormat("id-ID",{month:"long",year:"numeric",timeZone:"UTC"}).format(asDate(cutoff)),{x:0.62,y:1.12,w:11.5,h:0.34,fontSize:14,color:MUTED,margin:0});
+        const kpis=[["TOTAL SALES",fmt(amount(currentMTD))],["TARGET BULAN",storeTarget>0?fmt(storeTarget):"N/A"],["ACHIEVEMENT",pct(amount(currentMTD),storeTarget)]];
+        kpis.forEach((k,i)=>{const x=0.6+i*4.15;slide.addShape(pptx.ShapeType.roundRect,{x,y:1.65,w:3.93,h:1.13,rectRadius:0.12,line:{color:"DCE8F7"},fill:{color:"F4F8FF"}});slide.addText(k[0],{x:x+0.19,y:1.86,w:3.55,h:0.23,fontSize:10,bold:true,color:MUTED,margin:0});slide.addText(k[1],{x:x+0.19,y:2.2,w:3.55,h:0.36,fontSize:18,bold:true,color:NAVY,margin:0,fit:"shrink"});});
+        const lobNames=["Apple Devices","Android Devices","Accessories","VAS"];
+        const targetKeys=["apple","android","accessories","vas"];
+        const lobRows=lobNames.map((name,i)=>{const tx=by(currentMTD,t=>classify(t)===name);const target=Number((catTargets as any)[targetKeys[i]]||0);return [name,target>0?fmt(target):"N/A",String(totalQty(tx)),fmt(amount(tx)),pct(amount(tx),target)];});
+        table(slide,["LOB","TARGET BULAN","QTY","ACHIEVEMENT","ACH. %"],lobRows,[2.7,2.75,1.1,3.6,2.05],3.23);
       }
-      // Slide 2: unified MoM and YoY overview using the same WIB day cutoff.
+      // 02 — MTD Staff Performance: one row per staff, dynamic targets and LOB contribution.
       {
-        const lastYearPrefix=String(yy-1)+"-"+String(mm).padStart(2,"0");
-        const lyCutoff=lastYearPrefix+"-"+String(Math.min(dd,new Date(Date.UTC(yy-1,mm,0)).getUTCDate())).padStart(2,"0");
-        const lyRows=lastYearRows.filter(r=>r.date>=lastYearPrefix+"-01"&&r.date<=lyCutoff);
-        const classifyLy=(r:typeof lastYearRows[number])=>{
-          const value=(r.brand+" "+r.group+" "+r.category+" "+r.description).toUpperCase();
-          if(/QOALA|TELKOMSEL|INDOSAT|MYPRIO|PROTEKSI|PROTECTION|(^|\\W)XL(\\W|$)/.test(value))return "VAS";
-          if(r.group.includes("ACCESSOR")||r.category.includes("ACCESSOR"))return "Accessories";
-          if(r.brand==="APPLE"||r.division.includes("APPLE")||r.group.includes("APPLE"))return "Apple Devices";
-          if(/SAMSUNG|OPPO|XIAOMI|REDMI|MOTOROLA|HUAWEI|INFINIX|VIVO|REALME|HONOR/.test(r.brand))return "Android Devices";
-          return "Unmapped";
+        const slide=slideHeader("MTD STAFF PERFORMANCE",2);
+        const rows=staffNames.map(name=>{const tx=getStaffRows(name),target=targetFor(name);return [name,target>0?compact(target):"N/A",String(totalQty(tx)),compact(amount(tx)),pct(amount(tx),target),cell(by(tx,t=>classify(t)==="Apple Devices")),cell(by(tx,t=>classify(t)==="Android Devices"))];});
+        table(slide,["STAFF","TARGET","QTY","TOTAL VALUE","ACH. %","APPLE Q / VALUE","ANDROID Q / VALUE"],rows,[1.65,1.55,0.6,1.68,0.75,3,2.97],1.45);
+      }
+      // 03 — Apple by staff and product.
+      {
+        const slide=slideHeader("MTD APPLE DEVICES  |  STAFF × PRODUCT",3);
+        const kinds=["iPhone","iPad","MacBook","Apple Watch"];
+        const rows=staffNames.map(name=>{const tx=by(getStaffRows(name),t=>classify(t)==="Apple Devices");return [name,...kinds.map(k=>cell(by(tx,t=>appleKind(t)===k))),cell(tx)];});
+        table(slide,["STAFF",...kinds,"TOTAL"],rows,[1.8,2.28,2.05,2.18,2.13,1.76],1.45);
+      }
+      // 04 — Android by staff and brand.
+      {
+        const slide=slideHeader("MTD ANDROID DEVICES  |  STAFF × BRAND",4);
+        const rows=staffNames.map(name=>{const tx=by(getStaffRows(name),t=>classify(t)==="Android Devices");return [name,...androidBrands.map(k=>cell(by(tx,t=>androidKind(t)===k))),cell(tx)];});
+        table(slide,["STAFF",...androidBrands,"TOTAL"],rows,[1.4,1.57,1.5,1.5,1.5,1.6,1.57,1.56],1.45);
+      }
+      // 05 — WTD category growth, matching the selected weekly period.
+      {
+        const slide=slideHeader("WTD CATEGORY GROWTH  |  WEEK VS WEEK",5);
+        slide.addText(toIso(lastWeekStart)+" – "+toIso(lastWeekCutoff)+"  VS  "+toIso(thisWeekStart)+" – "+toIso(weekCutoffDate),{x:0.6,y:1.07,w:12,h:0.26,fontSize:10,color:MUTED,margin:0});
+        const names=["Apple Devices","Android Devices","Accessories","VAS"];
+        const rows=names.map(name=>{const old=by(previousWeek,t=>classify(t)===name),now=by(currentWeek,t=>classify(t)===name);return [name,cell(old),cell(now),fmt(amount(now)-amount(old)),growthText(amount(now),amount(old))];});
+        table(slide,["LOB","PREVIOUS WEEK QTY / VALUE","CURRENT WEEK QTY / VALUE","Δ VALUE","GROWTH"],rows,[2.25,3.3,3.3,2.25,1.1],1.65);
+      }
+      // 06 — WTD Apple product families and Android brands.
+      {
+        const slide=slideHeader("WTD BRAND  |  APPLE & ANDROID",6);
+        const specs=[...["iPhone","MacBook","iPad","Apple Watch"].map(k=>({label:"Apple • "+k,match:(t:RawTransaction)=>classify(t)==="Apple Devices"&&appleKind(t)===k})),...androidBrands.map(k=>({label:"Android • "+k,match:(t:RawTransaction)=>classify(t)==="Android Devices"&&androidKind(t)===k}))];
+        const rows=specs.map(v=>{const old=by(previousWeek,v.match),now=by(currentWeek,v.match);return [v.label,cell(old),cell(now),fmt(amount(now)-amount(old))];});
+        table(slide,["LOB","PREVIOUS WEEK QTY / VALUE","CURRENT WEEK QTY / VALUE","Δ VALUE"],rows,[3.0,3.55,3.55,2.1],1.45);
+      }
+      // 07 — Growth Intelligence: evidence-based insights, not invented stock explanations.
+      {
+        const slide=slideHeader("GROWTH INTELLIGENCE  |  ACTION PLAN",7);
+        const categories=["Apple Devices","Android Devices","Accessories","VAS"];
+        const box=(y:number,title:string,body:string,action:string)=>{
+          slide.addShape(pptx.ShapeType.roundRect,{x:0.6,y,w:12.15,h:1.12,rectRadius:0.1,line:{color:"DCE8F7"},fill:{color:"F7FAFF"}});
+          slide.addText(title,{x:0.82,y:y+0.12,w:11.7,h:0.22,fontSize:12,bold:true,color:BLUE,margin:0});
+          slide.addText(body,{x:0.82,y:y+0.41,w:11.7,h:0.24,fontSize:9,color:NAVY,margin:0,fit:"shrink"});
+          slide.addText("ACTION: "+action,{x:0.82,y:y+0.75,w:11.7,h:0.22,fontSize:9,bold:true,color:MUTED,margin:0,fit:"shrink"});
         };
-        const slide=makeSlide("MTM / LFL • MoM & LAST YEAR","Tanggal setara 1–"+dd+" | "+currentPrefix+" vs "+previousPrefix+" vs "+lastYearPrefix+" (WIB)");
-        const x=[0.7,4.1,6.2,8.3,10.35],w=[3.25,1.95,1.95,1.9,2.2];
-        ["Kategori","Current MTD","Last Month","Last Year","MoM / YoY"].forEach((label,i)=>slide.addText(label,{x:x[i],y:1.65,w:w[i],h:0.3,fontSize:11,bold:true,color:NAVY,margin:0}));
-        const growth=(now:number,old:number)=>old>0?((now-old)/old*100).toFixed(1)+"%":"N/A";
-        groups.forEach((g,i)=>{
-          const y=2.2+i*0.7;
-          const now=amount(currentMTD,g),prev=amount(previousMTD,g);
-          const ly=g==="Total Amount"?lyRows.reduce((n,r)=>n+r.amount,0):lyRows.filter(r=>classifyLy(r)===g).reduce((n,r)=>n+r.amount,0);
-          const values=[g,fmt(now),fmt(prev),lastYearState==="ready"?fmt(ly):"N/A",growth(now,prev)+" / "+(lastYearState==="ready"?growth(now,ly):"N/A")];
-          values.forEach((value,j)=>slide.addText(value,{x:x[j],y,w:w[j],h:0.36,fontSize:j===4?10:11,bold:j===0,color:j===0?NAVY:MUTED,margin:0}));
-        });
-        slide.addText("VAS = Qoala + Telkomsel + XL + Indosat.",{x:0.7,y:6.05,w:11.8,h:0.3,fontSize:11,bold:true,color:BLUE,margin:0});
-        slide.addText(lastYearState==="ready"?"Last Year: breakdwon MSR G–O | Nilai unmapped tetap termasuk Total Amount.":"Last Year belum tersedia / gagal dimuat; nilai YoY ditampilkan N/A.",{x:0.7,y:6.45,w:12,h:0.3,fontSize:9,color:MUTED,margin:0});
-      }
-      // Slide 3: weekly Sunday-to-cutoff, previous Sunday-to-same-weekday.
-      {
-        const slide = makeSlide("WEEK TO WEEK • SAME WEEKDAY CUT-OFF", toIso(thisWeekStart) + " s/d " + cutoff + " vs " + toIso(lastWeekStart) + " s/d " + toIso(lastWeekCutoff));
-        tableHeader(slide, "Minggu ini", "Minggu lalu");
-        summaryRows(slide, currentWeek, previousWeek);
-      }
-      // Slide 4: MTD performance by category, same-day last month as benchmark.
-      {
-        const slide = makeSlide("MTD SALES • CATEGORY BREAKDOWN", "Penjualan 1–" + dd + " bulan ini dibanding tanggal yang sama bulan lalu; semua nominal adalah sales amount.");
-        tableHeader(slide, "MTD saat ini", "MTD bulan lalu");
-        summaryRows(slide, currentMTD, previousMTD, true);
-        slide.addShape(pptx.ShapeType.roundRect,{x:0.6,y:6.88,w:12.1,h:0.19,rectRadius:0.05,line:{color:LIGHT},fill:{color:LIGHT}});
-        slide.addText("CVR COMPARISON • Current MTD: Traffic "+countLabel(mtdTraffic?.traffic)+" | Invoice "+countLabel(mtdTraffic?.invoices)+" | CVR "+cvrLabel(mtdTraffic)+"    •    Weekly: "+cvrLabel(weekTraffic)+" vs "+cvrLabel(previousWeekTraffic),{x:0.7,y:6.9,w:11.9,h:0.16,fontSize:7.6,bold:true,color:BLUE,margin:0});
-
-      }
-      // Slide 5: staff achievement by LOB, with product-family contributions.
-      {
-        const slide = makeSlide("STAFF ACHIEVEMENT BY LOB", "MTD staff ranking • Sales Value • Qty • Contribution • UPT • CVR (if traffic per staff is available)");
-        const staff = [...new Map(currentMTD.filter(t=>t.salesId||t.salesName).map(t => [t.salesId || t.salesName, t.salesName])).entries()]
-          .map(([id,name]) => ({ id, name, tx: currentMTD.filter(t => (t.salesId || t.salesName) === id) }))
-          .sort((a,b)=>amount(b.tx)-amount(a.tx));
-        const cols = [
-          {label:"Staff",x:0.66,w:2.13},{label:"Apple",x:2.85,w:1.45},{label:"Android",x:4.34,w:1.45},
-          {label:"Accessories",x:5.84,w:1.43},{label:"VAS",x:7.32,w:1.34},
-          {label:"Total Sales",x:8.72,w:1.66},{label:"Qty",x:10.46,w:0.54},
-          {label:"UPT",x:11.08,w:0.66},{label:"CVR",x:11.85,w:0.67}
-        ];
-        slide.addShape(pptx.ShapeType.rect,{x:0.6,y:1.48,w:12.1,h:0.47,line:{color:LIGHT},fill:{color:LIGHT}});
-        cols.forEach((v,i)=>slide.addText(v.label,{x:v.x,y:1.61,w:v.w,h:0.2,fontSize:9,bold:true,color:NAVY,align:i?"right":"left",margin:0}));
-        const uniqueInvoices=(tx:RawTransaction[])=>new Set(tx.map(t=>t.invoice).filter(Boolean)).size;
-        const physical=(t:RawTransaction)=>classify(t)!=="VAS";
-        const staffRows=staff.slice(0,11);
-        const rowHeight=Math.min(0.34,3.65/Math.max(staffRows.length,1));
-        staffRows.forEach((s,i)=>{
-          const y=2.03+i*rowHeight;
-          if(i%2===0)slide.addShape(pptx.ShapeType.rect,{x:0.6,y:y-0.03,w:12.1,h:rowHeight,line:{color:"F7F9FC",transparency:100},fill:{color:"F7F9FC"}});
-          const qty=s.tx.filter(physical).reduce((n,t)=>n+(Number(t.qty)||0),0);
-          const invoices=uniqueInvoices(s.tx);
-          const upt=invoices? (qty/invoices).toFixed(2):"N/A";
-          const vals=[String(i+1)+". "+s.name,...groups.slice(1).map(g=>fmt(amount(s.tx,g))),fmt(amount(s.tx)),String(qty),upt,"N/A"];
-          vals.forEach((v,j)=>slide.addText(v,{x:cols[j].x,y,w:cols[j].w,h:rowHeight-.04,fontSize:staffRows.length>8?7.2:8.5,bold:j===0,color:j===0?NAVY:MUTED,align:j?"right":"left",margin:0,breakLine:false}));
-        });
-        if(staff.length>11)slide.addText("+"+(staff.length-11)+" staff lain tidak ditampilkan karena batas ruang slide.",{x:0.7,y:5.83,w:11,h:0.22,fontSize:9,color:MUTED,margin:0});
-        slide.addText("PRODUCT CONTRIBUTION • APPLE / SAMSUNG", {x:0.7,y:6.0,w:11.7,h:0.23,fontSize:11,bold:true,color:BLUE,margin:0});
-        const appleNames=["iPhone","iPad","MacBook","Apple Watch","AirPods"];
-        const samsungNames=["Phone","Tablet","Watch","Accessories"];
-        const appleSub=(t:RawTransaction)=>{const p=t.productName.toUpperCase();return /AIRPODS/.test(p)?"AirPods":/IPHONE/.test(p)?"iPhone":/IPAD/.test(p)?"iPad":/MACBOOK|(^|\\W)MAC(\\W|$)/.test(p)?"MacBook":/WATCH/.test(p)?"Apple Watch":"Other Apple";};
-        const samsungSub=(t:RawTransaction)=>{const p=(t.productName+" "+t.productType).toUpperCase();return /TABLET|GALAXY TAB/.test(p)?"Tablet":/WATCH/.test(p)?"Watch":/BUDS|CASE|CHARGER|ACCESSOR|COVER/.test(p)?"Accessories":"Phone";};
-        const appleTotal=currentMTD.filter(t=>classify(t)==="Apple Devices").reduce((n,t)=>n+(Number(t.amount)||0),0);
-        const samsungTotal=currentMTD.filter(t=>(t.brand||"").toUpperCase().includes("SAMSUNG")).reduce((n,t)=>n+(Number(t.amount)||0),0);
-        slide.addText("Apple: "+appleNames.map(n=>n+" "+fmt(currentMTD.filter(t=>classify(t)==="Apple Devices"&&appleSub(t)===n).reduce((a,t)=>a+(Number(t.amount)||0),0))).join("  |  ").slice(0,210),{x:0.7,y:6.3,w:12,h:0.22,fontSize:8,color:NAVY,margin:0});
-        slide.addText("Samsung: "+samsungNames.map(n=>n+" "+fmt(currentMTD.filter(t=>(t.brand||"").toUpperCase().includes("SAMSUNG")&&samsungSub(t)===n).reduce((a,t)=>a+(Number(t.amount)||0),0))).join("  |  ").slice(0,210),{x:0.7,y:6.56,w:12,h:0.22,fontSize:8,color:NAVY,margin:0});
-        slide.addText("Apple total "+fmt(appleTotal)+" • Samsung total "+fmt(samsungTotal)+" • CVR staff N/A tanpa traffic per staff • Achievement N/A tanpa target staff.",{x:0.7,y:6.84,w:12,h:0.17,fontSize:8,color:MUTED,margin:0});
-      }
-      // Slide 6: optional analysis and action plan.
-      if(pptxIncludeAnalysis) {
-        const slide = makeSlide("ACTION PLAN • NEED REVIEW", "Analisa otomatis berbasis data transaksi. Indikasi, bukan penilaian personal atau keputusan stok final.");
-        const insights: string[] = [];
-        const mtdDiff = amount(currentMTD) - amount(previousMTD);
-        const weekDiff = amount(currentWeek) - amount(previousWeek);
-        insights.push("MTD: " + growthText(amount(currentMTD), amount(previousMTD)) + " (" + fmt(mtdDiff) + ") dibanding bulan lalu pada cut-off sama.");
-        insights.push("Weekly: " + growthText(amount(currentWeek), amount(previousWeek)) + " (" + fmt(weekDiff) + ") dibanding minggu lalu pada hari setara.");
-        groups.slice(1).forEach(g => {
-          const m = amount(currentMTD, g), p = amount(previousMTD, g);
-          if (p > m) insights.push("Penurunan " + g + ": " + fmt(p - m) + " (" + growthText(m, p) + "). Tinjau stok dan attach rate.");
-        });
-        const staffIds = new Set([...currentMTD, ...previousMTD].map(t => t.salesId || t.salesName));
-        const review = [...staffIds].map(id => {
-          const curr = currentMTD.filter(t => (t.salesId || t.salesName) === id);
-          const prev = previousMTD.filter(t => (t.salesId || t.salesName) === id);
-          return { name: curr[0]?.salesName || prev[0]?.salesName || id, now: amount(curr), before: amount(prev) };
-        }).filter(v => v.before > v.now && v.before > 0).sort((a, b) => (b.before - b.now) - (a.before - a.now)).slice(0, 4);
-        const productMap = new Map<string, { name: string; current: number; previous: number }>();
-        [...currentMTD, ...previousMTD].forEach(t => {
-          const key = t.sapArticle || t.productName;
-          if (!key) return;
-          if (!productMap.has(key)) productMap.set(key, { name: t.productName, current: 0, previous: 0 });
-          const item = productMap.get(key)!;
-          if (currentMTD.includes(t)) item.current += t.qty;
-          else item.previous += t.qty;
-        });
-        const opportunities = [...productMap.values()].filter(v => v.previous > v.current && v.previous >= 2).sort((a, b) => b.previous - b.current - (a.previous - a.current)).slice(0, 4);
-        const blocks = [
-          { heading: "PERFORMANCE ANALYSIS", lines: insights.slice(0, 6) },
-          { heading: "STAFF NEED REVIEW", lines: review.length ? review.map(v => v.name + ": " + fmt(v.now) + " vs " + fmt(v.before) + " (" + growthText(v.now, v.before) + ")") : ["Tidak ada penurunan staff yang dapat dibandingkan dari data MTD."] },
-          { heading: "PRODUCTS TO REVIEW / REPLENISH", lines: opportunities.length ? opportunities.map(v => v.name.slice(0, 65) + " • Qty " + v.current + " vs " + v.previous + " (cek stok & demand)") : ["Belum ada indikasi produk menurun yang memenuhi ambang perbandingan."] }
-        ];
-        let y = 1.5;
-        blocks.forEach(block => {
-          slide.addText(block.heading, { x: 0.7, y, w: 12, h: 0.25, fontSize: 12, bold: true, color: BLUE, margin: 0 });
-          y += 0.34;
-          block.lines.forEach(line => {
-            slide.addText("• " + line, { x: 0.83, y, w: 11.6, h: 0.24, fontSize: 9, color: NAVY, margin: 0 });
-            y += 0.28;
-          });
-          y += 0.22;
-        });
-        slide.addText("Catatan: evaluasi staff harus mempertimbangkan jadwal, jam kerja, traffic, ketersediaan stok, dan target individual. Rekomendasi stok perlu validasi inventory.", { x: 0.7, y: 6.75, w: 12, h: 0.26, fontSize: 8, italic: true, color: MUTED, margin: 0 });
-      }
-      // Slide 7: Nirwana, CX, Google Review and MAPCLUB New Member activities.
-      {
-        const slide=makeSlide("CUSTOMER ENGAGEMENT & NIRWANA","MTD operational activities • CX • Google Review • New Member MAPCLUB • Apple Watch demo");
-        const eng=engagementRowsExport?.filter((r:any)=>String(r.date||"")>=currentPrefix+"-01"&&String(r.date||"")<=cutoff)||[];
-        const nir=nirwanaRowsExport?.filter((r:any)=>String(r.date||"")>=currentPrefix+"-01"&&String(r.date||"")<=cutoff)||[];
-        const sumCategory=(names:string[])=>engagementRowsExport===null?"N/A":String(eng.filter((r:any)=>names.includes(String(r.category||"").trim().toUpperCase())).reduce((n:number,r:any)=>n+(Number(r.qty)||0),0));
-        const kpis=[
-          ["NIRWANA DEMO",nirwanaRowsExport===null?"N/A":String(nir.length)],
-          ["CX",sumCategory(["CX"])],
-          ["GOOGLE REVIEW",sumCategory(["GOOGLE REVIEW","GR"])],
-          ["NEW MEMBER MAPCLUB",sumCategory(["NEW MEMBER MAPCLUB","MAPCLUB","NEW MEMBER"])]
-        ];
-        kpis.forEach((k,i)=>{
-          const x=0.6+(i%2)*6.18,y=1.52+Math.floor(i/2)*1.13;
-          slide.addShape(pptx.ShapeType.roundRect,{x,y,w:5.9,h:1.0,rectRadius:0.14,line:{color:"D8E6F7"},fill:{color:"F5F9FF"}});
-          slide.addText(k[0],{x:x+0.18,y:y+0.13,w:5.4,h:0.2,fontSize:10,bold:true,color:MUTED,margin:0});
-          slide.addText(k[1],{x:x+0.18,y:y+0.42,w:5.4,h:0.4,fontSize:23,bold:true,color:NAVY,margin:0});
-        });
-        const nirFull=nirwanaRowsExport===null?"N/A":String(nir.filter((r:any)=>r.status==="FULL").length);
-        const nirPartial=nirwanaRowsExport===null?"N/A":String(nir.filter((r:any)=>r.status!=="FULL").length);
-        slide.addText("NIRWANA ACTIVITY BREAKDOWN",{x:0.7,y:4.05,w:11.6,h:0.28,fontSize:13,bold:true,color:BLUE,margin:0});
-        slide.addText("Full Demo: "+nirFull+"     |     Partial Demo: "+nirPartial,{x:0.7,y:4.46,w:11.6,h:0.3,fontSize:12,color:NAVY,margin:0});
-        const staffMap=new Map<string,{name:string;nir:number;cx:number;gr:number;member:number}>();
-        const getStaff=(r:any)=>{const id=String(r.salesId||r.salesName||"Unknown");if(!staffMap.has(id))staffMap.set(id,{name:String(r.salesName||id),nir:0,cx:0,gr:0,member:0});return staffMap.get(id)!;};
-        nir.forEach((r:any)=>getStaff(r).nir++);
-        eng.forEach((r:any)=>{const x=getStaff(r),cat=String(r.category||"").toUpperCase(),qty=Number(r.qty)||0;if(cat==="CX")x.cx+=qty;else if(cat==="GR"||cat==="GOOGLE REVIEW")x.gr+=qty;else if(cat.includes("MEMBER")||cat.includes("MAPCLUB"))x.member+=qty;});
-        slide.addText("STAFF CONTRIBUTION • NIRWANA / CX / GR / MEMBER",{x:0.7,y:5.04,w:11.6,h:0.28,fontSize:12,bold:true,color:BLUE,margin:0});
-        const ranked=[...staffMap.values()].sort((a,b)=>(b.nir+b.cx+b.gr+b.member)-(a.nir+a.cx+a.gr+a.member)).slice(0,5);
-        ranked.forEach((r,i)=>slide.addText((i+1)+". "+r.name+"  |  Nirwana "+r.nir+"  •  CX "+r.cx+"  •  GR "+r.gr+"  •  Member "+r.member,{x:0.75,y:5.42+i*0.27,w:11.7,h:0.23,fontSize:9,color:NAVY,margin:0}));
-        if(!ranked.length)slide.addText("Belum ada aktivitas tercatat / sumber tidak tersedia.",{x:0.75,y:5.5,w:11.7,h:0.3,fontSize:10,color:MUTED,margin:0});
-        slide.addText("Catatan: New Member ditampilkan sebagai MAPCLUB jika sumber memakai kategori New Member; validasi definisi operasional diperlukan.",{x:0.7,y:6.88,w:12,h:0.18,fontSize:8,color:MUTED,margin:0});
+        const trends=categories.map(name=>({name,now:amount(by(currentWeek,t=>classify(t)===name)),old:amount(by(previousWeek,t=>classify(t)===name))})).sort((a,b)=>(a.now-a.old)-(b.now-b.old));
+        const weakest=trends[0],strongest=trends[trends.length-1];
+        box(1.38,"NEED ATTENTION  |  "+weakest.name.toUpperCase()+"  "+growthText(weakest.now,weakest.old),"Perubahan weekly: "+fmt(weakest.now-weakest.old)+". Periksa detail produk, ketersediaan stok, dan conversion.","Follow-up lead, review stock allocation, evaluasi penawaran harian.");
+        box(2.68,"GROWTH OPPORTUNITY  |  "+strongest.name.toUpperCase()+"  "+growthText(strongest.now,strongest.old),"Perubahan weekly: "+fmt(strongest.now-strongest.old)+". Identifikasi produk dan staff penyumbang pertumbuhan.","Replikasi product pitch, optimalkan demo, jaga stok produk terlaris.");
+        const top=[...staffNames].sort((a,b)=>amount(getStaffRows(b))-amount(getStaffRows(a))).slice(0,3);
+        box(3.98,"TOP SALES  |  MTD",top.map((name,i)=>(i+1)+". "+name+" "+compact(amount(getStaffRows(name)))).join("   |   ")||"Belum ada transaksi.","Sharing best practice, coaching dan roleplay penjualan.");
+        const gaps=staffNames.filter(n=>targetFor(n)>0).map(n=>({name:n,p:amount(getStaffRows(n))/targetFor(n)*100})).sort((a,b)=>a.p-b.p).slice(0,3);
+        box(5.28,"NEED ATTENTION  |  TARGET GAP",gaps.length?gaps.map(v=>v.name+" "+v.p.toFixed(1)+"%").join("   |   "):"Target staff belum tersedia untuk periode ini.","Daily pipeline, follow-up customer, target harian per LOB, coaching conversion.");
+        slide.addText("Catatan: penyebab stok atau operasional memerlukan verifikasi manual; data transaksi saja tidak membuktikannya.",{x:0.68,y:6.67,w:12,h:0.23,fontSize:8,italic:true,color:MUTED,margin:0});
       }
 
-      await pptx.writeFile({ fileName: "Digiplus_GI_MTD_" + cutoff + "_WTD_" + toIso(thisWeekStart) + "_" + toIso(weekCutoffDate) + ".pptx" });
+      await pptx.writeFile({ fileName: "Digiplus_GI_7_Slides_" + cutoff + ".pptx" });
       setPptxConfigOpen(false);
     } catch (err) {
       alert("Gagal mengekspor slide PowerPoint: " + (err instanceof Error ? err.message : String(err)));
