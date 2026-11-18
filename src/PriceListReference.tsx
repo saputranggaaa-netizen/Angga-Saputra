@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { FileText } from "lucide-react";
 import { upload } from "@vercel/blob/client";
 type FileItem = { pathname: string; url: string; uploadedAt: string; size: number };
 export default function PriceListReference() {
@@ -20,7 +21,7 @@ export default function PriceListReference() {
     }catch(e){setMessage(e instanceof Error?e.message:"Upload gagal");}finally{setBusy(false);}
   };
   return <section className="rounded-2xl border border-slate-300/30 p-5 space-y-4">
-    <h2 className="text-lg font-bold">📄 Price List Reference</h2>
+    <h2 className="text-lg font-bold flex items-center gap-2"><FileText className="w-5 h-5 shrink-0" strokeWidth={1.8} aria-hidden="true" /> Price List Reference</h2>
     <p className="text-sm opacity-75">Khusus dokumen referensi, tidak mengubah database penjualan atau master harga. File tersimpan dengan tautan publik; jangan unggah dokumen rahasia.</p>
     <div className="flex flex-wrap gap-2">
       <input aria-label="File price list" type="file" accept=".pdf,.xlsx,.xls" onChange={e=>setSelected(e.target.files?.[0]||null)} className="text-sm max-w-full"/>
