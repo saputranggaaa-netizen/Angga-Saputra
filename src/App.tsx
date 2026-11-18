@@ -2830,7 +2830,7 @@ Indosat IM3 : ${isatText}`;
                 disabled={isExportingPptx}
                 className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-gradient-to-r from-sky-500/20 to-blue-500/20 hover:from-sky-500/30 hover:to-blue-500/30 border border-sky-500/40 text-sky-700 dark:text-sky-400 font-black text-xs shadow-md transition active:scale-95"
               >
-                <span>📽️</span>
+                <Presentation size={16} aria-hidden="true"/>
                 <span className="truncate font-black">{isExportingPptx ? "Membuat Slide..." : "Export ke Slide PPTX"}</span>
               </button>
             </div>
@@ -2853,13 +2853,13 @@ Indosat IM3 : ${isatText}`;
                 isDark ? "bg-white/5 border-white/10 hover:bg-white/10" : "bg-slate-200/80 border-slate-300 hover:bg-slate-300/80 text-slate-950"
               }`}
             >
-              <span>{isDark ? "☀️ Light Mode" : "🌙 Dark Mode"}</span>
+              <span><span className="inline-flex items-center gap-2">{isDark?<Sun size={16}/>:<Moon size={16}/>} {isDark?"Light Mode":"Dark Mode"}</span></span>
             </button>
             <button
               onClick={handleLogout}
               className="w-full py-2 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 border border-rose-500/20 text-xs font-black flex items-center justify-center gap-2 transition"
             >
-              <span>🚪 Keluar</span>
+              <span className="inline-flex items-center gap-2"><LogOut size={16}/> Keluar</span>
             </button>
           </div>
         </div>
@@ -2963,7 +2963,7 @@ Indosat IM3 : ${isatText}`;
               className="p-2 rounded-xl bg-slate-800 text-slate-300 border border-slate-700 active:scale-95 transition text-xs flex items-center gap-1 font-bold"
               title="Sync Live Data"
             >
-              <span>🔄</span>
+              <RefreshCw size={16} aria-hidden="true"/>
             </button>
           </div>
         </header>
@@ -2978,7 +2978,7 @@ Indosat IM3 : ${isatText}`;
 
                 <div className="hidden sm:flex flex-wrap items-center gap-2 mt-1.5">
                   <span className="px-2.5 py-1 rounded-xl bg-sky-500/15 text-sky-400 border border-sky-400/30 text-xs font-black flex items-center gap-1.5 shadow-sm">
-                    <span>🗓️</span>
+                    <CalendarDays size={15} aria-hidden="true"/>
                     <span>{todayFormatted}</span>
                   </span>
 
@@ -3002,7 +3002,7 @@ Indosat IM3 : ${isatText}`;
                   onClick={handleShareDaily}
                   className="px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-95"
                 >
-                  <span>📲</span>
+                  <Share2 size={16} aria-hidden="true"/>
                   <span className="hidden sm:inline">Share Daily</span><span className="sm:hidden">Share</span>
                 </button>
 
@@ -3011,7 +3011,7 @@ Indosat IM3 : ${isatText}`;
                   disabled={isLoading}
                   className={`px-3 py-1.5 rounded-xl border text-xs font-black transition flex items-center gap-1.5 ${innerBg} text-slate-950 dark:text-white`}
                 >
-                  <span>🔄</span>
+                  <RefreshCw size={16} aria-hidden="true"/>
                   <span className="hidden sm:inline">{isLoading ? "Mengambil Data..." : "Sync Live"}</span><span className="sm:hidden">{isLoading ? "Sync..." : "Sync"}</span>
                 </button>
 
@@ -3306,7 +3306,7 @@ Indosat IM3 : ${isatText}`;
                       <div className="flex justify-between items-center gap-2"><div><p className="text-[10px] font-bold uppercase tracking-widest text-sky-600 dark:text-sky-400">QF01 · Store Command Center</p><h2 className="text-xl font-black text-slate-950 dark:text-white">Overview Store</h2><p className="text-xs text-slate-600 dark:text-slate-300">{periodType==="monthly"?selectedMonth:periodType==="daily"?selectedDate:"Weekly"}</p></div><button type="button" onClick={()=>window.open("https://wa.me/?text="+encodeURIComponent(report),"_blank")} className="rounded-xl bg-emerald-600 text-white text-xs font-bold px-3 py-3">↗ Share</button></div>
                       {mobileOverviewTab==="overview"&&<>
                         <div className="rounded-[24px] bg-gradient-to-br from-blue-700 via-blue-600 to-sky-500 text-white p-5 shadow-lg"><p className="text-sm font-semibold opacity-90">Sales Achievement</p><p className="text-3xl font-black mt-2">{formatIDR(overviewStats.actual)}</p><div className="flex justify-between text-xs mt-2"><span>Target: {overviewStats.target>0?formatIDR(overviewStats.target):"Belum tersedia"}</span><strong>{overviewStats.target>0?overviewStats.achv+"%":"—"}</strong></div><div className="h-2 rounded-full bg-white/25 overflow-hidden mt-3"><div className="h-full bg-cyan-200 rounded-full" style={{width:(overviewStats.target>0?Math.min(100,overviewStats.actual/overviewStats.target*100):0)+"%"}}/></div><div className="mt-4 grid grid-cols-1 gap-3 border-t border-white/30 pt-3 sm:grid-cols-2"><div><p className="text-xs text-blue-100">{isPastOverview?"Final Sales":"Estimated Month-End · Run Rate"}</p><p className="mt-1 text-lg font-black">{estimateOverview===null?"N/A":formatIDR(estimateOverview)}</p><p className="text-[11px] text-blue-100">{elapsedOverview?totalDaysOverview+" hari / "+elapsedOverview+" hari berjalan":"Data periode tidak tersedia"}</p></div><div><p className="text-xs text-blue-100">Projected Achievement</p><p className="mt-1 text-lg font-black">{estimatePctOverview===null?"N/A":estimatePctOverview.toFixed(1)+"%"}</p><p className="text-[11px] text-blue-100">Est. Gap vs Target: {estimateGapOverview===null?"N/A":(estimateGapOverview>=0?"+":"-")+formatIDR(Math.abs(estimateGapOverview))}</p></div></div></div>
-                        <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">{[{label:"Time Elapsed",value:timeGoneStats.timeElapsedPct+"%",icon:"⏱️"},{label:"UPT · Physical",value:upt===null?"—":upt.toFixed(2),icon:"📦"},{label:"ASP · All Items",value:asp===null?"—":formatIDR(asp),icon:"📈"},{label:"ATV",value:atv===null?"—":formatIDR(atv),icon:"🧾"},{label:"Gap to Target",value:overviewStats.target>0?formatIDR(Math.max(0,overviewStats.target-overviewStats.actual)):"—",icon:"🎯"}].map(k=><div key={k.label} className={card+" p-3"}><p className="text-[11px] text-slate-500 dark:text-slate-300">{k.icon} {k.label}</p><p className="text-lg font-black text-slate-950 dark:text-white mt-1">{k.value}</p></div>)}</div>
+                        <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">{[{label:"Time Elapsed",value:timeGoneStats.timeElapsedPct+"%",icon:"⏱️"},{label:"UPT · Physical",value:upt===null?"—":upt.toFixed(2),icon:"📦"},{label:"ASP · All Items",value:asp===null?"—":formatIDR(asp),icon:"📈"},{label:"ATV",value:atv===null?"—":formatIDR(atv),icon:"🧾"},{label:"Gap to Target",value:overviewStats.target>0?formatIDR(Math.max(0,overviewStats.target-overviewStats.actual)):"—",icon:"🎯"}].map(k=><div key={k.label} className={card+" p-3"}><p className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-300">{k.label==="Time Elapsed"?<Clock3 size={15}/>:k.label.startsWith("UPT")?<Package size={15}/>:k.label.startsWith("ASP")?<TrendingUp size={15}/>:k.label==="ATV"?<Receipt size={15}/>:<Target size={15}/>} {k.label}</p><p className="break-words text-[clamp(12px,3.3vw,18px)] leading-snug font-black text-slate-950 dark:text-white mt-1">{k.value}</p></div>)}</div>
                         <StoreForecastOverview transactions={transactions} selectedMonth={selectedMonth} isDark={isDark}/>
                         <div className={card+" p-4"}><div className="flex justify-between items-center"><h3 className="font-black text-slate-950 dark:text-white">Daily Sales Trend</h3><span className="text-xs text-slate-500">Actual vs Target</span></div><div className="mt-4 flex gap-1.5 items-end h-32 overflow-x-auto pb-1">{dailyTrendStats.filter(d=>d.dayLabel && (periodType!=="monthly" || Number(d.dayLabel.slice(0,2))<=timeGoneStats.elapsedDays)).map((d,i,arr)=><button type="button" key={i} title={d.dayLabel+" · "+formatIDR(d.actual)+" / Target "+formatIDR(d.target)} onClick={()=>{const msg=d.dayLabel+" · Actual "+formatIDR(d.actual)+" · Target "+formatIDR(d.target);window.alert(msg)}} className="min-w-[22px] flex-1 flex flex-col justify-end items-center gap-1 h-full"><div className="w-full rounded-t-md bg-gradient-to-t from-blue-700 to-sky-400" style={{height:Math.max(3,d.actual/Math.max(1,...arr.map(v=>v.actual),...arr.map(v=>v.target))*100)+"%"}}/><span className="text-[9px] text-slate-500 dark:text-slate-300">{d.dayLabel.slice(0,2)}</span></button>)}</div><p className="text-[10px] text-slate-500 mt-2">Ketuk batang untuk melihat nilai harian.</p></div>
                         <button type="button" onClick={()=>setMobileOverviewTab("categories")} className={card+" p-4 w-full text-left flex justify-between items-center"}><div><h3 className="font-black text-slate-950 dark:text-white">Category Explorer</h3><p className="text-xs text-slate-500 dark:text-slate-300">Apple · Android · Accessories · VAS</p></div><span className="text-sky-600 font-bold">Lihat →</span></button>
@@ -3818,7 +3818,7 @@ Indosat IM3 : ${isatText}`;
                 <div className="space-y-5">
                   <section className={`p-5 ${cardBg} border-2 rounded-3xl shadow-xl space-y-5`}>
                     <div className="flex justify-between items-center flex-wrap gap-3">
-                      <div><h2 className="text-lg font-black text-slate-950 dark:text-white">📊 WEEKLY PERFORMANCE — MINGGU–SABTU</h2><p className="text-xs text-slate-500">Target mingguan = target bulanan ÷ jumlah hari bulan × hari dalam week. Week selalu Minggu–Sabtu (7 hari), termasuk lintas bulan. Target hanya dihitung untuk hari pada bulan terpilih.</p></div>
+                      <div><h2 className="text-lg font-black text-slate-950 dark:text-white">WEEKLY PERFORMANCE — MINGGU–SABTU</h2><p className="text-xs text-slate-500">Target mingguan = target bulanan ÷ jumlah hari bulan × hari dalam week. Week selalu Minggu–Sabtu (7 hari), termasuk lintas bulan. Target hanya dihitung untuk hari pada bulan terpilih.</p></div>
                       <select className="rounded-xl border px-3 py-2 bg-white text-slate-950 dark:bg-slate-800 dark:text-white" value={Math.min(calendarWeekIndex,Math.max(0,calendarWeekly.weeks.length-1))} onChange={e=>setCalendarWeekIndex(Number(e.target.value))}>{calendarWeekly.weeks.map((w,i)=><option key={i} value={i}>{w.label} · {w.start} s.d. {w.end}</option>)}</select>
                     </div>
                     {calendarWeekly.current && (() => {
@@ -3836,7 +3836,7 @@ Indosat IM3 : ${isatText}`;
                       const maxDay=Math.max(calendarWeekly.dailyTarget,...days.map(d=>d.amount),1);
                       return <div className="space-y-5">
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                          {([{label:"SALES "+w.label,value:formatIDR(w.amount),detail:"Target "+formatIDR(w.target)+" · "+(w.target>0?(w.amount/w.target*100).toFixed(1)+"%":"Target belum tersedia")},{label:"GROWTH ACTUAL",value:growth===null?"—":(growth>=0?"+":"")+growth.toFixed(1)+"%",detail:prev?prev.start+" – "+prev.end:"Week sebelumnya tidak tersedia"},{label:"TRANSAKSI · UPT",value:inv+" · "+(inv?qty(w.rows)/inv:0).toFixed(2),detail:qty(w.rows)+" unit"},{label:"GROWTH DAILY AVG",value:dailyGrowth===null?"—":(dailyGrowth>=0?"+":"")+dailyGrowth.toFixed(1)+"%",detail:w.observedDays+" hari teramati vs "+(prev?.observedDays||0)+" hari sebelumnya"}] as const).map(k=><div key={k.label} className={`p-4 rounded-2xl border ${innerBg}`}><div className="text-xs font-bold text-slate-500">{k.label}</div><div className="text-lg font-black text-slate-950 dark:text-white">{k.value}</div><div className="text-xs text-slate-500">{k.detail}</div></div>)}
+                          {([{label:"SALES "+w.label,value:formatIDR(w.amount),detail:"Target "+formatIDR(w.target)+" · "+(w.target>0?(w.amount/w.target*100).toFixed(1)+"%":"Target belum tersedia")},{label:"GROWTH ACTUAL",value:growth===null?"—":(growth>=0?"+":"")+growth.toFixed(1)+"%",detail:prev?prev.start+" – "+prev.end:"Week sebelumnya tidak tersedia"},{label:"TRANSAKSI · UPT",value:inv+" · "+(inv?qty(w.rows)/inv:0).toFixed(2),detail:qty(w.rows)+" unit"},{label:"GROWTH DAILY AVG",value:dailyGrowth===null?"—":(dailyGrowth>=0?"+":"")+dailyGrowth.toFixed(1)+"%",detail:w.observedDays+" hari teramati vs "+(prev?.observedDays||0)+" hari sebelumnya"}] as const).map(k=><div key={k.label} className={`min-w-0 overflow-hidden p-3 sm:p-4 rounded-2xl border ${innerBg}`}><div className="text-xs font-bold text-slate-500">{k.label}</div><div className="min-w-0 break-words text-[clamp(12px,3.4vw,18px)] leading-snug font-black text-slate-950 dark:text-white">{k.value}</div><div className="min-w-0 break-words text-xs text-slate-500">{k.detail}</div></div>)}
                         </div>
                         <div className={`p-4 rounded-2xl border ${innerBg}`}><h3 className="font-black text-slate-950 dark:text-white mb-3">Harian Minggu–Sabtu · Target/Hari {formatIDR(calendarWeekly.dailyTarget)}</h3><div className="grid grid-cols-7 gap-2 items-end h-44">{days.map(d=><div key={d.iso} className="flex flex-col items-center justify-end h-full gap-1"><span className="text-[10px] font-bold text-slate-600 dark:text-slate-300">{formatCompactIDR(d.amount)}</span><div className={`w-full rounded-t-lg ${d.amount>=calendarWeekly.dailyTarget?"bg-blue-500":"bg-rose-400"}`} style={{height:Math.max(3,d.amount/maxDay*115)+"px"}}/><span className="text-[10px] text-slate-500">{d.iso.slice(8)}</span></div>)}</div><div className="overflow-x-auto mt-4"><table className="w-full min-w-[620px] text-xs"><thead><tr>{["Hari","Sales","Apple","Android","ACC","VAS","Inv","UPT","ACH"].map(h=><th key={h} className="p-2 text-left">{h}</th>)}</tr></thead><tbody>{days.map(d=><tr key={d.iso} className="border-t border-slate-400/20"><td className="p-2">{d.iso}</td><td className="p-2 font-bold">{formatCompactIDR(d.amount)}</td>{groups.map(g=><td key={g} className="p-2">{formatCompactIDR(amount(d.rows.filter(t=>groupOf(t)===g)))}</td>)}<td className="p-2">{new Set(d.rows.map(t=>t.invoice)).size}</td><td className="p-2">{(qty(d.rows)/Math.max(1,new Set(d.rows.map(t=>t.invoice)).size)).toFixed(1)}</td><td className="p-2">{calendarWeekly.dailyTarget?(d.amount/calendarWeekly.dailyTarget*100).toFixed(0)+"%":"—"}</td></tr>)}</tbody></table></div></div>
                         <div className="grid lg:grid-cols-2 gap-4">
@@ -4189,7 +4189,7 @@ return <div className="space-y-5">
                       <div className="flex flex-wrap items-center justify-between gap-4"><div className="flex items-center gap-3"><div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-700 text-white flex items-center justify-center text-xl font-black shadow-lg">{st.initials}</div><div><p className="text-[10px] uppercase tracking-[0.2em] font-bold text-sky-600 dark:text-sky-400">Individual Performance · Rank #{st.rank}</p><h2 className="font-black text-xl sm:text-2xl text-slate-950 dark:text-white">{st.name}</h2><p className={`text-xs ${textMuted}`}>{st.salesId} · {periodType.toUpperCase()} · {periodType==="daily"?selectedDate:periodType==="weekly"?(staffSelectedWeek?.label+" · "+staffSelectedWeek?.start+" – "+staffSelectedWeek?.end):selectedMonth}</p></div></div><button type="button" onClick={()=>window.open("https://wa.me/?text="+encodeURIComponent(reportText),"_blank")} className="px-4 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-lg">↗ Share WhatsApp</button></div>
                       <div className="flex flex-wrap gap-2 items-center"><label htmlFor="staff-profile-select" className="text-xs font-bold text-slate-600 dark:text-slate-300">Pilih Staff</label><select id="staff-profile-select" value={st.salesId} onChange={e=>{setSelectedStaffId(e.target.value);setStaffExpandedDetail(null)}} className="min-w-[200px] max-w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2 text-sm font-semibold text-slate-900 dark:text-white">{staffList.map(person=><option key={person.salesId} value={person.salesId}>{person.name}</option>)}</select></div>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        {[{label:"Sales Value",value:formatIDR(sum(rows).amount)},{label:"Achievement",value:targetFor("total")>0?(sum(rows).amount/targetFor("total")*100).toFixed(1)+"%":"—"},{label:"UPT · Physical Units",value:upt===null?"—":upt.toFixed(2)},{label:"Unique Invoice",value:String(uniqueInvoices.size)}].map(k=><div key={k.label} className={`rounded-2xl p-3 border ${innerBg}`}><p className="text-[11px] text-slate-600 dark:text-slate-400 font-bold">{k.label}</p><p className="text-lg font-black text-slate-950 dark:text-white mt-1">{k.value}</p></div>)}
+                        {[{label:"Sales Value",value:formatIDR(sum(rows).amount)},{label:"Achievement",value:targetFor("total")>0?(sum(rows).amount/targetFor("total")*100).toFixed(1)+"%":"—"},{label:"UPT · Physical Units",value:upt===null?"—":upt.toFixed(2)},{label:"Unique Invoice",value:String(uniqueInvoices.size)}].map(k=><div key={k.label} className={`rounded-2xl p-3 border ${innerBg}`}><p className="text-[11px] text-slate-600 dark:text-slate-400 font-bold">{k.label}</p><p className="break-words text-[clamp(12px,3.3vw,18px)] leading-snug font-black text-slate-950 dark:text-white mt-1">{k.value}</p></div>)}
                       </div>
                       <div className={`rounded-2xl border p-4 ${innerBg} space-y-3`}>
                         <div className="flex flex-wrap justify-between items-center gap-2"><div><h3 className="font-black text-slate-950 dark:text-white">No Sales Tracker</h3><p className="text-[11px] text-slate-600 dark:text-slate-400">Hari kalender pada periode terpilih · bukan hari kerja/off · {calendarDays.length} hari</p></div><button type="button" onClick={()=>window.open("https://wa.me/?text="+encodeURIComponent(reportText)," _blank".trim())} className="px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black">↗ Share Performance 360°</button></div>
@@ -4348,7 +4348,7 @@ return <div className="space-y-5">
                               onClick={() => handleShareDailyTargetStaffWA(displayName, targetData, staffTodayTrx)}
                               className="px-4 py-2 rounded-xl bg-[#25D366] hover:bg-emerald-600 text-white text-xs font-black transition flex items-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95"
                             >
-                              <span>📲</span>
+                              <Share2 size={16} aria-hidden="true"/>
                               <span>Share WA Daily Target</span>
                             </button>
                           </div>
@@ -4757,7 +4757,7 @@ return <div className="space-y-5">
                           onClick={handleShareScheduleWA}
                           className="px-3.5 py-1.5 rounded-xl bg-emerald-500 text-white text-xs font-black transition flex items-center gap-1.5"
                         >
-                          <span>📲</span>
+                          <Share2 size={16} aria-hidden="true"/>
                           <span>Share WA</span>
                         </button>
                       </div>
