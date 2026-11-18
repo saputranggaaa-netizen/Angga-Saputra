@@ -2311,10 +2311,10 @@ Indosat IM3 : ${isatText}`;
       const slideHeader=(heading:string,index:number)=>{
         const slide=pptx.addSlide();
         slide.background={color:WHITE};
-        slide.addShape(pptx.ShapeType.rect,{x:0,y:0,w:13.333,h:0.10,line:{color:BLUE},fill:{color:BLUE}});
+        slide.addShape(pptx.ShapeType.rect,{x:0,y:0,w:13.333,h:0.16,line:{color:BLUE},fill:{color:BLUE}});
         if(digiplusLogoData)slide.addImage({data:digiplusLogoData,x:0.57,y:0.28,w:0.62,h:0.62});
-        slide.addText(heading,{x:1.35,y:0.33,w:11.2,h:0.5,fontFace:"Aptos Display",fontSize:21,bold:true,color:NAVY,margin:0});
-        slide.addText("DIGIPLUS  •  GRAND INDONESIA QF01   |   "+currentPrefix+"   |   "+String(index).padStart(2,"0")+"/07",{x:0.6,y:7.13,w:12.1,h:0.19,fontSize:8,color:MUTED,margin:0});
+        slide.addText(heading,{x:0.43,y:0.29,w:12.2,h:0.45,fontFace:"Aptos Display",fontSize:21,bold:true,color:NAVY,margin:0});
+        slide.addText("DIGIPLUS  •  GRAND INDONESIA QF01   |   "+currentPrefix+"   |   "+String(index).padStart(2,"0")+"/07",{x:0.5,y:7.1,w:12.4,h:0.22,fontSize:8,color:MUTED,margin:0});
         return slide;
       };
       const table=(slide:any,headers:string[],data:string[][],widths:number[],top=1.45)=>{
@@ -2340,26 +2340,26 @@ Indosat IM3 : ${isatText}`;
         const lobNames=["Apple Devices","Android Devices","Accessories","VAS"];
         const targetKeys=["apple","android","accessories","vas"];
         const lobRows=lobNames.map((name,i)=>{const tx=by(currentMTD,t=>classify(t)===name);const target=Number((catTargets as any)[targetKeys[i]]||0);return [name,target>0?fmt(target):"N/A",String(totalQty(tx)),fmt(amount(tx)),pct(amount(tx),target)];});
-        table(slide,["LOB","TARGET BULAN","QTY","ACHIEVEMENT","ACH. %"],lobRows,[2.7,2.75,1.1,3.6,2.05],3.23);
+        table(slide,["LOB","TARGET BULAN","QTY","ACHIEVEMENT","ACH. %"],lobRows,[2.6,2.65,1.2,3.2,2.82],3.23);
       }
       // 02 — MTD Staff Performance: one row per staff, dynamic targets and LOB contribution.
       {
         const slide=slideHeader("MTD STAFF PERFORMANCE",2);
         const rows=staffNames.map(name=>{const tx=getStaffRows(name),target=targetFor(name);return [name,target>0?compact(target):"N/A",String(totalQty(tx)),compact(amount(tx)),pct(amount(tx),target),cell(by(tx,t=>classify(t)==="Apple Devices")),cell(by(tx,t=>classify(t)==="Android Devices"))];});
-        table(slide,["STAFF","TARGET","QTY","TOTAL VALUE","ACH. %","APPLE Q / VALUE","ANDROID Q / VALUE"],rows,[1.65,1.55,0.6,1.68,0.75,3,2.97],1.45);
+        table(slide,["STAFF","TARGET","QTY","TOTAL VALUE","ACH. %","APPLE Q / VALUE","ANDROID Q / VALUE"],rows,[1.67,1.84,0.65,1.94,0.9,2.73,2.74],1.48);
       }
       // 03 — Apple by staff and product.
       {
         const slide=slideHeader("MTD APPLE DEVICES  |  STAFF × PRODUCT",3);
         const kinds=["iPhone","iPad","MacBook","Apple Watch"];
         const rows=staffNames.map(name=>{const tx=by(getStaffRows(name),t=>classify(t)==="Apple Devices");return [name,...kinds.map(k=>cell(by(tx,t=>appleKind(t)===k))),cell(tx)];});
-        table(slide,["STAFF",...kinds,"TOTAL"],rows,[1.8,2.28,2.05,2.18,2.13,1.76],1.45);
+        table(slide,["STAFF",...kinds,"TOTAL"],rows,[1.55,2.18,2.18,2.18,2.18,2.18],1.55);
       }
       // 04 — Android by staff and brand.
       {
         const slide=slideHeader("MTD ANDROID DEVICES  |  STAFF × BRAND",4);
         const rows=staffNames.map(name=>{const tx=by(getStaffRows(name),t=>classify(t)==="Android Devices");return [name,...androidBrands.map(k=>cell(by(tx,t=>androidKind(t)===k))),cell(tx)];});
-        table(slide,["STAFF",...androidBrands,"TOTAL"],rows,[1.4,1.57,1.5,1.5,1.5,1.6,1.57,1.56],1.45);
+        table(slide,["STAFF",...androidBrands,"TOTAL"],rows,[1.55,1.56,1.56,1.56,1.56,1.56,1.56,1.56],1.55);
       }
       // 05 — WTD category growth, matching the selected weekly period.
       {
@@ -2367,14 +2367,14 @@ Indosat IM3 : ${isatText}`;
         slide.addText(toIso(lastWeekStart)+" – "+toIso(lastWeekCutoff)+"  VS  "+toIso(thisWeekStart)+" – "+toIso(weekCutoffDate),{x:0.6,y:1.07,w:12,h:0.26,fontSize:10,color:MUTED,margin:0});
         const names=["Apple Devices","Android Devices","Accessories","VAS"];
         const rows=names.map(name=>{const old=by(previousWeek,t=>classify(t)===name),now=by(currentWeek,t=>classify(t)===name);return [name,cell(old),cell(now),fmt(amount(now)-amount(old)),growthText(amount(now),amount(old))];});
-        table(slide,["LOB","PREVIOUS WEEK QTY / VALUE","CURRENT WEEK QTY / VALUE","Δ VALUE","GROWTH"],rows,[2.25,3.3,3.3,2.25,1.1],1.65);
+        table(slide,["LOB","PREVIOUS WEEK QTY / VALUE","CURRENT WEEK QTY / VALUE","Δ VALUE","GROWTH"],rows,[2.1,3.3,3.3,2.35,1.42],1.8);
       }
       // 06 — WTD Apple product families and Android brands.
       {
         const slide=slideHeader("WTD BRAND  |  APPLE & ANDROID",6);
         const specs=[...["iPhone","MacBook","iPad","Apple Watch"].map(k=>({label:"Apple • "+k,match:(t:RawTransaction)=>classify(t)==="Apple Devices"&&appleKind(t)===k})),...androidBrands.map(k=>({label:"Android • "+k,match:(t:RawTransaction)=>classify(t)==="Android Devices"&&androidKind(t)===k}))];
         const rows=specs.map(v=>{const old=by(previousWeek,v.match),now=by(currentWeek,v.match);return [v.label,cell(old),cell(now),fmt(amount(now)-amount(old))];});
-        table(slide,["LOB","PREVIOUS WEEK QTY / VALUE","CURRENT WEEK QTY / VALUE","Δ VALUE"],rows,[3.0,3.55,3.55,2.1],1.45);
+        table(slide,["LOB","PREVIOUS WEEK QTY / VALUE","CURRENT WEEK QTY / VALUE","Δ VALUE"],rows,[3.0,3.45,3.45,2.57],1.53);
       }
       // 07 — Growth Intelligence: evidence-based insights, not invented stock explanations.
       {
