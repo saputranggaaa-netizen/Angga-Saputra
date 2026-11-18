@@ -598,6 +598,8 @@ export default function DigiplusOperationalEngine() {
   useEffect(() => { if (!dateManuallySelected) setSelectedDate(momToday); }, [momToday, dateManuallySelected]);
 
   const [selectedStaffId, setSelectedStaffId] = useState<string>("");
+  const [staffLeaderboardSort,setStaffLeaderboardSort] = useState<"achievement"|"sales">("achievement");
+  const [staffLeaderboardShowAll,setStaffLeaderboardShowAll] = useState(false);
   const [staffExpandedDetail, setStaffExpandedDetail] = useState<string | null>(null);
   const [staffActiveCategory, setStaffActiveCategory] = useState<string>("Apple Devices");
   const [bottomSheetOpen, setBottomSheetOpen] = useState<boolean>(false);
@@ -4052,6 +4054,30 @@ return <div className="space-y-5">
               {/* TAB 3: STAFF PERFORMANCE */}
               {activeTab === "staff-performance" && (
                 <div className="space-y-8">{periodType==="weekly"&&<div className={`p-3 rounded-2xl border ${cardBg} flex flex-wrap gap-2 items-center`}><strong className="text-xs">Week Minggu–Sabtu:</strong>{staffCalendarWeeks.map((w,i)=><button key={w.label} type="button" onClick={()=>setCalendarWeekIndex(i)} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${calendarWeekIndex===i?"bg-sky-600 text-white":"bg-slate-500/10 text-slate-800 dark:text-slate-100"}`}>{w.label} · {w.start.slice(5)}–{w.end.slice(5)}</button>)}</div>}
+                  {(() => {
+                    const monthNames=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+                    const monthIndex=monthNames.findIndex(n=>selectedMonth.toLowerCase().startsWith(n.toLowerCase()));
+                    const year=Number(selectedMonth.slice(-4));
+                    const monthDays=monthIndex>=0&&Number.isFinite(year)?new Date(year,monthIndex+1,0).getDate():30;
+                    const currentMonth=monthIndex>=0&&Number.isFinite(year)?year+"-"+String(monthIndex+1).padStart(2,"0"):"";
+                    const today=new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+                    const elapsedDays=currentMonth===today.slice(0,7)?Number(today.slice(8,10)):monthDays;
+                    const periodDays=periodType==="daily"?1:periodType==="weekly"?(staffSelectedWeek?.monthDays||7):elapsedDays;
+                    const targetScale=periodDays/monthDays;
+                    const leaderboard=staffList.map(person=>{
+                      const key=person.name.toLowerCase().normalize("NFKC").replace(/[^a-z0-9]+/g," ").trim().replace(/\s+/g," ");
+                      const monthly=selectedMonth===targetSheetMonth?Number(staffTargets[key]||0):0;
+                      const target=monthly>0?monthly*targetScale:null;
+                      return {...person,periodTarget:target,periodPct:target?person.totalAmount/target*100:null};
+                    }).sort((a,b)=>staffLeaderboardSort==="sales"?b.totalAmount-a.totalAmount:(b.periodPct??-1)-(a.periodPct??-1)||b.totalAmount-a.totalAmount);
+                    const visible=staffLeaderboardShowAll?leaderboard:leaderboard.slice(0,3);
+                    return <section className={`rounded-[28px] border p-4 sm:p-6 ${cardBg} space-y-4`}>
+                      <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-widest text-sky-600 dark:text-sky-400">Staff Performance V2 · All Channels</p><h2 className="text-xl font-black text-slate-950 dark:text-white">Sales Leaderboard</h2><p className="text-xs text-slate-500 dark:text-slate-300">Semua staff termasuk online channel · {periodType==="daily"?selectedDate:periodType==="weekly"?(staffSelectedWeek?.start+" – "+staffSelectedWeek?.end):selectedMonth}</p></div><select aria-label="Urutkan leaderboard" value={staffLeaderboardSort} onChange={e=>setStaffLeaderboardSort(e.target.value as "achievement"|"sales")} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-white"><option value="achievement">Achievement %</option><option value="sales">Sales Value</option></select></div>
+                      <div className="space-y-2">{visible.map((person,index)=><button key={person.salesId} type="button" onClick={()=>{setSelectedStaffId(person.salesId);setStaffExpandedDetail(null)}} className={`w-full text-left rounded-2xl border p-3 transition-colors ${selectedStaffId===person.salesId?"border-sky-500 bg-sky-500/10":"border-slate-200 bg-slate-500/5 hover:bg-sky-500/5 dark:border-slate-700"}`}><div className="flex items-center gap-3"><span className="w-7 shrink-0 text-center text-sm font-black text-slate-600 dark:text-slate-300">{index===0?"🏆":"#"+(index+1)}</span><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-100 text-xs font-bold text-sky-800 dark:bg-sky-900 dark:text-sky-100">{person.initials}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold text-slate-950 dark:text-white">{person.name}</span><span className="block text-[11px] text-slate-500 dark:text-slate-300">{formatIDR(person.totalAmount)} / {person.periodTarget?formatIDR(person.periodTarget):"Target N/A"}</span></span><span className="shrink-0 text-right text-sm font-black text-slate-950 dark:text-white">{person.periodPct!==null?person.periodPct.toFixed(1)+"%":"N/A"}</span></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700"><div className="h-full rounded-full bg-sky-600" style={{width:Math.min(100,Math.max(0,person.periodPct||0))+"%"}}/></div></button>)}</div>
+                      {leaderboard.length>3&&<button type="button" onClick={()=>setStaffLeaderboardShowAll(v=>!v)} className="w-full rounded-xl border border-slate-300 py-2 text-xs font-bold text-sky-700 dark:border-slate-700 dark:text-sky-300">{staffLeaderboardShowAll?"Show Less":"Show More · "+(leaderboard.length-3)+" staff lainnya"}</button>}
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">Ranking berdasarkan {staffLeaderboardSort==="achievement"?"Achievement % (target tersedia)":"Sales Value"}. Target periode diprorata dari target bulanan; target tidak tersedia ditampilkan N/A.</p>
+                    </section>;
+                  })()}
                   {(() => {
                     const st = staffList.find(x => x.salesId === selectedStaffId) || staffList[0];
                     if (!st) return null;
