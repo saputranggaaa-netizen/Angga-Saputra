@@ -2688,21 +2688,40 @@ Indosat IM3 : ${isatText}`;
 
   if (!isLoggedIn) {
     return (
-      <div className={`relative flex min-h-[100dvh] w-full items-center justify-center overflow-hidden px-4 py-10 font-sans antialiased transition-colors duration-500 ${isDark ? "bg-[#030e27] text-white" : "bg-[#f6f9ff] text-slate-950"}`}>
-        <div aria-hidden="true" className={`pointer-events-none absolute -left-28 -top-36 h-[26rem] w-[26rem] rounded-full blur-3xl ${isDark ? "bg-blue-700/25" : "bg-blue-200/60"}`} />
-        <div aria-hidden="true" className={`pointer-events-none absolute -bottom-44 -right-28 h-[32rem] w-[32rem] rounded-full blur-3xl ${isDark ? "bg-sky-600/20" : "bg-sky-200/60"}`} />
-        <div className="relative z-10 w-full max-w-[460px]">
-          <div className="mb-7 flex flex-col items-center text-center">
-            <div className={`mb-5 flex h-20 w-20 items-center justify-center overflow-hidden rounded-[24px] p-2 shadow-xl ${isDark ? "bg-white shadow-blue-950/40" : "bg-white shadow-slate-300/50"}`}>
-              <img src="/apple-touch-icon.png" alt="Logo Digiplus" className="h-full w-full object-contain" />
+      <div className={`dg-retail-login relative min-h-[100dvh] overflow-hidden font-sans antialiased transition-colors duration-500 ${isDark?"bg-[#06142c] text-white":"bg-[#f3f7ff] text-slate-950"}`}>
+        <style>{`
+          @keyframes dgFloat {0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-19px) rotate(-1deg)}}
+          @keyframes dgFloatAlt {0%,100%{transform:translateY(0) rotate(7deg)}50%{transform:translateY(15px) rotate(4deg)}}
+          @keyframes dgOrbit {from{transform:rotate(0)}to{transform:rotate(360deg)}}
+          @keyframes dgEnter {from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+          .dg-retail-login .dg-float{animation:dgFloat 5.5s ease-in-out infinite}
+          .dg-retail-login .dg-float-alt{animation:dgFloatAlt 6.5s ease-in-out infinite}
+          .dg-retail-login .dg-enter{animation:dgEnter .85s ease-out both}
+          .dg-retail-login .dg-orbit{animation:dgOrbit 24s linear infinite}
+          @media(prefers-reduced-motion:reduce){.dg-retail-login .dg-float,.dg-retail-login .dg-float-alt,.dg-retail-login .dg-enter,.dg-retail-login .dg-orbit{animation:none!important}}
+        `}</style>
+        <div className="relative mx-auto grid min-h-[100dvh] max-w-[1500px] grid-cols-1 lg:grid-cols-[1.12fr_.88fr]">
+          <section className="relative isolate hidden overflow-hidden bg-gradient-to-br from-[#07152e] via-[#163e7e] to-[#83b8fa] p-10 text-white lg:flex lg:flex-col lg:justify-between xl:p-14">
+            <div aria-hidden="true" className="pointer-events-none absolute -right-32 top-1/4 h-[28rem] w-[28rem] rounded-full bg-sky-300/25 blur-3xl"/>
+            <div className="dg-enter relative z-10"><p className="text-xs font-bold uppercase tracking-[.3em] text-blue-100">Digiplus Grand Indonesia · QF01</p><h1 className="mt-7 max-w-xl text-4xl font-black leading-[1.08] tracking-tight xl:text-6xl">Multibrand<br/>Retail Experience.</h1><p className="mt-5 text-sm text-blue-100">Apple Devices · Android Devices · Accessories · Services</p></div>
+            <div aria-label="Ilustrasi ekosistem multibrand" className="relative mx-auto flex h-[360px] w-full max-w-[610px] items-center justify-center">
+              <div aria-hidden="true" className="dg-orbit absolute h-[260px] w-[440px] rounded-[50%] border border-sky-100/40 shadow-[0_0_35px_rgba(147,197,253,.35)]"/>
+              <div className="dg-float absolute left-[13%] top-[12%] z-20 h-56 w-28 rounded-[27px] border-[5px] border-slate-300 bg-gradient-to-br from-[#c4b5fd] via-[#3b2d82] to-[#080f2e] shadow-2xl shadow-black/35"><div className="mx-auto mt-2 h-2 w-10 rounded-full bg-black/80"/><div className="absolute bottom-8 left-3 h-20 w-20 rounded-full bg-violet-400/35 blur-xl"/></div>
+              <div className="dg-float-alt absolute right-[13%] top-[7%] z-10 flex h-60 w-44 -skew-y-3 rounded-[24px] border-[5px] border-slate-300 bg-gradient-to-br from-[#08162e] via-[#2456b7] to-[#83b7ff] shadow-2xl shadow-black/35"><div className="m-auto h-28 w-28 rounded-full border-[20px] border-blue-200/30 blur-[2px]"/></div>
+              <div className="dg-float-alt absolute bottom-[6%] left-[24%] z-30 flex h-20 w-20 items-center justify-center rounded-[22px] border border-white/40 bg-white/20 text-4xl shadow-xl backdrop-blur-xl">⌚</div>
+              <div className="dg-float absolute bottom-[4%] right-[24%] z-30 flex h-20 w-20 items-center justify-center rounded-[22px] border border-white/40 bg-white/20 text-4xl shadow-xl backdrop-blur-xl">🎧</div>
+              <div className="absolute bottom-[25%] right-[5%] z-30 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/40 bg-white/20 text-3xl backdrop-blur-xl">🛡️</div>
             </div>
-            <div className="mb-1 text-3xl font-black tracking-tight text-blue-600 dark:text-sky-400">QF01</div>
-            <h1 className="text-lg font-extrabold tracking-tight sm:text-xl">DIGIPLUS GRAND INDONESIA</h1>
-            <p className={`mt-2 text-[11px] font-semibold uppercase tracking-[0.25em] ${isDark ? "text-slate-400" : "text-slate-500"}`}>Sales Performance Portal</p>
-          </div>
-          <div className={`rounded-[30px] border px-6 py-8 shadow-2xl backdrop-blur-xl sm:px-9 sm:py-10 ${isDark ? "border-sky-400/25 bg-[#0d1e3c]/85 shadow-black/25" : "border-white bg-white/90 shadow-blue-950/10"}`}>
-            <h2 className="text-2xl font-extrabold tracking-tight">Selamat Datang,</h2>
-            <p className={`mb-7 mt-1 text-sm ${isDark ? "text-slate-300" : "text-slate-500"}`}>Masuk untuk mengakses dashboard penjualan.</p>
+            <div className="relative z-10 grid grid-cols-4 gap-2">{[["▣","Apple"],["◈","Android"],["♫","Accessories"],["✧","Services"]].map(([symbol,label])=><div key={label} className="rounded-2xl border border-white/20 bg-white/10 p-3 text-center backdrop-blur-md"><div className="text-2xl">{symbol}</div><p className="mt-2 text-[11px] font-bold">{label}</p></div>)}</div>
+          </section>
+          <section className="relative flex min-h-[100dvh] items-center justify-center px-4 py-10 sm:px-8 lg:px-12">
+            <div aria-hidden="true" className="pointer-events-none absolute right-0 top-0 h-72 w-72 rounded-full bg-sky-400/10 blur-3xl"/>
+            <div className="dg-enter relative w-full max-w-[450px]">
+              <div className="mb-7 flex items-center justify-center gap-3"><div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white p-2 shadow-lg"><img src="/apple-touch-icon.png" alt="Logo Digiplus" className="h-full w-full object-contain"/></div><div><p className="text-xl font-black tracking-tight">DIGIPLUS</p><p className="text-[10px] font-semibold uppercase tracking-[.22em] text-sky-600 dark:text-sky-300">Grand Indonesia · QF01</p></div></div>
+              <div className={`rounded-[32px] border p-6 shadow-2xl sm:p-9 ${isDark?"border-sky-300/20 bg-[#0d2345]/90 shadow-black/30":"border-white bg-white/95 shadow-blue-950/10"}`}>
+                <p className="mb-2 text-xs font-bold uppercase tracking-[.22em] text-blue-600 dark:text-sky-400">Multibrand retail workspace</p>
+                <h2 className="text-3xl font-black tracking-tight">Welcome back.</h2>
+                <p className={`mb-7 mt-2 text-sm ${isDark?"text-slate-300":"text-slate-500"}`}>Masuk untuk mengakses dashboard penjualan dan aktivitas toko.</p>
             <form onSubmit={handleLogin} className="space-y-5">
               <div>
                 <label htmlFor="login-sales-id" className="mb-2 block text-sm font-semibold">Sales ID / NIK Karyawan</label>
@@ -2718,8 +2737,11 @@ Indosat IM3 : ${isatText}`;
               {loginErr && <p role="alert" className="rounded-xl bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-600 dark:text-red-300">{loginErr}</p>}
               <button type="submit" className="flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-4 text-sm font-extrabold text-white shadow-lg shadow-blue-700/20 transition hover:from-blue-500 hover:to-blue-600 active:scale-[0.99]">Masuk Dashboard <span aria-hidden="true">→</span></button>
             </form>
-          </div>
-          <p className={`mt-7 text-center text-[10px] font-semibold uppercase tracking-[0.2em] ${isDark ? "text-slate-500" : "text-slate-400"}`}>Digiplus Grand Indonesia · QF01</p>
+                <div className="mt-7 flex items-center justify-center gap-2 border-t border-slate-400/20 pt-5 text-[11px] text-slate-500 dark:text-slate-300"><span>🛡</span><span>Secure Staff Access · QF01</span></div>
+              </div>
+              <div className="mt-6 flex justify-center gap-3 text-[10px] font-semibold text-slate-500 dark:text-slate-300 lg:hidden"><span>Apple</span><span>·</span><span>Android</span><span>·</span><span>Accessories</span><span>·</span><span>VAS</span></div>
+            </div>
+          </section>
         </div>
       </div>
     );
