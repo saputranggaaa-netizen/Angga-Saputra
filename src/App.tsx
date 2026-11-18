@@ -4,6 +4,60 @@ import React, { useState, useEffect, useMemo } from "react";
 import { LayoutDashboard, ChartNoAxesColumnIncreasing, ShieldCheck, ChartLine, Wallet, Handshake, Footprints, Watch, Tags, ClipboardList, Users, Target, Layers, CalendarDays, MessageSquare, CreditCard, Search, ListChecks, History, ChevronDown, Share2, RefreshCw, Presentation, LogOut, Sun, Moon, Clock3, Package, TrendingUp, Receipt } from "lucide-react";
 
 
+import { Apple, ArrowRight, Circle, CircleDot, ExternalLink, Hand, Headphones, LockKeyhole, Megaphone, Menu, Plug, Printer, Radio, Smartphone, Timer, TriangleAlert, Trophy, Upload, UserRound, type LucideIcon } from "lucide-react";
+
+const MINIMAL_ICON_MAP: Record<string, LucideIcon> = {
+  "⌚": Watch,
+  "📤": Upload,
+  "📽️": Presentation,
+  "☀️": Sun,
+  "🌙": Moon,
+  "🚪": LogOut,
+  "☰": Menu,
+  "📅": CalendarDays,
+  "⚠️": TriangleAlert,
+  "📊": ChartNoAxesColumnIncreasing,
+  "🗓️": CalendarDays,
+  "⏳": Clock3,
+  "🔐": LockKeyhole,
+  "🏆": Trophy,
+  "📡": Radio,
+  "🟢": CircleDot,
+  "⚪": Circle,
+  "🍎": Apple,
+  "🤖": Smartphone,
+  "🔌": Plug,
+  "🛡️": ShieldCheck,
+  "🎧": Headphones,
+  "⏱️": Timer,
+  "📦": Package,
+  "📈": TrendingUp,
+  "📱": Smartphone,
+  "🔴": Circle,
+  "🟠": Circle,
+  "🔵": Circle,
+  "🟡": Circle,
+  "🎯": Target,
+  "📢": Megaphone,
+  "🏷️": Tags,
+  "📋": ClipboardList,
+  "👤": UserRound,
+  "🖨️": Printer,
+  "💬": MessageSquare,
+  "💳": CreditCard,
+  "📲": Share2,
+  "🔍": Search,
+  "🔎": Search,
+  "👋": Hand,
+  "🛡": ShieldCheck,
+  "↗": ExternalLink,
+  "➔": ArrowRight,
+};
+function MinimalIcon({ symbol, className = "" }: { symbol: string; className?: string }) {
+  const Icon = MINIMAL_ICON_MAP[symbol] ?? Circle;
+  return <Icon aria-hidden="true" strokeWidth={1.8} className={`inline-block h-[1em] w-[1em] shrink-0 align-[-0.12em] ${className}`}/>;
+}
+
 import PriceListDocuments from "./PriceListDocuments";
 import ProductCatalog from "./ProductCatalog";
 import LivePriceCatalog from "./LivePriceCatalog";
@@ -77,7 +131,7 @@ function NirwanaTracking({staff,salesId,salesName,isDark}:{staff:{salesId:string
  const muted=isDark?"text-slate-300":"text-slate-600";
  const share=["*NIRWANA · APPLE WATCH DEMO*","QF01 · "+month,"Total Demo: "+monthRows.length,"Full Demo: "+full,"Partial Demo: "+(monthRows.length-full),"Completion Rate: "+(monthRows.length?(full/monthRows.length*100).toFixed(1)+"%":"N/A"),"*Top Sales*",...ranking.filter(x=>x.count>0).map((x,i)=>(i+1)+". "+x.name+": "+x.count+" demo ("+x.full+" full)")].join("\n");
  return <section className={"space-y-4 dg-scroll-reveal rounded-3xl border p-4 md:p-5 "+(isDark?"border-slate-700 bg-slate-900 text-white":"border-slate-200 bg-slate-50 text-slate-900")}>
- <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-2xl font-bold">⌚ Nirwana · Apple Watch Demo</h2><p className={"text-sm "+muted}>QF01 · Setiap formulir mewakili satu pelanggan yang menerima demo</p></div><button type="button" onClick={()=>window.open("https://wa.me/?text="+encodeURIComponent(share),"_blank")} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white">↗ Share WhatsApp</button></div>
+ <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-2xl font-bold"><MinimalIcon symbol="⌚"/> Nirwana · Apple Watch Demo</h2><p className={"text-sm "+muted}>QF01 · Setiap formulir mewakili satu pelanggan yang menerima demo</p></div><button type="button" onClick={()=>window.open("https://wa.me/?text="+encodeURIComponent(share),"_blank")} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white"><MinimalIcon symbol="↗"/> Share WhatsApp</button></div>
  <label className={"block text-sm "+muted}>Periode <input type="month" value={month} onChange={e=>setMonth(e.target.value)} className={"ml-2 rounded-lg border px-2 py-2 "+input}/></label>
  <div className="grid grid-cols-2 gap-2 md:grid-cols-4">{[["Demo MTD",monthRows.length],["Demo Today",todayRows.length],["Full Demo",full],["Completion",monthRows.length?(full/monthRows.length*100).toFixed(1)+"%":"N/A"]].map(([k,v])=><div key={String(k)} className={"rounded-xl border p-3 "+panel}><p className={"text-xs "+muted}>{k}</p><p className="mt-1 text-xl font-bold">{v}</p></div>)}</div>
  <form className={"space-y-3 rounded-xl border p-4 "+panel} onSubmit={async e=>{e.preventDefault();setBusy(true);setMessage("");setSuccess(false);try{const selected=roster.find(x=>x[0]===chosen);if(!selected)throw Error("Pilih sales terlebih dahulu");const r=await fetch("/api/nirwana",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({date,salesId:chosen,salesName:selected[1],features,notes,createdBy:salesId})}),d=await r.json();if(!r.ok)throw Error(d.error||"Gagal menyimpan");setFeatures([false,false,false,false,false]);setNotes("");setSuccess(true);setMessage("Demo Apple Watch berhasil disimpan ke Google Sheets.");await load();}catch(e:any){setMessage(e.message||"Gagal menyimpan")}finally{setBusy(false)}}}>
@@ -88,7 +142,7 @@ function NirwanaTracking({staff,salesId,salesName,isDark}:{staff:{salesId:string
  <p className={"text-xs "+muted}>Status: {features.every(Boolean)?"Full Demo · 5/5 fitur":features.some(Boolean)?"Partial Demo · "+features.filter(Boolean).length+"/5 fitur":"Belum ada fitur dipilih"}</p>
  <label className="block text-sm">Catatan (opsional)<textarea maxLength={500} rows={2} value={notes} onChange={e=>setNotes(e.target.value)} className={"mt-1 block w-full rounded-lg border p-2 "+input}/></label>
  <button type="submit" disabled={busy||!chosen||!features.some(Boolean)} className="rounded-xl bg-sky-600 px-4 py-2 font-semibold text-white disabled:opacity-40">{busy?"Menyimpan...":"Simpan Demo Nirwana"}</button>
- {message&&<div role="status" className={"rounded-lg border p-3 text-sm "+(success?"border-emerald-400 bg-emerald-50 text-emerald-800":"border-rose-400 bg-rose-50 text-rose-800")}>{success?"✓ ":"⚠ "}{message}</div>}
+ {message&&<div role="status" className={"rounded-lg border p-3 text-sm "+(success?"border-emerald-400 bg-emerald-50 text-emerald-800":"border-rose-400 bg-rose-50 text-rose-800")}>{success?<CircleDot size={15} className="inline-block mr-1"/>:<TriangleAlert size={15} className="inline-block mr-1"/>}{message}</div>}
  </form>
  <div className="grid gap-3 lg:grid-cols-2"><div className={"rounded-xl border p-4 "+panel}><h3 className="mb-3 font-bold">Ranking Sales · MTD</h3>{ranking.filter(x=>x.count>0).length===0?<p className={"text-sm "+muted}>Belum ada demo tercatat.</p>:ranking.filter(x=>x.count>0).map((x,i)=><div key={x.id} className="flex justify-between border-b border-slate-400/20 py-2 text-sm"><span>{i+1}. {x.name}</span><strong>{x.count} demo · {x.full} full</strong></div>)}</div><div className={"rounded-xl border p-4 "+panel}><h3 className="mb-3 font-bold">Frekuensi Fitur · MTD</h3>{labels.map((x,i)=><div key={x} className="flex justify-between border-b border-slate-400/20 py-2 text-sm"><span>{x}</span><strong>{monthRows.filter(r=>r.features?.[i]).length}</strong></div>)}</div></div>
  <div className={"rounded-xl border p-4 "+panel}><h3 className="mb-3 font-bold">Riwayat Demo</h3>{error&&<p className="text-sm text-rose-500">{error}</p>}{loading?<p className={"text-sm "+muted}>Memuat...</p>:monthRows.length===0?<p className={"text-sm "+muted}>Belum ada data untuk periode ini.</p>:<div className="max-h-80 overflow-auto"><table className="w-full min-w-[560px] text-left text-xs"><thead><tr>{["Tanggal","Sales","Fitur","Status","Catatan"].map(x=><th key={x} className="border-b p-2">{x}</th>)}</tr></thead><tbody>{[...monthRows].reverse().map(r=><tr key={r.id} className="border-b border-slate-400/20"><td className="p-2">{r.date}</td><td className="p-2">{r.salesName}</td><td className="p-2">{r.features.filter(Boolean).length}/5</td><td className="p-2">{r.status}</td><td className="p-2">{r.notes||"—"}</td></tr>)}</tbody></table></div>}</div>
@@ -2669,10 +2723,10 @@ Indosat IM3 : ${isatText}`;
       {growthView==="yoy"&&<p className="rounded-xl bg-blue-500/10 border border-blue-500/20 p-3 text-xs text-slate-700 dark:text-slate-200">Last Year: sumber <strong>breakdwon MSR</strong> kolom G–O (2025). Data transaksi tahun lalu tidak memuat Sales ID, sehingga ranking per staff hanya tersedia pada Last Month. {lastYearState==="loading"?"Memuat data tahun lalu…":lastYearState==="error"?"Data tahun lalu gagal dimuat.":""}</p>}
       <div className="grid sm:grid-cols-3 gap-3">{[{label:"Current MTD",value:money(current)},{label:growthView==="mom"?"Last Month":"Last Year",value:available?money(previous):"Belum tersedia"},{label:"Growth",value:available?pctText(current,previous):"N/A"}].map(k=><div key={k.label} className={card}><p className={`text-xs ${textMuted}`}>{k.label}</p><p className="text-xl font-black mt-2 text-slate-950 dark:text-white">{k.value}</p></div>)}</div>
       <div className={card}><div className="flex justify-between items-center gap-2"><h3 className="font-black text-slate-950 dark:text-white">Category Growth Breakdown</h3><span className={`text-xs ${textMuted}`}>Growth Value</span></div><div className="mt-3 space-y-2">{categories.slice(1).map(cat=>{const a=sum(nowRows.filter(t=>categoryOf(t)===cat)),b=growthView==="mom"?sum(priorRows.filter(t=>categoryOf(t)===cat)):lyTotal(cat);return <div key={cat} className="flex justify-between gap-3 border-b border-slate-500/10 py-2 text-sm"><div><p className="font-bold text-slate-950 dark:text-white">{cat}</p><p className={`text-xs ${textMuted}`}>{money(a)} vs {available?money(b):"—"}</p></div><div className="text-right"><p className="font-black text-sky-600">{available?pctText(a,b):"N/A"}</p><p className={`text-xs ${textMuted}`}>{available?money(a-b):"—"}</p></div></div>})}</div></div>
-      <div className={card+" space-y-3"}><div><h3 className="font-black text-slate-950 dark:text-white">🔎 Faktor Perubahan Penjualan · {growthView==="mom"?"Last Month":"Last Year"}</h3><p className={`text-xs mt-1 ${textMuted}`}>Kontributor kenaikan dan penurunan berdasarkan selisih sales dan qty. Ini indikasi dari transaksi, bukan bukti penyebab seperti stok atau traffic.</p></div>
+      <div className={card+" space-y-3"}><div><h3 className="font-black text-slate-950 dark:text-white"><MinimalIcon symbol="🔎"/> Faktor Perubahan Penjualan · {growthView==="mom"?"Last Month":"Last Year"}</h3><p className={`text-xs mt-1 ${textMuted}`}>Kontributor kenaikan dan penurunan berdasarkan selisih sales dan qty. Ini indikasi dari transaksi, bukan bukti penyebab seperti stok atau traffic.</p></div>
       {categories.slice(1).map(cat=>{const a=sum(nowRows.filter(t=>categoryOf(t)===cat)),b=growthView==="mom"?sum(priorRows.filter(t=>categoryOf(t)===cat)):lyTotal(cat);const opened=growthCauseCategory===cat;const rows=opened&&available?causeRows(cat):[];const up=rows.filter(r=>r.delta>0).sort((x,y)=>y.delta-x.delta);const down=rows.filter(r=>r.delta<0).sort((x,y)=>x.delta-y.delta);return <div key={cat} className={`rounded-xl border border-slate-500/20 p-3 ${innerBg}`}><button type="button" className="w-full flex items-center justify-between gap-2 text-left" onClick={()=>{setGrowthCauseCategory(opened?null:cat);setGrowthCauseDimension("brand");setGrowthCauseMore(false)}}><div><p className="font-black text-sm text-slate-950 dark:text-white">{cat}</p><p className={`text-xs ${textMuted}`}>{available?(a>=b?"Naik ":"Turun ")+money(Math.abs(a-b))+" · "+pctText(a,b):"Data pembanding belum tersedia"}</p></div><span className="text-xs font-black text-sky-600">{opened?"Tutup −":"Analisa +"}</span></button>{opened&&available&&<div className="mt-3 border-t border-slate-500/20 pt-3 space-y-3"><div className="flex gap-1 bg-slate-500/10 rounded-xl p-1">{(["brand","product",...(growthView==="mom"?["staff" as const]:[])] as ("brand"|"product"|"staff")[]).map(dim=><button type="button" key={dim} onClick={()=>{setGrowthCauseDimension(dim);setGrowthCauseMore(false)}} className={`flex-1 rounded-lg py-2 text-xs font-bold ${growthCauseDimension===dim?"bg-blue-600 text-white":"text-slate-700 dark:text-slate-200"}`}>{dim==="brand"?"Brand / Provider":dim==="product"?"Produk":"Staff"}</button>)}</div><div className="grid md:grid-cols-2 gap-3">{[{title:"Kontributor Kenaikan",items:up,color:"text-emerald-600"},{title:"Kontributor Penurunan",items:down,color:"text-rose-600"}].map(section=><div key={section.title} className="rounded-xl border border-slate-500/15 p-3"><h4 className={`text-xs font-black ${section.color}`}>{section.title}</h4>{section.items.length===0?<p className={`text-xs mt-2 ${textMuted}`}>Tidak ada selisih pada kelompok ini.</p>:section.items.slice(0,growthCauseMore?undefined:4).map(row=><div key={row.name} className="flex justify-between gap-2 py-2 border-b border-slate-500/10"><div className="min-w-0"><p className="text-xs font-semibold text-slate-950 dark:text-white break-words">{row.name}</p><p className={`text-[11px] ${textMuted}`}>Qty {row.qtyPrevious} → {row.qtyCurrent} · {money(row.previous)} → {money(row.current)}</p></div><p className={`text-xs font-black shrink-0 ${section.color}`}>{row.delta>0?"+":""}{money(row.delta)}</p></div>)}</div>)}</div>{rows.length>8&&<button type="button" onClick={()=>setGrowthCauseMore(!growthCauseMore)} className="w-full rounded-xl bg-slate-500/10 py-2 text-xs font-bold text-sky-600">{growthCauseMore?"Show Less":"Show More"}</button>}<p className={`text-[11px] ${textMuted}`}>Perubahan bersih {money(a-b)}. {growthView==="yoy"?"Data Last Year tidak menyediakan staff; analisis berdasarkan brand dan produk.":"Pilih Staff untuk melihat kontribusi tiap sales."} Cek ketersediaan stok, promosi, dan traffic sebelum menyimpulkan penyebab operasional.</p></div>}</div>})}</div>
       {growthView==="yoy"&&lastYearState==="ready"&&<div className={card}><h3 className="font-black text-slate-950 dark:text-white">Data Quality · Last Year</h3><p className={`text-xs mt-2 ${textMuted}`}>Unmapped: {money(lyTotal("Unmapped"))} · Seluruh nilai tetap dihitung dalam total store. Periksa klasifikasi brand yang belum terpetakan.</p></div>}
-      {growthView==="mom"&&<div className={card+" space-y-3"}><div className="flex flex-wrap justify-between gap-2 items-center"><div><h3 className="font-black text-slate-950 dark:text-white">🏆 Staff Growth Ranking</h3><p className={`text-xs ${textMuted}`}>Per staff · kategori dapat difilter · klik Show More</p></div><select aria-label="Urutkan ranking" value={growthRank} onChange={e=>setGrowthRank(e.target.value as "growth"|"decline"|"contribution")} className="rounded-xl border p-2 text-xs bg-white text-slate-900 dark:bg-slate-800 dark:text-white"><option value="growth">Growth Tertinggi</option><option value="decline">Penurunan Terbesar</option><option value="contribution">Sales Value</option></select></div>
+      {growthView==="mom"&&<div className={card+" space-y-3"}><div className="flex flex-wrap justify-between gap-2 items-center"><div><h3 className="font-black text-slate-950 dark:text-white"><MinimalIcon symbol="🏆"/> Staff Growth Ranking</h3><p className={`text-xs ${textMuted}`}>Per staff · kategori dapat difilter · klik Show More</p></div><select aria-label="Urutkan ranking" value={growthRank} onChange={e=>setGrowthRank(e.target.value as "growth"|"decline"|"contribution")} className="rounded-xl border p-2 text-xs bg-white text-slate-900 dark:bg-slate-800 dark:text-white"><option value="growth">Growth Tertinggi</option><option value="decline">Penurunan Terbesar</option><option value="contribution">Sales Value</option></select></div>
       {staffData.slice(0,growthShowAll?undefined:6).map((st,i)=><div key={st.id} className={`rounded-xl border p-3 ${innerBg}`}><div className="flex justify-between gap-3"><div><p className="font-black text-sm text-slate-950 dark:text-white">#{i+1} · {st.name}</p><p className={`text-xs ${textMuted}`}>{money(st.previous)} → {money(st.current)}</p></div><div className="text-right"><p className="font-black text-sm text-sky-600">{pctText(st.current,st.previous)}</p><button type="button" className="text-xs text-sky-600 font-bold" onClick={()=>setGrowthExpanded(growthExpanded===st.id?null:st.id)}>{growthExpanded===st.id?"Show Less":"Show More"}</button></div></div>{growthExpanded===st.id&&details(st.id,st.curr,st.prev)}</div>)}
       {staffData.length>6&&<button type="button" onClick={()=>setGrowthShowAll(!growthShowAll)} className="w-full rounded-xl bg-slate-500/10 py-3 text-sm font-bold text-sky-600">{growthShowAll?"Show Less":"Show All Staff ("+staffData.length+")"}</button>}
       <div className="rounded-xl bg-blue-500/10 p-3 text-xs text-slate-700 dark:text-slate-200">Insight: {staffData.filter(x=>x.growth!==null&&x.growth<0).length} staff mengalami penurunan pada kategori terpilih. Evaluasi traffic, jadwal, ketersediaan stok, dan peluang cross-sell sebelum coaching.</div></div>}
@@ -2691,7 +2745,7 @@ Indosat IM3 : ${isatText}`;
           <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-3xl font-bold text-white shadow-lg shadow-emerald-500/25">✓</div>
           <p className="mb-2 text-xs font-bold uppercase tracking-[0.3em] text-sky-500 dark:text-sky-400">Login Berhasil</p>
           <h1 className="max-w-full break-words text-3xl font-extrabold tracking-tight sm:text-4xl">Welcome Back,</h1>
-          <h2 className="mt-2 max-w-full break-words text-2xl font-bold text-blue-600 dark:text-sky-400 sm:text-3xl">{currentSalesName} 👋</h2>
+          <h2 className="mt-2 max-w-full break-words text-2xl font-bold text-blue-600 dark:text-sky-400 sm:text-3xl">{currentSalesName} <MinimalIcon symbol="👋"/></h2>
           <p className={`mt-5 text-sm ${isDark ? "text-slate-300" : "text-slate-500"}`}>Ready to achieve more today?</p>
           <div className="mt-8 h-1 w-44 overflow-hidden rounded-full bg-slate-300/40"><div className="h-full w-full origin-left animate-[pulse_1s_ease-in-out_infinite] rounded-full bg-blue-500" /></div>
           <button type="button" onClick={()=>setShowWelcome(false)} className="mt-6 text-xs font-semibold text-slate-500 underline underline-offset-4 dark:text-slate-400">Lewati animasi</button>
@@ -2744,7 +2798,7 @@ Indosat IM3 : ${isatText}`;
               {loginErr && <p role="alert" className="rounded-xl bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-600 dark:text-red-300">{loginErr}</p>}
               <button type="submit" className="flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-4 text-sm font-extrabold text-white shadow-lg shadow-blue-700/20 transition hover:from-blue-500 hover:to-blue-600 active:scale-[0.99]">Masuk Dashboard <span aria-hidden="true">→</span></button>
             </form>
-                <div className="mt-7 flex items-center justify-center gap-2 border-t border-slate-400/20 pt-5 text-[11px] text-slate-500 dark:text-slate-300"><span>🛡</span><span>Secure Staff Access · QF01</span></div>
+                <div className="mt-7 flex items-center justify-center gap-2 border-t border-slate-400/20 pt-5 text-[11px] text-slate-500 dark:text-slate-300"><span><MinimalIcon symbol="🛡"/></span><span>Secure Staff Access · QF01</span></div>
               </div>
               <div className="mt-5 grid grid-cols-4 gap-1.5 lg:hidden">{["Apple","Samsung","Xiaomi","OPPO","Huawei","Infinix","Motorola"].map((name,index)=><div key={name} className="dg-enter flex h-12 min-w-0 overflow-hidden items-center justify-center rounded-xl border border-sky-400/15 bg-sky-500/5 px-1" style={{animationDelay:(index*.07)+"s"}}><RetailBrandLogo brand={name} size={23}/></div>)}</div>
             </div>
@@ -2839,8 +2893,8 @@ Indosat IM3 : ${isatText}`;
               onClick={() => setUploadModalOpen(true)}
               className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 border border-transparent active:scale-[0.98]"
             >
-              <div className="w-7 h-7 rounded-lg bg-cyan-500 shadow-md shadow-cyan-500/30 flex items-center justify-center text-xs shrink-0 text-white">
-                📤
+              <div className="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0">
+                <MinimalIcon symbol="📤"/>
               </div>
               <span>Upload Bukti RAW</span>
             </button>
@@ -2914,13 +2968,13 @@ Indosat IM3 : ${isatText}`;
             aria-label="Export laporan ke PowerPoint"
             className="w-full min-h-[48px] flex items-center justify-center gap-2 rounded-xl border border-sky-500/40 bg-sky-500/15 px-3 py-3 text-sm font-bold text-sky-700 dark:text-sky-300 disabled:cursor-wait disabled:opacity-60 active:scale-[0.99]"
           >
-            <span aria-hidden="true">📽️</span>
+            <span aria-hidden="true"><MinimalIcon symbol="📽️"/></span>
             <span>{isExportingPptx ? "Membuat Slide..." : "Export ke Slide PPTX"}</span>
           </button>
         </div>
         <div className="shrink-0 px-4 pt-3 pb-4 border-t border-slate-200 dark:border-white/10 space-y-2">
-          <button onClick={toggleTheme} className="w-full min-h-[44px] rounded-xl bg-slate-200/70 dark:bg-white/[0.07] text-slate-800 dark:text-slate-200 text-[13px] font-semibold flex items-center justify-center gap-2">{isDark ? "☀️ Mode Terang" : "🌙 Mode Gelap"}</button>
-          <button onClick={handleLogout} className="w-full min-h-[44px] rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[13px] font-semibold flex items-center justify-center gap-2">🚪 Keluar</button>
+          <button onClick={toggleTheme} className="w-full min-h-[44px] rounded-xl bg-slate-200/70 dark:bg-white/[0.07] text-slate-800 dark:text-slate-200 text-[13px] font-semibold flex items-center justify-center gap-2">{isDark ? <><Sun size={16}/> Mode Terang</> : <><Moon size={16}/> Mode Gelap</>}</button>
+          <button onClick={handleLogout} className="w-full min-h-[44px] rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[13px] font-semibold flex items-center justify-center gap-2"><MinimalIcon symbol="🚪"/> Keluar</button>
         </div>
       </aside>
 
@@ -2933,7 +2987,7 @@ Indosat IM3 : ${isatText}`;
               className="h-10 w-10 shrink-0 rounded-xl bg-sky-500/10 text-sky-400 border border-sky-400/20 flex items-center justify-center active:scale-95 transition"
               aria-label="Buka Menu"
             >
-              <span className="text-lg leading-none">☰</span>
+              <span className="text-lg leading-none"><MinimalIcon symbol="☰"/></span>
             </button>
 
             <div className="flex items-center gap-2 min-w-0">
@@ -2973,7 +3027,7 @@ Indosat IM3 : ${isatText}`;
             <div className="flex flex-wrap justify-between items-center gap-2 sm:gap-4 mb-2 sm:mb-4">
               <div>
                 <div className={`hidden sm:flex text-xl sm:text-2xl font-black ${accentText} items-center gap-2`}>
-                  <span>Halo, {currentSalesName} 👋</span>
+                  <span>Halo, {currentSalesName} <MinimalIcon symbol="👋"/></span>
                 </div>
 
                 <div className="hidden sm:flex flex-wrap items-center gap-2 mt-1.5">
@@ -3041,7 +3095,7 @@ Indosat IM3 : ${isatText}`;
 
                 {(
                   <div className="flex items-center gap-2">
-                    <span className="font-black text-slate-900 dark:text-slate-200">📅 Bulan:</span>
+                    <span className="font-black text-slate-900 dark:text-slate-200"><MinimalIcon symbol="📅"/> Bulan:</span>
                     <select
                       value={selectedMonth}
                       onChange={(e) => { setSelectedMonth(e.target.value); setSelectedWeek("ALL"); setDateManuallySelected(false); const month=e.target.value; const names=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];const idx=names.findIndex(n=>month.startsWith(n));if(idx>=0)setSelectedDate(month.slice(-4)+"-"+String(idx+1).padStart(2,"0")+"-01"); }}
@@ -3055,10 +3109,10 @@ Indosat IM3 : ${isatText}`;
                   </div>
                 )}
 
-                {dataLoadError && <div role="alert" className="w-full p-3 rounded-xl bg-red-50 border border-red-300 text-red-800 text-xs font-bold">⚠️ Data Google Sheets gagal dimuat: {dataLoadError}. Periksa akses Google Sheets, lalu klik Sync Live.</div>}
+                {dataLoadError && <div role="alert" className="w-full p-3 rounded-xl bg-red-50 border border-red-300 text-red-800 text-xs font-bold"><MinimalIcon symbol="⚠️"/> Data Google Sheets gagal dimuat: {dataLoadError}. Periksa akses Google Sheets, lalu klik Sync Live.</div>}
                 {periodType === "weekly" && (
                   <div className="flex items-center gap-2">
-                    <span className="font-black text-slate-900 dark:text-slate-200">📊 Week:</span>
+                    <span className="font-black text-slate-900 dark:text-slate-200"><MinimalIcon symbol="📊"/> Week:</span>
                     <select
                       value={selectedWeek}
                       onChange={(e) => setSelectedWeek(e.target.value)}
@@ -3076,7 +3130,7 @@ Indosat IM3 : ${isatText}`;
 
                 {periodType === "daily" && (
                   <div className="flex items-center gap-2">
-                    <span className="font-black text-slate-900 dark:text-slate-200">🗓️ Tanggal:</span>
+                    <span className="font-black text-slate-900 dark:text-slate-200"><MinimalIcon symbol="🗓️"/> Tanggal:</span>
                     <input
                       type="date"
                       value={selectedDate}
@@ -3097,14 +3151,14 @@ Indosat IM3 : ${isatText}`;
 
           {isLoading ? (
             <div className="py-20 text-center text-sm font-black opacity-70 animate-pulse text-slate-950 dark:text-white">
-              ⏳ Mengambil dan mengkalkulasi data langsung dari Google Sheets...
+              <MinimalIcon symbol="⏳"/> Mengambil dan mengkalkulasi data langsung dari Google Sheets...
             </div>
           ) : (
             <>
               {/* TAB 1: OVERVIEW STORE */}
               {activeTab === "access-log" && currentSalesId === ADMIN_ID && (
                 <div className={cardBg + " p-5 rounded-3xl border space-y-4"}>
-                  <h2 className="font-black text-lg text-slate-950 dark:text-white">🔐 Access Log — Riwayat Login</h2>
+                  <h2 className="font-black text-lg text-slate-950 dark:text-white"><MinimalIcon symbol="🔐"/> Access Log — Riwayat Login</h2>
                   <p className="text-sm text-slate-700 dark:text-slate-300">Khusus admin. Masukkan password Access Log yang berbeda dari password login sales.</p>
                   <div className="flex flex-wrap gap-2">
                     <input type="password" placeholder="Password khusus Access Log" value={accessPassword} onChange={e=>setAccessPassword(e.target.value)} className="p-2 rounded-lg border bg-white text-slate-950 dark:bg-slate-800 dark:text-white" />
@@ -3112,7 +3166,7 @@ Indosat IM3 : ${isatText}`;
                   </div>
                   {accessError && <p className="text-rose-600 text-sm">{accessError}</p>}
                   <section className="space-y-3">
-                    <h3 className="font-black text-slate-950 dark:text-white">🏆 Ranking Aktivitas Staff</h3>
+                    <h3 className="font-black text-slate-950 dark:text-white"><MinimalIcon symbol="🏆"/> Ranking Aktivitas Staff</h3>
                     <p className="text-xs text-slate-600 dark:text-slate-300">Ranking berdasarkan estimasi total durasi aktif dari heartbeat. Login hari ini dihitung menurut tanggal WIB.</p>
                     <div className="grid grid-cols-3 gap-2">
                       {[["Staff Tercatat",accessRanking.length],["Login Hari Ini",accessRanking.reduce((n,x)=>n+x.loginsToday,0)],["Online",accessRanking.filter(x=>x.online).length]].map(([label,value])=><div key={label} className={`rounded-xl border p-3 ${innerBg}`}><p className="text-xs text-slate-600 dark:text-slate-300">{label}</p><p className="text-xl font-black text-slate-950 dark:text-white">{value}</p></div>)}
@@ -3125,7 +3179,7 @@ Indosat IM3 : ${isatText}`;
                     </table>{accessRanking.length===0&&<p className="p-3 text-sm text-slate-500">Belum ada aktivitas staff yang tercatat.</p>}</div>
                   </section>
                   <div className="space-y-2">
-                    <h3 className="font-black text-slate-950 dark:text-white">📡 Staff Activity Monitor</h3>
+                    <h3 className="font-black text-slate-950 dark:text-white"><MinimalIcon symbol="📡"/> Staff Activity Monitor</h3>
                     <p className="text-xs text-slate-700 dark:text-slate-300">Estimasi durasi aktif berdasarkan heartbeat 60 detik saat tab terlihat dan tidak idle. Klik Refresh untuk memperbarui status.</p>
                     <div className="overflow-x-auto"><table className="w-full min-w-[550px] text-xs text-slate-900 dark:text-slate-100">
                       <thead><tr>{["Sales ID", "Nama Staff", "Durasi Aktif", "Terakhir Aktif (WIB)", "Status"].map(h => <th key={h} className="p-2 text-left">{h}</th>)}</tr></thead>
@@ -3133,7 +3187,7 @@ Indosat IM3 : ${isatText}`;
                         <td className="p-2">{item.id}</td><td className="p-2">{item.name}</td>
                         <td className="p-2">{Math.floor(item.duration / 3600)}j {Math.floor(item.duration % 3600 / 60)}m</td>
                         <td className="p-2">{new Date(item.last).toLocaleString("id-ID", {timeZone:"Asia/Jakarta"})}</td>
-                        <td className="p-2">{item.online ? "🟢 Online" : "⚪ Offline"}</td>
+                        <td className="p-2">{item.online ? <><MinimalIcon symbol="🟢" className="text-emerald-500"/> Online</> : <><MinimalIcon symbol="⚪" className="text-slate-400"/> Offline</>}</td>
                       </tr>)}</tbody>
                     </table></div>
                   </div>
@@ -3150,7 +3204,7 @@ Indosat IM3 : ${isatText}`;
               {activeTab === "whiteboard" && (
                 <div className={`space-y-4 dg-scroll-reveal rounded-3xl border p-4 shadow-xl lg:hidden ${cardBg}`}>
                   <header className="flex items-start justify-between gap-3">
-                    <div><p className="text-[11px] font-bold uppercase tracking-widest text-sky-600 dark:text-sky-400">QF01 · Digiplus Grand Indonesia</p><h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">📊 Whiteboard</h2><p className="text-xs text-slate-600 dark:text-slate-300">{whiteboard.monthLabel} · Bulan berjalan (WIB)</p></div>
+                    <div><p className="text-[11px] font-bold uppercase tracking-widest text-sky-600 dark:text-sky-400">QF01 · Digiplus Grand Indonesia</p><h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white"><MinimalIcon symbol="📊"/> Whiteboard</h2><p className="text-xs text-slate-600 dark:text-slate-300">{whiteboard.monthLabel} · Bulan berjalan (WIB)</p></div>
                     <span className="rounded-xl bg-sky-100 px-3 py-2 text-xs font-bold text-sky-800 dark:bg-sky-950 dark:text-sky-200">Live MTD</span>
                   </header>
                   {!whiteboard.valid && <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-200">Target {whiteboard.monthLabel} belum tersedia. Achievement tetap ditampilkan tanpa perkiraan target.</p>}
@@ -3200,7 +3254,7 @@ Indosat IM3 : ${isatText}`;
               {activeTab === "whiteboard" && (
                 <div className={`hidden space-y-6 rounded-3xl lg:block border p-4 shadow-xl sm:p-7 ${cardBg}`}>
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-300 pb-4 dark:border-slate-700">
-                    <div><h2 className="text-xl font-black text-slate-950 dark:text-white">📊 WHITEBOARD — QF01 DIGIPLUS GRAND INDONESIA</h2><p className="text-xs text-slate-600 dark:text-slate-300">Ringkasan otomatis bulan berjalan • Data transaksi sampai hari ini (WIB)</p></div>
+                    <div><h2 className="text-xl font-black text-slate-950 dark:text-white"><MinimalIcon symbol="📊"/> WHITEBOARD — QF01 DIGIPLUS GRAND INDONESIA</h2><p className="text-xs text-slate-600 dark:text-slate-300">Ringkasan otomatis bulan berjalan • Data transaksi sampai hari ini (WIB)</p></div>
                     <div className="rounded-xl bg-sky-100 px-4 py-2 text-sm font-bold text-sky-800 dark:bg-sky-950 dark:text-sky-200">{new Date(whiteboard.today+"T12:00:00").toLocaleDateString("id-ID",{day:"numeric",month:"long",year:"numeric"})}</div>
                   </div>
                   {!whiteboard.valid && <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-200">Target bulan {whiteboard.monthLabel} belum tersedia pada sumber data. Achievement tetap ditampilkan, target dan variance tidak dihitung.</p>}
@@ -3303,7 +3357,7 @@ Indosat IM3 : ${isatText}`;
                     const report=["*DIGIPLUS GRAND INDONESIA*","*OVERVIEW STORE*","Periode: "+(periodType==="monthly"?selectedMonth:periodType==="daily"?selectedDate:"Weekly"),"Sales: "+formatIDR(overviewStats.actual),"Target: "+(overviewStats.target>0?formatIDR(overviewStats.target):"Belum tersedia"),"Achievement: "+(overviewStats.target>0?overviewStats.achv+"%":"—"),"Time Elapsed: "+timeGoneStats.timeElapsedPct+"%", "Estimated Month-End: "+(estimateOverview===null?"N/A":formatIDR(estimateOverview)), "Projected Achievement: "+(estimatePctOverview===null?"N/A":estimatePctOverview.toFixed(1)+"%"),"Estimated Gap vs Target: "+(estimateGapOverview===null?"N/A":(estimateGapOverview>=0?"+":"-")+formatIDR(Math.abs(estimateGapOverview))),...catData.map(c=>c.name+": "+formatIDR(totalFor(c.items)))].join("\n");
                     const card="rounded-[22px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1d2734] shadow-sm";
                     return <>
-                      <div className="flex justify-between items-center gap-2"><div><p className="text-[10px] font-bold uppercase tracking-widest text-sky-600 dark:text-sky-400">QF01 · Store Command Center</p><h2 className="text-xl font-black text-slate-950 dark:text-white">Overview Store</h2><p className="text-xs text-slate-600 dark:text-slate-300">{periodType==="monthly"?selectedMonth:periodType==="daily"?selectedDate:"Weekly"}</p></div><button type="button" onClick={()=>window.open("https://wa.me/?text="+encodeURIComponent(report),"_blank")} className="rounded-xl bg-emerald-600 text-white text-xs font-bold px-3 py-3">↗ Share</button></div>
+                      <div className="flex justify-between items-center gap-2"><div><p className="text-[10px] font-bold uppercase tracking-widest text-sky-600 dark:text-sky-400">QF01 · Store Command Center</p><h2 className="text-xl font-black text-slate-950 dark:text-white">Overview Store</h2><p className="text-xs text-slate-600 dark:text-slate-300">{periodType==="monthly"?selectedMonth:periodType==="daily"?selectedDate:"Weekly"}</p></div><button type="button" onClick={()=>window.open("https://wa.me/?text="+encodeURIComponent(report),"_blank")} className="rounded-xl bg-emerald-600 text-white text-xs font-bold px-3 py-3"><MinimalIcon symbol="↗"/> Share</button></div>
                       {mobileOverviewTab==="overview"&&<>
                         <div className="rounded-[24px] bg-gradient-to-br from-blue-700 via-blue-600 to-sky-500 text-white p-5 shadow-lg"><p className="text-sm font-semibold opacity-90">Sales Achievement</p><p className="text-3xl font-black mt-2">{formatIDR(overviewStats.actual)}</p><div className="flex justify-between text-xs mt-2"><span>Target: {overviewStats.target>0?formatIDR(overviewStats.target):"Belum tersedia"}</span><strong>{overviewStats.target>0?overviewStats.achv+"%":"—"}</strong></div><div className="h-2 rounded-full bg-white/25 overflow-hidden mt-3"><div className="h-full bg-cyan-200 rounded-full" style={{width:(overviewStats.target>0?Math.min(100,overviewStats.actual/overviewStats.target*100):0)+"%"}}/></div><div className="mt-4 grid grid-cols-1 gap-3 border-t border-white/30 pt-3 sm:grid-cols-2"><div><p className="text-xs text-blue-100">{isPastOverview?"Final Sales":"Estimated Month-End · Run Rate"}</p><p className="mt-1 text-lg font-black">{estimateOverview===null?"N/A":formatIDR(estimateOverview)}</p><p className="text-[11px] text-blue-100">{elapsedOverview?totalDaysOverview+" hari / "+elapsedOverview+" hari berjalan":"Data periode tidak tersedia"}</p></div><div><p className="text-xs text-blue-100">Projected Achievement</p><p className="mt-1 text-lg font-black">{estimatePctOverview===null?"N/A":estimatePctOverview.toFixed(1)+"%"}</p><p className="text-[11px] text-blue-100">Est. Gap vs Target: {estimateGapOverview===null?"N/A":(estimateGapOverview>=0?"+":"-")+formatIDR(Math.abs(estimateGapOverview))}</p></div></div></div>
                         <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">{[{label:"Time Elapsed",value:timeGoneStats.timeElapsedPct+"%",icon:"⏱️"},{label:"UPT · Physical",value:upt===null?"—":upt.toFixed(2),icon:"📦"},{label:"ASP · All Items",value:asp===null?"—":formatIDR(asp),icon:"📈"},{label:"ATV",value:atv===null?"—":formatIDR(atv),icon:"🧾"},{label:"Gap to Target",value:overviewStats.target>0?formatIDR(Math.max(0,overviewStats.target-overviewStats.actual)):"—",icon:"🎯"}].map(k=><div key={k.label} className={card+" p-3"}><p className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-300">{k.label==="Time Elapsed"?<Clock3 size={15}/>:k.label.startsWith("UPT")?<Package size={15}/>:k.label.startsWith("ASP")?<TrendingUp size={15}/>:k.label==="ATV"?<Receipt size={15}/>:<Target size={15}/>} {k.label}</p><p className="break-words text-[clamp(12px,3.3vw,18px)] leading-snug font-black text-slate-950 dark:text-white mt-1">{k.value}</p></div>)}</div>
@@ -3315,14 +3369,14 @@ Indosat IM3 : ${isatText}`;
                       {mobileOverviewTab==="categories"&&<><h3 className="font-black text-lg text-slate-950 dark:text-white">Kategori Penjualan</h3><div className="grid grid-cols-2 lg:grid-cols-4 gap-2">{catData.map((c,i)=><button key={c.name} type="button" onClick={()=>{setMobileOverviewCategory(i);setMobileOverviewDetailTab("brand");setMobileOverviewShowAll(false)}} className={card+" min-w-0 overflow-hidden text-left p-3 border-2 "+(mobileOverviewCategory===i?"!border-blue-500":"")}><RetailBrandLogo brand={c.name} size={27}/><p className="text-sm font-black text-slate-950 dark:text-white mt-2">{c.name}</p><p className="break-words text-[clamp(11px,3.2vw,14px)] leading-snug font-bold text-blue-600 dark:text-sky-400">{formatIDR(totalFor(c.items))}</p><p className="text-xs text-slate-500 dark:text-slate-300">{c.target>0?(totalFor(c.items)/c.target*100).toFixed(1)+"% of target":"Target belum tersedia"}</p></button>)}</div>{selected&&<div className={card+" p-4 space-y-3"}><div className="flex justify-between items-center"><h3 className="font-black text-slate-950 dark:text-white"><span className="inline-flex items-center gap-2"><RetailBrandLogo brand={selected.name} size={22}/> Detail {selected.name}</span></h3><button type="button" onClick={()=>setMobileOverviewCategory(null)} aria-label="Tutup detail" className="text-slate-500 p-2">✕</button></div><div className="grid grid-cols-2 gap-2 text-sm"><div><p className="text-slate-500 text-xs">Sales Value</p><strong className="text-slate-950 dark:text-white">{formatIDR(totalFor(selected.items))}</strong></div><div><p className="text-slate-500 text-xs">Qty</p><strong className="text-slate-950 dark:text-white">{selected.items.reduce((a,t)=>a+(Number(t.qty)||0),0)}</strong></div></div>{selected.name==="Apple Devices"&&appleSubDetails(selected.items)}<div className="flex gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-1">{(["brand","product","staff"] as const).map(tab=><button key={tab} type="button" onClick={()=>{setMobileOverviewDetailTab(tab);setMobileOverviewShowAll(false)}} className={"flex-1 rounded-lg px-2 py-2 text-xs font-bold "+(mobileOverviewDetailTab===tab?"bg-blue-600 text-white":"text-slate-600 dark:text-slate-300")}>Per {tab==="brand"?"Brand":tab==="product"?"Produk":"Staff"}</button>)}</div>{groupBy(selected.items,mobileOverviewDetailTab).slice(0,mobileOverviewShowAll?undefined:5).map(g=><button key={g.name} type="button" onClick={()=>openLobDetailSheet(g.name,g.items)} className="w-full flex justify-between gap-2 items-center border-b border-slate-200 dark:border-slate-700 py-3 text-left"><div className="min-w-0"><p className="font-bold text-sm text-slate-950 dark:text-white truncate">{g.name}</p><p className="text-xs text-slate-500">{g.qty} Qty</p></div><span className="font-bold text-sm text-sky-600 shrink-0">{formatIDR(g.amount)} ›</span></button>)}{groupBy(selected.items,mobileOverviewDetailTab).length>5&&<button type="button" onClick={()=>setMobileOverviewShowAll(!mobileOverviewShowAll)} className="w-full text-center text-sm font-bold text-blue-600 py-2">{mobileOverviewShowAll?"Show Less":"Show More"}</button>}<button type="button" onClick={()=>openLobDetailSheet("Rincian Transaksi "+selected.name,selected.items)} className="w-full rounded-xl bg-blue-600 text-white py-3 text-sm font-bold">Lihat Semua Transaksi & Invoice →</button></div>}</>}
                       {mobileOverviewTab==="staff"&&<div className={card+" p-4 space-y-3"}><h3 className="font-black text-lg text-slate-950 dark:text-white">Staff Leaderboard</h3><div className="flex gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">{([{key:"achvPct",label:"Achievement"},{key:"totalAmount",label:"Sales Value"},{key:"upt",label:"UPT"}] as const).map(m=><button type="button" key={m.key} onClick={()=>setMobileOverviewRankBy(m.key)} className={"flex-1 py-2 rounded-lg text-[11px] font-bold "+(mobileOverviewRankBy===m.key?"bg-blue-600 text-white":"text-slate-600 dark:text-slate-300")}>{m.label}</button>)}</div>{ranking.slice(0,mobileOverviewShowAll?undefined:5).map((st,i)=><button type="button" key={st.salesId} onClick={()=>{setSelectedStaffId(st.salesId);setActiveTab("staff-performance")}} className="w-full flex gap-3 items-center py-3 border-b border-slate-200 dark:border-slate-700 text-left"><span className="font-black text-amber-500 w-6">#{i+1}</span><span className="w-10 h-10 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center">{st.initials}</span><div className="min-w-0 flex-1"><p className="font-bold text-sm text-slate-950 dark:text-white truncate">{st.name}</p><p className="text-xs text-slate-500">{formatIDR(st.totalAmount)}</p></div><span className="font-black text-sky-600">{mobileOverviewRankBy==="upt"?st.upt:mobileOverviewRankBy==="totalAmount"?formatIDR(st.totalAmount):st.targetAmount>0?st.achvPct+"%":"—"}</span></button>)}{ranking.length>5&&<button type="button" onClick={()=>setMobileOverviewShowAll(!mobileOverviewShowAll)} className="w-full py-2 text-sm font-bold text-blue-600">{mobileOverviewShowAll?"Show Less":"Show More"}</button>}</div>}
                       {mobileOverviewTab==="insights"&&<div className={card+" p-4 space-y-4"}><h3 className="text-lg font-black text-slate-950 dark:text-white">Store Insights</h3>{overviewStats.target>0?<p className="text-sm text-slate-700 dark:text-slate-200">{overviewStats.achv<timeGoneStats.timeElapsedPct?"⚠️ Achievement di bawah Time Elapsed. Prioritaskan closing dan follow-up pelanggan.":"✅ Achievement berada di atas atau sama dengan Time Elapsed."}</p>:<p className="text-sm text-slate-600 dark:text-slate-300">Target store belum tersedia untuk periode ini.</p>}{catData.filter(c=>c.target>0&&totalFor(c.items)<c.target).map(c=><div key={c.name} className="rounded-xl bg-blue-500/10 p-3 text-sm text-slate-800 dark:text-slate-200"><strong>{c.name}</strong> · Gap {formatIDR(c.target-totalFor(c.items))}. Evaluasi kontribusi kategori dan peluang cross-sell.</div>)}<p className="text-xs text-slate-500 dark:text-slate-300">Insights berbasis aturan dari data transaksi, bukan prediksi AI.</p></div>}
-                      <nav aria-label="Navigasi Overview Store mobile" className="sticky bottom-2 lg:bottom-auto lg:top-2 z-30 grid grid-cols-4 gap-1 rounded-2xl bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-700 p-2 shadow-xl backdrop-blur">{([{id:"overview",label:"Overview",icon:"⌂"},{id:"categories",label:"Kategori",icon:"▦"},{id:"staff",label:"Staff",icon:"♙"},{id:"insights",label:"Insights",icon:"ϟ"}] as const).map(t=><button type="button" key={t.id} onClick={()=>{setMobileOverviewTab(t.id);setMobileOverviewShowAll(false)}} aria-current={mobileOverviewTab===t.id?"page":undefined} className={"rounded-xl py-2 flex flex-col items-center gap-1 text-[11px] font-bold "+(mobileOverviewTab===t.id?"bg-blue-600 text-white":"text-slate-600 dark:text-slate-300")}><span className="text-lg">{t.icon}</span>{t.label}</button>)}</nav>
+                      <nav aria-label="Navigasi Overview Store mobile" className="sticky bottom-2 lg:bottom-auto lg:top-2 z-30 grid grid-cols-4 gap-1 rounded-2xl bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-700 p-2 shadow-xl backdrop-blur">{([{id:"overview",label:"Overview",icon:"⌂"},{id:"categories",label:"Kategori",icon:"▦"},{id:"staff",label:"Staff",icon:"♙"},{id:"insights",label:"Insights",icon:"ϟ"}] as const).map(t=><button type="button" key={t.id} onClick={()=>{setMobileOverviewTab(t.id);setMobileOverviewShowAll(false)}} aria-current={mobileOverviewTab===t.id?"page":undefined} className={"rounded-xl py-2 flex flex-col items-center gap-1 text-[11px] font-bold "+(mobileOverviewTab===t.id?"bg-blue-600 text-white":"text-slate-600 dark:text-slate-300")}><span className="inline-flex items-center justify-center">{t.id==="overview"?<LayoutDashboard size={18}/>:t.id==="categories"?<Layers size={18}/>:t.id==="staff"?<Users size={18}/>:<ChartLine size={18}/>}</span>{t.label}</button>)}</nav>
                     </>;
                   })()}
                 </div>
                 <div className="hidden space-y-6 sm:space-y-8">
                   <section className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl`}>
                     <div className="mb-4">
-                      <h2 className="text-base sm:text-lg font-black text-slate-950 dark:text-white">🏆 STAFF RANKING — TARGET VS ACHIEVEMENT</h2>
+                      <h2 className="text-base sm:text-lg font-black text-slate-950 dark:text-white"><MinimalIcon symbol="🏆"/> STAFF RANKING — TARGET VS ACHIEVEMENT</h2>
                       <p className={`text-xs ${textMuted}`}>Diurutkan berdasarkan achievement % tertinggi, kemudian sales value. Klik avatar atau More Details untuk rincian kategori.</p>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -3342,7 +3396,7 @@ Indosat IM3 : ${isatText}`;
                             <div className="flex justify-between gap-2"><span className={textMuted}>Target</span><strong className="text-slate-950 dark:text-white">{formatIDR(st.targetAmount)}</strong></div>
                             <div className="h-2 rounded-full bg-slate-300/40 overflow-hidden"><div className="h-full bg-sky-500 rounded-full" style={{width: `${Math.min(100, Math.max(0, st.achvPct))}%`}} /></div>
                           </div>
-                          <p className="text-right mt-2 text-xs font-bold text-sky-600 dark:text-sky-300">More Details ↗</p>
+                          <p className="text-right mt-2 text-xs font-bold text-sky-600 dark:text-sky-300">More Details <MinimalIcon symbol="↗"/></p>
                         </button>
                       ))}
                     </div>
@@ -3382,7 +3436,7 @@ Indosat IM3 : ${isatText}`;
                     <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
                       <div className="flex items-center gap-3">
                         <div className={`w-12 h-12 rounded-2xl ${innerBg} border flex items-center justify-center text-2xl font-black ${accentText}`}>
-                          ⏳
+                          <MinimalIcon symbol="⏳"/>
                         </div>
                         <div>
                           <h2 className="text-base font-black tracking-wide text-slate-950 dark:text-white">
@@ -3472,7 +3526,7 @@ Indosat IM3 : ${isatText}`;
                     <div className="flex flex-wrap justify-between items-center pb-4 border-b border-inherit gap-3">
                       <div>
                         <h3 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
-                          <span>🎯</span>
+                          <span><MinimalIcon symbol="🎯"/></span>
                           <span>TARGET VS ACHIEVEMENT (T/A) &amp; DRILLDOWN PRODUK</span>
                         </h3>
                       </div>
@@ -3558,7 +3612,7 @@ Indosat IM3 : ${isatText}`;
                                         className="text-[10px] font-black text-[#075bb5] dark:text-[#82c2ff] hover:underline flex items-center gap-1"
                                       >
                                         <span>More Details</span>
-                                        <span>➔</span>
+                                        <span><MinimalIcon symbol="➔"/></span>
                                       </button>
                                     </div>
                                   </div>
@@ -3635,7 +3689,7 @@ Indosat IM3 : ${isatText}`;
                                   <div key={idx} className={`p-3.5 rounded-xl border ${cardBg} text-xs space-y-2 shadow-sm`}>
                                     <div className="flex justify-between items-center">
                                       <span className="font-black text-slate-900 dark:text-white flex items-center gap-1.5">
-                                        <span>{b.icon}</span>
+                                        <span><MinimalIcon symbol={b.icon} className="h-4 w-4"/></span>
                                         <span>{b.label}</span>
                                       </span>
                                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${bAchv >= 100 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"}`}>
@@ -3654,7 +3708,7 @@ Indosat IM3 : ${isatText}`;
                                         className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
                                       >
                                         <span>More Details</span>
-                                        <span>➔</span>
+                                        <span><MinimalIcon symbol="➔"/></span>
                                       </button>
                                     </div>
                                   </div>
@@ -3677,7 +3731,7 @@ Indosat IM3 : ${isatText}`;
                           <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-4`}>
                             <div className="flex flex-wrap justify-between items-center gap-3">
                               <div className="flex items-center gap-3">
-                                <span className="text-2xl">🔌</span>
+                                <span className="text-2xl"><MinimalIcon symbol="🔌"/></span>
                                 <div>
                                   <h4 className="text-sm sm:text-base font-black text-amber-600 dark:text-amber-400">
                                     Accessories (Cases, Chargers &amp; Audio)
@@ -3778,7 +3832,7 @@ Indosat IM3 : ${isatText}`;
                                   <div key={idx} className={`p-3.5 rounded-xl border ${cardBg} text-xs space-y-2 shadow-sm`}>
                                     <div className="flex justify-between items-center">
                                       <span className="font-black text-slate-900 dark:text-white flex items-center gap-1.5">
-                                        <span>{vs.icon}</span>
+                                        <span><MinimalIcon symbol={vs.icon} className="h-4 w-4"/></span>
                                         <span>{vs.label}</span>
                                       </span>
                                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${vsAchv >= 100 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"}`}>
@@ -3797,7 +3851,7 @@ Indosat IM3 : ${isatText}`;
                                         className="text-[10px] font-black text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1"
                                       >
                                         <span>More Details</span>
-                                        <span>➔</span>
+                                        <span><MinimalIcon symbol="➔"/></span>
                                       </button>
                                     </div>
                                   </div>
@@ -3850,7 +3904,7 @@ Indosat IM3 : ${isatText}`;
                     })()}
                   </section>
                   <section className={`p-5 ${cardBg} border-2 rounded-3xl shadow-xl space-y-4`}>
-                    <h2 className="text-lg font-black text-slate-950 dark:text-white">📦 RINCIAN PENJUALAN WEEK BERJALAN VS WEEK SEBELUMNYA</h2>
+                    <h2 className="text-lg font-black text-slate-950 dark:text-white"><MinimalIcon symbol="📦"/> RINCIAN PENJUALAN WEEK BERJALAN VS WEEK SEBELUMNYA</h2>
                     <p className="text-xs text-slate-500">Pembanding lintas bulan otomatis. Growth Actual = perubahan omzet total; Growth Daily Average = perubahan rata-rata omzet per hari teramati.</p>
                     {calendarWeekly.current && (() => {
                       const w=calendarWeekly.current,prev=calendarWeekly.previous;
@@ -3937,7 +3991,7 @@ Indosat IM3 : ${isatText}`;
               {activeTab === "qoala-ar" && (
                 <div className="space-y-6">
                   <div className={cardBg + " p-5 sm:p-6 border rounded-3xl space-y-3"}>
-                    <h3 className="text-base font-black text-slate-950 dark:text-white">🏆 Top to Bottom Staff — Qoala AR %</h3>
+                    <h3 className="text-base font-black text-slate-950 dark:text-white"><MinimalIcon symbol="🏆"/> Top to Bottom Staff — Qoala AR %</h3>
                     <p className={textMuted + " text-xs"}>AR = Qty Qoala ÷ Qty device terjual × 100%. Staff tanpa penjualan device ditampilkan tanpa AR.</p>
                     <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-xs text-slate-900 dark:text-slate-100">
                       <thead><tr className="border-b border-slate-300 dark:border-slate-700">{["Rank","Staff / Sales ID","Device Qty","Qoala Qty","AR %","Omset Qoala"].map(h=><th key={h} className="p-3 text-left">{h}</th>)}</tr></thead>
@@ -3951,14 +4005,14 @@ Indosat IM3 : ${isatText}`;
                   </div>
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                     <div className={cardBg + " p-5 border rounded-3xl space-y-3"}>
-                      <h3 className="font-black text-slate-950 dark:text-white">🛡️ Detail Produk Qoala Terjual</h3>
+                      <h3 className="font-black text-slate-950 dark:text-white"><MinimalIcon symbol="🛡️"/> Detail Produk Qoala Terjual</h3>
                       <div className="overflow-x-auto"><table className="w-full text-xs text-slate-900 dark:text-slate-100">
                         <thead><tr><th className="p-2 text-left">Produk Qoala</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Omset</th></tr></thead>
                         <tbody>{qoalaDetails.products.map(p=><tr key={p.name} className="border-t border-slate-200 dark:border-slate-700"><td className="p-2">{p.name}</td><td className="p-2 text-right">{p.qty}</td><td className="p-2 text-right">{formatIDR(p.amount)}</td></tr>)}</tbody>
                       </table></div>
                     </div>
                     <div className={cardBg + " p-5 border rounded-3xl space-y-3"}>
-                      <h3 className="font-black text-slate-950 dark:text-white">📱 Detail Device Terjual &amp; Attachment</h3>
+                      <h3 className="font-black text-slate-950 dark:text-white"><MinimalIcon symbol="📱"/> Detail Device Terjual &amp; Attachment</h3>
                       <p className={textMuted + " text-xs"}>Attachment diestimasi dari kecocokan nomor invoice antara Qoala dan device.</p>
                       <div className="overflow-x-auto"><table className="w-full text-xs text-slate-900 dark:text-slate-100">
                         <thead><tr><th className="p-2 text-left">Device</th><th className="p-2 text-right">Terjual</th><th className="p-2 text-right">Qoala Attached</th></tr></thead>
@@ -4186,13 +4240,13 @@ return <div className="space-y-5">
                     if(targetFor("total")>0&&sum(rows).amount/targetFor("total")*100<timeGoneStats.timeElapsedPct)insights.push("Achievement di bawah Time Elapsed; evaluasi kebutuhan sales harian.");
                     if(!insights.length)insights.push("Pertahankan konsistensi sales dan tingkatkan attach rate.");
                     return <section className={`p-4 sm:p-7 rounded-[28px] border ${cardBg} shadow-xl space-y-6`}>
-                      <div className="flex flex-wrap items-center justify-between gap-4"><div className="flex items-center gap-3"><div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-700 text-white flex items-center justify-center text-xl font-black shadow-lg">{st.initials}</div><div><p className="text-[10px] uppercase tracking-[0.2em] font-bold text-sky-600 dark:text-sky-400">Individual Performance · Rank #{st.rank}</p><h2 className="font-black text-xl sm:text-2xl text-slate-950 dark:text-white">{st.name}</h2><p className={`text-xs ${textMuted}`}>{st.salesId} · {periodType.toUpperCase()} · {periodType==="daily"?selectedDate:periodType==="weekly"?(staffSelectedWeek?.label+" · "+staffSelectedWeek?.start+" – "+staffSelectedWeek?.end):selectedMonth}</p></div></div><button type="button" onClick={()=>window.open("https://wa.me/?text="+encodeURIComponent(reportText),"_blank")} className="px-4 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-lg">↗ Share WhatsApp</button></div>
+                      <div className="flex flex-wrap items-center justify-between gap-4"><div className="flex items-center gap-3"><div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-700 text-white flex items-center justify-center text-xl font-black shadow-lg">{st.initials}</div><div><p className="text-[10px] uppercase tracking-[0.2em] font-bold text-sky-600 dark:text-sky-400">Individual Performance · Rank #{st.rank}</p><h2 className="font-black text-xl sm:text-2xl text-slate-950 dark:text-white">{st.name}</h2><p className={`text-xs ${textMuted}`}>{st.salesId} · {periodType.toUpperCase()} · {periodType==="daily"?selectedDate:periodType==="weekly"?(staffSelectedWeek?.label+" · "+staffSelectedWeek?.start+" – "+staffSelectedWeek?.end):selectedMonth}</p></div></div><button type="button" onClick={()=>window.open("https://wa.me/?text="+encodeURIComponent(reportText),"_blank")} className="px-4 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-lg"><MinimalIcon symbol="↗"/> Share WhatsApp</button></div>
                       <div className="flex flex-wrap gap-2 items-center"><label htmlFor="staff-profile-select" className="text-xs font-bold text-slate-600 dark:text-slate-300">Pilih Staff</label><select id="staff-profile-select" value={st.salesId} onChange={e=>{setSelectedStaffId(e.target.value);setStaffExpandedDetail(null)}} className="min-w-[200px] max-w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2 text-sm font-semibold text-slate-900 dark:text-white">{staffList.map(person=><option key={person.salesId} value={person.salesId}>{person.name}</option>)}</select></div>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         {[{label:"Sales Value",value:formatIDR(sum(rows).amount)},{label:"Achievement",value:targetFor("total")>0?(sum(rows).amount/targetFor("total")*100).toFixed(1)+"%":"—"},{label:"UPT · Physical Units",value:upt===null?"—":upt.toFixed(2)},{label:"Unique Invoice",value:String(uniqueInvoices.size)}].map(k=><div key={k.label} className={`rounded-2xl p-3 border ${innerBg}`}><p className="text-[11px] text-slate-600 dark:text-slate-400 font-bold">{k.label}</p><p className="break-words text-[clamp(12px,3.3vw,18px)] leading-snug font-black text-slate-950 dark:text-white mt-1">{k.value}</p></div>)}
                       </div>
                       <div className={`rounded-2xl border p-4 ${innerBg} space-y-3`}>
-                        <div className="flex flex-wrap justify-between items-center gap-2"><div><h3 className="font-black text-slate-950 dark:text-white">No Sales Tracker</h3><p className="text-[11px] text-slate-600 dark:text-slate-400">Hari kalender pada periode terpilih · bukan hari kerja/off · {calendarDays.length} hari</p></div><button type="button" onClick={()=>window.open("https://wa.me/?text="+encodeURIComponent(reportText)," _blank".trim())} className="px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black">↗ Share Performance 360°</button></div>
+                        <div className="flex flex-wrap justify-between items-center gap-2"><div><h3 className="font-black text-slate-950 dark:text-white">No Sales Tracker</h3><p className="text-[11px] text-slate-600 dark:text-slate-400">Hari kalender pada periode terpilih · bukan hari kerja/off · {calendarDays.length} hari</p></div><button type="button" onClick={()=>window.open("https://wa.me/?text="+encodeURIComponent(reportText)," _blank".trim())} className="px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black"><MinimalIcon symbol="↗"/> Share Performance 360°</button></div>
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">{noSalesCards.map(c=><div key={c.label} className="rounded-xl bg-slate-500/10 p-3"><p className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">{c.label}</p><p className="text-2xl font-black text-slate-950 dark:text-white">{noSalesFor(c.items)} <span className="text-xs font-medium">hari</span></p><p className="text-[10px] text-slate-600 dark:text-slate-400">Streak: {noSalesStreak(c.items)} hari</p></div>)}</div>
                         <div className="flex flex-wrap gap-1.5">{calendarDays.map(day=><div key={day} title={day+" · "+(rows.some(t=>t.isoDate===day)?"Ada transaksi":"No sales")} className={`w-9 h-10 rounded-lg flex flex-col items-center justify-center text-[10px] font-bold ${rows.some(t=>t.isoDate===day)?"bg-emerald-500/15 text-emerald-700 dark:text-emerald-300":"bg-rose-500/15 text-rose-700 dark:text-rose-300"}`}><span>{day.slice(-2)}</span><span>{rows.some(t=>t.isoDate===day)?"●":"—"}</span></div>)}</div>
                         <div className="rounded-xl bg-sky-500/10 p-3"><h4 className="text-xs font-black text-sky-700 dark:text-sky-300 mb-2">Performance Insights</h4>{insights.map((insight,i)=><p key={i} className="text-xs text-slate-800 dark:text-slate-200 py-1">• {insight}</p>)}</div>
@@ -4212,7 +4266,7 @@ return <div className="space-y-5">
                     <div className="flex flex-wrap justify-between items-center gap-4">
                       <div>
                         <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
-                          <span>🎯</span>
+                          <span><MinimalIcon symbol="🎯"/></span>
                           <span>DAILY TARGET &amp; RUN RATE HARIAN (QF01)</span>
                         </h2>
                         <p className={`text-xs ${textMuted} mt-0.5`}>
@@ -4225,7 +4279,7 @@ return <div className="space-y-5">
                           onClick={handleShareTargetWA}
                           className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-black transition flex items-center gap-2 border border-slate-700 shadow-md active:scale-95"
                         >
-                          <span>📢</span>
+                          <span><MinimalIcon symbol="📢"/></span>
                           <span>Share Rekap Toko</span>
                         </button>
                       </div>
@@ -4555,7 +4609,7 @@ return <div className="space-y-5">
                           Supplier Monitoring &amp; Contribution
                         </span>
                         <h2 className="text-lg sm:text-2xl font-black text-slate-950 dark:text-white mt-0.5 flex items-center gap-2">
-                          <span>🏷️</span>
+                          <span><MinimalIcon symbol="🏷️"/></span>
                           <span>BRAND FOCUS ACCESSORIES</span>
                         </h2>
                         <p className="text-xs text-slate-500 mt-1">
@@ -4609,7 +4663,7 @@ return <div className="space-y-5">
                     {/* DETAIL TRANSAKSI PER SUPPLIER */}
                     <div className="space-y-5">
                       <h3 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2">
-                        <span>📋</span>
+                        <span><MinimalIcon symbol="📋"/></span>
                         <span>Rincian Transaksi Produk Per Supplier</span>
                       </h3>
 
@@ -4683,7 +4737,7 @@ return <div className="space-y-5">
                     <div className={`p-5 sm:p-7 rounded-3xl border-2 ${cardBg} shadow-xl space-y-6`}>
                       <div className="border-b border-inherit pb-3">
                         <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-                          <span>👤</span>
+                          <span><MinimalIcon symbol="👤"/></span>
                           <span>Penjualan Supplier Per Staff</span>
                         </h3>
                         <p className="text-xs text-slate-500 mt-0.5">
@@ -4739,7 +4793,7 @@ return <div className="space-y-5">
                     <div className="flex flex-wrap justify-between items-center gap-4">
                       <div>
                         <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
-                          <span>📅</span>
+                          <span><MinimalIcon symbol="📅"/></span>
                           <span>JADWAL OPERASIONAL KERJA 1 MINGGU (SENIN - MINGGU)</span>
                         </h2>
                       </div>
@@ -4749,7 +4803,7 @@ return <div className="space-y-5">
                           onClick={handlePrintSchedule}
                           className={`px-3.5 py-1.5 rounded-xl border text-xs font-black transition flex items-center gap-1.5 ${innerBg} text-slate-950 dark:text-white`}
                         >
-                          <span>🖨️</span>
+                          <span><MinimalIcon symbol="🖨️"/></span>
                           <span>Print</span>
                         </button>
 
@@ -4782,7 +4836,7 @@ return <div className="space-y-5">
               {activeTab === "feedback" && (
                 <div className="space-y-6">
                   <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-4`}>
-                    <h2 className="font-black text-lg text-slate-950 dark:text-white">💬 Feedback Tim — Semua Perangkat</h2>
+                    <h2 className="font-black text-lg text-slate-950 dark:text-white"><MinimalIcon symbol="💬"/> Feedback Tim — Semua Perangkat</h2>
                     <p className="text-xs text-slate-500">Feedback tersimpan online dan dapat dibaca semua pengguna dashboard. Jangan memasukkan data pribadi pelanggan.</p>
                     <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">Pengirim: {currentSalesName || "Staff"}</div>
                     <select value={feedbackSentiment} onChange={e=>setFeedbackSentiment(e.target.value as FeedbackItem["sentiment"])} className="w-full rounded-xl p-3 border border-slate-300 bg-white text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:[color-scheme:dark]">
@@ -4822,12 +4876,12 @@ return <div className="space-y-5">
                     <div className="flex flex-wrap justify-between items-center gap-4">
                       <div>
                         <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
-                          <span>💳</span>
+                          <span><MinimalIcon symbol="💳"/></span>
                           <span>TRANSAKSI PEMBIAYAAN KONSUMEN (BNPL)</span>
                         </h2>
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <button type="button" onClick={handleShareBnplWhatsApp} className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black">📲 Share WhatsApp</button>
+                        <button type="button" onClick={handleShareBnplWhatsApp} className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black"><MinimalIcon symbol="📲"/> Share WhatsApp</button>
                         <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border border-emerald-400/30">
                           Total BNPL: {formatIDR(bnplSummary.totalAmount)}
                         </span>
@@ -4847,7 +4901,7 @@ return <div className="space-y-5">
                       ))}
                     </div>
                     <div className="space-y-4 pt-3">
-                      <h3 className="text-sm font-black text-slate-900 dark:text-white">📋 Rincian Transaksi per Tender BNPL — {selectedMonth}</h3>
+                      <h3 className="text-sm font-black text-slate-900 dark:text-white"><MinimalIcon symbol="📋"/> Rincian Transaksi per Tender BNPL — {selectedMonth}</h3>
                       {bnplSummary.tenders.length===0 && <p className="text-sm text-slate-500">Tidak ada transaksi BNPL pada periode terpilih.</p>}
                       {bnplSummary.tenders.map(td=>(
                         <div key={td.tender} className={`rounded-2xl border ${innerBg} p-3 space-y-3`}>
@@ -4906,7 +4960,7 @@ return <div className="space-y-5">
                 <div className="space-y-6">
                   <div className={`p-6 ${cardBg} border rounded-2xl shadow-xl space-y-4`}>
                     <h2 className="text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
-                      <span>🔍</span> PENCARIAN PRODUK TERJUAL
+                      <span><MinimalIcon symbol="🔍"/></span> PENCARIAN PRODUK TERJUAL
                     </h2>
                     <input
                       type="text"
@@ -4957,7 +5011,7 @@ return <div className="space-y-5">
         className={`lg:hidden fixed bottom-[calc(env(safe-area-inset-bottom)+12px)] left-3 z-40 w-11 h-11 rounded-full flex items-center justify-center border backdrop-blur-md active:scale-95 focus-visible:opacity-100 hover:opacity-100 transition-all duration-300 print:hidden ${isMobileScrolled ? "bg-slate-200/50 dark:bg-white/15 text-slate-500 dark:text-slate-300 border-slate-300/30 dark:border-white/10 opacity-30 shadow-none" : "bg-slate-900 dark:bg-sky-500 text-white border-slate-700 dark:border-sky-400/30 opacity-100 shadow-lg shadow-slate-900/20 dark:shadow-sky-500/25"}`}
         aria-label="Buka Menu Navigasi"
       >
-        <span className="text-lg leading-none" aria-hidden="true">☰</span>
+        <span className="text-lg leading-none" aria-hidden="true"><MinimalIcon symbol="☰"/></span>
       </button>
 
       {pptxConfigOpen && (
@@ -4980,7 +5034,7 @@ return <div className="space-y-5">
           <div className={`w-full sm:max-w-3xl max-h-[85vh] rounded-t-3xl sm:rounded-3xl ${cardBg} border-2 border-inherit shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300`}>
             <div className="flex items-center justify-between p-4 sm:p-5 border-b border-inherit bg-black/10 dark:bg-black/20">
               <h3 className={`text-sm sm:text-base font-black ${textMain} flex items-center gap-2 truncate`}>
-                <span>📋</span>
+                <span><MinimalIcon symbol="📋"/></span>
                 <span className="truncate">{sheetTitle}</span>
               </h3>
 
