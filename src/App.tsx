@@ -10,10 +10,16 @@ import LivePriceCatalog from "./LivePriceCatalog";
 
 const RETAIL_BRAND_ICONS: Record<string,string> = {APPLE:"apple",SAMSUNG:"samsung",XIAOMI:"xiaomi",OPPO:"oppo",HUAWEI:"huawei",INFINIX:"infinix",MOTOROLA:"motorola",ANDROID:"android",QOALA:"shield",TELKOMSEL:"telkomsel",XL:"xl",INDOSAT:"indosat"};
 function RetailBrandLogo({brand,size=22,light=false}:{brand:string,size?:number,light?:boolean}){
- const normalized=brand.toUpperCase().trim(); const key=Object.keys(RETAIL_BRAND_ICONS).find(k=>normalized.includes(k));
- const slug=key?RETAIL_BRAND_ICONS[key]:null;
- if(!slug||["shield","xl"].includes(slug))return <span aria-label={brand} className="inline-flex items-center justify-center rounded-md border border-current/20 px-1.5 text-[10px] font-bold" style={{minWidth:size,height:size}}>{brand}</span>;
- return <img src={`https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/${slug}.svg`} alt={brand} loading="lazy" width={size} height={size} className={light?"shrink-0 brightness-0 invert":"shrink-0 dark:brightness-0 dark:invert"} style={{width:size,height:size,objectFit:"contain"}}/>;
+ const normalized=brand.toUpperCase().trim();
+ const matched=Object.keys(RETAIL_BRAND_ICONS).find(k=>normalized.includes(k));
+ const label=matched||brand;
+ const iconSlugs:Record<string,string>={APPLE:"apple",XIAOMI:"xiaomi",HUAWEI:"huawei",MOTOROLA:"motorola",ANDROID:"android"};
+ const slug=iconSlugs[label];
+ if(slug)return <img src={`https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/${slug}.svg`} alt={label} loading="lazy" width={size} height={size} className={light?"inline-block shrink-0 brightness-0 invert":"inline-block shrink-0 dark:brightness-0 dark:invert"} style={{width:size,height:size,objectFit:"contain"}}/>;
+ if(label==="ACCESSORIES")return <Tags size={size} aria-label="Accessories"/>;
+ if(label==="VAS"||label==="QOALA")return <ShieldCheck size={size} aria-label={label}/>;
+ const wordmark=label==="SAMSUNG"?"SAMSUNG":label==="OPPO"?"oppo":label==="INFINIX"?"Infinix":label==="TELKOMSEL"?"Telkomsel":label==="INDOSAT"?"Indosat":label==="XL"?"XL":brand;
+ return <span aria-label={label} className={`inline-block max-w-full whitespace-nowrap text-center leading-none ${light?"text-white/80":"text-slate-700 dark:text-white/80"}`} style={{fontFamily:"Arial, sans-serif",fontWeight:label==="OPPO"?600:800,fontSize:Math.max(10,Math.min(size*.65,label.length>7?14:19)),letterSpacing:label==="SAMSUNG"?"-.04em":"-.02em"}}>{wordmark}</span>;
 }
 
 function PriceCenter({isAdmin,isDark}:{isAdmin:boolean,isDark:boolean}) {
@@ -2712,7 +2718,7 @@ Indosat IM3 : ${isatText}`;
           <section className="relative isolate hidden overflow-hidden bg-gradient-to-br from-[#07152e] via-[#163e7e] to-[#83b8fa] p-10 text-white lg:flex lg:flex-col lg:justify-between xl:p-14">
             <div aria-hidden="true" className="pointer-events-none absolute -right-32 top-1/4 h-[28rem] w-[28rem] rounded-full bg-sky-300/25 blur-3xl"/>
             <div className="dg-enter relative z-10"><p className="text-xs font-bold uppercase tracking-[.3em] text-blue-100">Digiplus Grand Indonesia · QF01</p><h1 className="mt-7 max-w-xl text-4xl font-black leading-[1.08] tracking-tight xl:text-6xl">Multibrand<br/>Retail Experience.</h1><p className="mt-5 text-sm text-blue-100">Apple Devices · Android Devices · Accessories · Services</p></div>
-            <div aria-label="Brand multibrand Digiplus" className="relative mx-auto flex min-h-[270px] w-full max-w-[580px] items-center justify-center py-8"><div className="relative z-10 grid w-full grid-cols-4 gap-3 sm:gap-4">{["Apple","Samsung","Xiaomi","OPPO","Huawei","Infinix","Motorola"].map((name,index)=><div key={name} className="dg-enter flex h-20 items-center justify-center rounded-2xl border border-white/15 bg-white/[.045] px-3 backdrop-blur-sm" style={{animationDelay:(index*.09)+"s"}}><RetailBrandLogo brand={name} size={name==="Apple"?31:25} light/></div>)}</div></div>
+            <div aria-label="Brand multibrand Digiplus" className="relative mx-auto flex min-h-[270px] w-full max-w-[580px] items-center justify-center py-8"><div className="relative z-10 grid w-full grid-cols-4 gap-3 sm:gap-4">{["Apple","Samsung","Xiaomi","OPPO","Huawei","Infinix","Motorola"].map((name,index)=><div key={name} className="dg-enter flex h-20 items-center justify-center rounded-2xl border border-white/15 bg-white/[.045] px-3 backdrop-blur-sm" style={{animationDelay:(index*.09)+"s"}}><RetailBrandLogo brand={name} size={name==="Apple"?31:45} light/></div>)}</div></div>
             <p className="relative z-10 text-center text-xs tracking-widest text-white/60">APPLE · SAMSUNG · XIAOMI · OPPO · HUAWEI · INFINIX · MOTOROLA</p>
           </section>
           <section className="relative flex min-h-[100dvh] items-center justify-center px-4 py-10 sm:px-8 lg:px-12">
@@ -2740,7 +2746,7 @@ Indosat IM3 : ${isatText}`;
             </form>
                 <div className="mt-7 flex items-center justify-center gap-2 border-t border-slate-400/20 pt-5 text-[11px] text-slate-500 dark:text-slate-300"><span>🛡</span><span>Secure Staff Access · QF01</span></div>
               </div>
-              <div className="mt-6 grid grid-cols-4 gap-2 lg:hidden">{["Apple","Samsung","Xiaomi","OPPO","Huawei","Infinix","Motorola"].map((name,index)=><div key={name} className="dg-enter flex h-12 items-center justify-center rounded-xl border border-sky-400/15 bg-sky-500/5" style={{animationDelay:(index*.07)+"s"}}><RetailBrandLogo brand={name} size={19}/></div>)}</div>
+              <div className="mt-6 grid grid-cols-4 gap-2 lg:hidden">{["Apple","Samsung","Xiaomi","OPPO","Huawei","Infinix","Motorola"].map((name,index)=><div key={name} className="dg-enter flex h-12 items-center justify-center rounded-xl border border-sky-400/15 bg-sky-500/5" style={{animationDelay:(index*.07)+"s"}}><RetailBrandLogo brand={name} size={29}/></div>)}</div>
             </div>
           </section>
         </div>
