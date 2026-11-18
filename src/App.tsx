@@ -8,6 +8,14 @@ import PriceListDocuments from "./PriceListDocuments";
 import ProductCatalog from "./ProductCatalog";
 import LivePriceCatalog from "./LivePriceCatalog";
 
+const RETAIL_BRAND_ICONS: Record<string,string> = {APPLE:"apple",SAMSUNG:"samsung",XIAOMI:"xiaomi",OPPO:"oppo",HUAWEI:"huawei",INFINIX:"infinix",MOTOROLA:"motorola",ANDROID:"android",QOALA:"shield",TELKOMSEL:"telkomsel",XL:"xl",INDOSAT:"indosat"};
+function RetailBrandLogo({brand,size=22,light=false}:{brand:string,size?:number,light?:boolean}){
+ const normalized=brand.toUpperCase().trim(); const key=Object.keys(RETAIL_BRAND_ICONS).find(k=>normalized.includes(k));
+ const slug=key?RETAIL_BRAND_ICONS[key]:null;
+ if(!slug||["shield","xl"].includes(slug))return <span aria-label={brand} className="inline-flex items-center justify-center rounded-md border border-current/20 px-1.5 text-[10px] font-bold" style={{minWidth:size,height:size}}>{brand}</span>;
+ return <img src={`https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/${slug}.svg`} alt={brand} loading="lazy" width={size} height={size} className={light?"shrink-0 brightness-0 invert":"shrink-0 dark:brightness-0 dark:invert"} style={{width:size,height:size,objectFit:"contain"}}/>;
+}
+
 function PriceCenter({isAdmin,isDark}:{isAdmin:boolean,isDark:boolean}) {
  return <LivePriceCatalog isDark={isDark} isAdmin={isAdmin}/>;
 }
@@ -2704,12 +2712,7 @@ Indosat IM3 : ${isatText}`;
           <section className="relative isolate hidden overflow-hidden bg-gradient-to-br from-[#07152e] via-[#163e7e] to-[#83b8fa] p-10 text-white lg:flex lg:flex-col lg:justify-between xl:p-14">
             <div aria-hidden="true" className="pointer-events-none absolute -right-32 top-1/4 h-[28rem] w-[28rem] rounded-full bg-sky-300/25 blur-3xl"/>
             <div className="dg-enter relative z-10"><p className="text-xs font-bold uppercase tracking-[.3em] text-blue-100">Digiplus Grand Indonesia · QF01</p><h1 className="mt-7 max-w-xl text-4xl font-black leading-[1.08] tracking-tight xl:text-6xl">Multibrand<br/>Retail Experience.</h1><p className="mt-5 text-sm text-blue-100">Apple Devices · Android Devices · Accessories · Services</p></div>
-            <div aria-label="Brand multibrand Digiplus" className="relative mx-auto flex min-h-[320px] w-full max-w-[600px] items-center justify-center py-8">
-              <div aria-hidden="true" className="dg-orbit pointer-events-none absolute h-[230px] w-[440px] rounded-[50%] border border-white/15"/>
-              <div className="relative z-10 grid w-full grid-cols-3 gap-3 sm:gap-5">
-                {[["Apple",""],["Samsung","SAMSUNG"],["Xiaomi","mi"],["OPPO","oppo"],["Huawei","HUAWEI"],["Infinix","Infinix"],["Motorola","motorola"]].map(([name,mark],index)=><div key={name} className={`flex h-20 items-center justify-center rounded-2xl border border-white/15 bg-white/[.055] px-3 text-center text-white/70 backdrop-blur-sm ${index%2===0?"dg-float":"dg-float-alt"}`} style={{animationDelay:(index*-.65)+"s"}}><span className={`font-semibold tracking-wide ${name==="Apple"?"text-4xl":name==="Samsung"?"text-sm":name==="Xiaomi"?"text-2xl":"text-lg"}`}>{mark}</span></div>)}
-              </div>
-            </div>
+            <div aria-label="Brand multibrand Digiplus" className="relative mx-auto flex min-h-[270px] w-full max-w-[580px] items-center justify-center py-8"><div className="relative z-10 grid w-full grid-cols-4 gap-3 sm:gap-4">{["Apple","Samsung","Xiaomi","OPPO","Huawei","Infinix","Motorola"].map((name,index)=><div key={name} className="dg-enter flex h-20 items-center justify-center rounded-2xl border border-white/15 bg-white/[.045] px-3 backdrop-blur-sm" style={{animationDelay:(index*.09)+"s"}}><RetailBrandLogo brand={name} size={name==="Apple"?31:25} light/></div>)}</div></div>
             <p className="relative z-10 text-center text-xs tracking-widest text-white/60">APPLE · SAMSUNG · XIAOMI · OPPO · HUAWEI · INFINIX · MOTOROLA</p>
           </section>
           <section className="relative flex min-h-[100dvh] items-center justify-center px-4 py-10 sm:px-8 lg:px-12">
@@ -2737,7 +2740,7 @@ Indosat IM3 : ${isatText}`;
             </form>
                 <div className="mt-7 flex items-center justify-center gap-2 border-t border-slate-400/20 pt-5 text-[11px] text-slate-500 dark:text-slate-300"><span>🛡</span><span>Secure Staff Access · QF01</span></div>
               </div>
-              <div className="mt-6 grid grid-cols-4 gap-2 lg:hidden">{["Apple","Samsung","Xiaomi","OPPO","Huawei","Infinix","Motorola"].map((name,index)=><div key={name} className="dg-enter rounded-xl border border-sky-400/15 bg-sky-500/5 px-1 py-2 text-center text-[10px] font-semibold text-slate-500 dark:text-white/60" style={{animationDelay:(index*.07)+"s"}}>{name}</div>)}</div>
+              <div className="mt-6 grid grid-cols-4 gap-2 lg:hidden">{["Apple","Samsung","Xiaomi","OPPO","Huawei","Infinix","Motorola"].map((name,index)=><div key={name} className="dg-enter flex h-12 items-center justify-center rounded-xl border border-sky-400/15 bg-sky-500/5" style={{animationDelay:(index*.07)+"s"}}><RetailBrandLogo brand={name} size={19}/></div>)}</div>
             </div>
           </section>
         </div>
@@ -3490,7 +3493,7 @@ Indosat IM3 : ${isatText}`;
                           <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-4`}>
                             <div className="flex flex-wrap justify-between items-center gap-3 pb-3 border-b border-inherit/50">
                               <div className="flex items-center gap-3">
-                                <span className="text-2xl">🍎</span>
+                                <RetailBrandLogo brand="Apple" size={26}/>
                                 <div>
                                   <h4 className="text-sm sm:text-base font-black text-sky-600 dark:text-sky-400">
                                     Apple Devices
@@ -3580,7 +3583,7 @@ Indosat IM3 : ${isatText}`;
                           <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-4`}>
                             <div className="flex flex-wrap justify-between items-center gap-3 pb-3 border-b border-inherit/50">
                               <div className="flex items-center gap-3">
-                                <span className="text-2xl">🤖</span>
+                                <RetailBrandLogo brand="Android" size={26}/>
                                 <div>
                                   <h4 className="text-sm sm:text-base font-black text-indigo-600 dark:text-indigo-400">
                                     Android Devices
@@ -3721,7 +3724,7 @@ Indosat IM3 : ${isatText}`;
                           <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-4`}>
                             <div className="flex flex-wrap justify-between items-center gap-3 pb-3 border-b border-inherit/50">
                               <div className="flex items-center gap-3">
-                                <span className="text-2xl">🛡️</span>
+                                <ShieldCheck size={24}/>
                                 <div>
                                   <h4 className="text-sm sm:text-base font-black text-purple-600 dark:text-purple-400">
                                     Value-Added Services (VAS &amp; Warranty)
@@ -3885,7 +3888,7 @@ Indosat IM3 : ${isatText}`;
                     <div className="flex flex-wrap justify-between items-center gap-4">
                       <div>
                         <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
-                          <span>🛡️</span>
+                          <ShieldCheck size={17}/>
                           <span>QOALA PROTECTION &amp; ATTACHMENT RATE (AR %)</span>
                         </h2>
                         <p className={`text-xs ${textMuted} mt-0.5`}>
@@ -4190,7 +4193,7 @@ return <div className="space-y-5">
                       </div>
                       {renderMetric("TOTAL STAFF",rows,targetFor("total"),"total")}
                       <p className={`text-xs ${textMuted}`}>Sumber target: Pembagian target (gid 685849310). Staff atau kategori yang tidak ditemukan memiliki target Rp 0. Target Daily/Weekly diprorata dari target bulanan. Estimate adalah sisa target, bukan prediksi penjualan.</p>
-                      <div className="space-y-3"><div><h3 className="text-lg font-black text-slate-950 dark:text-white">Category Explorer</h3><p className={`text-xs ${textMuted}`}>Pilih kategori untuk melihat rincian brand, produk, target dan achievement.</p></div><div className="grid grid-cols-2 lg:grid-cols-4 gap-3">{groups.map((g,i)=><button key={g.title} type="button" onClick={()=>{setStaffActiveCategory(g.title);setStaffExpandedDetail(null)}} className={`text-left rounded-2xl border p-4 transition-all hover:-translate-y-0.5 ${staffActiveCategory===g.title?"bg-sky-500/10 border-sky-500 ring-1 ring-sky-500/30":"bg-slate-500/5 border-slate-300/50 dark:border-slate-700"}`}><span className="text-xl">{["📱","🤖","🎧","🛡️"][i]}</span><p className="text-sm font-black text-slate-950 dark:text-white mt-2">{g.title}</p><p className="text-sm font-black text-sky-700 dark:text-sky-300 mt-1">{formatIDR(sum(g.items).amount)}</p><p className={`text-[11px] ${textMuted}`}>{sum(g.items).qty} Qty · {g.sub.length} subkategori</p></button>)}</div>{groups.filter(g=>g.title===staffActiveCategory).map(g=><div key={g.title} className={`rounded-2xl border p-3 sm:p-4 ${innerBg} space-y-3`}><div className="flex justify-between items-center"><h4 className="font-black text-slate-950 dark:text-white">{g.title} · Breakdown</h4><span className="text-xs font-bold text-sky-600 dark:text-sky-300">{sum(g.items).qty} Qty</span></div>{renderMetric(g.title,g.items,dailyTargetFor(g.title),"group-"+g.title)}<div className="grid md:grid-cols-2 gap-2">{g.sub.map(([label,items])=>renderMetric(label,items,(categoryTarget[({iPhone:"iphone",iPad:"ipad",MacBook:"macbook","Apple Watch":"applewatch",Qoala:"qoala",Telkomsel:"telkomsel",XL:"xl",Indosat:"indosat",SAMSUNG:"samsung",XIAOMI:"xiaomi",OPPO:"oppo",MOTOROLA:"motorola",HUAWEI:"huawei",INFINIX:"infinix"} as Record<string,string>)[label] || label.toLowerCase()]||0)>0?targetFor(({iPhone:"iphone",iPad:"ipad",MacBook:"macbook","Apple Watch":"applewatch",Qoala:"qoala",Telkomsel:"telkomsel",XL:"xl",Indosat:"indosat",SAMSUNG:"samsung",XIAOMI:"xiaomi",OPPO:"oppo",MOTOROLA:"motorola",HUAWEI:"huawei",INFINIX:"infinix"} as Record<string,string>)[label] || label.toLowerCase()):null,g.title+"-"+label))}</div></div>)}</div>
+                      <div className="space-y-3"><div><h3 className="text-lg font-black text-slate-950 dark:text-white">Category Explorer</h3><p className={`text-xs ${textMuted}`}>Pilih kategori untuk melihat rincian brand, produk, target dan achievement.</p></div><div className="grid grid-cols-2 lg:grid-cols-4 gap-3">{groups.map((g,i)=><button key={g.title} type="button" onClick={()=>{setStaffActiveCategory(g.title);setStaffExpandedDetail(null)}} className={`text-left rounded-2xl border p-4 transition-all hover:-translate-y-0.5 ${staffActiveCategory===g.title?"bg-sky-500/10 border-sky-500 ring-1 ring-sky-500/30":"bg-slate-500/5 border-slate-300/50 dark:border-slate-700"}`}><span className="text-xl">{<RetailBrandLogo brand={["Apple","Android","Accessories","VAS"][i]} size={22}/>}</span><p className="text-sm font-black text-slate-950 dark:text-white mt-2">{g.title}</p><p className="text-sm font-black text-sky-700 dark:text-sky-300 mt-1">{formatIDR(sum(g.items).amount)}</p><p className={`text-[11px] ${textMuted}`}>{sum(g.items).qty} Qty · {g.sub.length} subkategori</p></button>)}</div>{groups.filter(g=>g.title===staffActiveCategory).map(g=><div key={g.title} className={`rounded-2xl border p-3 sm:p-4 ${innerBg} space-y-3`}><div className="flex justify-between items-center"><h4 className="font-black text-slate-950 dark:text-white">{g.title} · Breakdown</h4><span className="text-xs font-bold text-sky-600 dark:text-sky-300">{sum(g.items).qty} Qty</span></div>{renderMetric(g.title,g.items,dailyTargetFor(g.title),"group-"+g.title)}<div className="grid md:grid-cols-2 gap-2">{g.sub.map(([label,items])=>renderMetric(label,items,(categoryTarget[({iPhone:"iphone",iPad:"ipad",MacBook:"macbook","Apple Watch":"applewatch",Qoala:"qoala",Telkomsel:"telkomsel",XL:"xl",Indosat:"indosat",SAMSUNG:"samsung",XIAOMI:"xiaomi",OPPO:"oppo",MOTOROLA:"motorola",HUAWEI:"huawei",INFINIX:"infinix"} as Record<string,string>)[label] || label.toLowerCase()]||0)>0?targetFor(({iPhone:"iphone",iPad:"ipad",MacBook:"macbook","Apple Watch":"applewatch",Qoala:"qoala",Telkomsel:"telkomsel",XL:"xl",Indosat:"indosat",SAMSUNG:"samsung",XIAOMI:"xiaomi",OPPO:"oppo",MOTOROLA:"motorola",HUAWEI:"huawei",INFINIX:"infinix"} as Record<string,string>)[label] || label.toLowerCase()):null,g.title+"-"+label))}</div></div>)}</div>
                     </section>;
                   })()}
                 </div>
@@ -4396,7 +4399,7 @@ return <div className="space-y-5">
 
                           <div className={`p-4 rounded-2xl border ${innerBg} space-y-2.5`}>
                             <span className="text-xs font-black text-sky-600 dark:text-sky-400 flex items-center gap-1.5 uppercase">
-                              <span>🍎</span> 1. Apple Devices :
+                              <RetailBrandLogo brand="Apple" size={17}/> 1. Apple Devices :
                             </span>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs font-semibold">
                               <div className={`p-2.5 rounded-xl border ${cardBg} flex justify-between items-center`}>
@@ -4420,7 +4423,7 @@ return <div className="space-y-5">
 
                           <div className={`p-4 rounded-2xl border ${innerBg} space-y-2.5`}>
                             <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5 uppercase">
-                              <span>🤖</span> 1. Android Device :
+                              <RetailBrandLogo brand="Android" size={17}/> 1. Android Device :
                             </span>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 text-xs font-semibold">
                               <div className={`p-2.5 rounded-xl border ${cardBg} flex justify-between items-center`}>
