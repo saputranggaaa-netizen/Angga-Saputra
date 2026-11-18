@@ -2704,15 +2704,13 @@ Indosat IM3 : ${isatText}`;
           <section className="relative isolate hidden overflow-hidden bg-gradient-to-br from-[#07152e] via-[#163e7e] to-[#83b8fa] p-10 text-white lg:flex lg:flex-col lg:justify-between xl:p-14">
             <div aria-hidden="true" className="pointer-events-none absolute -right-32 top-1/4 h-[28rem] w-[28rem] rounded-full bg-sky-300/25 blur-3xl"/>
             <div className="dg-enter relative z-10"><p className="text-xs font-bold uppercase tracking-[.3em] text-blue-100">Digiplus Grand Indonesia · QF01</p><h1 className="mt-7 max-w-xl text-4xl font-black leading-[1.08] tracking-tight xl:text-6xl">Multibrand<br/>Retail Experience.</h1><p className="mt-5 text-sm text-blue-100">Apple Devices · Android Devices · Accessories · Services</p></div>
-            <div aria-label="Ilustrasi ekosistem multibrand" className="relative mx-auto flex h-[360px] w-full max-w-[610px] items-center justify-center">
-              <div aria-hidden="true" className="dg-orbit absolute h-[260px] w-[440px] rounded-[50%] border border-sky-100/40 shadow-[0_0_35px_rgba(147,197,253,.35)]"/>
-              <div className="dg-float absolute left-[13%] top-[12%] z-20 h-56 w-28 rounded-[27px] border-[5px] border-slate-300 bg-gradient-to-br from-[#c4b5fd] via-[#3b2d82] to-[#080f2e] shadow-2xl shadow-black/35"><div className="mx-auto mt-2 h-2 w-10 rounded-full bg-black/80"/><div className="absolute bottom-8 left-3 h-20 w-20 rounded-full bg-violet-400/35 blur-xl"/></div>
-              <div className="dg-float-alt absolute right-[13%] top-[7%] z-10 flex h-60 w-44 -skew-y-3 rounded-[24px] border-[5px] border-slate-300 bg-gradient-to-br from-[#08162e] via-[#2456b7] to-[#83b7ff] shadow-2xl shadow-black/35"><div className="m-auto h-28 w-28 rounded-full border-[20px] border-blue-200/30 blur-[2px]"/></div>
-              <div className="dg-float-alt absolute bottom-[6%] left-[24%] z-30 flex h-20 w-20 items-center justify-center rounded-[22px] border border-white/40 bg-white/20 text-4xl shadow-xl backdrop-blur-xl">⌚</div>
-              <div className="dg-float absolute bottom-[4%] right-[24%] z-30 flex h-20 w-20 items-center justify-center rounded-[22px] border border-white/40 bg-white/20 text-4xl shadow-xl backdrop-blur-xl">🎧</div>
-              <div className="absolute bottom-[25%] right-[5%] z-30 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/40 bg-white/20 text-3xl backdrop-blur-xl">🛡️</div>
+            <div aria-label="Brand multibrand Digiplus" className="relative mx-auto flex min-h-[320px] w-full max-w-[600px] items-center justify-center py-8">
+              <div aria-hidden="true" className="dg-orbit pointer-events-none absolute h-[230px] w-[440px] rounded-[50%] border border-white/15"/>
+              <div className="relative z-10 grid w-full grid-cols-3 gap-3 sm:gap-5">
+                {[["Apple",""],["Samsung","SAMSUNG"],["Xiaomi","mi"],["OPPO","oppo"],["Huawei","HUAWEI"],["Infinix","Infinix"],["Motorola","motorola"]].map(([name,mark],index)=><div key={name} className={`flex h-20 items-center justify-center rounded-2xl border border-white/15 bg-white/[.055] px-3 text-center text-white/70 backdrop-blur-sm ${index%2===0?"dg-float":"dg-float-alt"}`} style={{animationDelay:(index*-.65)+"s"}}><span className={`font-semibold tracking-wide ${name==="Apple"?"text-4xl":name==="Samsung"?"text-sm":name==="Xiaomi"?"text-2xl":"text-lg"}`}>{mark}</span></div>)}
+              </div>
             </div>
-            <div className="relative z-10 grid grid-cols-4 gap-2">{[["▣","Apple"],["◈","Android"],["♫","Accessories"],["✧","Services"]].map(([symbol,label])=><div key={label} className="rounded-2xl border border-white/20 bg-white/10 p-3 text-center backdrop-blur-md"><div className="text-2xl">{symbol}</div><p className="mt-2 text-[11px] font-bold">{label}</p></div>)}</div>
+            <p className="relative z-10 text-center text-xs tracking-widest text-white/60">APPLE · SAMSUNG · XIAOMI · OPPO · HUAWEI · INFINIX · MOTOROLA</p>
           </section>
           <section className="relative flex min-h-[100dvh] items-center justify-center px-4 py-10 sm:px-8 lg:px-12">
             <div aria-hidden="true" className="pointer-events-none absolute right-0 top-0 h-72 w-72 rounded-full bg-sky-400/10 blur-3xl"/>
@@ -2739,7 +2737,7 @@ Indosat IM3 : ${isatText}`;
             </form>
                 <div className="mt-7 flex items-center justify-center gap-2 border-t border-slate-400/20 pt-5 text-[11px] text-slate-500 dark:text-slate-300"><span>🛡</span><span>Secure Staff Access · QF01</span></div>
               </div>
-              <div className="mt-6 flex justify-center gap-3 text-[10px] font-semibold text-slate-500 dark:text-slate-300 lg:hidden"><span>Apple</span><span>·</span><span>Android</span><span>·</span><span>Accessories</span><span>·</span><span>VAS</span></div>
+              <div className="mt-6 grid grid-cols-4 gap-2 lg:hidden">{["Apple","Samsung","Xiaomi","OPPO","Huawei","Infinix","Motorola"].map((name,index)=><div key={name} className="dg-enter rounded-xl border border-sky-400/15 bg-sky-500/5 px-1 py-2 text-center text-[10px] font-semibold text-slate-500 dark:text-white/60" style={{animationDelay:(index*.07)+"s"}}>{name}</div>)}</div>
             </div>
           </section>
         </div>
