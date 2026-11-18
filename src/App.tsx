@@ -2,6 +2,63 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import PriceListReference from "./PriceListReference";
+import { Apple, ArrowRight, CalendarDays, ChartColumnIncreasing, Circle, CircleDot, ClipboardList, Clock3, CreditCard, ExternalLink, FileText, Flame, Hand, Handshake, LockKeyhole, LogOut, Megaphone, Menu, MessageCircle, Moon, Package, Plug, Presentation, Printer, Radio, RefreshCw, Scale, Search, Share2, ShieldCheck, Smartphone, Sun, Tag, Target, TrendingUp, TriangleAlert, Trophy, Upload, UserRound, Users, X, Zap, type LucideIcon } from "lucide-react";
+
+const MINIMAL_ICONS: Record<string, LucideIcon> = {
+  "📊": ChartColumnIncreasing,
+  "📈": TrendingUp,
+  "🛡️": ShieldCheck,
+  "⚖️": Scale,
+  "🏆": Trophy,
+  "🎯": Target,
+  "🏷️": Tag,
+  "📅": CalendarDays,
+  "💬": MessageCircle,
+  "💳": CreditCard,
+  "🔍": Search,
+  "🤝": Handshake,
+  "📄": FileText,
+  "📋": ClipboardList,
+  "🔐": LockKeyhole,
+  "🍎": Apple,
+  "🤖": Smartphone,
+  "🔌": Plug,
+  "📦": Package,
+  "📱": Smartphone,
+  "📽️": Presentation,
+  "📤": Upload,
+  "☀️": Sun,
+  "🌙": Moon,
+  "🚪": LogOut,
+  "🔄": RefreshCw,
+  "⚠️": TriangleAlert,
+  "👥": Users,
+  "🗓️": CalendarDays,
+  "📲": Share2,
+  "📡": Radio,
+  "👤": UserRound,
+  "🖨️": Printer,
+  "📢": Megaphone,
+  "🔥": Flame,
+  "⚡": Zap,
+  "⏳": Clock3,
+  "🟢": CircleDot,
+  "⚪": Circle,
+  "🔴": Circle,
+  "🟠": Circle,
+  "🔵": Circle,
+  "🟡": Circle,
+  "👋": Hand,
+  "✕": X,
+  "☰": Menu,
+  "➔": ArrowRight,
+  "↗": ExternalLink,
+};
+const UIIcon = ({ symbol, className = "" }: { symbol: string; className?: string }) => {
+  const Glyph = MINIMAL_ICONS[symbol] ?? Circle;
+  return <Glyph aria-hidden="true" strokeWidth={1.8} className={`inline-block h-[1em] w-[1em] shrink-0 align-[-0.12em] ${className}`} />;
+};
+
 
 export const UploadRawSalesModal = ({ isOpen, onClose }: any) => {
   return null;
@@ -1952,7 +2009,7 @@ Indosat IM3 : ${isatText}`;
         <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl flex flex-wrap items-center justify-between gap-4`}>
           <div>
             <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
-              <span>⚖️</span>
+              <span><UIIcon symbol="⚖️" /></span>
               <span>MTM / LFL COMPARISON</span>
             </h2>
           </div>
@@ -2023,7 +2080,7 @@ Indosat IM3 : ${isatText}`;
 
           <div>
             <h4 className="text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-3 flex items-center gap-2">
-              <span>👥</span>
+              <span><UIIcon symbol="👥" /></span>
               <span>TOTAL SALES PER STAF:</span>
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
@@ -2050,7 +2107,7 @@ Indosat IM3 : ${isatText}`;
         </div>
 
         <div className={`p-5 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-4`}>
-          <h3 className="text-base font-black">📊 Analisa Faktor Kenaikan & Penurunan</h3>
+          <h3 className="text-base font-black"><UIIcon symbol="📊" /> Analisa Faktor Kenaikan & Penurunan</h3>
           <p className="text-xs opacity-70">Kontributor perubahan omzet berdasarkan transaksi pada periode yang dipilih. Ini indikator kuantitatif, bukan bukti penyebab operasional seperti stok, traffic, atau promosi.</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className={`rounded-xl p-4 border ${innerBg}`}><div className="text-xs opacity-70">Selisih Omzet</div><div className="font-black text-lg">{formatIDR(data.totalM2-data.totalM1)}</div></div>
@@ -2067,7 +2124,7 @@ Indosat IM3 : ${isatText}`;
           <div className="px-5 py-4 border-b border-rose-500/20 flex justify-between items-center bg-rose-500/5">
             <div>
               <h3 className="text-sm font-black text-rose-600 dark:text-rose-400 flex items-center gap-2">
-                <span>🔍</span>
+                <span><UIIcon symbol="🔍" /></span>
                 <span>ANALISIS PENYEBAB PENURUNAN (ROOT CAUSE BY PRODUCT DEFICIT)</span>
               </h3>
             </div>
@@ -2211,8 +2268,8 @@ Indosat IM3 : ${isatText}`;
                       : "font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 border border-transparent"
                   }`}
                 >
-                  <div className={`w-7 h-7 rounded-lg ${item.color} ${item.shadow} shadow-md flex items-center justify-center text-xs shrink-0 text-white`}>
-                    {item.icon}
+                  <div className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 ${active ? "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-400/30" : "bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700"}`}>
+                    <UIIcon symbol={item.icon} className="h-[18px] w-[18px]" />
                   </div>
                   <span className="truncate">{item.label}</span>
                 </button>
@@ -2225,7 +2282,7 @@ Indosat IM3 : ${isatText}`;
                 disabled={isExportingPptx}
                 className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-gradient-to-r from-sky-500/20 to-blue-500/20 hover:from-sky-500/30 hover:to-blue-500/30 border border-sky-500/40 text-sky-700 dark:text-sky-400 font-black text-xs shadow-md transition active:scale-95"
               >
-                <span>📽️</span>
+                <span><UIIcon symbol="📽️" /></span>
                 <span className="truncate font-black">{isExportingPptx ? "Membuat Slide..." : "Export ke Slide PPTX"}</span>
               </button>
             </div>
@@ -2234,8 +2291,8 @@ Indosat IM3 : ${isatText}`;
               onClick={() => setActiveTab("price-list")}
               className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 border border-transparent active:scale-[0.98]"
             >
-              <div className="w-7 h-7 rounded-lg bg-cyan-500 shadow-md shadow-cyan-500/30 flex items-center justify-center text-xs shrink-0 text-white">
-                📤
+              <div className="w-8 h-8 rounded-lg border bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0">
+                <UIIcon symbol="📤" />
               </div>
               <span>Upload Price List</span>
             </button>
@@ -2248,13 +2305,13 @@ Indosat IM3 : ${isatText}`;
                 isDark ? "bg-white/5 border-white/10 hover:bg-white/10" : "bg-slate-200/80 border-slate-300 hover:bg-slate-300/80 text-slate-950"
               }`}
             >
-              <span>{isDark ? "☀️ Light Mode" : "🌙 Dark Mode"}</span>
+              <span>{isDark ? <><UIIcon symbol="☀️" /> Light Mode</> : <><UIIcon symbol="🌙" /> Dark Mode</>}</span>
             </button>
             <button
               onClick={handleLogout}
               className="w-full py-2 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 border border-rose-500/20 text-xs font-black flex items-center justify-center gap-2 transition"
             >
-              <span>🚪 Keluar</span>
+              <span><UIIcon symbol="🚪" /> Keluar</span>
             </button>
           </div>
         </div>
@@ -2285,7 +2342,7 @@ Indosat IM3 : ${isatText}`;
               onClick={() => setMobileDrawerOpen(false)}
               className="w-8 h-8 rounded-full bg-slate-700/20 dark:bg-slate-700/30 flex items-center justify-center text-xs font-bold text-slate-950 dark:text-white"
             >
-              ✕
+              <UIIcon symbol="✕" />
             </button>
           </div>
 
@@ -2307,8 +2364,8 @@ Indosat IM3 : ${isatText}`;
                       : "font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 border border-transparent"
                   }`}
                 >
-                  <div className={`w-7 h-7 rounded-lg ${item.color} ${item.shadow} shadow-md flex items-center justify-center text-xs shrink-0 text-white`}>
-                    {item.icon}
+                  <div className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 ${active ? "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-400/30" : "bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700"}`}>
+                    <UIIcon symbol={item.icon} className="h-[18px] w-[18px]" />
                   </div>
                   <span className="truncate">{item.label}</span>
                 </button>
@@ -2324,13 +2381,13 @@ Indosat IM3 : ${isatText}`;
               isDark ? "bg-white/5 border-white/10" : "bg-slate-200/80 border-slate-300 text-slate-950"
             }`}
           >
-            <span>{isDark ? "☀️ Mode Terang" : "🌙 Mode Gelap"}</span>
+            <span>{isDark ? <><UIIcon symbol="☀️" /> Mode Terang</> : <><UIIcon symbol="🌙" /> Mode Gelap</>}</span>
           </button>
           <button
             onClick={handleLogout}
             className="w-full py-2 px-3 rounded-xl bg-rose-500/10 text-rose-600 border border-rose-500/20 text-xs font-black flex items-center justify-center gap-2"
           >
-            <span>🚪 Keluar</span>
+            <span><UIIcon symbol="🚪" /> Keluar</span>
           </button>
         </div>
       </div>
@@ -2344,7 +2401,7 @@ Indosat IM3 : ${isatText}`;
               className="h-10 w-10 shrink-0 rounded-xl bg-sky-500/10 text-sky-400 border border-sky-400/20 flex items-center justify-center active:scale-95 transition"
               aria-label="Buka Menu"
             >
-              <span className="text-lg leading-none">☰</span>
+              <span className="text-lg leading-none"><UIIcon symbol="☰" /></span>
             </button>
 
             <div className="flex items-center gap-2 min-w-0">
@@ -2374,7 +2431,7 @@ Indosat IM3 : ${isatText}`;
               className="p-2 rounded-xl bg-slate-800 text-slate-300 border border-slate-700 active:scale-95 transition text-xs flex items-center gap-1 font-bold"
               title="Sync Live Data"
             >
-              <span>🔄</span>
+              <span><UIIcon symbol="🔄" /></span>
             </button>
           </div>
         </header>
@@ -2384,12 +2441,12 @@ Indosat IM3 : ${isatText}`;
             <div className="flex flex-wrap justify-between items-center gap-2 sm:gap-4 mb-2 sm:mb-4">
               <div>
                 <div className={`hidden sm:flex text-xl sm:text-2xl font-black ${accentText} items-center gap-2`}>
-                  <span>Halo, {currentSalesName} 👋</span>
+                  <span>Halo, {currentSalesName} <UIIcon symbol="👋" /></span>
                 </div>
 
                 <div className="hidden sm:flex flex-wrap items-center gap-2 mt-1.5">
                   <span className="px-2.5 py-1 rounded-xl bg-sky-500/15 text-sky-400 border border-sky-400/30 text-xs font-black flex items-center gap-1.5 shadow-sm">
-                    <span>🗓️</span>
+                    <span><UIIcon symbol="🗓️" /></span>
                     <span>{todayFormatted}</span>
                   </span>
 
@@ -2413,7 +2470,7 @@ Indosat IM3 : ${isatText}`;
                   onClick={handleShareDaily}
                   className="px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-95"
                 >
-                  <span>📲</span>
+                  <span><UIIcon symbol="📲" /></span>
                   <span className="hidden sm:inline">Share Daily</span><span className="sm:hidden">Share</span>
                 </button>
 
@@ -2422,7 +2479,7 @@ Indosat IM3 : ${isatText}`;
                   disabled={isLoading}
                   className={`px-3 py-1.5 rounded-xl border text-xs font-black transition flex items-center gap-1.5 ${innerBg} text-slate-950 dark:text-white`}
                 >
-                  <span>🔄</span>
+                  <span><UIIcon symbol="🔄" /></span>
                   <span className="hidden sm:inline">{isLoading ? "Mengambil Data..." : "Sync Live"}</span><span className="sm:hidden">{isLoading ? "Sync..." : "Sync"}</span>
                 </button>
 
@@ -2452,7 +2509,7 @@ Indosat IM3 : ${isatText}`;
 
                 {(
                   <div className="flex items-center gap-2">
-                    <span className="font-black text-slate-900 dark:text-slate-200">📅 Bulan:</span>
+                    <span className="font-black text-slate-900 dark:text-slate-200"><UIIcon symbol="📅" /> Bulan:</span>
                     <select
                       value={selectedMonth}
                       onChange={(e) => { setSelectedMonth(e.target.value); setSelectedWeek("ALL"); setDateManuallySelected(false); const month=e.target.value; const names=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];const idx=names.findIndex(n=>month.startsWith(n));if(idx>=0)setSelectedDate(month.slice(-4)+"-"+String(idx+1).padStart(2,"0")+"-01"); }}
@@ -2466,10 +2523,10 @@ Indosat IM3 : ${isatText}`;
                   </div>
                 )}
 
-                {dataLoadError && <div role="alert" className="w-full p-3 rounded-xl bg-red-50 border border-red-300 text-red-800 text-xs font-bold">⚠️ Data Google Sheets gagal dimuat: {dataLoadError}. Periksa akses Google Sheets, lalu klik Sync Live.</div>}
+                {dataLoadError && <div role="alert" className="w-full p-3 rounded-xl bg-red-50 border border-red-300 text-red-800 text-xs font-bold"><UIIcon symbol="⚠️" /> Data Google Sheets gagal dimuat: {dataLoadError}. Periksa akses Google Sheets, lalu klik Sync Live.</div>}
                 {periodType === "weekly" && (
                   <div className="flex items-center gap-2">
-                    <span className="font-black text-slate-900 dark:text-slate-200">📊 Week:</span>
+                    <span className="font-black text-slate-900 dark:text-slate-200"><UIIcon symbol="📊" /> Week:</span>
                     <select
                       value={selectedWeek}
                       onChange={(e) => setSelectedWeek(e.target.value)}
@@ -2487,7 +2544,7 @@ Indosat IM3 : ${isatText}`;
 
                 {periodType === "daily" && (
                   <div className="flex items-center gap-2">
-                    <span className="font-black text-slate-900 dark:text-slate-200">🗓️ Tanggal:</span>
+                    <span className="font-black text-slate-900 dark:text-slate-200"><UIIcon symbol="🗓️" /> Tanggal:</span>
                     <input
                       type="date"
                       value={selectedDate}
@@ -2508,14 +2565,14 @@ Indosat IM3 : ${isatText}`;
 
           {isLoading ? (
             <div className="py-20 text-center text-sm font-black opacity-70 animate-pulse text-slate-950 dark:text-white">
-              ⏳ Mengambil dan mengkalkulasi data langsung dari Google Sheets...
+              <UIIcon symbol="⏳" /> Mengambil dan mengkalkulasi data langsung dari Google Sheets...
             </div>
           ) : (
             <>
               {/* TAB 1: OVERVIEW STORE */}
               {activeTab === "access-log" && currentSalesId === ADMIN_ID && (
                 <div className={cardBg + " p-5 rounded-3xl border space-y-4"}>
-                  <h2 className="font-black text-lg text-slate-950 dark:text-white">🔐 Access Log — Riwayat Login</h2>
+                  <h2 className="font-black text-lg text-slate-950 dark:text-white"><UIIcon symbol="🔐" /> Access Log — Riwayat Login</h2>
                   <p className="text-sm text-slate-700 dark:text-slate-300">Khusus admin. Masukkan password Access Log yang berbeda dari password login sales.</p>
                   <div className="flex flex-wrap gap-2">
                     <input type="password" placeholder="Password khusus Access Log" value={accessPassword} onChange={e=>setAccessPassword(e.target.value)} className="p-2 rounded-lg border bg-white text-slate-950 dark:bg-slate-800 dark:text-white" />
@@ -2523,7 +2580,7 @@ Indosat IM3 : ${isatText}`;
                   </div>
                   {accessError && <p className="text-rose-600 text-sm">{accessError}</p>}
                   <div className="space-y-2">
-                    <h3 className="font-black text-slate-950 dark:text-white">📡 Staff Activity Monitor</h3>
+                    <h3 className="font-black text-slate-950 dark:text-white"><UIIcon symbol="📡" /> Staff Activity Monitor</h3>
                     <p className="text-xs text-slate-700 dark:text-slate-300">Estimasi durasi aktif berdasarkan heartbeat 60 detik saat tab terlihat dan tidak idle. Klik Refresh untuk memperbarui status.</p>
                     <div className="overflow-x-auto"><table className="w-full min-w-[550px] text-xs text-slate-900 dark:text-slate-100">
                       <thead><tr>{["Sales ID", "Nama Staff", "Durasi Aktif", "Terakhir Aktif (WIB)", "Status"].map(h => <th key={h} className="p-2 text-left">{h}</th>)}</tr></thead>
@@ -2531,7 +2588,7 @@ Indosat IM3 : ${isatText}`;
                         <td className="p-2">{item.id}</td><td className="p-2">{item.name}</td>
                         <td className="p-2">{Math.floor(item.duration / 3600)}j {Math.floor(item.duration % 3600 / 60)}m</td>
                         <td className="p-2">{new Date(item.last).toLocaleString("id-ID", {timeZone:"Asia/Jakarta"})}</td>
-                        <td className="p-2">{item.online ? "🟢 Online" : "⚪ Offline"}</td>
+                        <td className="p-2">{item.online ? <><UIIcon symbol="🟢" className="text-emerald-500" /> Online</> : <><UIIcon symbol="⚪" className="text-slate-400" /> Offline</>}</td>
                       </tr>)}</tbody>
                     </table></div>
                   </div>
@@ -2546,7 +2603,7 @@ Indosat IM3 : ${isatText}`;
                 <div className="space-y-6 sm:space-y-8">
                   <section className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl`}>
                     <div className="mb-4">
-                      <h2 className="text-base sm:text-lg font-black text-slate-950 dark:text-white">🏆 STAFF RANKING — TARGET VS ACHIEVEMENT</h2>
+                      <h2 className="text-base sm:text-lg font-black text-slate-950 dark:text-white"><UIIcon symbol="🏆" /> STAFF RANKING — TARGET VS ACHIEVEMENT</h2>
                       <p className={`text-xs ${textMuted}`}>Diurutkan berdasarkan achievement % tertinggi, kemudian sales value. Klik avatar atau More Details untuk rincian kategori.</p>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -2566,7 +2623,7 @@ Indosat IM3 : ${isatText}`;
                             <div className="flex justify-between gap-2"><span className={textMuted}>Target</span><strong className="text-slate-950 dark:text-white">{formatIDR(st.targetAmount)}</strong></div>
                             <div className="h-2 rounded-full bg-slate-300/40 overflow-hidden"><div className="h-full bg-sky-500 rounded-full" style={{width: `${Math.min(100, Math.max(0, st.achvPct))}%`}} /></div>
                           </div>
-                          <p className="text-right mt-2 text-xs font-bold text-sky-600 dark:text-sky-300">More Details ↗</p>
+                          <p className="text-right mt-2 text-xs font-bold text-sky-600 dark:text-sky-300">More Details <UIIcon symbol="↗" /></p>
                         </button>
                       ))}
                     </div>
@@ -2588,7 +2645,7 @@ Indosat IM3 : ${isatText}`;
                             <span className="w-12 h-12 rounded-full bg-gradient-to-br from-sky-500 to-indigo-700 text-white flex items-center justify-center font-black">{st.initials}</span>
                             <div><h3 className="font-black text-slate-950 dark:text-white">{st.name}</h3><p className={`text-xs ${textMuted}`}>Achievement {st.achvPct}%</p></div>
                           </div>
-                          <button type="button" onClick={() => setOverviewStaffPopupId(null)} aria-label="Tutup" className="px-3 py-2 rounded-lg border text-slate-900 dark:text-white">✕</button>
+                          <button type="button" onClick={() => setOverviewStaffPopupId(null)} aria-label="Tutup" className="px-3 py-2 rounded-lg border text-slate-900 dark:text-white"><UIIcon symbol="✕" /></button>
                         </div>
                         <div className="space-y-3">
                           {cats.map(cat => <div key={cat.label} className={`rounded-xl p-3 border ${innerBg}`}>
@@ -2606,7 +2663,7 @@ Indosat IM3 : ${isatText}`;
                     <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
                       <div className="flex items-center gap-3">
                         <div className={`w-12 h-12 rounded-2xl ${innerBg} border flex items-center justify-center text-2xl font-black ${accentText}`}>
-                          ⏳
+                          <UIIcon symbol="⏳" />
                         </div>
                         <div>
                           <h2 className="text-base font-black tracking-wide text-slate-950 dark:text-white">
@@ -2696,7 +2753,7 @@ Indosat IM3 : ${isatText}`;
                     <div className="flex flex-wrap justify-between items-center pb-4 border-b border-inherit gap-3">
                       <div>
                         <h3 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
-                          <span>🎯</span>
+                          <span><UIIcon symbol="🎯" /></span>
                           <span>TARGET VS ACHIEVEMENT (T/A) &amp; DRILLDOWN PRODUK</span>
                         </h3>
                       </div>
@@ -2723,7 +2780,7 @@ Indosat IM3 : ${isatText}`;
                           <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-4`}>
                             <div className="flex flex-wrap justify-between items-center gap-3 pb-3 border-b border-inherit/50">
                               <div className="flex items-center gap-3">
-                                <span className="text-2xl">🍎</span>
+                                <span className="text-2xl"><UIIcon symbol="🍎" /></span>
                                 <div>
                                   <h4 className="text-sm sm:text-base font-black text-sky-600 dark:text-sky-400">
                                     Apple Devices
@@ -2749,7 +2806,7 @@ Indosat IM3 : ${isatText}`;
                                   onClick={() => openLobDetailSheet("Seluruh Apple Devices Terjual", items)}
                                   className="px-3 py-1.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 text-sky-700 dark:text-sky-400 border border-sky-400/30 text-xs font-black transition active:scale-95"
                                 >
-                                  More Details ➔
+                                  More Details <UIIcon symbol="➔" />
                                 </button>
                               </div>
                             </div>
@@ -2782,7 +2839,7 @@ Indosat IM3 : ${isatText}`;
                                         className="text-[10px] font-black text-[#075bb5] dark:text-[#82c2ff] hover:underline flex items-center gap-1"
                                       >
                                         <span>More Details</span>
-                                        <span>➔</span>
+                                        <span><UIIcon symbol="➔" /></span>
                                       </button>
                                     </div>
                                   </div>
@@ -2813,7 +2870,7 @@ Indosat IM3 : ${isatText}`;
                           <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-4`}>
                             <div className="flex flex-wrap justify-between items-center gap-3 pb-3 border-b border-inherit/50">
                               <div className="flex items-center gap-3">
-                                <span className="text-2xl">🤖</span>
+                                <span className="text-2xl"><UIIcon symbol="🤖" /></span>
                                 <div>
                                   <h4 className="text-sm sm:text-base font-black text-indigo-600 dark:text-indigo-400">
                                     Android Devices
@@ -2839,7 +2896,7 @@ Indosat IM3 : ${isatText}`;
                                   onClick={() => openLobDetailSheet("Seluruh Android Devices Terjual", items)}
                                   className="px-3 py-1.5 rounded-xl bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-700 dark:text-indigo-400 border border-indigo-400/30 text-xs font-black transition active:scale-95"
                                 >
-                                  More Details ➔
+                                  More Details <UIIcon symbol="➔" />
                                 </button>
                               </div>
                             </div>
@@ -2859,7 +2916,7 @@ Indosat IM3 : ${isatText}`;
                                   <div key={idx} className={`p-3.5 rounded-xl border ${cardBg} text-xs space-y-2 shadow-sm`}>
                                     <div className="flex justify-between items-center">
                                       <span className="font-black text-slate-900 dark:text-white flex items-center gap-1.5">
-                                        <span>{b.icon}</span>
+                                        <span><UIIcon symbol={b.icon} className="h-4 w-4" /></span>
                                         <span>{b.label}</span>
                                       </span>
                                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${bAchv >= 100 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"}`}>
@@ -2878,7 +2935,7 @@ Indosat IM3 : ${isatText}`;
                                         className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
                                       >
                                         <span>More Details</span>
-                                        <span>➔</span>
+                                        <span><UIIcon symbol="➔" /></span>
                                       </button>
                                     </div>
                                   </div>
@@ -2901,7 +2958,7 @@ Indosat IM3 : ${isatText}`;
                           <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-4`}>
                             <div className="flex flex-wrap justify-between items-center gap-3">
                               <div className="flex items-center gap-3">
-                                <span className="text-2xl">🔌</span>
+                                <span className="text-2xl"><UIIcon symbol="🔌" /></span>
                                 <div>
                                   <h4 className="text-sm sm:text-base font-black text-amber-600 dark:text-amber-400">
                                     Accessories (Cases, Chargers &amp; Audio)
@@ -2927,7 +2984,7 @@ Indosat IM3 : ${isatText}`;
                                   onClick={() => openLobDetailSheet("Seluruh Aksesoris Supplier Terjual", items)}
                                   className="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-400 border border-amber-400/30 text-xs font-black transition active:scale-95"
                                 >
-                                  More Details ➔
+                                  More Details <UIIcon symbol="➔" />
                                 </button>
                               </div>
                             </div>
@@ -2954,7 +3011,7 @@ Indosat IM3 : ${isatText}`;
                           <div className={`p-4 sm:p-5 rounded-2xl border ${innerBg} space-y-4`}>
                             <div className="flex flex-wrap justify-between items-center gap-3 pb-3 border-b border-inherit/50">
                               <div className="flex items-center gap-3">
-                                <span className="text-2xl">🛡️</span>
+                                <span className="text-2xl"><UIIcon symbol="🛡️" /></span>
                                 <div>
                                   <h4 className="text-sm sm:text-base font-black text-purple-600 dark:text-purple-400">
                                     Value-Added Services (VAS &amp; Warranty)
@@ -2980,7 +3037,7 @@ Indosat IM3 : ${isatText}`;
                                   onClick={() => openLobDetailSheet("Seluruh Transaksi Layanan VAS Terjual", items)}
                                   className="px-3 py-1.5 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-700 dark:text-purple-400 border border-purple-400/30 text-xs font-black transition active:scale-95"
                                 >
-                                  More Details ➔
+                                  More Details <UIIcon symbol="➔" />
                                 </button>
                               </div>
                             </div>
@@ -3002,7 +3059,7 @@ Indosat IM3 : ${isatText}`;
                                   <div key={idx} className={`p-3.5 rounded-xl border ${cardBg} text-xs space-y-2 shadow-sm`}>
                                     <div className="flex justify-between items-center">
                                       <span className="font-black text-slate-900 dark:text-white flex items-center gap-1.5">
-                                        <span>{vs.icon}</span>
+                                        <span><UIIcon symbol={vs.icon} className="h-4 w-4" /></span>
                                         <span>{vs.label}</span>
                                       </span>
                                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${vsAchv >= 100 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"}`}>
@@ -3021,7 +3078,7 @@ Indosat IM3 : ${isatText}`;
                                         className="text-[10px] font-black text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1"
                                       >
                                         <span>More Details</span>
-                                        <span>➔</span>
+                                        <span><UIIcon symbol="➔" /></span>
                                       </button>
                                     </div>
                                   </div>
@@ -3041,7 +3098,7 @@ Indosat IM3 : ${isatText}`;
                 <div className="space-y-5">
                   <section className={`p-5 ${cardBg} border-2 rounded-3xl shadow-xl space-y-5`}>
                     <div className="flex justify-between items-center flex-wrap gap-3">
-                      <div><h2 className="text-lg font-black text-slate-950 dark:text-white">📊 WEEKLY PERFORMANCE — MINGGU–SABTU</h2><p className="text-xs text-slate-500">Target mingguan = target bulanan ÷ jumlah hari bulan × hari dalam week. Week selalu Minggu–Sabtu (7 hari), termasuk lintas bulan. Target hanya dihitung untuk hari pada bulan terpilih.</p></div>
+                      <div><h2 className="text-lg font-black text-slate-950 dark:text-white"><UIIcon symbol="📊" /> WEEKLY PERFORMANCE — MINGGU–SABTU</h2><p className="text-xs text-slate-500">Target mingguan = target bulanan ÷ jumlah hari bulan × hari dalam week. Week selalu Minggu–Sabtu (7 hari), termasuk lintas bulan. Target hanya dihitung untuk hari pada bulan terpilih.</p></div>
                       <select className="rounded-xl border px-3 py-2 bg-white text-slate-950 dark:bg-slate-800 dark:text-white" value={Math.min(calendarWeekIndex,Math.max(0,calendarWeekly.weeks.length-1))} onChange={e=>setCalendarWeekIndex(Number(e.target.value))}>{calendarWeekly.weeks.map((w,i)=><option key={i} value={i}>{w.label} · {w.start} s.d. {w.end}</option>)}</select>
                     </div>
                     {calendarWeekly.current && (() => {
@@ -3073,7 +3130,7 @@ Indosat IM3 : ${isatText}`;
                     })()}
                   </section>
                   <section className={`p-5 ${cardBg} border-2 rounded-3xl shadow-xl space-y-4`}>
-                    <h2 className="text-lg font-black text-slate-950 dark:text-white">📦 RINCIAN PENJUALAN WEEK BERJALAN VS WEEK SEBELUMNYA</h2>
+                    <h2 className="text-lg font-black text-slate-950 dark:text-white"><UIIcon symbol="📦" /> RINCIAN PENJUALAN WEEK BERJALAN VS WEEK SEBELUMNYA</h2>
                     <p className="text-xs text-slate-500">Pembanding lintas bulan otomatis. Growth Actual = perubahan omzet total; Growth Daily Average = perubahan rata-rata omzet per hari teramati.</p>
                     {calendarWeekly.current && (() => {
                       const w=calendarWeekly.current,prev=calendarWeekly.previous;
@@ -3117,7 +3174,7 @@ Indosat IM3 : ${isatText}`;
                     <div className="flex flex-wrap justify-between items-center gap-4">
                       <div>
                         <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
-                          <span>🛡️</span>
+                          <span><UIIcon symbol="🛡️" /></span>
                           <span>QOALA PROTECTION &amp; ATTACHMENT RATE (AR %)</span>
                         </h2>
                         <p className={`text-xs ${textMuted} mt-0.5`}>
@@ -3160,7 +3217,7 @@ Indosat IM3 : ${isatText}`;
               {activeTab === "qoala-ar" && (
                 <div className="space-y-6">
                   <div className={cardBg + " p-5 sm:p-6 border rounded-3xl space-y-3"}>
-                    <h3 className="text-base font-black text-slate-950 dark:text-white">🏆 Top to Bottom Staff — Qoala AR %</h3>
+                    <h3 className="text-base font-black text-slate-950 dark:text-white"><UIIcon symbol="🏆" /> Top to Bottom Staff — Qoala AR %</h3>
                     <p className={textMuted + " text-xs"}>AR = Qty Qoala ÷ Qty device terjual × 100%. Staff tanpa penjualan device ditampilkan tanpa AR.</p>
                     <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-xs text-slate-900 dark:text-slate-100">
                       <thead><tr className="border-b border-slate-300 dark:border-slate-700">{["Rank","Staff / Sales ID","Device Qty","Qoala Qty","AR %","Omset Qoala"].map(h=><th key={h} className="p-3 text-left">{h}</th>)}</tr></thead>
@@ -3174,14 +3231,14 @@ Indosat IM3 : ${isatText}`;
                   </div>
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                     <div className={cardBg + " p-5 border rounded-3xl space-y-3"}>
-                      <h3 className="font-black text-slate-950 dark:text-white">🛡️ Detail Produk Qoala Terjual</h3>
+                      <h3 className="font-black text-slate-950 dark:text-white"><UIIcon symbol="🛡️" /> Detail Produk Qoala Terjual</h3>
                       <div className="overflow-x-auto"><table className="w-full text-xs text-slate-900 dark:text-slate-100">
                         <thead><tr><th className="p-2 text-left">Produk Qoala</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Omset</th></tr></thead>
                         <tbody>{qoalaDetails.products.map(p=><tr key={p.name} className="border-t border-slate-200 dark:border-slate-700"><td className="p-2">{p.name}</td><td className="p-2 text-right">{p.qty}</td><td className="p-2 text-right">{formatIDR(p.amount)}</td></tr>)}</tbody>
                       </table></div>
                     </div>
                     <div className={cardBg + " p-5 border rounded-3xl space-y-3"}>
-                      <h3 className="font-black text-slate-950 dark:text-white">📱 Detail Device Terjual &amp; Attachment</h3>
+                      <h3 className="font-black text-slate-950 dark:text-white"><UIIcon symbol="📱" /> Detail Device Terjual &amp; Attachment</h3>
                       <p className={textMuted + " text-xs"}>Attachment diestimasi dari kecocokan nomor invoice antara Qoala dan device.</p>
                       <div className="overflow-x-auto"><table className="w-full text-xs text-slate-900 dark:text-slate-100">
                         <thead><tr><th className="p-2 text-left">Device</th><th className="p-2 text-right">Terjual</th><th className="p-2 text-right">Qoala Attached</th></tr></thead>
@@ -3206,7 +3263,7 @@ Indosat IM3 : ${isatText}`;
                 const productGroups=Array.from(rows.reduce((map,t)=>{const key=t.groupCategory||t.productType||"Lainnya";const prev=map.get(key)||{name:key,qty:0,amount:0};prev.qty+=Number(t.qty)||0;prev.amount+=Number(t.amount)||0;map.set(key,prev);return map;},new Map<string,{name:string,qty:number,amount:number}>()).values()).sort((a,b)=>b.amount-a.amount);
                 return <div className="space-y-5">
                   <div className={`p-5 rounded-2xl border ${cardBg}`}>
-                    <h2 className="text-lg font-black mb-2">🤝 Customer Engagement</h2>
+                    <h2 className="text-lg font-black mb-2"><UIIcon symbol="🤝" /> Customer Engagement</h2>
                     <p className="text-xs opacity-70">Indikator transaksi sebagai proksi engagement, mengikuti filter periode dashboard. Tidak mengukur pengunjung, percakapan, atau conversion rate karena data tersebut belum tersedia.</p>
                   </div>
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -3275,7 +3332,7 @@ Indosat IM3 : ${isatText}`;
                       </div>;
                     };
                     return <section className={`p-5 sm:p-6 rounded-3xl border-2 ${cardBg} shadow-xl space-y-4`}>
-                      <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-black text-lg text-slate-950 dark:text-white">Target Vs Achievement Per Staff</h2><p className={`text-xs ${textMuted}`}>#{st.rank} · {st.name} · {periodType.toUpperCase()} · {periodType==="daily"?selectedDate:periodType==="weekly"?(staffSelectedWeek?.label+" · "+staffSelectedWeek?.start+" – "+staffSelectedWeek?.end):selectedMonth}</p></div><button type="button" onClick={()=>handleShareStaffWA({...st,targetAmount:targetFor("total"),achvPct:targetFor("total")>0?Number((st.totalAmount/targetFor("total")*100).toFixed(1)):0},rows)} className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black">↗ Share WhatsApp</button></div>
+                      <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-black text-lg text-slate-950 dark:text-white">Target Vs Achievement Per Staff</h2><p className={`text-xs ${textMuted}`}>#{st.rank} · {st.name} · {periodType.toUpperCase()} · {periodType==="daily"?selectedDate:periodType==="weekly"?(staffSelectedWeek?.label+" · "+staffSelectedWeek?.start+" – "+staffSelectedWeek?.end):selectedMonth}</p></div><button type="button" onClick={()=>handleShareStaffWA({...st,targetAmount:targetFor("total"),achvPct:targetFor("total")>0?Number((st.totalAmount/targetFor("total")*100).toFixed(1)):0},rows)} className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black"><UIIcon symbol="↗" /> Share WhatsApp</button></div>
                       {renderMetric("TOTAL STAFF",rows,targetFor("total"),"total")}
                       <p className={`text-xs ${textMuted}`}>Sumber target: Pembagian target (gid 685849310). Staff atau kategori yang tidak ditemukan memiliki target Rp 0. Target Daily/Weekly diprorata dari target bulanan. Estimate adalah sisa target, bukan prediksi penjualan.</p>
                       {groups.map(g=><div key={g.title} className="space-y-2"><h3 className="font-black text-base text-slate-950 dark:text-white">{g.title}</h3>{renderMetric(g.title,g.items,dailyTargetFor(g.title),"group-"+g.title)}<div className="grid md:grid-cols-2 gap-2">{g.sub.map(([label,items])=>renderMetric(label,items,targetFor(({iPhone:"iphone",iPad:"ipad",MacBook:"macbook","Apple Watch":"applewatch",Qoala:"qoala",Telkomsel:"telkomsel",XL:"xl",Indosat:"indosat",SAMSUNG:"samsung",XIAOMI:"xiaomi",OPPO:"oppo",MOTOROLA:"motorola",HUAWEI:"huawei",INFINIX:"infinix"} as Record<string,string>)[label] || label.toLowerCase()),g.title+"-"+label))}</div></div>)}
@@ -3285,7 +3342,7 @@ Indosat IM3 : ${isatText}`;
                     <div className="flex flex-wrap items-center justify-between gap-4">
                       <div>
                         <h2 className="text-base sm:text-lg font-black tracking-wide flex items-center gap-2 text-slate-950 dark:text-white">
-                          <span>🏆</span>
+                          <span><UIIcon symbol="🏆" /></span>
                           <span>STAFF PERFORMANCE LEADERBOARD ({staffList.length} STAF)</span>
                         </h2>
                         <p className={`text-xs ${textMuted} mt-0.5`}>
@@ -3333,7 +3390,7 @@ Indosat IM3 : ${isatText}`;
                                   : "bg-rose-50 text-rose-800 border-rose-300 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-400/40"
                               }`}
                             >
-                              {st.achvPct >= 100 ? "Productive 🔥" : st.achvPct >= 70 ? "On Track ⚡" : "Need Focus ⚠️"}
+                              {st.achvPct >= 100 ? "Productive" : st.achvPct >= 70 ? "On Track" : "Need Focus"}
                             </span>
                           </div>
 
@@ -3412,7 +3469,7 @@ Indosat IM3 : ${isatText}`;
                     <div className="flex flex-wrap justify-between items-center gap-4">
                       <div>
                         <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
-                          <span>🎯</span>
+                          <span><UIIcon symbol="🎯" /></span>
                           <span>DAILY TARGET &amp; RUN RATE HARIAN (QF01)</span>
                         </h2>
                         <p className={`text-xs ${textMuted} mt-0.5`}>
@@ -3425,7 +3482,7 @@ Indosat IM3 : ${isatText}`;
                           onClick={handleShareTargetWA}
                           className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-black transition flex items-center gap-2 border border-slate-700 shadow-md active:scale-95"
                         >
-                          <span>📢</span>
+                          <span><UIIcon symbol="📢" /></span>
                           <span>Share Rekap Toko</span>
                         </button>
                       </div>
@@ -3548,7 +3605,7 @@ Indosat IM3 : ${isatText}`;
                               onClick={() => handleShareDailyTargetStaffWA(displayName, targetData, staffTodayTrx)}
                               className="px-4 py-2 rounded-xl bg-[#25D366] hover:bg-emerald-600 text-white text-xs font-black transition flex items-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95"
                             >
-                              <span>📲</span>
+                              <span><UIIcon symbol="📲" /></span>
                               <span>Share WA Daily Target</span>
                             </button>
                           </div>
@@ -3595,7 +3652,7 @@ Indosat IM3 : ${isatText}`;
                         <div className="space-y-4">
                           <div className="flex justify-between items-center pb-2 border-b border-inherit/40">
                             <h4 className="text-sm font-black uppercase tracking-wider text-slate-950 dark:text-white flex items-center gap-2">
-                              <span>📦</span>
+                              <span><UIIcon symbol="📦" /></span>
                               <span>Total Achievement :</span>
                             </h4>
                             <span className="text-base font-black font-mono text-emerald-600 dark:text-emerald-400">
@@ -3605,7 +3662,7 @@ Indosat IM3 : ${isatText}`;
 
                           <div className={`p-4 rounded-2xl border ${innerBg} space-y-2.5`}>
                             <span className="text-xs font-black text-sky-600 dark:text-sky-400 flex items-center gap-1.5 uppercase">
-                              <span>🍎</span> 1. Apple Devices :
+                              <span><UIIcon symbol="🍎" /></span> 1. Apple Devices :
                             </span>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs font-semibold">
                               <div className={`p-2.5 rounded-xl border ${cardBg} flex justify-between items-center`}>
@@ -3629,7 +3686,7 @@ Indosat IM3 : ${isatText}`;
 
                           <div className={`p-4 rounded-2xl border ${innerBg} space-y-2.5`}>
                             <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5 uppercase">
-                              <span>🤖</span> 1. Android Device :
+                              <span><UIIcon symbol="🤖" /></span> 1. Android Device :
                             </span>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 text-xs font-semibold">
                               <div className={`p-2.5 rounded-xl border ${cardBg} flex justify-between items-center`}>
@@ -3662,7 +3719,7 @@ Indosat IM3 : ${isatText}`;
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className={`p-4 rounded-2xl border ${innerBg} space-y-2.5`}>
                               <span className="text-xs font-black text-amber-600 dark:text-amber-400 flex items-center gap-1.5 uppercase">
-                                <span>🔌</span> 1. Accessories :
+                                <span><UIIcon symbol="🔌" /></span> 1. Accessories :
                               </span>
                               <div className={`p-3 rounded-xl border ${cardBg} flex justify-between items-center text-xs font-semibold`}>
                                 <span className="text-slate-700 dark:text-slate-300">Total Accessories Terjual:</span>
@@ -3672,7 +3729,7 @@ Indosat IM3 : ${isatText}`;
 
                             <div className={`p-4 rounded-2xl border ${innerBg} space-y-2.5`}>
                               <span className="text-xs font-black text-purple-600 dark:text-purple-400 flex items-center gap-1.5 uppercase">
-                                <span>🛡️</span> 2. VAS :
+                                <span><UIIcon symbol="🛡️" /></span> 2. VAS :
                               </span>
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-semibold">
                                 <div className={`p-2 rounded-xl border ${cardBg} flex justify-between items-center`}>
@@ -3755,7 +3812,7 @@ Indosat IM3 : ${isatText}`;
                           Supplier Monitoring &amp; Contribution
                         </span>
                         <h2 className="text-lg sm:text-2xl font-black text-slate-950 dark:text-white mt-0.5 flex items-center gap-2">
-                          <span>🏷️</span>
+                          <span><UIIcon symbol="🏷️" /></span>
                           <span>BRAND FOCUS ACCESSORIES</span>
                         </h2>
                         <p className="text-xs text-slate-500 mt-1">
@@ -3809,7 +3866,7 @@ Indosat IM3 : ${isatText}`;
                     {/* DETAIL TRANSAKSI PER SUPPLIER */}
                     <div className="space-y-5">
                       <h3 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2">
-                        <span>📋</span>
+                        <span><UIIcon symbol="📋" /></span>
                         <span>Rincian Transaksi Produk Per Supplier</span>
                       </h3>
 
@@ -3880,7 +3937,7 @@ Indosat IM3 : ${isatText}`;
                     <div className={`p-5 sm:p-7 rounded-3xl border-2 ${cardBg} shadow-xl space-y-6`}>
                       <div className="border-b border-inherit pb-3">
                         <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-                          <span>👤</span>
+                          <span><UIIcon symbol="👤" /></span>
                           <span>Penjualan Supplier Per Staff</span>
                         </h3>
                         <p className="text-xs text-slate-500 mt-0.5">
@@ -3936,7 +3993,7 @@ Indosat IM3 : ${isatText}`;
                     <div className="flex flex-wrap justify-between items-center gap-4">
                       <div>
                         <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
-                          <span>📅</span>
+                          <span><UIIcon symbol="📅" /></span>
                           <span>JADWAL OPERASIONAL KERJA 1 MINGGU (SENIN - MINGGU)</span>
                         </h2>
                       </div>
@@ -3946,7 +4003,7 @@ Indosat IM3 : ${isatText}`;
                           onClick={handlePrintSchedule}
                           className={`px-3.5 py-1.5 rounded-xl border text-xs font-black transition flex items-center gap-1.5 ${innerBg} text-slate-950 dark:text-white`}
                         >
-                          <span>🖨️</span>
+                          <span><UIIcon symbol="🖨️" /></span>
                           <span>Print</span>
                         </button>
 
@@ -3954,7 +4011,7 @@ Indosat IM3 : ${isatText}`;
                           onClick={handleShareScheduleWA}
                           className="px-3.5 py-1.5 rounded-xl bg-emerald-500 text-white text-xs font-black transition flex items-center gap-1.5"
                         >
-                          <span>📲</span>
+                          <span><UIIcon symbol="📲" /></span>
                           <span>Share WA</span>
                         </button>
                       </div>
@@ -3979,7 +4036,7 @@ Indosat IM3 : ${isatText}`;
               {activeTab === "feedback" && (
                 <div className="space-y-6">
                   <div className={`p-4 sm:p-6 ${cardBg} border-2 rounded-3xl shadow-xl space-y-4`}>
-                    <h2 className="font-black text-lg text-slate-950 dark:text-white">💬 Feedback Tim — Semua Perangkat</h2>
+                    <h2 className="font-black text-lg text-slate-950 dark:text-white"><UIIcon symbol="💬" /> Feedback Tim — Semua Perangkat</h2>
                     <p className="text-xs text-slate-500">Feedback tersimpan online dan dapat dibaca semua pengguna dashboard. Jangan memasukkan data pribadi pelanggan.</p>
                     <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">Pengirim: {currentSalesName || "Staff"}</div>
                     <select value={feedbackSentiment} onChange={e=>setFeedbackSentiment(e.target.value as FeedbackItem["sentiment"])} className="w-full rounded-xl p-3 border bg-white text-slate-900">
@@ -4019,12 +4076,12 @@ Indosat IM3 : ${isatText}`;
                     <div className="flex flex-wrap justify-between items-center gap-4">
                       <div>
                         <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
-                          <span>💳</span>
+                          <span><UIIcon symbol="💳" /></span>
                           <span>TRANSAKSI PEMBIAYAAN KONSUMEN (BNPL)</span>
                         </h2>
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <button type="button" onClick={handleShareBnplWhatsApp} className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black">📲 Share WhatsApp</button>
+                        <button type="button" onClick={handleShareBnplWhatsApp} className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black"><UIIcon symbol="📲" /> Share WhatsApp</button>
                         <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border border-emerald-400/30">
                           Total BNPL: {formatIDR(bnplSummary.totalAmount)}
                         </span>
@@ -4044,7 +4101,7 @@ Indosat IM3 : ${isatText}`;
                       ))}
                     </div>
                     <div className="space-y-4 pt-3">
-                      <h3 className="text-sm font-black text-slate-900 dark:text-white">📋 Rincian Transaksi per Tender BNPL — {selectedMonth}</h3>
+                      <h3 className="text-sm font-black text-slate-900 dark:text-white"><UIIcon symbol="📋" /> Rincian Transaksi per Tender BNPL — {selectedMonth}</h3>
                       {bnplSummary.tenders.length===0 && <p className="text-sm text-slate-500">Tidak ada transaksi BNPL pada periode terpilih.</p>}
                       {bnplSummary.tenders.map(td=>(
                         <div key={td.tender} className={`rounded-2xl border ${innerBg} p-3 space-y-3`}>
@@ -4105,7 +4162,7 @@ Indosat IM3 : ${isatText}`;
                 <div className="space-y-6">
                   <div className={`p-6 ${cardBg} border rounded-2xl shadow-xl space-y-4`}>
                     <h2 className="text-lg font-black flex items-center gap-2 text-slate-950 dark:text-white">
-                      <span>🔍</span> PENCARIAN PRODUK TERJUAL
+                      <span><UIIcon symbol="🔍" /></span> PENCARIAN PRODUK TERJUAL
                     </h2>
                     <input
                       type="text"
@@ -4156,7 +4213,7 @@ Indosat IM3 : ${isatText}`;
         className={`lg:hidden fixed bottom-[calc(env(safe-area-inset-bottom)+12px)] left-3 z-40 w-11 h-11 rounded-full flex items-center justify-center border backdrop-blur-md active:scale-95 focus-visible:opacity-100 hover:opacity-100 transition-all duration-300 print:hidden ${isMobileScrolled ? "bg-slate-200/50 dark:bg-white/15 text-slate-500 dark:text-slate-300 border-slate-300/30 dark:border-white/10 opacity-30 shadow-none" : "bg-slate-900 dark:bg-sky-500 text-white border-slate-700 dark:border-sky-400/30 opacity-100 shadow-lg shadow-slate-900/20 dark:shadow-sky-500/25"}`}
         aria-label="Buka Menu Navigasi"
       >
-        <span className="text-lg leading-none" aria-hidden="true">☰</span>
+        <span className="text-lg leading-none" aria-hidden="true"><UIIcon symbol="☰" /></span>
       </button>
 
       {/* BOTTOM SHEET MODAL DRILLDOWN */}
@@ -4165,7 +4222,7 @@ Indosat IM3 : ${isatText}`;
           <div className={`w-full sm:max-w-3xl max-h-[85vh] rounded-t-3xl sm:rounded-3xl ${cardBg} border-2 border-inherit shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300`}>
             <div className="flex items-center justify-between p-4 sm:p-5 border-b border-inherit bg-black/10 dark:bg-black/20">
               <h3 className={`text-sm sm:text-base font-black ${textMain} flex items-center gap-2 truncate`}>
-                <span>📋</span>
+                <span><UIIcon symbol="📋" /></span>
                 <span className="truncate">{sheetTitle}</span>
               </h3>
 
@@ -4173,7 +4230,7 @@ Indosat IM3 : ${isatText}`;
                 onClick={() => setBottomSheetOpen(false)}
                 className="w-8 h-8 rounded-full bg-slate-300 dark:bg-slate-700/40 hover:bg-slate-400 dark:hover:bg-slate-700/60 flex items-center justify-center text-sm font-black text-slate-900 dark:text-slate-300 shrink-0"
               >
-                ✕
+                <UIIcon symbol="✕" />
               </button>
             </div>
 
