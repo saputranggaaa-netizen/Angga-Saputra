@@ -2712,20 +2712,32 @@ Indosat IM3 : ${isatText}`;
           .dg-retail-login .dg-float-alt{animation:dgFloatAlt 6.5s ease-in-out infinite}
           .dg-retail-login .dg-enter{animation:dgEnter .85s ease-out both}
           .dg-retail-login .dg-orbit{animation:dgOrbit 24s linear infinite}
-          @media(prefers-reduced-motion:reduce){.dg-retail-login .dg-float,.dg-retail-login .dg-float-alt,.dg-retail-login .dg-enter,.dg-retail-login .dg-orbit{animation:none!important}}
+          @keyframes dgGlow {0%,100%{opacity:.42;transform:translate3d(0,0,0) scale(1)}50%{opacity:.72;transform:translate3d(-12px,10px,0) scale(1.08)}}
+          @keyframes dgSoftReveal {from{opacity:0;transform:translate3d(0,16px,0) scale(.985)}to{opacity:1;transform:translate3d(0,0,0) scale(1)}}
+          .dg-retail-login .dg-glow{animation:dgGlow 11s ease-in-out infinite}
+          .dg-retail-login .dg-login-card{animation:dgSoftReveal .75s cubic-bezier(.2,.8,.2,1) .15s both}
+          .dg-retail-login .dg-login-brand{animation:dgSoftReveal .7s cubic-bezier(.2,.8,.2,1) .05s both}
+          .dg-retail-login .dg-brand-tile{transition:transform .3s ease,background-color .3s ease,border-color .3s ease}
+          .dg-retail-login .dg-brand-tile:hover{transform:translateY(-4px);background-color:rgba(255,255,255,.12);border-color:rgba(255,255,255,.35)}
+          .dg-retail-login .dg-login-button{transition:transform .2s ease,box-shadow .25s ease,filter .25s ease}
+          .dg-retail-login .dg-login-button:hover{transform:translateY(-2px);filter:brightness(1.06);box-shadow:0 14px 30px rgba(30,64,175,.23)}
+          .dg-retail-login .dg-login-button:active{transform:translateY(0) scale(.985)}
+          @media(max-width:639px){.dg-retail-login .dg-glow{animation:none}.dg-retail-login .dg-brand-tile:hover{transform:none}}
+
+          @media(prefers-reduced-motion:reduce){.dg-retail-login .dg-float,.dg-retail-login .dg-float-alt,.dg-retail-login .dg-enter,.dg-retail-login .dg-orbit,.dg-retail-login .dg-glow,.dg-retail-login .dg-login-card,.dg-retail-login .dg-login-brand{animation:none!important}.dg-retail-login .dg-brand-tile,.dg-retail-login .dg-login-button{transition:none!important;transform:none!important}}
         `}</style>
         <div className="relative mx-auto grid min-h-[100dvh] max-w-[1500px] grid-cols-1 lg:grid-cols-[1.12fr_.88fr]">
           <section className="relative isolate hidden overflow-hidden bg-gradient-to-br from-[#07152e] via-[#163e7e] to-[#83b8fa] p-10 text-white lg:flex lg:flex-col lg:justify-between xl:p-14">
-            <div aria-hidden="true" className="pointer-events-none absolute -right-32 top-1/4 h-[28rem] w-[28rem] rounded-full bg-sky-300/25 blur-3xl"/>
+            <div aria-hidden="true" className="dg-glow pointer-events-none absolute -right-32 top-1/4 h-[28rem] w-[28rem] rounded-full bg-sky-300/25 blur-3xl"/>
             <div className="dg-enter relative z-10"><p className="text-xs font-bold uppercase tracking-[.3em] text-blue-100">Digiplus Grand Indonesia · QF01</p><h1 className="mt-7 max-w-xl text-4xl font-black leading-[1.08] tracking-tight xl:text-6xl">Multibrand<br/>Retail Experience.</h1><p className="mt-5 text-sm text-blue-100">Apple Devices · Android Devices · Accessories · Services</p></div>
-            <div aria-label="Brand multibrand Digiplus" className="relative mx-auto flex min-h-[270px] w-full max-w-[580px] items-center justify-center py-8"><div className="relative z-10 grid w-full grid-cols-4 gap-3 sm:gap-4">{["Apple","Samsung","Xiaomi","OPPO","Huawei","Infinix","Motorola"].map((name,index)=><div key={name} className="dg-enter flex h-20 items-center justify-center rounded-2xl border border-white/15 bg-white/[.045] px-3 backdrop-blur-sm" style={{animationDelay:(index*.09)+"s"}}><RetailBrandLogo brand={name} size={name==="Apple"?31:45} light/></div>)}</div></div>
+            <div aria-label="Brand multibrand Digiplus" className="relative mx-auto flex min-h-[270px] w-full max-w-[580px] items-center justify-center py-8"><div className="relative z-10 grid w-full grid-cols-4 gap-3 sm:gap-4">{["Apple","Samsung","Xiaomi","OPPO","Huawei","Infinix","Motorola"].map((name,index)=><div key={name} className="dg-brand-tile dg-enter flex h-20 items-center justify-center rounded-2xl border border-white/15 bg-white/[.045] px-3 backdrop-blur-sm" style={{animationDelay:(index*.09)+"s"}}><RetailBrandLogo brand={name} size={name==="Apple"?31:45} light/></div>)}</div></div>
             <p className="relative z-10 text-center text-xs tracking-widest text-white/60">APPLE · SAMSUNG · XIAOMI · OPPO · HUAWEI · INFINIX · MOTOROLA</p>
           </section>
           <section className="relative flex min-h-[100dvh] items-center justify-center px-4 py-10 sm:px-8 lg:px-12">
             <div aria-hidden="true" className="pointer-events-none absolute right-0 top-0 h-72 w-72 rounded-full bg-sky-400/10 blur-3xl"/>
-            <div className="dg-enter relative w-full min-w-0 max-w-[450px]">
-              <div className="mb-7 flex items-center justify-center gap-3"><div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white p-2 shadow-lg"><img src="/apple-touch-icon.png" alt="Logo Digiplus" className="h-full w-full object-contain"/></div><div><p className="text-xl font-black tracking-tight">DIGIPLUS</p><p className="text-[10px] font-semibold uppercase tracking-[.22em] text-sky-600 dark:text-sky-300">Grand Indonesia · QF01</p></div></div>
-              <div className={`min-w-0 rounded-[28px] border p-4 shadow-2xl sm:rounded-[32px] sm:p-9 ${isDark?"border-sky-300/20 bg-[#0d2345]/90 shadow-black/30":"border-white bg-white/95 shadow-blue-950/10"}`}>
+            <div className="relative w-full min-w-0 max-w-[450px]">
+              <div className="dg-login-brand mb-7 flex items-center justify-center gap-3"><div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white p-2 shadow-lg"><img src="/apple-touch-icon.png" alt="Logo Digiplus" className="h-full w-full object-contain"/></div><div><p className="text-xl font-black tracking-tight">DIGIPLUS</p><p className="text-[10px] font-semibold uppercase tracking-[.22em] text-sky-600 dark:text-sky-300">Grand Indonesia · QF01</p></div></div>
+              <div className={`dg-login-card min-w-0 rounded-[28px] border p-4 shadow-2xl sm:rounded-[32px] sm:p-9 ${isDark?"border-sky-300/20 bg-[#0d2345]/90 shadow-black/30":"border-white bg-white/95 shadow-blue-950/10"}`}>
                 <p className="mb-2 text-xs font-bold uppercase tracking-[.22em] text-blue-600 dark:text-sky-400">Multibrand retail workspace</p>
                 <h2 className="text-3xl font-black tracking-tight">Welcome back.</h2>
                 <p className={`mb-7 mt-2 text-sm ${isDark?"text-slate-300":"text-slate-500"}`}>Masuk untuk mengakses dashboard penjualan dan aktivitas toko.</p>
@@ -2742,11 +2754,11 @@ Indosat IM3 : ${isatText}`;
                 </div>
               </div>
               {loginErr && <p role="alert" className="rounded-xl bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-600 dark:text-red-300">{loginErr}</p>}
-              <button type="submit" className="flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-4 text-sm font-extrabold text-white shadow-lg shadow-blue-700/20 transition hover:from-blue-500 hover:to-blue-600 active:scale-[0.99]">Masuk Dashboard <span aria-hidden="true">→</span></button>
+              <button type="submit" className="dg-login-button flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-4 text-sm font-extrabold text-white shadow-lg shadow-blue-700/20 transition hover:from-blue-500 hover:to-blue-600 active:scale-[0.99]">Masuk Dashboard <span aria-hidden="true">→</span></button>
             </form>
                 <div className="mt-7 flex items-center justify-center gap-2 border-t border-slate-400/20 pt-5 text-[11px] text-slate-500 dark:text-slate-300"><span>🛡</span><span>Secure Staff Access · QF01</span></div>
               </div>
-              <div className="mt-5 grid grid-cols-4 gap-1.5 lg:hidden">{["Apple","Samsung","Xiaomi","OPPO","Huawei","Infinix","Motorola"].map((name,index)=><div key={name} className="dg-enter flex h-12 min-w-0 overflow-hidden items-center justify-center rounded-xl border border-sky-400/15 bg-sky-500/5 px-1" style={{animationDelay:(index*.07)+"s"}}><RetailBrandLogo brand={name} size={23}/></div>)}</div>
+              <div className="mt-5 grid grid-cols-4 gap-1.5 lg:hidden">{["Apple","Samsung","Xiaomi","OPPO","Huawei","Infinix","Motorola"].map((name,index)=><div key={name} className="dg-brand-tile dg-enter flex h-12 min-w-0 overflow-hidden items-center justify-center rounded-xl border border-sky-400/15 bg-sky-500/5 px-1" style={{animationDelay:(index*.07)+"s"}}><RetailBrandLogo brand={name} size={23}/></div>)}</div>
             </div>
           </section>
         </div>
