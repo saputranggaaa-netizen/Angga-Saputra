@@ -2381,10 +2381,13 @@ Indosat IM3 : ${isatText}`;
         const slide=slideHeader("GROWTH INTELLIGENCE  |  ACTION PLAN",7);
         const categories=["Apple Devices","Android Devices","Accessories","VAS"];
         const box=(y:number,title:string,body:string,action:string)=>{
-          slide.addShape(pptx.ShapeType.roundRect,{x:0.6,y,w:12.15,h:1.12,rectRadius:0.1,line:{color:"DCE8F7"},fill:{color:"F7FAFF"}});
-          slide.addText(title,{x:0.82,y:y+0.12,w:11.7,h:0.22,fontSize:12,bold:true,color:BLUE,margin:0});
-          slide.addText(body,{x:0.82,y:y+0.41,w:11.7,h:0.24,fontSize:9,color:NAVY,margin:0,fit:"shrink"});
-          slide.addText("ACTION: "+action,{x:0.82,y:y+0.75,w:11.7,h:0.22,fontSize:9,bold:true,color:MUTED,margin:0,fit:"shrink"});
+          const index=([1.38,2.68,3.98,5.28] as number[]).indexOf(y);
+          const x=index%2===0?0.48:6.77;
+          const top=index<2?1.47:3.76;
+          slide.addShape(pptx.ShapeType.roundRect,{x,y:top,w:6.06,h:2.05,rectRadius:0.1,line:{color:"DCE8F7"},fill:{color:"F7FAFF"}});
+          slide.addShape(pptx.ShapeType.rect,{x,y:top,w:0.05,h:2.05,line:{color:BLUE},fill:{color:BLUE}});
+          slide.addText(title,{x:x+0.2,y:top+0.12,w:5.66,h:0.38,fontSize:13,bold:true,color:BLUE,margin:0,fit:"shrink"});
+          slide.addText(body+"\n\nACTION: "+action,{x:x+0.2,y:top+0.55,w:5.66,h:1.27,fontSize:9.5,color:NAVY,margin:0,fit:"shrink"});
         };
         const trends=categories.map(name=>({name,now:amount(by(currentWeek,t=>classify(t)===name)),old:amount(by(previousWeek,t=>classify(t)===name))})).sort((a,b)=>(a.now-a.old)-(b.now-b.old));
         const weakest=trends[0],strongest=trends[trends.length-1];
@@ -2394,7 +2397,7 @@ Indosat IM3 : ${isatText}`;
         box(3.98,"TOP SALES  |  MTD",top.map((name,i)=>(i+1)+". "+name+" "+compact(amount(getStaffRows(name)))).join("   |   ")||"Belum ada transaksi.","Sharing best practice, coaching dan roleplay penjualan.");
         const gaps=staffNames.filter(n=>targetFor(n)>0).map(n=>({name:n,p:amount(getStaffRows(n))/targetFor(n)*100})).sort((a,b)=>a.p-b.p).slice(0,3);
         box(5.28,"NEED ATTENTION  |  TARGET GAP",gaps.length?gaps.map(v=>v.name+" "+v.p.toFixed(1)+"%").join("   |   "):"Target staff belum tersedia untuk periode ini.","Daily pipeline, follow-up customer, target harian per LOB, coaching conversion.");
-        slide.addText("Catatan: penyebab stok atau operasional memerlukan verifikasi manual; data transaksi saja tidak membuktikannya.",{x:0.68,y:6.67,w:12,h:0.23,fontSize:8,italic:true,color:MUTED,margin:0});
+        slide.addText("Catatan: penyebab stok atau operasional memerlukan verifikasi manual; data transaksi saja tidak membuktikannya.",{x:0.68,y:6.3,w:12,h:0.23,fontSize:8,italic:true,color:MUTED,margin:0});
       }
 
       await pptx.writeFile({ fileName: "Digiplus_GI_7_Slides_" + cutoff + ".pptx" });
