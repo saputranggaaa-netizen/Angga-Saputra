@@ -4115,19 +4115,19 @@ return <div className="space-y-5">
                     };
                     const dailyTargetFor = (title:string) => targetFor(title==="Apple Devices"?"apple":title==="Android Devices"?"android":title==="Accessories"?"accessories":"vas");
                     const renderMetric = (label:string,items:RawTransaction[],targetValue:number|null,detailKey:string) => {
-                      const actual = sum(items);
-                      const variance = actual.amount-(targetValue ?? 0);
-                      const pct = targetValue !== null && targetValue>0?actual.amount/targetValue*100:0;
-                      const estimate = (targetValue ?? 0)-actual.amount;
-                      const expanded = staffExpandedDetail===detailKey;
-                      return <div key={detailKey} className={`p-3 rounded-xl border ${innerBg}`}>
-                        <div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-sm text-slate-950 dark:text-white">{label}</strong><button type="button" onClick={()=>setStaffExpandedDetail(expanded?null:detailKey)} className="text-xs font-bold text-sky-600 dark:text-sky-300">{expanded?"⌃ Show Less":"⌄ More Details"}</button></div>
-                        <div className="text-xs mt-2 text-slate-900 dark:text-slate-200">T/A: <strong>{formatIDR(targetValue ?? 0)}</strong> / <strong>{formatIDR(actual.amount)}</strong> · {actual.qty} Qty</div>
-                        <div className="text-xs mt-1 text-slate-900 dark:text-slate-200">% & +/-: <strong className={variance!==null && variance<0?"text-rose-500":"text-emerald-500"}>{pct.toFixed(1)+"%"} · {variance===null?"—":(variance>=0?"+":"")+formatIDR(variance)}</strong></div>
-                        <div className="text-xs mt-1 text-slate-900 dark:text-slate-200">Estimate (sisa target): <strong>{estimate===null?"—":formatIDR(Math.max(0,estimate))}</strong></div>
-                        {expanded && <div className="mt-3 pt-2 border-t border-slate-400/30 max-h-64 overflow-y-auto space-y-1">
-                          {items.length===0?<p className="text-xs text-slate-500">Tidak ada penjualan pada filter ini.</p>:Object.values(items.reduce((m,t)=>{const k=(t.productName||"Unknown")+"|"+(t.supplier||"");if(!m[k])m[k]={product:t.productName||"Unknown",supplier:t.supplier||"",qty:0,amount:0};m[k].qty+=Number(t.qty)||0;m[k].amount+=Number(t.amount)||0;return m;},{} as Record<string,{product:string,supplier:string,qty:number,amount:number}>)).sort((a,b)=>b.amount-a.amount).map((p,i)=><div key={i} className="flex justify-between gap-2 text-[11px] py-1 border-b border-slate-400/10"><span className="text-slate-900 dark:text-white">{p.product}{label==="Accessories"&&p.supplier?" · "+p.supplier:""}</span><span className="shrink-0 text-slate-900 dark:text-white">{p.qty} Qty / {formatIDR(p.amount)}</span></div>)}
-                        </div>}
+                      const actual=sum(items);
+                      const hasTarget=targetValue!==null&&Number.isFinite(targetValue)&&targetValue>0;
+                      const variance=hasTarget?actual.amount-targetValue!:null;
+                      const percentage=hasTarget?actual.amount/targetValue!*100:null;
+                      const expanded=staffExpandedDetail===detailKey;
+                      return <div key={detailKey} className={`rounded-2xl border p-4 ${innerBg} space-y-3`}>
+                        <button type="button" onClick={()=>setStaffExpandedDetail(expanded?null:detailKey)} className="flex w-full items-center justify-between gap-2 text-left"><span className="font-bold text-sm text-slate-950 dark:text-white">{label}</span><span className="text-xs font-semibold text-sky-600 dark:text-sky-300">{expanded?"Show Less ↑":"More Details ↓"}</span></button>
+                        <div className="grid grid-cols-2 gap-2">
+                          {[{title:"Target",value:hasTarget?formatIDR(targetValue!):"N/A"},{title:"Achievement",value:formatIDR(actual.amount)},{title:"Achievement %",value:percentage===null?"N/A":percentage.toFixed(1)+"%"},{title:"Variance",value:variance===null?"N/A":(variance>=0?"+":"")+formatIDR(variance)}].map(k=><div key={k.title} className="rounded-xl bg-slate-500/5 p-2.5"><p className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{k.title}</p><p className="mt-1 break-words text-xs sm:text-sm font-bold text-slate-950 dark:text-white">{k.value}</p></div>)}
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700"><div className="h-full rounded-full bg-sky-600" style={{width:Math.min(100,Math.max(0,percentage||0))+"%"}}/></div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">{actual.qty} Qty · {hasTarget?"Sisa target "+formatIDR(Math.max(0,targetValue!-actual.amount)):"Target belum tersedia"}</p>
+                        {expanded&&<div className="max-h-64 overflow-y-auto space-y-1 border-t border-slate-400/20 pt-2">{items.length===0?<p className="text-xs text-slate-500">Tidak ada penjualan pada periode ini.</p>:Object.values(items.reduce((map,t)=>{const key=(t.productName||"Unknown")+"|"+(t.supplier||"");if(!map[key])map[key]={product:t.productName||"Unknown",qty:0,amount:0};map[key].qty+=Number(t.qty)||0;map[key].amount+=Number(t.amount)||0;return map;},{} as Record<string,{product:string,qty:number,amount:number}>)).sort((x,y)=>y.amount-x.amount).map((p,i)=><div key={i} className="flex justify-between gap-2 border-b border-slate-400/10 py-1 text-[11px] text-slate-900 dark:text-white"><span>{p.product}</span><span className="shrink-0">{p.qty} Qty · {formatIDR(p.amount)}</span></div>)}</div>}
                       </div>;
                     };
                     const physical=rows.filter(t=>t.groupCategory==="DEVICES"||t.groupCategory==="ACCESSORIES");
@@ -4170,130 +4170,9 @@ return <div className="space-y-5">
                       </div>
                       {renderMetric("TOTAL STAFF",rows,targetFor("total"),"total")}
                       <p className={`text-xs ${textMuted}`}>Sumber target: Pembagian target (gid 685849310). Staff atau kategori yang tidak ditemukan memiliki target Rp 0. Target Daily/Weekly diprorata dari target bulanan. Estimate adalah sisa target, bukan prediksi penjualan.</p>
-                      <div className="space-y-3"><div><h3 className="text-lg font-black text-slate-950 dark:text-white">Category Explorer</h3><p className={`text-xs ${textMuted}`}>Pilih kategori untuk melihat rincian brand, produk, target dan achievement.</p></div><div className="grid grid-cols-2 lg:grid-cols-4 gap-3">{groups.map((g,i)=><button key={g.title} type="button" onClick={()=>{setStaffActiveCategory(g.title);setStaffExpandedDetail(null)}} className={`text-left rounded-2xl border p-4 transition-all hover:-translate-y-0.5 ${staffActiveCategory===g.title?"bg-sky-500/10 border-sky-500 ring-1 ring-sky-500/30":"bg-slate-500/5 border-slate-300/50 dark:border-slate-700"}`}><span className="text-xl">{["📱","🤖","🎧","🛡️"][i]}</span><p className="text-sm font-black text-slate-950 dark:text-white mt-2">{g.title}</p><p className="text-sm font-black text-sky-700 dark:text-sky-300 mt-1">{formatIDR(sum(g.items).amount)}</p><p className={`text-[11px] ${textMuted}`}>{sum(g.items).qty} Qty · {g.sub.length} subkategori</p></button>)}</div>{groups.filter(g=>g.title===staffActiveCategory).map(g=><div key={g.title} className={`rounded-2xl border p-3 sm:p-4 ${innerBg} space-y-3`}><div className="flex justify-between items-center"><h4 className="font-black text-slate-950 dark:text-white">{g.title} · Breakdown</h4><span className="text-xs font-bold text-sky-600 dark:text-sky-300">{sum(g.items).qty} Qty</span></div>{renderMetric(g.title,g.items,dailyTargetFor(g.title),"group-"+g.title)}<div className="grid md:grid-cols-2 gap-2">{g.sub.map(([label,items])=>renderMetric(label,items,targetFor(({iPhone:"iphone",iPad:"ipad",MacBook:"macbook","Apple Watch":"applewatch",Qoala:"qoala",Telkomsel:"telkomsel",XL:"xl",Indosat:"indosat",SAMSUNG:"samsung",XIAOMI:"xiaomi",OPPO:"oppo",MOTOROLA:"motorola",HUAWEI:"huawei",INFINIX:"infinix"} as Record<string,string>)[label] || label.toLowerCase()),g.title+"-"+label))}</div></div>)}</div>
+                      <div className="space-y-3"><div><h3 className="text-lg font-black text-slate-950 dark:text-white">Category Explorer</h3><p className={`text-xs ${textMuted}`}>Pilih kategori untuk melihat rincian brand, produk, target dan achievement.</p></div><div className="grid grid-cols-2 lg:grid-cols-4 gap-3">{groups.map((g,i)=><button key={g.title} type="button" onClick={()=>{setStaffActiveCategory(g.title);setStaffExpandedDetail(null)}} className={`text-left rounded-2xl border p-4 transition-all hover:-translate-y-0.5 ${staffActiveCategory===g.title?"bg-sky-500/10 border-sky-500 ring-1 ring-sky-500/30":"bg-slate-500/5 border-slate-300/50 dark:border-slate-700"}`}><span className="text-xl">{["📱","🤖","🎧","🛡️"][i]}</span><p className="text-sm font-black text-slate-950 dark:text-white mt-2">{g.title}</p><p className="text-sm font-black text-sky-700 dark:text-sky-300 mt-1">{formatIDR(sum(g.items).amount)}</p><p className={`text-[11px] ${textMuted}`}>{sum(g.items).qty} Qty · {g.sub.length} subkategori</p></button>)}</div>{groups.filter(g=>g.title===staffActiveCategory).map(g=><div key={g.title} className={`rounded-2xl border p-3 sm:p-4 ${innerBg} space-y-3`}><div className="flex justify-between items-center"><h4 className="font-black text-slate-950 dark:text-white">{g.title} · Breakdown</h4><span className="text-xs font-bold text-sky-600 dark:text-sky-300">{sum(g.items).qty} Qty</span></div>{renderMetric(g.title,g.items,dailyTargetFor(g.title),"group-"+g.title)}<div className="grid md:grid-cols-2 gap-2">{g.sub.map(([label,items])=>renderMetric(label,items,(categoryTarget[({iPhone:"iphone",iPad:"ipad",MacBook:"macbook","Apple Watch":"applewatch",Qoala:"qoala",Telkomsel:"telkomsel",XL:"xl",Indosat:"indosat",SAMSUNG:"samsung",XIAOMI:"xiaomi",OPPO:"oppo",MOTOROLA:"motorola",HUAWEI:"huawei",INFINIX:"infinix"} as Record<string,string>)[label] || label.toLowerCase()]||0)>0?targetFor(({iPhone:"iphone",iPad:"ipad",MacBook:"macbook","Apple Watch":"applewatch",Qoala:"qoala",Telkomsel:"telkomsel",XL:"xl",Indosat:"indosat",SAMSUNG:"samsung",XIAOMI:"xiaomi",OPPO:"oppo",MOTOROLA:"motorola",HUAWEI:"huawei",INFINIX:"infinix"} as Record<string,string>)[label] || label.toLowerCase()):null,g.title+"-"+label))}</div></div>)}</div>
                     </section>;
                   })()}
-                  <div className="space-y-4">
-                    <div className="flex flex-wrap items-center justify-between gap-4">
-                      <div>
-                        <h2 className="text-base sm:text-lg font-black tracking-wide flex items-center gap-2 text-slate-950 dark:text-white">
-                          <span>🏆</span>
-                          <span>STAFF PERFORMANCE LEADERBOARD ({staffList.length} STAF)</span>
-                        </h2>
-                        <p className={`text-xs ${textMuted} mt-0.5`}>
-                          Periode: {periodType.toUpperCase()} ({periodType === "daily" ? selectedDate : periodType === "weekly" ? (staffSelectedWeek?.label+" · "+staffSelectedWeek?.start+" – "+staffSelectedWeek?.end) : selectedMonth})
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {staffList.map((st) => (
-                        <div
-                          key={st.salesId}
-                          onClick={() => setSelectedStaffId(st.salesId)}
-                          className={`p-5 rounded-3xl border transition-all duration-200 cursor-pointer hover:shadow-xl ${
-                            selectedStaffId === st.salesId
-                              ? isDark 
-                                ? "bg-[#112240] border-sky-400 ring-2 ring-sky-400/40 shadow-xl"
-                                : "bg-sky-50/70 border-sky-400 ring-2 ring-sky-400/40 shadow-lg"
-                              : isDark
-                                ? "bg-gradient-to-b from-[#0F1E36] to-[#0A1324] border-slate-700/70 shadow-2xl shadow-black/50"
-                                : "bg-white border-slate-300 shadow-md shadow-slate-200/80 hover:border-sky-400"
-                          }`}
-                        >
-                          <div className={`flex items-center justify-between pb-3.5 border-b ${isDark ? "border-slate-700/60" : "border-slate-200"}`}>
-                            <div className="flex items-center gap-3">
-                              <div className="w-11 h-11 rounded-2xl flex items-center justify-center font-black text-sm text-white shadow-md bg-gradient-to-br from-sky-600 to-blue-700">
-                                {st.initials}
-                              </div>
-                              <div>
-                                <h4 className="text-sm font-black tracking-tight text-slate-950 dark:text-white">
-                                  {st.name}
-                                </h4>
-                                <span className="text-[11px] font-bold block text-slate-600 dark:text-slate-400">
-                                  {st.role || "Sales Specialist"}
-                                </span>
-                              </div>
-                            </div>
-
-                            <span
-                              className={`px-3 py-1 rounded-full text-[11px] font-black border shadow-sm ${
-                                st.achvPct >= 100
-                                  ? "bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-400/40"
-                                  : st.achvPct >= 70
-                                  ? "bg-amber-50 text-amber-900 border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-400/40"
-                                  : "bg-rose-50 text-rose-800 border-rose-300 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-400/40"
-                              }`}
-                            >
-                              {st.achvPct >= 100 ? "Productive 🔥" : st.achvPct >= 70 ? "On Track ⚡" : "Need Focus ⚠️"}
-                            </span>
-                          </div>
-
-                          <div className="py-4 flex justify-between items-end">
-                            <div>
-                              <span className="text-[10px] font-black uppercase tracking-wider block text-slate-500 dark:text-slate-400">
-                                Total Penjualan
-                              </span>
-                              <div className="text-xl sm:text-2xl font-black font-mono mt-0.5 tracking-tight text-slate-950 dark:text-white">
-                                {formatIDR(st.totalAmount)}
-                              </div>
-                            </div>
-
-                            <div className="text-right">
-                              <span
-                                className={`text-2xl sm:text-3xl font-black font-mono tracking-tight ${
-                                  st.achvPct >= 100 
-                                    ? "text-emerald-700 dark:text-emerald-400"
-                                    : st.achvPct >= 70 
-                                    ? "text-amber-700 dark:text-amber-400"
-                                    : "text-rose-600 dark:text-rose-400"
-                                }`}
-                              >
-                                {st.achvPct.toFixed(1)}%
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className={`w-full h-2 rounded-full overflow-hidden mb-4 border ${isDark ? "bg-slate-800 border-slate-700/50" : "bg-slate-200 border-slate-300"}`}>
-                            <div
-                              className={`h-full rounded-full transition-all duration-500 ${
-                                st.achvPct >= 100
-                                  ? "bg-emerald-600"
-                                  : st.achvPct >= 70
-                                  ? "bg-amber-500"
-                                  : "bg-rose-500"
-                              }`}
-                              style={{ width: `${Math.min(st.achvPct, 100)}%` }}
-                            />
-                          </div>
-
-                          <div className={`grid grid-cols-4 gap-2 py-3 px-2 rounded-2xl border ${
-                            isDark ? "bg-slate-900/60 border-slate-700/80" : "bg-slate-100/90 border-slate-300 shadow-inner"
-                          }`}>
-                            <div className="text-center">
-                              <span className="text-[10px] font-black uppercase tracking-wider block text-slate-500 dark:text-slate-400">UPT</span>
-                              <strong className="text-xs sm:text-sm font-black font-mono block mt-1 text-blue-700 dark:text-sky-400">
-                                {st.upt}
-                              </strong>
-                            </div>
-                            <div className={`text-center border-x ${isDark ? "border-slate-700" : "border-slate-300"}`}>
-                              <span className="text-[10px] font-black uppercase tracking-wider block text-slate-500 dark:text-slate-400">UNIT</span>
-                              <strong className="text-xs sm:text-sm font-black font-mono block mt-1 text-slate-900 dark:text-slate-100">
-                                {st.qty}
-                              </strong>
-                            </div>
-                            <div className="text-center">
-                              <span className="text-[10px] font-black uppercase tracking-wider block text-slate-500 dark:text-slate-400">INVOICE</span>
-                              <strong className="text-xs sm:text-sm font-black font-mono block mt-1 text-slate-950 dark:text-white">
-                                {st.trxCount || 0}
-                              </strong>
-                            </div>
-                            <div className="text-center"><span className="text-[10px] font-black uppercase tracking-wider block text-slate-500 dark:text-slate-400">ATV</span><strong className="text-xs sm:text-sm font-black font-mono block mt-1 text-slate-900 dark:text-slate-100">{formatCompactIDR(st.atv)}</strong></div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
                 </div>
               )}
 
