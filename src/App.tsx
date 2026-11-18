@@ -2073,7 +2073,7 @@ Indosat IM3 : ${isatText}`;
                 </span>
               </div>
               <span className="text-[11px] font-bold text-slate-500 mt-0.5 block">
-                {data.p1Label}: {formatIDR(data.totalM1)} ➔ {data.p2Label}: {formatIDR(data.totalM2)}
+                {data.p1Label}: {formatIDR(data.totalM1)} <UIIcon symbol="➔" /> {data.p2Label}: {formatIDR(data.totalM2)}
               </span>
             </div>
           </div>
