@@ -23,7 +23,7 @@ export default function PromoUpload({onPublished}:{onPublished:()=>Promise<void>
  const [id,setId]=useState("");
  const readFile=async(f:File)=>{
   setError("");setSuccess("");setPreview(false);setFile(f);setSourceText("");setName("");setPrice("");setSummary("");setBenefits("");setInternal("");setStart("");setEnd("");
-  if(f.size>8*1024*1024){setError("Ukuran maksimum 8 MB.");return}
+  if(f.size>2*1024*1024){setError("Ukuran maksimum 2 MB untuk penyimpanan Google Drive.");return}
   const ext=f.name.split(".").pop()?.toLowerCase();
   if(!["pdf","png","jpg","jpeg","xlsx","xls"].includes(ext||"")){setError("Gunakan PDF, JPG, PNG, XLSX atau XLS.");return}
   setBusy(true);
@@ -43,10 +43,15 @@ export default function PromoUpload({onPublished}:{onPublished:()=>Promise<void>
   if(start&&end&&end<start){setError("Tanggal akhir tidak boleh lebih awal dari tanggal mulai.");return}
   if(!window.confirm(active?"Publikasikan promo ini sebagai aktif untuk semua staff?":"Simpan promo sebagai arsip/draft, tidak muncul sebagai promo aktif?"))return;
   setBusy(true);setError("");
-  try{const r=await fetch("/api/admin-session?promoUpload=1",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,status:active?"active":"archived",start,end,brand,name,price,summary,lines:split(benefits),internal:split(internal),sourceName:file.name,sourceType:file.type||file.name.split(".").pop()})});const d=await r.json();if(!r.ok)throw Error(d.error||"Gagal memublikasikan");setSuccess("Promo tersimpan ke Google Sheets untuk seluruh staff. File sumber tidak diunggah ke penyimpanan bersama.");setPreview(false);await onPublished()}catch(e:any){setError(e.message||"Gagal menyimpan")}finally{setBusy(false)}
+  try{
+   const fileData=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||"").split(",")[1]||"");reader.onerror=()=>reject(Error("Gagal membaca file"));reader.readAsDataURL(file)});
+   const mime=file.type||({pdf:"application/pdf",jpg:"image/jpeg",jpeg:"image/jpeg",png:"image/png",xlsx:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",xls:"application/vnd.ms-excel"} as Record<string,string>)[file.name.split(".").pop()?.toLowerCase()||""]||"";
+   const fileResponse=await fetch("/api/admin-session?promoFile=1",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:file.name,mime,data:fileData})});
+   const stored=await fileResponse.json();if(!fileResponse.ok)throw Error(stored.error||"Gagal menyimpan file asli");
+   const r=await fetch("/api/admin-session?promoUpload=1",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,status:active?"active":"archived",start,end,brand,name,price,summary,lines:split(benefits),internal:split(internal),sourceName:file.name,sourceType:mime,driveFileId:stored.fileId,driveUrl:stored.url})});const d=await r.json();if(!r.ok)throw Error(d.error||"Gagal memublikasikan");setSuccess("Promo tersimpan ke Google Sheets untuk seluruh staff. File asli disimpan di Google Drive khusus promo.");setPreview(false);await onPublished()}catch(e:any){setError(e.message||"Gagal menyimpan")}finally{setBusy(false)}
  };
  return <section className="rounded-2xl border border-blue-500/20 p-4 space-y-4">
-  <div className="flex items-center gap-2"><UploadCloud size={20} className="text-blue-500"/><div><h3 className="text-sm font-semibold">Upload Promo · Admin</h3><p className="text-xs opacity-70">PDF, JPG, PNG, Excel · maks. 8 MB · preview sebelum publish</p></div></div>
+  <div className="flex items-center gap-2"><UploadCloud size={20} className="text-blue-500"/><div><h3 className="text-sm font-semibold">Upload Promo · Admin</h3><p className="text-xs opacity-70">PDF, JPG, PNG, Excel · maks. 2 MB · preview sebelum publish</p></div></div>
   <label className="block border border-dashed border-blue-500/40 rounded-xl p-4 text-center cursor-pointer text-sm hover:bg-blue-500/5"><input type="file" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,application/pdf,image/png,image/jpeg" className="sr-only" onChange={e=>{const f=e.target.files?.[0];if(f)readFile(f);e.target.value=""}}/><FileText size={19} className="inline mr-2"/>{file?file.name:"Pilih file PDF / Image / Excel"}</label>
   {busy&&<p className="text-sm text-blue-500">Memproses...</p>}
   {error&&<p role="alert" className="text-xs text-amber-600 flex gap-2"><AlertCircle size={15}/>{error}</p>}
@@ -58,7 +63,7 @@ export default function PromoUpload({onPublished}:{onPublished:()=>Promise<void>
    <label className="text-xs block">Kode voucher, MOP, remarks internal (satu per baris)<textarea rows={3} value={internal} onChange={e=>setInternal(e.target.value)} className="mt-1 block w-full border border-slate-400/30 rounded-lg bg-transparent p-2 text-sm"/></label>
    <div className="grid grid-cols-2 gap-3"><label className="text-xs">Tanggal mulai<input type="date" value={start} onChange={e=>setStart(e.target.value)} className="mt-1 block w-full border border-slate-400/30 rounded-lg bg-transparent p-2 text-sm"/></label><label className="text-xs">Tanggal akhir<input type="date" value={end} onChange={e=>setEnd(e.target.value)} className="mt-1 block w-full border border-slate-400/30 rounded-lg bg-transparent p-2 text-sm"/></label></div>
    <details className="text-xs"><summary className="cursor-pointer">Lihat teks hasil ekstraksi ({sourceText.length} karakter)</summary><pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words border rounded-lg p-2">{sourceText||"Tidak ada teks otomatis. Periksa dokumen asli dan isi manual."}</pre></details>
-   <p className="text-xs opacity-70">Ekstraksi otomatis adalah draf, bukan verifikasi. Dokumen asli tidak disimpan; hanya data promo yang disetujui masuk Google Sheets.</p>
+   <p className="text-xs opacity-70">Ekstraksi otomatis adalah draf, bukan verifikasi. Dokumen asli disimpan di folder Google Drive khusus promo setelah admin mengonfirmasi publikasi.</p>
    <div className="flex flex-wrap gap-2"><button disabled={busy} onClick={()=>publish(true)} className="rounded-xl bg-blue-600 text-white px-4 py-2 text-sm disabled:opacity-50">Verifikasi & Publish Aktif</button><button disabled={busy} onClick={()=>publish(false)} className="rounded-xl border border-slate-400/30 px-4 py-2 text-sm disabled:opacity-50">Simpan sebagai Arsip</button></div>
   </div>}
  </section>
