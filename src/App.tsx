@@ -8,6 +8,7 @@ import PriceListDocuments from "./PriceListDocuments";
 import ProductCatalog from "./ProductCatalog";
 import LivePriceCatalog from "./LivePriceCatalog";
 import StockIntelligence from "./StockIntelligence";
+import PromoIntelligenceCupboard from "./PromoIntelligenceCupboard";
 
 const RETAIL_BRAND_ICONS: Record<string,string> = {APPLE:"apple",SAMSUNG:"samsung",XIAOMI:"xiaomi",OPPO:"oppo",HUAWEI:"huawei",INFINIX:"infinix",MOTOROLA:"motorola",ANDROID:"android",QOALA:"shield",TELKOMSEL:"telkomsel",XL:"xl",INDOSAT:"indosat"};
 function RetailBrandLogo({brand,size=22,light=false}:{brand:string,size?:number,light?:boolean}){
@@ -167,6 +168,7 @@ type MenuTab =
   | "customer-engagement"
   | "whiteboard"
   | "price-center"
+  | "promo-intelligence"
   | "store-traffic"
   | "nirwana";
 
@@ -2587,6 +2589,7 @@ Indosat IM3 : ${isatText}`;
     { id: "staff-performance", label: "Staff Performance", icon: Users, group: "Dashboard" },
     { id: "daily-target", label: "Daily Target & Run Rate", icon: Target, group: "Dashboard" },
     { id: "price-center", label: "Price List & Promo", icon: Tags, group: "Operations" },
+    { id: "promo-intelligence", label: "Promo Intelligence", icon: Tags, group: "Operations" },
     { id: "store-traffic", label: "Store Traffic", icon: Footprints, group: "Operations" },
     { id: "customer-engagement", label: "Customer Engagement", icon: Handshake, group: "Operations" },
     { id: "nirwana", label: "Nirwana · Apple Watch Demo", icon: Watch, group: "Operations" },
@@ -3159,6 +3162,7 @@ Indosat IM3 : ${isatText}`;
               {activeTab === "nirwana" && <NirwanaTracking staff={staffList} salesId={currentSalesId} salesName={currentSalesName} isDark={isDark}/>}
               {activeTab === "store-traffic" && <StoreTraffic transactions={transactions} isAdmin={currentSalesId===ADMIN_ID} salesId={currentSalesId} salesName={currentSalesName} isDark={isDark}/>}
               {activeTab === "price-center" && <PriceCenter isAdmin={currentSalesId===ADMIN_ID} isDark={isDark} transactions={transactions}/>}
+              {activeTab === "promo-intelligence" && <PromoIntelligenceCupboard isDark={isDark}/>}
               {activeTab === "whiteboard" && (
                 <div className={`space-y-4 dg-scroll-reveal rounded-3xl border p-4 shadow-xl lg:hidden ${cardBg}`}>
                   <header className="flex items-start justify-between gap-3">
