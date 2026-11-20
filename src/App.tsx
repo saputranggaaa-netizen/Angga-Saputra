@@ -1970,7 +1970,11 @@ export default function DigiplusOperationalEngine() {
     for(const t of androidRows){const brand=(t.brand||"Other").trim().toUpperCase()||"OTHER";if(!androidBrands.has(brand))androidBrands.set(brand,[]);androidBrands.get(brand)!.push(t)}
     for(const [brand,items] of [...androidBrands.entries()].sort((a,b)=>metric(b[1]).value-metric(a[1]).value))lines.push("  "+line(brand,items));
     lines.push(line("Accessories",byCategory("Accessories")));
-    lines.push(line("VAS",byCategory("VAS")));
+    const vasRows=byCategory("VAS");
+    lines.push(line("VAS",vasRows));
+    const vasBrands=new Map<string,RawTransaction[]>();
+    for(const t of vasRows){const brand=classify(t).replace(/^VAS · /,"");if(!vasBrands.has(brand))vasBrands.set(brand,[]);vasBrands.get(brand)!.push(t)}
+    for(const [brand,items] of [...vasBrands.entries()].sort((a,b)=>metric(b[1]).value-metric(a[1]).value))lines.push("  "+line(brand,items));
     const other=byCategory("Other");if(other.length)lines.push(line("Other / Unclassified",other));
     lines.push("","*STAFF CONTRIBUTION*");
     const staffMap=new Map<string,{name:string;items:RawTransaction[]}>();
