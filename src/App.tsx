@@ -1959,12 +1959,18 @@ export default function DigiplusOperationalEngine() {
       "",
       "*SALES BY CATEGORY*"
     ];
-    const categories=["iPhone","iPad","MacBook","Apple Watch","Other Apple Devices","Android Devices","Accessories","VAS","Other"];
+    const categories=["iPhone","iPad","MacBook","Apple Watch","Other Apple Devices"];
     const byCategory=(key:string)=>rows.filter(t=>{const c=classify(t);return key==="Android Devices"?c.startsWith("Android Devices"):key==="VAS"?c.startsWith("VAS"):c===key});
     const line=(name:string,items:RawTransaction[])=>{const v=metric(items);return name+": "+v.qty+" Qty | "+currency(v.value)};
     lines.push(line("Apple Devices",rows.filter(apple)));
     for(const c of categories.slice(0,5))lines.push("  "+line(c,byCategory(c)));
-    for(const c of categories.slice(5,8))lines.push(line(c,byCategory(c)));
+    const androidRows=rows.filter(android);
+    lines.push(line("Android Devices",androidRows));
+    const androidBrands=new Map<string,RawTransaction[]>();
+    for(const t of androidRows){const brand=(t.brand||"Other").trim().toUpperCase()||"OTHER";if(!androidBrands.has(brand))androidBrands.set(brand,[]);androidBrands.get(brand)!.push(t)}
+    for(const [brand,items] of [...androidBrands.entries()].sort((a,b)=>metric(b[1]).value-metric(a[1]).value))lines.push("  "+line(brand,items));
+    lines.push(line("Accessories",byCategory("Accessories")));
+    lines.push(line("VAS",byCategory("VAS")));
     const other=byCategory("Other");if(other.length)lines.push(line("Other / Unclassified",other));
     lines.push("","*STAFF CONTRIBUTION*");
     const staffMap=new Map<string,{name:string;items:RawTransaction[]}>();
