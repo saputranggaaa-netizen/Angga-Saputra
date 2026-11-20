@@ -1931,11 +1931,12 @@ export default function DigiplusOperationalEngine() {
     const rows = activeTransactions;
     const currency=(n:number)=>formatIDR(n);
     const metric=(items:RawTransaction[])=>({qty:items.reduce((n,t)=>n+(Number(t.qty)||0),0),value:items.reduce((n,t)=>n+(Number(t.amount)||0),0)});
-    const apple=(t:RawTransaction)=>{const n=(t.productName||"").toUpperCase(),g=(t.groupCategory||"").toUpperCase();return t.brand==="APPLE"&&(g==="DEVICES"||/IPHONE|IPAD|MACBOOK|APPLE WATCH|WATCH|AIRPOD/.test(n))&&!/CASE|GLASS|ADAPTER|CABLE|POWER|CHARGER/.test(n)};
+    const appleType=(t:RawTransaction)=>{const n=(t.productName||"").toUpperCase(),b=(t.brand||"").toUpperCase();if(b!=="APPLE")return null;if(/\\bIPHONE\\b/.test(n))return "iPhone";if(/\\bIPAD\\b/.test(n))return "iPad";if(/\\bMACBOOK\\b|\\bMAC BOOK\\b/.test(n))return "MacBook";if(/\\bAPPLE WATCH\\b|\\bWATCH SERIES\\b|\\bWATCH ULTRA\\b|\\bWATCH SE\\b/.test(n))return "Apple Watch";if(/\\bAIRPODS?\\b|\\bAIR PODS?\\b/.test(n))return "AirPods";return null;};
+    const apple=(t:RawTransaction)=>appleType(t)!==null;
     const android=(t:RawTransaction)=>t.groupCategory==="DEVICES"&&t.brand!=="APPLE"&&!/CASE|GLASS|ADAPTER|CABLE/.test((t.productName||"").toUpperCase());
     const classify=(t:RawTransaction)=>{
       const n=(t.productName||"").toUpperCase(),b=(t.brand||"").toUpperCase();
-      if(apple(t))return n.includes("IPHONE")?"iPhone":n.includes("IPAD")?"iPad":n.includes("MACBOOK")||n.includes("MAC BOOK")?"MacBook":n.includes("WATCH")?"Apple Watch":"Other Apple Devices";
+      if(apple(t))return appleType(t)!;
       if(android(t))return "Android Devices · "+(b||"Other");
       if(t.groupCategory==="ACCESSORIES")return "Accessories";
       if(t.groupCategory==="VAS")return "VAS · "+(/QOALA|PROTEKSI/.test(n+b)?"Qoala":/TELKOMSEL/.test(n+b)?"Telkomsel":/INDOSAT/.test(n+b)?"Indosat":/\\bXL\\b|MYPRIO/.test(n+b)?"XL":b||"Other");
@@ -1959,7 +1960,7 @@ export default function DigiplusOperationalEngine() {
       "",
       "*SALES BY CATEGORY*"
     ];
-    const appleNames=["iPhone","iPad","MacBook","Apple Watch","Other Apple Devices"];
+    const appleNames=["iPhone","iPad","MacBook","Apple Watch","AirPods"];
     const byCategory=(key:string,items:RawTransaction[]=rows)=>items.filter(t=>classify(t)===key);
     const line=(name:string,items:RawTransaction[])=>{const v=metric(items);return name+": "+v.qty+" Qty | "+currency(v.value)};
     const sorted=(groups:Map<string,RawTransaction[]>)=>[...groups.entries()].sort((a,b)=>metric(b[1]).value-metric(a[1]).value);
@@ -1975,19 +1976,7 @@ export default function DigiplusOperationalEngine() {
           const subset=byCategory(name,appleItems);
           if(!subset.length)continue;
           lines.push(indent+"  • "+line(name,subset));
-          if(name==="Other Apple Devices"){
-            const otherType=(t:RawTransaction)=>{
-              const n=(t.productName||"").toUpperCase();
-              if(/AIRPODS?|AIR PODS?/.test(n))return "AirPods";
-              if(/APPLE PENCIL|PENCIL PRO|PENCIL USB/.test(n))return "Apple Pencil";
-              if(/AIRTAG|AIR TAG/.test(n))return "AirTag";
-              if(/HOMEPOD/.test(n))return "HomePod";
-              if(/APPLE TV/.test(n))return "Apple TV";
-              if(/MAGIC KEYBOARD|MAGIC MOUSE|MAGIC TRACKPAD/.test(n))return "Apple Magic Accessories";
-              return "Other / Unclassified Apple";
-            };
-            for(const [type,group] of sorted(groupBy(subset,otherType)))lines.push(indent+"      ◦ "+line(type,group));
-          }
+
         }
       }
       const androidItems=items.filter(android);
