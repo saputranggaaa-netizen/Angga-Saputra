@@ -1936,16 +1936,16 @@ export default function DigiplusOperationalEngine() {
       const b=(t.brand||"").toUpperCase().trim();
       const g=(t.groupCategory||"").toUpperCase().trim();
       const type=(t.productType||"").toUpperCase().trim();
-      const isAirPods=/\bAIR\s*PODS?\b/.test(n)||/\bAIRPODS?\b/.test(type);
-      // Source sheets may classify AirPods as Accessories: product identity takes precedence.
-      if(isAirPods)return "AirPods";
-      if(g==="VAS"||g==="ACCESSORIES"||/\b(CASE|CASING|TEMPERED|GLASS|SCREEN PROTECTOR|CABLE|ADAPTER|CHARGER|POWER BANK|STRAP|BAND|COVER)\b/.test(n))return null;
-      const knownApple=b==="APPLE"||/\b(APPLE|IPHONE|IPAD|MACBOOK)\b/.test(n);
+      const isAccessory=/\b(CASE|CASING|TEMPERED|GLASS|SCREEN PROTECTOR|CABLE|ADAPTER|CHARGER|POWER BANK|STRAP|BAND|COVER|PROTECTOR)\b/.test(n);
+      if(g==="VAS"||isAccessory)return null;
+      // Device identity is more reliable than the source group: watches and AirPods may be stored as Accessories.
+      if(/\bAIR\s*PODS?\b/.test(n)||/\bAIRPODS?\b/.test(type))return "AirPods";
+      const knownApple=b==="APPLE"||/\b(APPLE|IPHONE|IPAD|MACBOOK|AIRPODS)\b/.test(n);
       if(!knownApple)return null;
       if(/\bIPHONE\b/.test(n))return "iPhone";
       if(/\bIPAD\b/.test(n))return "iPad";
       if(/\bMACBOOK\b|\bMAC BOOK\b/.test(n)||["MAC","MBA","MBP","MBN"].includes(type))return "MacBook";
-      if(/\bAPPLE WATCH\b|\bWATCH SERIES\b|\bWATCH ULTRA\b|\bWATCH SE\b/.test(n)||type==="APPLE WATCH"||(type==="SMARTWATCH"&&b==="APPLE"))return "Apple Watch";
+      if(/\bWATCH\b/.test(n)||/\bWATCH\b/.test(type)||type==="SMARTWATCH")return "Apple Watch";
       return null;
     };
     const apple=(t:RawTransaction)=>appleType(t)!==null;
