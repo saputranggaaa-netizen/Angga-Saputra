@@ -1935,19 +1935,21 @@ export default function DigiplusOperationalEngine() {
       const n=(t.productName||"").toUpperCase().replace(/[_-]+/g," ").trim();
       const b=(t.brand||"").toUpperCase().trim();
       const g=(t.groupCategory||"").toUpperCase().trim();
-      const isAccessory=/\b(CASE|CASING|TEMPERED|GLASS|SCREEN PROTECTOR|CABLE|ADAPTER|CHARGER|POWER BANK|STRAP|BAND|COVER)\b/.test(n);
-      if(isAccessory||g==="ACCESSORIES"||g==="VAS")return null;
-      const knownApple=b==="APPLE"||/\b(APPLE|IPHONE|IPAD|MACBOOK|AIRPODS)\b/.test(n);
+      const type=(t.productType||"").toUpperCase().trim();
+      const isAirPods=/\bAIR\s*PODS?\b/.test(n)||/\bAIRPODS?\b/.test(type);
+      // Source sheets may classify AirPods as Accessories: product identity takes precedence.
+      if(isAirPods)return "AirPods";
+      if(g==="VAS"||g==="ACCESSORIES"||/\b(CASE|CASING|TEMPERED|GLASS|SCREEN PROTECTOR|CABLE|ADAPTER|CHARGER|POWER BANK|STRAP|BAND|COVER)\b/.test(n))return null;
+      const knownApple=b==="APPLE"||/\b(APPLE|IPHONE|IPAD|MACBOOK)\b/.test(n);
       if(!knownApple)return null;
       if(/\bIPHONE\b/.test(n))return "iPhone";
       if(/\bIPAD\b/.test(n))return "iPad";
-      if(/\bMACBOOK\b|\bMAC BOOK\b/.test(n))return "MacBook";
-      if(/\bAPPLE WATCH\b|\bWATCH SERIES\b|\bWATCH ULTRA\b|\bWATCH SE\b/.test(n))return "Apple Watch";
-      if(/\bAIRPODS?\b|\bAIR PODS?\b/.test(n))return "AirPods";
+      if(/\bMACBOOK\b|\bMAC BOOK\b/.test(n)||["MAC","MBA","MBP","MBN"].includes(type))return "MacBook";
+      if(/\bAPPLE WATCH\b|\bWATCH SERIES\b|\bWATCH ULTRA\b|\bWATCH SE\b/.test(n)||type==="APPLE WATCH"||(type==="SMARTWATCH"&&b==="APPLE"))return "Apple Watch";
       return null;
     };
     const apple=(t:RawTransaction)=>appleType(t)!==null;
-    const android=(t:RawTransaction)=>t.groupCategory==="DEVICES"&&t.brand!=="APPLE"&&!/CASE|GLASS|ADAPTER|CABLE/.test((t.productName||"").toUpperCase());
+    const android=(t:RawTransaction)=>!apple(t)&&t.groupCategory==="DEVICES"&&t.brand!=="APPLE"&&!/CASE|GLASS|ADAPTER|CABLE/.test((t.productName||"").toUpperCase());
     const classify=(t:RawTransaction)=>{
       const n=(t.productName||"").toUpperCase(),b=(t.brand||"").toUpperCase();
       if(apple(t))return appleType(t)!;
