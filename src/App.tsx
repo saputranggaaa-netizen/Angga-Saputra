@@ -7,6 +7,7 @@ import { LayoutDashboard, ChartNoAxesColumnIncreasing, ShieldCheck, ChartLine, W
 import PriceListDocuments from "./PriceListDocuments";
 import ProductCatalog from "./ProductCatalog";
 import LivePriceCatalog from "./LivePriceCatalog";
+import StockIntelligence from "./StockIntelligence";
 
 const RETAIL_BRAND_ICONS: Record<string,string> = {APPLE:"apple",SAMSUNG:"samsung",XIAOMI:"xiaomi",OPPO:"oppo",HUAWEI:"huawei",INFINIX:"infinix",MOTOROLA:"motorola",ANDROID:"android",QOALA:"shield",TELKOMSEL:"telkomsel",XL:"xl",INDOSAT:"indosat"};
 function RetailBrandLogo({brand,size=22,light=false}:{brand:string,size?:number,light?:boolean}){
@@ -22,8 +23,8 @@ function RetailBrandLogo({brand,size=22,light=false}:{brand:string,size?:number,
  return <span aria-label={label} className={`inline-block max-w-full overflow-hidden whitespace-nowrap text-center leading-none ${light?"text-white/80":"text-slate-700 dark:text-white/80"}`} style={{fontFamily:"Arial, sans-serif",fontWeight:label==="OPPO"?600:800,fontSize:Math.max(9,Math.min(size*.56,label.length>7?11:15)),letterSpacing:label==="SAMSUNG"?"-.055em":"-.025em"}}>{wordmark}</span>;
 }
 
-function PriceCenter({isAdmin,isDark}:{isAdmin:boolean,isDark:boolean}) {
- return <LivePriceCatalog isDark={isDark} isAdmin={isAdmin}/>;
+function PriceCenter({isAdmin,isDark,transactions}:{isAdmin:boolean,isDark:boolean,transactions:RawTransaction[]}) {
+ return <div className="space-y-6"><LivePriceCatalog isDark={isDark} isAdmin={isAdmin}/><StockIntelligence isDark={isDark} transactions={transactions}/></div>;
 }
 
 function StoreForecastOverview({transactions,selectedMonth,isDark}:{transactions:RawTransaction[],selectedMonth:string,isDark:boolean}){
@@ -3094,7 +3095,7 @@ Indosat IM3 : ${isatText}`;
               )}
               {activeTab === "nirwana" && <NirwanaTracking staff={staffList} salesId={currentSalesId} salesName={currentSalesName} isDark={isDark}/>}
               {activeTab === "store-traffic" && <StoreTraffic transactions={transactions} isAdmin={currentSalesId===ADMIN_ID} salesId={currentSalesId} salesName={currentSalesName} isDark={isDark}/>}
-              {activeTab === "price-center" && <PriceCenter isAdmin={currentSalesId===ADMIN_ID} isDark={isDark}/>}
+              {activeTab === "price-center" && <PriceCenter isAdmin={currentSalesId===ADMIN_ID} isDark={isDark} transactions={transactions}/>}
               {activeTab === "whiteboard" && (
                 <div className={`space-y-4 dg-scroll-reveal rounded-3xl border p-4 shadow-xl lg:hidden ${cardBg}`}>
                   <header className="flex items-start justify-between gap-3">
