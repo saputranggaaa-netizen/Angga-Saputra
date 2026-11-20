@@ -1927,36 +1927,60 @@ export default function DigiplusOperationalEngine() {
     window.open("https://wa.me/?text="+encodeURIComponent(lines.join("\n")),"_blank","noopener,noreferrer");
   };
 
-  const handleShareDaily = () => {
-    const appleVal = overviewStats.lobs.find((l) => l.name.includes("Apple"))?.actual || 0;
-    const androidVal = overviewStats.lobs.find((l) => l.name.includes("Android"))?.actual || 0;
-    const accVal = overviewStats.lobs.find((l) => l.name.includes("Accessories"))?.actual || 0;
-    const vasVal = overviewStats.lobs.find((l) => l.name.includes("VAS"))?.actual || 0;
-
-    const text = 
-`*DAILY RETAIL SALES REPORT - DIGIPLUS GRAND INDONESIA*
-Tanggal: ${selectedDate} (Filter: ${periodType.toUpperCase()})
-
-📊 *Pencapaian Store:*
-- Sales: ${formatIDR(overviewStats.actual)}
-- Target: ${formatIDR(overviewStats.target)}
-- Achievement: ${overviewStats.achv}%
-- Gap / Sisa: ${formatIDR(overviewStats.variance)}
-
-📦 *Breakdown Kategori:*
-- Apple Devices: ${formatIDR(appleVal)}
-- Android Devices: ${formatIDR(androidVal)}
-- Accessories: ${formatIDR(accVal)}
-- VAS: ${formatIDR(vasVal)}
-
-📈 *Metrik Operasional:*
-- UPT: ${overviewStats.storeUPT}
-- Invoice: ${overviewStats.invoiceCount} Struk
-- Qty: ${overviewStats.qtyTotal} Unit
-
-_Diperbarui otomatis via Store Performance Engine._`;
-
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+  const handleShareOverviewWhatsApp = () => {
+    const rows = activeTransactions;
+    const currency=(n:number)=>formatIDR(n);
+    const metric=(items:RawTransaction[])=>({qty:items.reduce((n,t)=>n+(Number(t.qty)||0),0),value:items.reduce((n,t)=>n+(Number(t.amount)||0),0)});
+    const apple=(t:RawTransaction)=>{const n=(t.productName||"").toUpperCase(),g=(t.groupCategory||"").toUpperCase();return t.brand==="APPLE"&&(g==="DEVICES"||/IPHONE|IPAD|MACBOOK|APPLE WATCH|WATCH|AIRPOD/.test(n))&&!/CASE|GLASS|ADAPTER|CABLE|POWER|CHARGER/.test(n)};
+    const android=(t:RawTransaction)=>t.groupCategory==="DEVICES"&&t.brand!=="APPLE"&&!/CASE|GLASS|ADAPTER|CABLE/.test((t.productName||"").toUpperCase());
+    const classify=(t:RawTransaction)=>{
+      const n=(t.productName||"").toUpperCase(),b=(t.brand||"").toUpperCase();
+      if(apple(t))return n.includes("IPHONE")?"iPhone":n.includes("IPAD")?"iPad":n.includes("MACBOOK")||n.includes("MAC BOOK")?"MacBook":n.includes("WATCH")?"Apple Watch":"Other Apple Devices";
+      if(android(t))return "Android Devices · "+(b||"Other");
+      if(t.groupCategory==="ACCESSORIES")return "Accessories";
+      if(t.groupCategory==="VAS")return "VAS · "+(/QOALA|PROTEKSI/.test(n+b)?"Qoala":/TELKOMSEL/.test(n+b)?"Telkomsel":/INDOSAT/.test(n+b)?"Indosat":/\\bXL\\b|MYPRIO/.test(n+b)?"XL":b||"Other");
+      return "Other";
+    };
+    const label=periodType==="daily"?selectedDate:periodType==="weekly"?(selectedWeek==="ALL"?"All weeks · "+selectedMonth:selectedWeek+" · "+selectedMonth):selectedMonth;
+    const targetKnown=selectedMonth===targetSheetMonth&&overviewStats.target>0;
+    const percent=targetKnown?(overviewStats.actual/overviewStats.target*100).toFixed(1)+"%":"N/A";
+    const targetText=targetKnown?currency(overviewStats.target)+" (alokasi target bulanan)":"N/A (target periode tidak tersedia)";
+    const variance=targetKnown?currency(overviewStats.actual-overviewStats.target):"N/A";
+    const lines=[
+      "*DIGIPLUS GRAND INDONESIA · QF01*",
+      "*STORE PERFORMANCE REPORT*",
+      "Period: "+periodType.toUpperCase()+" · "+label,
+      "",
+      "*STORE OVERVIEW*",
+      "Target: "+targetText,
+      "Sales: "+currency(overviewStats.actual),
+      "Achievement: "+percent,
+      "Variance (Sales - Target): "+variance,
+      "",
+      "*SALES BY CATEGORY*"
+    ];
+    const categories=["iPhone","iPad","MacBook","Apple Watch","Other Apple Devices","Android Devices","Accessories","VAS","Other"];
+    const byCategory=(key:string)=>rows.filter(t=>{const c=classify(t);return key==="Android Devices"?c.startsWith("Android Devices"):key==="VAS"?c.startsWith("VAS"):c===key});
+    const line=(name:string,items:RawTransaction[])=>{const v=metric(items);return name+": "+v.qty+" Qty | "+currency(v.value)};
+    lines.push(line("Apple Devices",rows.filter(apple)));
+    for(const c of categories.slice(0,5))lines.push("  "+line(c,byCategory(c)));
+    for(const c of categories.slice(5,8))lines.push(line(c,byCategory(c)));
+    const other=byCategory("Other");if(other.length)lines.push(line("Other / Unclassified",other));
+    lines.push("","*STAFF CONTRIBUTION*");
+    const staffMap=new Map<string,{name:string;items:RawTransaction[]}>();
+    for(const t of rows){const key=(t.salesId||t.salesName||"UNKNOWN").trim();if(!staffMap.has(key))staffMap.set(key,{name:t.salesName||t.salesId||"Unknown Staff",items:[]});staffMap.get(key)!.items.push(t)}
+    const staff=[...staffMap.values()].sort((a,b)=>metric(b.items).value-metric(a.items).value);
+    if(!staff.length)lines.push("Tidak ada penjualan pada periode ini.");
+    for(const [i,p] of staff.entries()){
+      const m=metric(p.items),pct=overviewStats.actual!==0?(m.value/overviewStats.actual*100).toFixed(1)+"%":"N/A";
+      lines.push("","*"+(i+1)+". "+p.name+"* — "+currency(m.value)+" ("+pct+" kontribusi)");
+      const breakdown=new Map<string,RawTransaction[]>();
+      for(const t of p.items){const key=classify(t);if(!breakdown.has(key))breakdown.set(key,[]);breakdown.get(key)!.push(t)}
+      for(const [key,items] of [...breakdown.entries()].sort((a,b)=>metric(b[1]).value-metric(a[1]).value))lines.push("  "+line(key,items));
+    }
+    lines.push("","_Source: Google Sheets · Overview Store. Target harian/mingguan merupakan alokasi target bulanan, bukan target resmi per hari._");
+    const message=lines.join("\n");
+    window.open("https://wa.me/?text="+encodeURIComponent(message),"_blank","noopener,noreferrer");
   };
 
   const handleShareDailyTargetStaffWA = (staffName: string, targetData: StaffDailyTargetDetail, todayTrx: RawTransaction[]) => {
@@ -2948,11 +2972,11 @@ Indosat IM3 : ${isatText}`;
 
               <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
                 <button
-                  onClick={handleShareDaily}
+                  onClick={handleShareOverviewWhatsApp}
                   className="px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-95"
                 >
                   <Share2 size={16} aria-hidden="true"/>
-                  <span className="hidden sm:inline">Share Daily</span><span className="sm:hidden">Share</span>
+                  <span className="hidden sm:inline">Share Report</span><span className="sm:hidden">Share</span>
                 </button>
 
                 <button
