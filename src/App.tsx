@@ -1931,7 +1931,21 @@ export default function DigiplusOperationalEngine() {
     const rows = activeTransactions;
     const currency=(n:number)=>formatIDR(n);
     const metric=(items:RawTransaction[])=>({qty:items.reduce((n,t)=>n+(Number(t.qty)||0),0),value:items.reduce((n,t)=>n+(Number(t.amount)||0),0)});
-    const appleType=(t:RawTransaction)=>{const n=(t.productName||"").toUpperCase(),b=(t.brand||"").toUpperCase();if(b!=="APPLE")return null;if(/\\bIPHONE\\b/.test(n))return "iPhone";if(/\\bIPAD\\b/.test(n))return "iPad";if(/\\bMACBOOK\\b|\\bMAC BOOK\\b/.test(n))return "MacBook";if(/\\bAPPLE WATCH\\b|\\bWATCH SERIES\\b|\\bWATCH ULTRA\\b|\\bWATCH SE\\b/.test(n))return "Apple Watch";if(/\\bAIRPODS?\\b|\\bAIR PODS?\\b/.test(n))return "AirPods";return null;};
+    const appleType=(t:RawTransaction)=>{
+      const n=(t.productName||"").toUpperCase().replace(/[_-]+/g," ").trim();
+      const b=(t.brand||"").toUpperCase().trim();
+      const g=(t.groupCategory||"").toUpperCase().trim();
+      const isAccessory=/\b(CASE|CASING|TEMPERED|GLASS|SCREEN PROTECTOR|CABLE|ADAPTER|CHARGER|POWER BANK|STRAP|BAND|COVER)\b/.test(n);
+      if(isAccessory||g==="ACCESSORIES"||g==="VAS")return null;
+      const knownApple=b==="APPLE"||/\b(APPLE|IPHONE|IPAD|MACBOOK|AIRPODS)\b/.test(n);
+      if(!knownApple)return null;
+      if(/\bIPHONE\b/.test(n))return "iPhone";
+      if(/\bIPAD\b/.test(n))return "iPad";
+      if(/\bMACBOOK\b|\bMAC BOOK\b/.test(n))return "MacBook";
+      if(/\bAPPLE WATCH\b|\bWATCH SERIES\b|\bWATCH ULTRA\b|\bWATCH SE\b/.test(n))return "Apple Watch";
+      if(/\bAIRPODS?\b|\bAIR PODS?\b/.test(n))return "AirPods";
+      return null;
+    };
     const apple=(t:RawTransaction)=>appleType(t)!==null;
     const android=(t:RawTransaction)=>t.groupCategory==="DEVICES"&&t.brand!=="APPLE"&&!/CASE|GLASS|ADAPTER|CABLE/.test((t.productName||"").toUpperCase());
     const classify=(t:RawTransaction)=>{
