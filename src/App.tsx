@@ -1971,24 +1971,19 @@ export default function DigiplusOperationalEngine() {
     };
     const writeCategories=(items:RawTransaction[],indent="",includeOther=true)=>{
       const appleItems=items.filter(apple);
-      if(appleItems.length){lines.push(indent+"*Apple Devices* — "+line("",appleItems).replace(/^: /,""));
-        for(const name of appleNames){
-          const subset=byCategory(name,appleItems);
-          if(!subset.length)continue;
-          lines.push(indent+"  • "+line(name,subset));
-
-        }
-      }
+      lines.push(indent+"*Apple Devices* — "+line("",appleItems).replace(/^: /,""));
+      for(const name of appleNames)lines.push(indent+"  • "+line(name,byCategory(name,appleItems)));
       const androidItems=items.filter(android);
-      if(androidItems.length){lines.push(indent+"*Android Devices* — "+line("",androidItems).replace(/^: /,""));
-        for(const [brand,subset] of sorted(groupBy(androidItems,t=>(t.brand||"Other").trim().toUpperCase()||"OTHER")))lines.push(indent+"  • "+line(brand,subset));
-      }
-      const accessories=byCategory("Accessories",items);
-      if(accessories.length)lines.push(indent+"*Accessories* — "+line("",accessories).replace(/^: /,""));
+      lines.push(indent+"*Android Devices* — "+line("",androidItems).replace(/^: /,""));
+      const androidBrands=["SAMSUNG","XIAOMI","MOTOROLA","OPPO","INFINIX","HUAWEI"];
+      const androidGroups=groupBy(androidItems,t=>(t.brand||"Other").trim().toUpperCase()||"OTHER");
+      for(const brand of [...androidBrands,...[...androidGroups.keys()].filter(b=>!androidBrands.includes(b)).sort()])lines.push(indent+"  • "+line(brand,androidGroups.get(brand)||[]));
+      lines.push(indent+"*Accessories* — "+line("",byCategory("Accessories",items)).replace(/^: /,""));
       const vasItems=items.filter(t=>classify(t).startsWith("VAS · "));
-      if(vasItems.length){lines.push(indent+"*VAS* — "+line("",vasItems).replace(/^: /,""));
-        for(const [brand,subset] of sorted(groupBy(vasItems,t=>classify(t).replace(/^VAS · /,""))))lines.push(indent+"  • "+line(brand,subset));
-      }
+      lines.push(indent+"*VAS* — "+line("",vasItems).replace(/^: /,""));
+      const vasBrands=["Qoala","Telkomsel","XL","Indosat"];
+      const vasGroups=groupBy(vasItems,t=>classify(t).replace(/^VAS · /,""));
+      for(const brand of [...vasBrands,...[...vasGroups.keys()].filter(b=>!vasBrands.includes(b)).sort()])lines.push(indent+"  • "+line(brand,vasGroups.get(brand)||[]));
       if(includeOther){const other=byCategory("Other",items);if(other.length)lines.push(indent+"*Other / Unclassified* — "+line("",other).replace(/^: /,""))}
     };
     writeCategories(rows);
