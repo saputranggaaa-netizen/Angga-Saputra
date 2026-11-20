@@ -1944,7 +1944,7 @@ export default function DigiplusOperationalEngine() {
     const label=periodType==="daily"?selectedDate:periodType==="weekly"?(selectedWeek==="ALL"?"All weeks · "+selectedMonth:selectedWeek+" · "+selectedMonth):selectedMonth;
     const targetKnown=selectedMonth===targetSheetMonth&&overviewStats.target>0;
     const percent=targetKnown?(overviewStats.actual/overviewStats.target*100).toFixed(1)+"%":"N/A";
-    const targetText=targetKnown?currency(overviewStats.target)+" (alokasi target bulanan)":"N/A (target periode tidak tersedia)";
+    const targetText=targetKnown?currency(overviewStats.target)+(periodType==="monthly"?"":" (alokasi target bulanan)"):"N/A (target periode tidak tersedia)";
     const variance=targetKnown?currency(overviewStats.actual-overviewStats.target):"N/A";
     const lines=[
       "*DIGIPLUS GRAND INDONESIA · QF01*",
@@ -1959,23 +1959,33 @@ export default function DigiplusOperationalEngine() {
       "",
       "*SALES BY CATEGORY*"
     ];
-    const categories=["iPhone","iPad","MacBook","Apple Watch","Other Apple Devices"];
-    const byCategory=(key:string)=>rows.filter(t=>{const c=classify(t);return key==="Android Devices"?c.startsWith("Android Devices"):key==="VAS"?c.startsWith("VAS"):c===key});
+    const appleNames=["iPhone","iPad","MacBook","Apple Watch","Other Apple Devices"];
+    const byCategory=(key:string,items:RawTransaction[]=rows)=>items.filter(t=>classify(t)===key);
     const line=(name:string,items:RawTransaction[])=>{const v=metric(items);return name+": "+v.qty+" Qty | "+currency(v.value)};
-    lines.push(line("Apple Devices",rows.filter(apple)));
-    for(const c of categories.slice(0,5))lines.push("  "+line(c,byCategory(c)));
-    const androidRows=rows.filter(android);
-    lines.push(line("Android Devices",androidRows));
-    const androidBrands=new Map<string,RawTransaction[]>();
-    for(const t of androidRows){const brand=(t.brand||"Other").trim().toUpperCase()||"OTHER";if(!androidBrands.has(brand))androidBrands.set(brand,[]);androidBrands.get(brand)!.push(t)}
-    for(const [brand,items] of [...androidBrands.entries()].sort((a,b)=>metric(b[1]).value-metric(a[1]).value))lines.push("  "+line(brand,items));
-    lines.push(line("Accessories",byCategory("Accessories")));
-    const vasRows=byCategory("VAS");
-    lines.push(line("VAS",vasRows));
-    const vasBrands=new Map<string,RawTransaction[]>();
-    for(const t of vasRows){const brand=classify(t).replace(/^VAS · /,"");if(!vasBrands.has(brand))vasBrands.set(brand,[]);vasBrands.get(brand)!.push(t)}
-    for(const [brand,items] of [...vasBrands.entries()].sort((a,b)=>metric(b[1]).value-metric(a[1]).value))lines.push("  "+line(brand,items));
-    const other=byCategory("Other");if(other.length)lines.push(line("Other / Unclassified",other));
+    const sorted=(groups:Map<string,RawTransaction[]>)=>[...groups.entries()].sort((a,b)=>metric(b[1]).value-metric(a[1]).value);
+    const groupBy=(items:RawTransaction[],getKey:(t:RawTransaction)=>string)=>{
+      const result=new Map<string,RawTransaction[]>();
+      for(const t of items){const key=getKey(t);if(!result.has(key))result.set(key,[]);result.get(key)!.push(t)}
+      return result;
+    };
+    const writeCategories=(items:RawTransaction[],indent="",includeOther=true)=>{
+      const appleItems=items.filter(apple);
+      if(appleItems.length){lines.push(indent+"*Apple Devices* — "+line("",appleItems).replace(/^: /,""));
+        for(const name of appleNames){const subset=byCategory(name,appleItems);if(subset.length)lines.push(indent+"  • "+line(name,subset))}
+      }
+      const androidItems=items.filter(android);
+      if(androidItems.length){lines.push(indent+"*Android Devices* — "+line("",androidItems).replace(/^: /,""));
+        for(const [brand,subset] of sorted(groupBy(androidItems,t=>(t.brand||"Other").trim().toUpperCase()||"OTHER")))lines.push(indent+"  • "+line(brand,subset));
+      }
+      const accessories=byCategory("Accessories",items);
+      if(accessories.length)lines.push(indent+"*Accessories* — "+line("",accessories).replace(/^: /,""));
+      const vasItems=items.filter(t=>classify(t).startsWith("VAS · "));
+      if(vasItems.length){lines.push(indent+"*VAS* — "+line("",vasItems).replace(/^: /,""));
+        for(const [brand,subset] of sorted(groupBy(vasItems,t=>classify(t).replace(/^VAS · /,""))))lines.push(indent+"  • "+line(brand,subset));
+      }
+      if(includeOther){const other=byCategory("Other",items);if(other.length)lines.push(indent+"*Other / Unclassified* — "+line("",other).replace(/^: /,""))}
+    };
+    writeCategories(rows);
     lines.push("","*STAFF CONTRIBUTION*");
     const staffMap=new Map<string,{name:string;items:RawTransaction[]}>();
     for(const t of rows){const key=(t.salesId||t.salesName||"UNKNOWN").trim();if(!staffMap.has(key))staffMap.set(key,{name:t.salesName||t.salesId||"Unknown Staff",items:[]});staffMap.get(key)!.items.push(t)}
@@ -1983,10 +1993,8 @@ export default function DigiplusOperationalEngine() {
     if(!staff.length)lines.push("Tidak ada penjualan pada periode ini.");
     for(const [i,p] of staff.entries()){
       const m=metric(p.items),pct=overviewStats.actual!==0?(m.value/overviewStats.actual*100).toFixed(1)+"%":"N/A";
-      lines.push("","*"+(i+1)+". "+p.name+"* — "+currency(m.value)+" ("+pct+" kontribusi)");
-      const breakdown=new Map<string,RawTransaction[]>();
-      for(const t of p.items){const key=classify(t);if(!breakdown.has(key))breakdown.set(key,[]);breakdown.get(key)!.push(t)}
-      for(const [key,items] of [...breakdown.entries()].sort((a,b)=>metric(b[1]).value-metric(a[1]).value))lines.push("  "+line(key,items));
+      lines.push("","*"+(i+1)+". "+p.name+"*","Sales: "+currency(m.value)+" | Contribution: "+pct);
+      writeCategories(p.items,"  ");
     }
     lines.push("","_Source: Google Sheets · Overview Store. Target harian/mingguan merupakan alokasi target bulanan, bukan target resmi per hari._");
     const message=lines.join("\n");
