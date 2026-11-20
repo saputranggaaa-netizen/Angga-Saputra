@@ -209,7 +209,7 @@ const classifyAppleDeviceForReports = (t: RawTransaction): "iPhone" | "iPad" | "
   if(!appleBrand&&!/\b(APPLE|IPHONE|IPAD|MACBOOK)\b/.test(n))return null;
   if(/\bIPHONE\b/.test(n))return "iPhone";
   if(/\bIPAD\b/.test(n))return "iPad";
-  if(/\bMACBOOK\b|\bMAC BOOK\b/.test(n)||["MAC","MBA","MBP","MBN"].includes(type))return "MacBook";
+  if((type==="MAC"||/\bMACBOOK\b|\bMAC BOOK\b/.test(n))&&appleBrand&&group==="DEVICES")return "MacBook";
   if(n.includes("WATCH")||type.includes("WATCH"))return "Apple Watch";
   return null;
 };
