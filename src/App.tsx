@@ -1971,7 +1971,24 @@ export default function DigiplusOperationalEngine() {
     const writeCategories=(items:RawTransaction[],indent="",includeOther=true)=>{
       const appleItems=items.filter(apple);
       if(appleItems.length){lines.push(indent+"*Apple Devices* — "+line("",appleItems).replace(/^: /,""));
-        for(const name of appleNames){const subset=byCategory(name,appleItems);if(subset.length)lines.push(indent+"  • "+line(name,subset))}
+        for(const name of appleNames){
+          const subset=byCategory(name,appleItems);
+          if(!subset.length)continue;
+          lines.push(indent+"  • "+line(name,subset));
+          if(name==="Other Apple Devices"){
+            const otherType=(t:RawTransaction)=>{
+              const n=(t.productName||"").toUpperCase();
+              if(/AIRPODS?|AIR PODS?/.test(n))return "AirPods";
+              if(/APPLE PENCIL|PENCIL PRO|PENCIL USB/.test(n))return "Apple Pencil";
+              if(/AIRTAG|AIR TAG/.test(n))return "AirTag";
+              if(/HOMEPOD/.test(n))return "HomePod";
+              if(/APPLE TV/.test(n))return "Apple TV";
+              if(/MAGIC KEYBOARD|MAGIC MOUSE|MAGIC TRACKPAD/.test(n))return "Apple Magic Accessories";
+              return "Other / Unclassified Apple";
+            };
+            for(const [type,group] of sorted(groupBy(subset,otherType)))lines.push(indent+"      ◦ "+line(type,group));
+          }
+        }
       }
       const androidItems=items.filter(android);
       if(androidItems.length){lines.push(indent+"*Android Devices* — "+line("",androidItems).replace(/^: /,""));
