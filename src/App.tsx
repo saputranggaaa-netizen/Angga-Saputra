@@ -194,6 +194,26 @@ interface RawTransaction {
   incentives: [number, number, number, number, number];
 }
 
+
+const classifyAppleDeviceForReports = (t: RawTransaction): "iPhone" | "iPad" | "MacBook" | "Apple Watch" | "AirPods" | null => {
+  const n=(t.productName||"").toUpperCase().replace(/[_-]+/g," ").trim();
+  const b=(t.brand||"").toUpperCase().trim();
+  const bn=(t.brandName||"").toUpperCase().trim();
+  const type=(t.productType||"").toUpperCase().trim();
+  const group=(t.groupCategory||"").toUpperCase().trim();
+  if(group==="VAS"||/\b(CASE|CASING|GLASE|GLASS|TEMPERED|PROTECTOR|COVER|CABLE|ADAPTER|CHARGER|STRAP|BAND|SLEEVE|CLYDE)\b/.test(n))return null;
+  const appleBrand=b==="APPLE"||bn==="APPLE";
+  if(/\bAIR\s*PODS?\b/.test(n)||/\bAIRPODS?\b/.test(type)){
+    return appleBrand||/^(APPLE\s+)?AIR\s*PODS?\b/.test(n)?"AirPods":null;
+  }
+  if(!appleBrand&&!/\b(APPLE|IPHONE|IPAD|MACBOOK)\b/.test(n))return null;
+  if(/\bIPHONE\b/.test(n))return "iPhone";
+  if(/\bIPAD\b/.test(n))return "iPad";
+  if(/\bMACBOOK\b|\bMAC BOOK\b/.test(n)||["MAC","MBA","MBP","MBN"].includes(type))return "MacBook";
+  if(n.includes("WATCH")||type.includes("WATCH"))return "Apple Watch";
+  return null;
+};
+
 interface BnplRecord {
   date: string;
   invoice: string;
@@ -1296,8 +1316,8 @@ export default function DigiplusOperationalEngine() {
       if(brand==="TELKOMSEL"||p.includes("TELKOMSEL")||p.includes("TSEL")||(type==="PROVIDER"&&p.includes("HALO")))return "telkomsel";
       if(brand==="INDOSAT"||p.includes("INDOSAT")||p.includes("IM3"))return "indosat";
       if(brand==="XXL"||brand==="XL"||(type==="PROVIDER"&&(p.includes("MYPRIO")||p.includes("AXIATA")||p.startsWith("XL "))))return "xl";
-      // AirPods are Apple Devices even when source brand/group marks them as accessories.
-      if(/\bAIRPODS?\b/.test(p))return "airpods";
+      const appleDevice=classifyAppleDeviceForReports(t);
+      if(appleDevice)return ({iPhone:"iphone",iPad:"ipad",MacBook:"macbook","Apple Watch":"applewatch",AirPods:"airpods"} as const)[appleDevice];
       if(group.includes("VAS")||group.includes("SERVICE"))return "vas";
       if(group.includes("ACCESSOR")||["CASE","GLASS","CABLE","ADAPTER","CHARGER"].some(k=>p.includes(k)))return "accessories";
       if(brand==="APPLE"){
@@ -1305,7 +1325,7 @@ export default function DigiplusOperationalEngine() {
         if(p.includes("IPAD"))return "ipad";
         if((t.productType||"").toUpperCase()==="MAC"||/\b(MACBOOK|MAC MINI|MAC STUDIO|MAC PRO|MBA|MBP|MBN)\b/.test(p))return "macbook";
         if(p.includes("WATCH")||type==="APPLE WATCH"||type==="SMARTWATCH"&&brand==="APPLE")return "applewatch";
-        if(p.includes("AIRPOD"))return "airpods";
+        // Other Apple-branded accessories remain outside the five device families.
         return "apple";
       }
       if(["SAMSUNG","OPPO","XIAOMI","HUAWEI","MOTOROLA","INFINIX"].includes(brand))return brand.toLowerCase();
@@ -1931,24 +1951,7 @@ export default function DigiplusOperationalEngine() {
     const rows = activeTransactions;
     const currency=(n:number)=>formatIDR(n);
     const metric=(items:RawTransaction[])=>({qty:items.reduce((n,t)=>n+(Number(t.qty)||0),0),value:items.reduce((n,t)=>n+(Number(t.amount)||0),0)});
-    const appleType=(t:RawTransaction)=>{
-      const n=(t.productName||"").toUpperCase().replace(/[_-]+/g," ").trim();
-      const b=(t.brand||"").toUpperCase().trim();
-      const g=(t.groupCategory||"").toUpperCase().trim();
-      const type=(t.productType||"").toUpperCase().trim();
-      const accessory=/\b(CASE|CASING|TEMPERED|GLASS|SCREEN PROTECTOR|CABLE|ADAPTER|CHARGER|POWER BANK|STRAP|BAND|COVER|PROTECTOR)\b/.test(n);
-      if(g==="VAS"||accessory)return null;
-      // Device identity takes precedence over source group (which can label Watch/AirPods as accessories).
-      if(/\bAIR\s*PODS?\b/.test(n)||/\bAIRPODS?\b/.test(type))return "AirPods";
-      const appleBrand=b==="APPLE"||(t.brandName||"").toUpperCase().trim()==="APPLE";
-      const appleName=/\b(APPLE|IPHONE|IPAD|MACBOOK)\b/.test(n);
-      if(!appleBrand&&!appleName)return null;
-      if(/\bIPHONE\b/.test(n))return "iPhone";
-      if(/\bIPAD\b/.test(n))return "iPad";
-      if(/\bMACBOOK\b|\bMAC BOOK\b/.test(n)||["MAC","MBA","MBP","MBN"].includes(type))return "MacBook";
-      if(n.includes("WATCH")||type.includes("WATCH"))return "Apple Watch";
-      return null;
-    };
+    const appleType=classifyAppleDeviceForReports;
     const apple=(t:RawTransaction)=>appleType(t)!==null;
     const android=(t:RawTransaction)=>!apple(t)&&t.groupCategory==="DEVICES"&&t.brand!=="APPLE"&&!/CASE|GLASS|ADAPTER|CABLE/.test((t.productName||"").toUpperCase());
     const classify=(t:RawTransaction)=>{
