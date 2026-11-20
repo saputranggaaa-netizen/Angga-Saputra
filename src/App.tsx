@@ -3162,7 +3162,7 @@ Indosat IM3 : ${isatText}`;
               {activeTab === "nirwana" && <NirwanaTracking staff={staffList} salesId={currentSalesId} salesName={currentSalesName} isDark={isDark}/>}
               {activeTab === "store-traffic" && <StoreTraffic transactions={transactions} isAdmin={currentSalesId===ADMIN_ID} salesId={currentSalesId} salesName={currentSalesName} isDark={isDark}/>}
               {activeTab === "price-center" && <PriceCenter isAdmin={currentSalesId===ADMIN_ID} isDark={isDark} transactions={transactions}/>}
-              {activeTab === "promo-intelligence" && <PromoIntelligenceCupboard isDark={isDark}/>}
+              {activeTab === "promo-intelligence" && <PromoIntelligenceCupboard isDark={isDark} isAdmin={currentSalesId===ADMIN_ID}/>}
               {activeTab === "whiteboard" && (
                 <div className={`space-y-4 dg-scroll-reveal rounded-3xl border p-4 shadow-xl lg:hidden ${cardBg}`}>
                   <header className="flex items-start justify-between gap-3">
