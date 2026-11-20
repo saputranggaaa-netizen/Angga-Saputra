@@ -17,6 +17,53 @@ export default function StockIntelligence({transactions,isDark}:{transactions:Tx
 
  const sohUpload=history.filter(h=>h.category==="Stock Position Report"&&h.status==="Success"&&!Number.isNaN(Date.parse(h.at))).sort((a,b)=>Date.parse(b.at)-Date.parse(a.at))[0];
  const sohUpdated=sohUpload?new Date(sohUpload.at).toLocaleString("id-ID",{timeZone:"Asia/Jakarta",dateStyle:"medium",timeStyle:"short"}):"Belum tercatat dalam Upload History";
+ const [exportingExcel,setExportingExcel]=useState(false);
+ const exportMdExcel=async()=>{
+  if(busy||error||stocks.length===0){setError("Data SOH belum siap untuk export Excel.");return}
+  const eligible=summary.items.filter(x=>x.qty>0&&x.soh!==null);
+  const priority=eligible.filter(x=>x.woi!==null&&x.woi<1&&x.request!==null&&x.request>0).sort((a,b)=>(a.woi??0)-(b.woi??0)||b.qty-a.qty);
+  const fast=[...eligible].sort((a,b)=>b.qty-a.qty||a.article.localeCompare(b.article)).slice(0,20);
+  if(!eligible.length){setError("Tidak ada artikel penjualan dengan SOH terverifikasi untuk export.");return}
+  setExportingExcel(true);
+  try{
+   const XLSX=await import("xlsx");
+   const workbook=XLSX.utils.book_new();
+   const dateLabel=new Date().toLocaleString("id-ID",{timeZone:"Asia/Jakarta",dateStyle:"medium",timeStyle:"short"});
+   const details=(items:typeof eligible)=>items.map((x,i)=>({
+    "No":i+1,"SAP Article":x.article,"Product":x.name,"Brand":x.brand,"Sold 7D":x.qty,
+    "SOH":x.soh,"WOI (Weeks)":x.woi===null?"N/A":Number(x.woi.toFixed(2)),
+    "Request Qty":x.request??0,
+    "Justification":x.woi!==null&&x.woi<1?"WOI di bawah 1 minggu; usulan "+(x.request??0)+" unit untuk kebutuhan 7 hari":"Fast Moving; stok masih mencukupi kebutuhan 1 minggu"
+   }));
+   const columns=[{wch:6},{wch:23},{wch:43},{wch:17},{wch:12},{wch:12},{wch:15},{wch:15},{wch:78}];
+   const makeSheet=(items:typeof eligible,title:string)=>{
+    const sheet=XLSX.utils.json_to_sheet(details(items));
+    sheet["!cols"]=columns;
+    sheet["!autofilter"]={ref:"A1:I"+Math.max(1,items.length+1)};
+    XLSX.utils.book_append_sheet(workbook,sheet,title);
+   };
+   const latestSoh=history.filter(h=>h.category==="Stock Position Report"&&h.status==="Success"&&!Number.isNaN(Date.parse(h.at))).sort((a,b)=>Date.parse(b.at)-Date.parse(a.at))[0];
+   const lastSoh=latestSoh?new Date(latestSoh.at).toLocaleString("id-ID",{timeZone:"Asia/Jakarta",dateStyle:"medium",timeStyle:"short"}):"Belum tercatat dalam Upload History";
+   const overview=XLSX.utils.aoa_to_sheet([
+    ["DIGIPLUS GRAND INDONESIA · QF01"],["STOCK REQUEST TO MD · WEEKLY INVENTORY"],
+    [],["Sales Period",start+" s.d. "+end],["Reorder Threshold","1 minggu"],
+    ["SOH Last Update",lastSoh],["Generated (WIB)",dateLabel],
+    ["Priority Articles",priority.length],["Total Suggested Request Qty",priority.reduce((n,x)=>n+(x.request??0),0)],
+    ["Fast Moving Articles",fast.length],
+    [],["REQUEST BASIS","WOI = SOH / Sold 7D"],
+    ["Request Qty","MAX(0, Sold 7D - SOH) untuk artikel WOI < 1"],
+    ["Validation","Request Qty adalah usulan awal; verifikasi incoming stock, transfer, lead time, dan MOQ"],
+    ["Unmatched SOH","Artikel tanpa SOH terverifikasi tidak masuk export"],
+    [],["Prepared by","Store Team / QF01"],["Reviewed by","Store Leader"],["Approved by","Merchandiser (MD)"]
+   ]);
+   overview["!cols"]=[{wch:30},{wch:95}];
+   XLSX.utils.book_append_sheet(workbook,overview,"Summary & Approval");
+   makeSheet(priority,"Priority Request");
+   makeSheet(fast,"Fast Moving");
+   XLSX.writeFile(workbook,"Stock_Request_MD_QF01_"+end+".xlsx",{compression:true});
+  }catch(e){setError(e instanceof Error?"Export Excel gagal: "+e.message:"Export Excel gagal")}
+  finally{setExportingExcel(false)}
+ };
  const exportMdPdf=()=>{
   if(busy||error||stocks.length===0){setError("Data SOH belum siap untuk export.");return}
   const items=summary.items.filter(x=>x.qty>0&&x.soh!==null&&x.woi!==null&&x.woi<1&&x.request!==null&&x.request>0).sort((a,b)=>(a.woi??0)-(b.woi??0)||b.qty-a.qty);
@@ -42,7 +89,7 @@ export default function StockIntelligence({transactions,isDark}:{transactions:Tx
  };
  const card=isDark?"border-slate-700 bg-slate-900":"border-slate-200 bg-white",muted=isDark?"text-slate-400":"text-slate-500";
  return <section className={"space-y-4 rounded-3xl border p-4 sm:p-6 "+card}>
- <header className="flex flex-wrap items-start justify-between gap-3"><div><p className={"text-xs font-semibold uppercase tracking-widest "+muted}>Stock Intelligence · QF01</p><h2 className="text-xl font-bold">Weekly Inventory Analysis</h2><p className={"text-xs "+muted}>Penjualan {start} s.d. {end} · SAP Article · Reorder threshold: 1 minggu</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={exportMdPdf} disabled={busy||!!error||stocks.length===0} className="rounded-xl bg-blue-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">Export PDF · Request to MD</button><button type="button" onClick={()=>void refresh()} disabled={busy} className="rounded-xl border border-slate-400/30 px-3 py-2 text-sm disabled:opacity-50">{busy?"Memuat…":"Refresh SOH & History"}</button></div></header>
+ <header className="flex flex-wrap items-start justify-between gap-3"><div><p className={"text-xs font-semibold uppercase tracking-widest "+muted}>Stock Intelligence · QF01</p><h2 className="text-xl font-bold">Weekly Inventory Analysis</h2><p className={"text-xs "+muted}>Penjualan {start} s.d. {end} · SAP Article · Reorder threshold: 1 minggu</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={()=>void exportMdExcel()} disabled={busy||exportingExcel||!!error||stocks.length===0} className="rounded-xl border border-blue-700 px-3 py-2 text-sm font-semibold text-blue-700 disabled:opacity-50">{exportingExcel?"Menyiapkan Excel…":"Export Excel · Request to MD"}</button><button type="button" onClick={exportMdPdf} disabled={busy||!!error||stocks.length===0} className="rounded-xl bg-blue-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">Export PDF · Request to MD</button><button type="button" onClick={()=>void refresh()} disabled={busy} className="rounded-xl border border-slate-400/30 px-3 py-2 text-sm disabled:opacity-50">{busy?"Memuat…":"Refresh SOH & History"}</button></div></header>
  {error&&<p role="alert" className="rounded-xl bg-red-500/10 p-3 text-sm text-red-500">{error}</p>}
  <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">{[["Units Sold / 7 Days",summary.totalSold],["Current SOH",summary.totalStock],["Reorder Candidates",summary.critical],["Unmatched SOH",summary.unmatched]].map(([label,value])=><div key={label} className="rounded-2xl border border-slate-400/20 p-3"><p className={"text-xs "+muted}>{label}</p><p className="mt-2 text-2xl font-bold">{Number(value).toLocaleString("id-ID")}</p></div>)}</div>
  <div className="flex flex-wrap gap-2">{([["fast","Fast Moving"],["critical","Critical / Request Stock"],["slow","Slow Moving"],["history","Upload History"]] as const).map(([id,label])=><button key={id} type="button" onClick={()=>setTab(id)} className={"rounded-xl px-3 py-2 text-xs font-semibold "+(tab===id?"bg-blue-600 text-white":"border border-slate-400/30")}>{label}</button>)}</div>
