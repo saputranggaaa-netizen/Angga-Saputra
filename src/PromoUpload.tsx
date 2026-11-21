@@ -4,7 +4,7 @@ import {UploadCloud,FileText,CheckCircle2,AlertCircle} from "lucide-react";
 
 export type UploadedPromo={id:string;status:string;start:string;end:string;brand:string;name:string;price:string;summary:string;lines:string[];internal:string[];sourceName:string;sourceType:string};
 const split=(s:string)=>s.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
-const classify=(text:string)=>{const lines=split(text).slice(0,180);return {name:lines.find(x=>/iphone|ipad|airpods|watch|samsung|oppo|motorola|xiaomi/i.test(x))?.slice(0,150)||"",price:lines.find(x=>/rp\s*[\d.,]+/i.test(x))?.slice(0,200)||"",lines:lines.filter(x=>/promo|diskon|cashback|voucher|benefit|pwp|cicilan|trade.in|gratis|free|potongan/i.test(x)).slice(0,60),internal:lines.filter(x=>/kode|remarks|mop|article|sap/i.test(x)).slice(0,30)}};
+const classify=(text:string)=>{const lines=split(text).slice(0,180);const joined=lines.join(" ");const brand=/apple|iphone|ipad|airpods|macbook|apple watch/i.test(joined)?"Apple":/samsung|galaxy/i.test(joined)?"Samsung":/motorola/i.test(joined)?"Motorola":/oppo/i.test(joined)?"OPPO":/xiaomi|redmi/i.test(joined)?"Xiaomi":"";const name=lines.find(x=>/program letter|promo|launching/i.test(x)&&/watch|airpods|iphone|ipad|galaxy/i.test(x))?.slice(0,110)||lines.find(x=>/iphone|ipad|airpods|watch|samsung|oppo|motorola|xiaomi/i.test(x))?.slice(0,110)||"";const amounts=[...joined.matchAll(/(?:Rp\\s*)?(\\d{1,3}(?:\\.\\d{3}){2,})(?!\\d)/gi)].map(m=>m[0]);const price=amounts.length===1?amounts[0]:"";const linesOut=lines.filter(x=>/promo|diskon|cashback|voucher|benefit|pwp|cicilan|trade.in|gratis|free|potongan|bnpl|qoala|protection/i.test(x)).map(x=>x.slice(0,350)).slice(0,40);const internal=lines.filter(x=>/kode|remarks|mop|article|sap/i.test(x)).map(x=>x.slice(0,350)).slice(0,25);return {brand,name,price,lines:linesOut,internal}};
 export default function PromoUpload({onPublished}:{onPublished:()=>Promise<void>|void}){
  const [file,setFile]=useState<File|null>(null);
  const [sourceText,setSourceText]=useState("");
@@ -22,7 +22,7 @@ export default function PromoUpload({onPublished}:{onPublished:()=>Promise<void>
  const [preview,setPreview]=useState(false);
  const [id,setId]=useState("");
  const readFile=async(f:File)=>{
-  setError("");setSuccess("");setPreview(false);setFile(f);setSourceText("");setName("");setPrice("");setSummary("");setBenefits("");setInternal("");setStart("");setEnd("");
+  setError("");setSuccess("");setPreview(false);setFile(f);setSourceText("");setBrand("");setName("");setPrice("");setSummary("");setBenefits("");setInternal("");setStart("");setEnd("");
   if(f.size>2*1024*1024){setError("Ukuran maksimum 2 MB untuk penyimpanan Google Drive.");return}
   const ext=f.name.split(".").pop()?.toLowerCase();
   if(!["pdf","png","jpg","jpeg","xlsx","xls"].includes(ext||"")){setError("Gunakan PDF, JPG, PNG, XLSX atau XLS.");return}
@@ -33,14 +33,14 @@ export default function PromoUpload({onPublished}:{onPublished:()=>Promise<void>
    else if(ext==="pdf"){const pdfjs=await import("pdfjs-dist");pdfjs.GlobalWorkerOptions.workerSrc=new URL("pdfjs-dist/build/pdf.worker.min.mjs",import.meta.url).toString();const pdf=await pdfjs.getDocument({data:new Uint8Array(await f.arrayBuffer())}).promise;const parts:string[]=[];for(let i=1;i<=Math.min(pdf.numPages,15);i++){const page=await pdf.getPage(i);const data=await page.getTextContent();parts.push(data.items.map((item:any)=>"str" in item?item.str:"").join(" "))}text=parts.join("\n").slice(0,25000)}
    else{text="";setError("File gambar diterima. Teks pada gambar tidak diekstraksi otomatis; isi detail promo secara manual sebelum dipublikasikan.")}
    setSourceText(text);
-   const draft=classify(text);setName(draft.name);setPrice(draft.price);setBenefits(draft.lines.join("\n"));setInternal(draft.internal.join("\n"));setSummary("Hasil ekstraksi awal — wajib diverifikasi admin");setId("custom_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,8));setPreview(true);
+   const draft=classify(text);setBrand(draft.brand);setName(draft.name);setPrice(draft.price);setBenefits(draft.lines.join("\n"));setInternal(draft.internal.join("\n"));setSummary("Draf ekstraksi — cek harga, benefit, tanggal dan dokumen asli sebelum publikasi");setId("custom_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,8));setPreview(true);
    if(ext==="pdf"&&!text.trim())setError("PDF tidak memiliki teks yang dapat dibaca (kemungkinan scan). Isi detail promo secara manual.");
   }catch(e:any){setError("Gagal membaca dokumen: "+(e?.message||"format tidak didukung"))}finally{setBusy(false)}
  };
  const publish=async(active:boolean)=>{
   if(!file||!id||!name.trim()||!brand.trim()||!split(benefits).length){setError("Isi brand, nama produk dan minimal satu benefit sebelum menyimpan.");return}
   if(active&&(!start||!end)){setError("Publikasi aktif memerlukan tanggal mulai dan akhir terverifikasi.");return}
-  if(start&&end&&end<start){setError("Tanggal akhir tidak boleh lebih awal dari tanggal mulai.");return}
+  if(price.trim()&&!/^(?:Rp\\s*)?\\d[\\d.,]*(?:\\s*[-–]\\s*(?:Rp\\s*)?\\d[\\d.,]*)?$/.test(price.trim())){setError("Kolom harga hanya boleh nominal rupiah atau rentang harga. Persentase diskon masukkan ke Benefit.");return}\n  if(start&&end&&end<start){setError("Tanggal akhir tidak boleh lebih awal dari tanggal mulai.");return}
   if(!window.confirm(active?"Publikasikan promo ini sebagai aktif untuk semua staff?":"Simpan promo sebagai arsip/draft, tidak muncul sebagai promo aktif?"))return;
   setBusy(true);setError("");
   try{
