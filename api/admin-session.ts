@@ -69,7 +69,7 @@ async function manualPromoRequest(req:any,res:any){
    const data=await call("/values/"+encodeURIComponent("'"+manualTab+"'!A2:U1000"));
    const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
    const items=(data.values||[]).filter((r:any[])=>r[0]&&String(r[1]).toLowerCase()==="published").map((r:any[])=>{
-    const date=(v:any)=>{if(!v)return "";const s=String(v);if(/^\\d{4}-\\d{2}-\\d{2}$/.test(s))return s;const d=new Date(s);return Number.isNaN(d.getTime())?"":d.toISOString().slice(0,10)};
+    const date=(v:any)=>{if(!v)return "";const s=String(v);if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;const d=new Date(s);return Number.isNaN(d.getTime())?"":d.toISOString().slice(0,10)};
     const start=date(r[16]),end=date(r[17]);
     return {id:String(r[0]),brand:String(r[2]||""),name:String(r[3]||""),price:String(r[6]||""),summary:String(r[14]||""),lines:[r[8]&&"Cashback: "+r[8],r[9]&&"BNPL/Cicilan: "+r[9],r[10]&&"Trade-in: "+r[10],r[11]&&"Voucher: "+r[11],r[12]&&"Protection: "+r[12],r[15]&&"Syarat: "+r[15]].filter(Boolean),start,end,status:start&&end?(today<start?"scheduled":today>end?"expired":"active"):"verify"};
    });
@@ -83,7 +83,7 @@ async function manualPromoRequest(req:any,res:any){
   const start=clean(b.start,10),end=clean(b.end,10);
   if(!clean(b.brand,60)||!clean(b.name,160)||start&&!validPromoDate(start)||end&&!validPromoDate(end)||start&&end&&end<start)return res.status(400).json({error:"Brand, produk, atau periode tidak valid"});
   if(b.publish&&(!start||!end))return res.status(400).json({error:"Periode wajib lengkap sebelum publish"});
-  const amount=(v:any)=>{const s=String(v??"").trim();if(!s)return "";if(!/^\\d{1,15}$/.test(s))throw Error("Harga harus angka rupiah tanpa pemisah");return Number(s)};
+  const amount=(v:any)=>{const s=String(v??"").trim();if(!s)return "";if(!/^\d{1,15}$/.test(s))throw Error("Harga harus angka rupiah tanpa pemisah");return Number(s)};
   const row=[id,b.publish?"Published":"Draft",clean(b.brand,60),clean(b.name,160),clean(b.article,80),amount(b.normalPrice),amount(b.price),amount(b.discount),clean(b.cashback),clean(b.bnpl),clean(b.tradein),clean(b.voucher),clean(b.protection),clean(b.tender),clean(b.summary),clean(b.terms,2000),start,end,"Store Leader Admin",new Date().toISOString()];
   await call("/values/"+encodeURIComponent("'"+manualTab+"'!A:T")+":append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS","POST",{values:[row]});
   if(clean(b.raw,25000)){
