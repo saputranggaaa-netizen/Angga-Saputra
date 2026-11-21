@@ -2,14 +2,14 @@ import React,{useState} from "react";
 import {ClipboardPaste,CheckCircle2,AlertCircle} from "lucide-react";
 type Draft={brand:string;name:string;price:string;normalPrice:string;discount:string;cashback:string;bnpl:string;tradein:string;voucher:string;protection:string;tender:string;summary:string;terms:string;start:string;end:string;article:string};
 const empty:Draft={brand:"",name:"",price:"",normalPrice:"",discount:"",cashback:"",bnpl:"",tradein:"",voucher:"",protection:"",tender:"",summary:"",terms:"",start:"",end:"",article:""};
-const brands=[["Apple",/\\bapple|iphone|ipad|macbook|airpods/i],["Samsung",/samsung|galaxy/i],["OPPO",/\\boppo\\b/i],["Motorola",/motorola|moto g/i],["Xiaomi",/xiaomi|redmi|poco/i],["vivo",/\\bvivo\\b/i],["HONOR",/\\bhonor\\b/i]] as const;
+const brands=[["Apple",/\bapple|iphone|ipad|macbook|airpods/i],["Samsung",/samsung|galaxy/i],["OPPO",/\boppo\b/i],["Motorola",/motorola|moto g/i],["Xiaomi",/xiaomi|redmi|poco/i],["vivo",/\bvivo\b/i],["HONOR",/\bhonor\b/i]] as const;
 const labels:Record<string,keyof Draft>={"brand":"brand","merek":"brand","produk":"name","product":"name","nama produk":"name","nama promo":"name","harga promo":"price","promo price":"price","price":"price","harga normal":"normalPrice","diskon":"discount","cashback":"cashback","cashback bank":"cashback","bnpl":"bnpl","cicilan":"bnpl","bnpl / cicilan":"bnpl","trade-in":"tradein","trade in":"tradein","voucher":"voucher","voucher / gift":"voucher","protection":"protection","bank":"tender","bank / tender":"tender","ringkasan":"summary","ringkasan untuk staff":"summary","syarat":"terms","syarat & ketentuan":"terms","tanggal mulai":"start","start date":"start","tanggal berakhir":"end","end date":"end","sap article":"article","sap article (opsional)":"article"};
-const iso=(s:string)=>{const t=s.trim();if(/^\\d{4}-\\d{2}-\\d{2}$/.test(t))return t;const m=t.match(/^(\\d{1,2})[\\/-](\\d{1,2})[\\/-](\\d{4})$/);return m?`${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`:""};
-const money=(s:string)=>{const m=s.match(/(?:Rp\\s*)?(\\d{1,3}(?:[.,]\\d{3})+|\\d{5,15})(?!\\d)/i);return m?m[1].replace(/[.,]/g,""):""};
+const iso=(s:string)=>{const t=s.trim();if(/^\d{4}-\d{2}-\d{2}$/.test(t))return t;const m=t.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);return m?`${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`:""};
+const money=(s:string)=>{const m=s.match(/(?:Rp\s*)?(\d{1,3}(?:[.,]\d{3})+|\d{5,15})(?!\d)/i);return m?m[1].replace(/[.,]/g,""):""};
 const parse=(raw:string):{data:Draft;kind:string;warnings:string[]}=>{
  const d={...empty},warnings:string[]=[];
- const lines=raw.trim().split(/\\r?\\n/).filter(Boolean);
- const delim=lines[0]?.includes("\\t")?"\\t":lines[0]?.includes(";")?";":"";
+ const lines=raw.trim().split(/\r?\n/).filter(Boolean);
+ const delim=lines[0]?.includes("\t")?"\t":lines[0]?.includes(";")?";":"";
  const header=delim?lines[0].split(delim).map(x=>labels[x.trim().toLowerCase()]):[];
  if(delim&&header.filter(Boolean).length>=2&&lines.length>1){
   const vals=lines[1].split(delim);header.forEach((key,i)=>{if(key)d[key]=vals[i]?.trim()||""});
@@ -19,7 +19,7 @@ const parse=(raw:string):{data:Draft;kind:string;warnings:string[]}=>{
   return {data:d,kind:"Tabel ber-header",warnings};
  }
  const found=brands.filter(([_,re])=>re.test(raw));if(found.length===1)d.brand=found[0][0];else warnings.push("Brand belum pasti. Pilih secara manual.");
- const productLine=lines.find(x=>/iphone|ipad|macbook|airpods|galaxy|oppo|motorola|xiaomi|redmi|vivo|honor/i.test(x)&&x.length<120);d.name=productLine?.replace(/^promo\\s*[:\\-]?\\s*/i,"").slice(0,120)||"";
+ const productLine=lines.find(x=>/iphone|ipad|macbook|airpods|galaxy|oppo|motorola|xiaomi|redmi|vivo|honor/i.test(x)&&x.length<120);d.name=productLine?.replace(/^promo\s*[:\-]?\s*/i,"").slice(0,120)||"";
  const priceLines=lines.filter(x=>/harga promo|special price|harga jual/i.test(x));if(priceLines.length===1)d.price=money(priceLines[0]);else warnings.push("Harga promo belum pasti. Verifikasi manual.");
  d.cashback=lines.filter(x=>/cashback/i.test(x)).join("; ").slice(0,500);
  d.bnpl=lines.filter(x=>/bnpl|cicilan|indodana|kredivo|akulaku/i.test(x)).join("; ").slice(0,500);
@@ -27,7 +27,7 @@ const parse=(raw:string):{data:Draft;kind:string;warnings:string[]}=>{
  d.voucher=lines.filter(x=>/voucher|gift|hadiah/i.test(x)).join("; ").slice(0,500);
  d.protection=lines.filter(x=>/protection|qoala|asuransi/i.test(x)).join("; ").slice(0,500);
  const dateLine=lines.find(x=>/periode|berlaku|tanggal/i.test(x))||"";
- const dates=[...dateLine.matchAll(/\\d{4}-\\d{2}-\\d{2}|\\d{1,2}[\\/-]\\d{1,2}[\\/-]\\d{4}/g)].map(x=>iso(x[0]));if(dates.length===2){d.start=dates[0];d.end=dates[1]}else warnings.push("Tanggal mulai dan akhir harus diperiksa manual.");
+ const dates=[...dateLine.matchAll(/\d{4}-\d{2}-\d{2}|\d{1,2}[\/-]\d{1,2}[\/-]\d{4}/g)].map(x=>iso(x[0]));if(dates.length===2){d.start=dates[0];d.end=dates[1]}else warnings.push("Tanggal mulai dan akhir harus diperiksa manual.");
  d.summary=lines.find(x=>/promo|program/i.test(x))?.slice(0,250)||"";
  return {data:d,kind:"Teks bebas",warnings};
 };
