@@ -40,7 +40,8 @@ export default function PromoUpload({onPublished}:{onPublished:()=>Promise<void>
  const publish=async(active:boolean)=>{
   if(!file||!id||!name.trim()||!brand.trim()||!split(benefits).length){setError("Isi brand, nama produk dan minimal satu benefit sebelum menyimpan.");return}
   if(active&&(!start||!end)){setError("Publikasi aktif memerlukan tanggal mulai dan akhir terverifikasi.");return}
-  if(price.trim()&&!/^(?:Rp\\s*)?\\d[\\d.,]*(?:\\s*[-–]\\s*(?:Rp\\s*)?\\d[\\d.,]*)?$/.test(price.trim())){setError("Kolom harga hanya boleh nominal rupiah atau rentang harga. Persentase diskon masukkan ke Benefit.");return}\n  if(start&&end&&end<start){setError("Tanggal akhir tidak boleh lebih awal dari tanggal mulai.");return}
+  if(price.trim()&&!/^(?:Rp\\s*)?\\d[\\d.,]*(?:\\s*[-–]\\s*(?:Rp\\s*)?\\d[\\d.,]*)?$/.test(price.trim())){setError("Kolom harga hanya boleh nominal rupiah atau rentang harga. Persentase diskon masukkan ke Benefit.");return}
+  if(start&&end&&end<start){setError("Tanggal akhir tidak boleh lebih awal dari tanggal mulai.");return}
   if(!window.confirm(active?"Publikasikan promo ini sebagai aktif untuk semua staff?":"Simpan promo sebagai arsip/draft, tidak muncul sebagai promo aktif?"))return;
   setBusy(true);setError("");
   try{
