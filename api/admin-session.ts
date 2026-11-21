@@ -66,10 +66,10 @@ async function manualPromoRequest(req:any,res:any){
  res.setHeader("Cache-Control","no-store");
  try{
   if(req.method==="GET"){
-   const data=await call("/values/"+encodeURIComponent("'"+manualTab+"'!A2:U1000"));
+   const data=await call("/values/"+encodeURIComponent("'"+manualTab+"'!A2:U1000")+"?valueRenderOption=UNFORMATTED_VALUE");
    const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
    const items=(data.values||[]).filter((r:any[])=>r[0]&&String(r[1]).toLowerCase()==="published").map((r:any[])=>{
-    const date=(v:any)=>{if(!v)return "";const s=String(v);if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;const local=s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);if(local)return local[3]+"-"+local[2].padStart(2,"0")+"-"+local[1].padStart(2,"0");const d=new Date(s);return Number.isNaN(d.getTime())?"":d.toISOString().slice(0,10)};
+    const date=(v:any)=>{if(v===null||v===undefined||v==="")return "";if(typeof v==="number"){const dt=new Date(Date.UTC(1899,11,30)+v*86400000);return dt.toISOString().slice(0,10)}const str=String(v).trim();if(/^\d{4}-\d{2}-\d{2}$/.test(str))return str;const m=str.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/);if(m){const months:Record<string,string>={jan:"01",feb:"02",mar:"03",apr:"04",mei:"05",may:"05",jun:"06",jul:"07",agu:"08",aug:"08",sep:"09",okt:"10",oct:"10",nov:"11",des:"12",dec:"12"};const month=months[m[2].toLowerCase().slice(0,3)];if(month)return m[3]+"-"+month+"-"+m[1].padStart(2,"0")}return ""};
     const start=date(r[16]),end=date(r[17]);
     return {id:String(r[0]),brand:String(r[2]||""),name:String(r[3]||""),price:String(r[6]||""),summary:String(r[14]||""),lines:[r[8]&&"Cashback: "+r[8],r[9]&&"BNPL/Cicilan: "+r[9],r[10]&&"Trade-in: "+r[10],r[11]&&"Voucher: "+r[11],r[12]&&"Protection: "+r[12],r[15]&&"Syarat: "+r[15]].filter(Boolean),start,end,status:start&&end?(today<start?"scheduled":today>end?"expired":"active"):"verify"};
    });
