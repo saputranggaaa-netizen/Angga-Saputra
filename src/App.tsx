@@ -3031,7 +3031,17 @@ Indosat IM3 : ${isatText}`;
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
+              <div className="sm:hidden w-full flex items-stretch gap-2.5 mt-2">
+                <div className="min-w-0 flex-1 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-slate-900/70 shadow-sm px-3.5 py-3 flex flex-col justify-center">
+                  <span className="text-[10px] uppercase tracking-[0.11em] font-bold text-slate-500 dark:text-slate-400">Actual Sales · {periodType === "monthly" ? selectedMonth : periodType === "weekly" ? selectedWeek : selectedDate}</span>
+                  <span className="mt-1 text-[clamp(14px,3.6vw,20px)] font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight tabular-nums break-words">{formatIDR(overviewStats.actual)}</span>
+                </div>
+                <div className="w-[94px] shrink-0 flex flex-col gap-2">
+                  <button type="button" onClick={handleShareOverviewWhatsApp} className="flex-1 min-h-11 rounded-xl bg-blue-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.97] transition-transform"><Share2 size={15}/>Share</button>
+                  <button type="button" onClick={fetchLiveGoogleSheets} disabled={isLoading} className="flex-1 min-h-11 rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-slate-800 text-slate-800 dark:text-white font-bold text-xs flex items-center justify-center gap-1.5 active:scale-[0.97] transition-transform disabled:opacity-60"><RefreshCw size={15} className={isLoading?"animate-spin":""}/>{isLoading?"Sync...":"Sync"}</button>
+                </div>
+              </div>
+              <div className="hidden sm:flex flex-wrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
                 <button
                   onClick={handleShareOverviewWhatsApp}
                   className="px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-95"
@@ -4990,10 +5000,10 @@ return <div className="space-y-5">
       <button
         type="button"
         onClick={() => setMobileDrawerOpen(true)}
-        className={`lg:hidden fixed bottom-[calc(env(safe-area-inset-bottom)+12px)] left-3 z-40 w-11 h-11 rounded-full flex items-center justify-center border backdrop-blur-md active:scale-95 focus-visible:opacity-100 hover:opacity-100 transition-all duration-300 print:hidden ${isMobileScrolled ? "bg-slate-200/50 dark:bg-white/15 text-slate-500 dark:text-slate-300 border-slate-300/30 dark:border-white/10 opacity-30 shadow-none" : "bg-slate-900 dark:bg-sky-500 text-white border-slate-700 dark:border-sky-400/30 opacity-100 shadow-lg shadow-slate-900/20 dark:shadow-sky-500/25"}`}
+        className={`lg:hidden fixed bottom-[calc(env(safe-area-inset-bottom)+20px)] right-4 z-40 w-14 h-14 rounded-full flex items-center justify-center border backdrop-blur-md active:scale-95 focus-visible:opacity-100 hover:opacity-100 transition-all duration-300 print:hidden ${isMobileScrolled ? "bg-slate-200/50 dark:bg-white/15 text-slate-500 dark:text-slate-300 border-slate-300/30 dark:border-white/10 opacity-30 shadow-none" : "bg-slate-900 dark:bg-sky-500 text-white border-slate-700 dark:border-sky-400/30 opacity-100 shadow-lg shadow-slate-900/20 dark:shadow-sky-500/25"}`}
         aria-label="Buka Menu Navigasi"
       >
-        <span className="text-lg leading-none" aria-hidden="true">☰</span>
+        <span className="flex items-center justify-center" aria-hidden="true"><Menu size={23} strokeWidth={2}/></span>
       </button>
 
       {pptxConfigOpen && (
