@@ -2405,10 +2405,12 @@ Indosat IM3 : ${isatText}`;
         slide.addText("MTD 1–"+dd+" "+new Intl.DateTimeFormat("id-ID",{month:"long",year:"numeric",timeZone:"UTC"}).format(asDate(cutoff)),{x:0.62,y:1.12,w:11.5,h:0.34,fontSize:14,color:MUTED,margin:0});
         const kpis=[["TOTAL SALES",fmt(amount(currentMTD))],["TARGET BULAN",storeTarget>0?fmt(storeTarget):"N/A"],["ACHIEVEMENT",pct(amount(currentMTD),storeTarget)]];
         kpis.forEach((k,i)=>{const x=0.6+i*4.15;slide.addShape(pptx.ShapeType.roundRect,{x,y:1.65,w:3.93,h:1.13,rectRadius:0.12,line:{color:"DCE8F7"},fill:{color:"F4F8FF"}});slide.addText(k[0],{x:x+0.19,y:1.86,w:3.55,h:0.23,fontSize:10,bold:true,color:MUTED,margin:0});slide.addText(k[1],{x:x+0.19,y:2.2,w:3.55,h:0.36,fontSize:18,bold:true,color:NAVY,margin:0,fit:"shrink"});});
+        const trafficKpis=[["TRAFFIC MTD",countLabel(mtdTraffic?.traffic)],["INVOICE UNIK MTD",countLabel(mtdTraffic?.invoices)],["CVR MTD",cvrLabel(mtdTraffic)]];
+        trafficKpis.forEach((k,i)=>{const x=0.6+i*4.15;slide.addShape(pptx.ShapeType.roundRect,{x,y:2.87,w:3.93,h:0.76,rectRadius:0.1,line:{color:"DCE8F7"},fill:{color:"F4F8FF"}});slide.addText(k[0],{x:x+0.16,y:2.97,w:3.5,h:0.17,fontSize:8.5,bold:true,color:MUTED,margin:0});slide.addText(k[1],{x:x+0.16,y:3.19,w:3.5,h:0.29,fontSize:15,bold:true,color:NAVY,margin:0});});
         const lobNames=["Apple Devices","Android Devices","Accessories","VAS"];
         const targetKeys=["apple","android","accessories","vas"];
         const lobRows=lobNames.map((name,i)=>{const tx=by(currentMTD,t=>classify(t)===name);const target=Number((catTargets as any)[targetKeys[i]]||0);return [name,target>0?fmt(target):"N/A",String(totalQty(tx)),fmt(amount(tx)),pct(amount(tx),target)];});
-        table(slide,["LOB","TARGET BULAN","QTY","ACHIEVEMENT","ACH. %"],lobRows,[2.6,2.65,1.2,3.2,2.82],3.23);
+        table(slide,["LOB","TARGET BULAN","QTY","ACHIEVEMENT","ACH. %"],lobRows,[2.6,2.65,1.2,3.2,2.82],3.85);
       }
       // 02 — MTD Staff Performance: one row per staff, dynamic targets and LOB contribution.
       {
@@ -2436,6 +2438,11 @@ Indosat IM3 : ${isatText}`;
         const names=["Apple Devices","Android Devices","Accessories","VAS"];
         const rows=names.map(name=>{const old=by(previousWeek,t=>classify(t)===name),now=by(currentWeek,t=>classify(t)===name);return [name,cell(old),cell(now),fmt(amount(now)-amount(old)),growthText(amount(now),amount(old))];});
         table(slide,["LOB","PREVIOUS WEEK QTY / VALUE","CURRENT WEEK QTY / VALUE","Δ VALUE","GROWTH"],rows,[2.1,3.3,3.3,2.35,1.42],1.8);
+        const pp=previousWeekTraffic?.cvr==null||weekTraffic?.cvr==null?"N/A":((weekTraffic.cvr-previousWeekTraffic.cvr)>=0?"+":"")+(weekTraffic.cvr-previousWeekTraffic.cvr).toFixed(1)+" pp";
+        const metrics=[["TRAFFIC",countLabel(previousWeekTraffic?.traffic),countLabel(weekTraffic?.traffic)],["INVOICE UNIK",countLabel(previousWeekTraffic?.invoices),countLabel(weekTraffic?.invoices)],["CVR",cvrLabel(previousWeekTraffic),cvrLabel(weekTraffic)]];
+        slide.addText("WEEKLY TRAFFIC & CONVERSION",{x:0.62,y:4.55,w:11,h:0.28,fontSize:13,bold:true,color:NAVY,margin:0});
+        table(slide,["METRIC","PREVIOUS WEEK","CURRENT WEEK","CHANGE"],metrics.map((m,i)=>[m[0],m[1],m[2],i===2?pp:"—"]),[3.0,3.0,3.0,3.47],4.97);
+        slide.addText("CVR: invoice unik pada tanggal dengan traffic terinput. N/A jika traffic tidak tersedia.",{x:0.63,y:6.72,w:12,h:0.25,fontSize:8,color:MUTED,margin:0});
       }
       // 06 — WTD Apple product families and Android brands.
       {
