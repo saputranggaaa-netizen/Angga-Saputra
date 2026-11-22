@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { LayoutDashboard, ChartNoAxesColumnIncreasing, ShieldCheck, ChartLine, Wallet, Handshake, Footprints, Watch, Tags, ClipboardList, Users, Target, Layers, CalendarDays, MessageSquare, CreditCard, Search, ListChecks, History, ChevronDown, Share2, RefreshCw, Presentation, LogOut, Sun, Moon, Menu, Clock3, Package, TrendingUp, Receipt , ScanBarcode } from "lucide-react";
+import { LayoutDashboard, ChartNoAxesColumnIncreasing, ShieldCheck, ChartLine, Wallet, Handshake, Footprints, Watch, Tags, ClipboardList, Users, Target, Layers, CalendarDays, MessageSquare, CreditCard, Search, ListChecks, History, ChevronDown, Share2, RefreshCw, Presentation, LogOut, Sun, Moon, Menu, Clock3, Package, TrendingUp, Receipt , ScanBarcode, TicketPercent } from "lucide-react";
 
 
 import PriceListDocuments from "./PriceListDocuments";
