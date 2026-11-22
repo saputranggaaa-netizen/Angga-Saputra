@@ -2444,12 +2444,38 @@ Indosat IM3 : ${isatText}`;
         table(slide,["METRIC","PREVIOUS WEEK","CURRENT WEEK","CHANGE"],metrics.map((m,i)=>[m[0],m[1],m[2],i===2?pp:"—"]),[3.0,3.0,3.0,3.47],4.97);
         slide.addText("CVR: invoice unik pada tanggal dengan traffic terinput. N/A jika traffic tidak tersedia.",{x:0.63,y:6.72,w:12,h:0.25,fontSize:8,color:MUTED,margin:0});
       }
-      // 06 — WTD Apple product families and Android brands.
+      // 06 — Compact weekly brand drivers and MTM / LFL on the same slide.
       {
-        const slide=slideHeader("WTD BRAND  |  APPLE & ANDROID",6);
+        const slide=slideHeader("WTD BRAND + MTM / LFL COMPARISON",6);
         const specs=[...["iPhone","MacBook","iPad","Apple Watch"].map(k=>({label:"Apple • "+k,match:(t:RawTransaction)=>classify(t)==="Apple Devices"&&appleKind(t)===k})),...androidBrands.map(k=>({label:"Android • "+k,match:(t:RawTransaction)=>classify(t)==="Android Devices"&&androidKind(t)===k}))];
-        const rows=specs.map(v=>{const old=by(previousWeek,v.match),now=by(currentWeek,v.match);return [v.label,cell(old),cell(now),fmt(amount(now)-amount(old))];});
-        table(slide,["LOB","PREVIOUS WEEK QTY / VALUE","CURRENT WEEK QTY / VALUE","Δ VALUE"],rows,[3.0,3.45,3.45,2.57],1.53);
+        const weeklyDrivers=specs.map(v=>({name:v.label,old:amount(by(previousWeek,v.match)),now:amount(by(currentWeek,v.match))})).sort((a,b)=>Math.abs(b.now-b.old)-Math.abs(a.now-a.old)).slice(0,5);
+        slide.addText("WEEKLY BRAND DRIVERS | TOP 5 BY ABSOLUTE CHANGE",{x:0.62,y:1.05,w:12,h:0.3,fontSize:11,bold:true,color:NAVY,margin:0});
+        table(slide,["BRAND / PRODUCT","PREVIOUS WEEK","CURRENT WEEK","DELTA"],weeklyDrivers.map(v=>[v.name,fmt(v.old),fmt(v.now),fmt(v.now-v.old)]),[3.1,3.0,3.0,3.37],1.42);
+        const lastYearPrefix=String(yy-1)+"-"+String(mm).padStart(2,"0");
+        const lyEndDay=Math.min(dd,new Date(Date.UTC(yy-1,mm,0)).getUTCDate());
+        const lastYearCutoff=lastYearPrefix+"-"+String(lyEndDay).padStart(2,"0");
+        const lyRows=lastYearState==="ready"?lastYearRows.filter(r=>r.date>=lastYearPrefix+"-01"&&r.date<=lastYearCutoff):[];
+        const lyCategory=(r:typeof lastYearRows[number])=>{
+          const all=(r.brand+" "+r.division+" "+r.group+" "+r.category+" "+r.description).toUpperCase();
+          if(/QOALA|TELKOMSEL|INDOSAT|MYPRIO|PROTEKSI|PROTECTION|(^|\\W)XL(\\W|$)/.test(all))return "VAS";
+          if(r.group.includes("ACCESSOR")||r.category.includes("ACCESSOR"))return "Accessories";
+          if(r.brand==="APPLE"||r.division.includes("APPLE")||r.group.includes("APPLE"))return "Apple Devices";
+          if(["SAMSUNG","OPPO","XIAOMI","REDMI","MOTOROLA","HUAWEI","INFINIX","VIVO","REALME","HONOR"].some(b=>r.brand.includes(b)))return "Android Devices";
+          return "Unmapped";
+        };
+        const lyAvailable=lastYearState==="ready"&&lyRows.length>0;
+        const monthGrowth=(now:number,old:number,available:boolean)=>!available?"N/A":old===0?(now===0?"0.0%":"NEW"):growthText(now,old);
+        const cats=["TOTAL STORE","Apple Devices","Android Devices","Accessories","VAS"];
+        const comparisonRows=cats.map(cat=>{
+          const current=cat==="TOTAL STORE"?currentMTD:by(currentMTD,t=>classify(t)===cat);
+          const previous=cat==="TOTAL STORE"?previousMTD:by(previousMTD,t=>classify(t)===cat);
+          const ly=lyRows.filter(r=>cat==="TOTAL STORE"||lyCategory(r)===cat).reduce((n,r)=>n+r.amount,0);
+          const now=amount(current),prev=amount(previous);
+          return [cat,compact(now),monthGrowth(now,prev,previousMTD.length>0),monthGrowth(now,ly,lyAvailable)];
+        });
+        slide.addText("MTM / LFL | MATCHED MTD CUT-OFF",{x:0.62,y:4.25,w:12,h:0.3,fontSize:12,bold:true,color:NAVY,margin:0});
+        table(slide,["CATEGORY","CURRENT MTD","VS LAST MONTH","VS LAST YEAR"],comparisonRows,[3.1,3.0,3.0,3.37],4.66);
+        slide.addText("MTM: "+previousPrefix+"-01 to "+priorCutoff+" | LFL: "+lastYearPrefix+"-01 to "+lastYearCutoff+" | LFL source: Breakdown MSR G–O | Missing data = N/A",{x:0.62,y:6.98,w:12.2,h:0.16,fontSize:7.5,color:MUTED,margin:0});
       }
       // 07 — Growth Intelligence: evidence-based insights, not invented stock explanations.
       {
