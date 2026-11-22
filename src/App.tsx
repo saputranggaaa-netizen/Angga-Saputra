@@ -2838,9 +2838,7 @@ Indosat IM3 : ${isatText}`;
       >
         <div className="p-5 flex flex-col h-full overflow-hidden">
           <div className="flex items-center gap-3 pb-5 border-b border-inherit">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-sky-600 to-sky-400 text-white font-black text-base flex items-center justify-center shadow-lg shadow-sky-500/20">
-              QF01
-            </div>
+            <div className="w-11 h-11 rounded-2xl bg-white border border-slate-200/80 dark:border-white/10 flex items-center justify-center overflow-hidden shadow-sm"><img src="/apple-touch-icon.png" alt="Logo Digiplus" className="h-full w-full object-contain p-1"/></div>
             <div>
               <h1 className="font-black text-sm tracking-wider leading-none text-slate-950 dark:text-white">DIGIPLUS</h1>
               <p className="text-[11px] text-sky-600 dark:text-sky-400 font-black mt-1">GRAND INDONESIA</p>
@@ -2928,7 +2926,7 @@ Indosat IM3 : ${isatText}`;
       >
         <div className="px-5 pt-5 pb-4 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-[#0a9fe8] text-white text-[15px] font-extrabold tracking-tight flex items-center justify-center">QF01</div>
+            <div className="w-11 h-11 rounded-2xl bg-white border border-slate-200/80 dark:border-white/10 flex items-center justify-center overflow-hidden"><img src="/apple-touch-icon.png" alt="Logo Digiplus" className="h-full w-full object-contain p-1"/></div>
             <div className="flex-1 min-w-0">
               <p className="text-[15px] font-bold tracking-tight text-slate-950 dark:text-white">DIGIPLUS GI</p>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">Store dashboard</p>
@@ -2988,9 +2986,7 @@ Indosat IM3 : ${isatText}`;
             </button>
 
             <div className="flex items-center gap-2 min-w-0">
-              <div className="w-8 h-8 shrink-0 rounded-xl bg-sky-500 flex items-center justify-center font-black text-xs text-white shadow-sm">
-                QF01
-              </div>
+              <div className="w-9 h-9 shrink-0 rounded-xl bg-white border border-slate-200/80 dark:border-white/10 flex items-center justify-center overflow-hidden shadow-sm"><img src="/apple-touch-icon.png" alt="Logo Digiplus" className="h-full w-full object-contain p-0.5"/></div>
               <div className="min-w-0">
                 <h2 className="text-xs font-black leading-none text-slate-900 dark:text-white">DIGIPLUS GI</h2>
                 <div className="flex items-center gap-1.5 mt-0.5">
