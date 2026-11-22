@@ -2991,7 +2991,11 @@ Indosat IM3 : ${isatText}`;
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="min-w-0 text-right" aria-label={`Actual Sales ${formatIDR(overviewStats.actual)}`}>
+              <div className="text-[9px] font-semibold tracking-wide text-slate-500 dark:text-slate-400">ACTUAL</div>
+              <div className="text-[12px] font-extrabold whitespace-nowrap tabular-nums text-slate-900 dark:text-white">{(() => { const n = Number(overviewStats.actual) || 0; return n >= 1e9 ? `Rp${(n/1e9).toLocaleString("id-ID",{maximumFractionDigits:2})} M` : n >= 1e6 ? `Rp${(n/1e6).toLocaleString("id-ID",{maximumFractionDigits:1})} jt` : formatIDR(n); })()}</div>
+            </div>
             <button
               onClick={handleRefresh}
               className="p-2 rounded-xl bg-slate-800 text-slate-300 border border-slate-700 active:scale-95 transition text-xs flex items-center gap-1 font-bold"
@@ -3031,16 +3035,6 @@ Indosat IM3 : ${isatText}`;
                 </p>
               </div>
 
-              <div className="sm:hidden w-full flex items-stretch gap-2.5 mt-2">
-                <div className="min-w-0 flex-1 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-slate-900/70 shadow-sm px-3.5 py-3 flex flex-col justify-center">
-                  <span className="text-[10px] uppercase tracking-[0.11em] font-bold text-slate-500 dark:text-slate-400">Actual Sales · {periodType === "monthly" ? selectedMonth : periodType === "weekly" ? selectedWeek : selectedDate}</span>
-                  <span className="mt-1 text-[clamp(14px,3.6vw,20px)] font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight tabular-nums break-words">{formatIDR(overviewStats.actual)}</span>
-                </div>
-                <div className="w-[94px] shrink-0 flex flex-col gap-2">
-                  <button type="button" onClick={handleShareOverviewWhatsApp} className="flex-1 min-h-11 rounded-xl bg-blue-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.97] transition-transform"><Share2 size={15}/>Share</button>
-                  <button type="button" onClick={fetchLiveGoogleSheets} disabled={isLoading} className="flex-1 min-h-11 rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-slate-800 text-slate-800 dark:text-white font-bold text-xs flex items-center justify-center gap-1.5 active:scale-[0.97] transition-transform disabled:opacity-60"><RefreshCw size={15} className={isLoading?"animate-spin":""}/>{isLoading?"Sync...":"Sync"}</button>
-                </div>
-              </div>
               <div className="hidden sm:flex flex-wrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
                 <button
                   onClick={handleShareOverviewWhatsApp}
@@ -3067,6 +3061,12 @@ Indosat IM3 : ${isatText}`;
               </div>
             </div>
 
+            {activeTab === "store-overview" && <div className="sm:hidden mb-3 rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white dark:bg-[#1c2433] p-3 shadow-sm">
+              <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400 mb-2.5">Quick Access</div>
+              <div className="grid grid-cols-3 gap-2">
+                {([{id:"accessories-scanner",label:"Scan Barcode",icon:ScanBarcode},{id:"price-center",label:"Price List",icon:Tags},{id:"cheatsheet-promo",label:"Promo",icon:TicketPercent}] as const).map(item=><button key={item.id} type="button" onClick={()=>setActiveTab(item.id as MenuTab)} className="min-w-0 min-h-[76px] rounded-xl border border-slate-200/80 dark:border-white/10 bg-slate-50 dark:bg-slate-800/70 flex flex-col items-center justify-center gap-2 px-1 active:scale-[0.97] transition-transform text-slate-800 dark:text-white"><item.icon size={22} strokeWidth={1.8} className="text-sky-600 dark:text-sky-300"/><span className="text-[11px] font-semibold text-center leading-tight">{item.label}</span></button>)}
+              </div>
+            </div>}
             <div className={`sm:hidden rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white dark:bg-[#1c2433] p-3.5 space-y-3 shadow-sm`}>
               <div role="group" aria-label="Pilih periode laporan" className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 dark:bg-[#121a29] p-1">
                 {(["daily","weekly","monthly"] as const).map(mode=><button key={mode} type="button" aria-pressed={periodType===mode} onClick={()=>setPeriodType(mode)} className={`min-h-[42px] rounded-lg text-[13px] font-semibold capitalize transition-all duration-200 ${periodType===mode?"bg-white text-blue-700 dark:bg-[#24405c] dark:text-sky-300 shadow-sm ring-1 ring-blue-100 dark:ring-sky-500/30":"text-slate-600 dark:text-slate-300"}`}>{mode}</button>)}
