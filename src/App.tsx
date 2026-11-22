@@ -2922,17 +2922,16 @@ Indosat IM3 : ${isatText}`;
         className={`lg:hidden fixed inset-y-0 left-0 w-[min(350px,88vw)] z-50 transform transition-transform duration-300 ease-out flex flex-col overflow-hidden rounded-r-[28px] shadow-2xl print:hidden ${isDark ? "bg-[#121a2a] text-white border-r border-white/10" : "bg-[#fbfcff] text-slate-950 border-r border-slate-200/80"} ${mobileDrawerOpen ? "translate-x-0" : "-translate-x-full pointer-events-none"}`}
         style={{paddingTop:"env(safe-area-inset-top)",paddingBottom:"env(safe-area-inset-bottom)"}}
       >
-        <div className="shrink-0 px-5 pt-5 pb-3">
-          <div className="flex items-center justify-between gap-2">
-            <img src="/apple-touch-icon.png" alt="Digiplus" className="h-12 w-28 object-contain object-left"/>
-            <button type="button" aria-label="Tutup menu" onClick={()=>setMobileDrawerOpen(false)} className="h-9 w-9 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center text-slate-600 dark:text-white active:scale-95"><span className="text-xl leading-none">×</span></button>
-          </div>
-          <div className="mt-4 flex items-center gap-3 rounded-2xl bg-slate-100/90 dark:bg-white/[0.07] p-3">
-            <div className="h-11 w-11 shrink-0 rounded-xl border border-sky-100 dark:border-white/10 bg-white flex items-center justify-center"><img src="/apple-touch-icon.png" alt="" className="h-9 w-9 object-contain"/></div>
-            <div className="min-w-0 flex-1">
-              <p className="font-bold text-sm tracking-tight">DIGIPLUS GI</p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-300 truncate"><span className="text-sky-600 dark:text-sky-400 font-bold">QF01</span> · {currentSalesName || "Store Leader Admin"}</p>
+        <div className="shrink-0 px-4 pt-4 pb-3">
+          <div className="flex items-center gap-3 min-h-[64px]">
+            <div className="h-14 w-14 shrink-0 rounded-2xl bg-white border border-slate-200/80 dark:border-white/10 shadow-sm flex items-center justify-center overflow-hidden">
+              <img src="/apple-touch-icon.png" alt="Logo Digiplus" className="w-full h-full object-contain p-1"/>
             </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-bold text-[14px] tracking-tight leading-5">DIGIPLUS GI</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-300 leading-5 truncate"><span className="text-sky-600 dark:text-sky-400 font-bold">QF01</span> · {currentSalesName || "Store Leader Admin"}</p>
+            </div>
+            <button type="button" aria-label="Tutup menu" onClick={()=>setMobileDrawerOpen(false)} className="h-9 w-9 shrink-0 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center text-slate-600 dark:text-white active:scale-95"><span className="text-xl leading-none">×</span></button>
           </div>
         </div>
         <nav className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 pb-3 custom-scrollbar" aria-label="Menu utama">
