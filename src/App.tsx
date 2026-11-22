@@ -3067,6 +3067,27 @@ Indosat IM3 : ${isatText}`;
               </div>
             </div>
 
+            <div className={`sm:hidden rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white dark:bg-[#1c2433] p-3.5 space-y-3 shadow-sm`}>
+              <div role="group" aria-label="Pilih periode laporan" className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 dark:bg-[#121a29] p-1">
+                {(["daily","weekly","monthly"] as const).map(mode=><button key={mode} type="button" aria-pressed={periodType===mode} onClick={()=>setPeriodType(mode)} className={`min-h-[42px] rounded-lg text-[13px] font-semibold capitalize transition-all duration-200 ${periodType===mode?"bg-white text-blue-700 dark:bg-[#24405c] dark:text-sky-300 shadow-sm ring-1 ring-blue-100 dark:ring-sky-500/30":"text-slate-600 dark:text-slate-300"}`}>{mode}</button>)}
+              </div>
+              <div className="flex items-center gap-2.5 min-w-0 rounded-xl bg-slate-50 dark:bg-[#263244] px-3 py-2.5">
+                <CalendarDays size={19} className="shrink-0 text-sky-600 dark:text-sky-300" strokeWidth={1.8}/>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[9px] tracking-[0.12em] uppercase font-bold text-slate-500 dark:text-slate-400">Selected Period</p>
+                  <div className="mt-0.5">
+                    <select aria-label="Pilih bulan" value={selectedMonth} onChange={(e)=>{setSelectedMonth(e.target.value);setSelectedWeek("ALL");setDateManuallySelected(false);const month=e.target.value;const names=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];const idx=names.findIndex(n=>month.startsWith(n));if(idx>=0)setSelectedDate(month.slice(-4)+"-"+String(idx+1).padStart(2,"0")+"-01")}} className="w-full min-w-0 bg-transparent text-[13px] font-semibold text-slate-900 dark:text-white outline-none">
+                      <option value="ALL">Semua Bulan</option>{availableMonths.map(m=><option key={m} value={m}>{m.replace(/(20\d{2})$/," $1")}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
+              {periodType==="weekly"&&<div className="flex items-center gap-2"><CalendarDays size={17} className="text-sky-500 shrink-0"/><select aria-label="Pilih minggu" value={selectedWeek} onChange={e=>setSelectedWeek(e.target.value)} className="min-w-0 flex-1 bg-slate-100 dark:bg-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-900 dark:text-white"><option value="ALL">Semua Minggu</option>{AUTO_WEEKS.map(w=><option key={w.key} value={w.label}>{w.label} {w.range?`(${w.range})`:""}</option>)}</select></div>}
+              {periodType==="daily"&&<div className="flex items-center gap-2"><CalendarDays size={17} className="text-sky-500 shrink-0"/><input aria-label="Pilih tanggal" type="date" value={selectedDate} onChange={e=>{setDateManuallySelected(true);setSelectedDate(e.target.value)}} className="min-w-0 flex-1 bg-slate-100 dark:bg-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-900 dark:text-white"/></div>}
+              <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400"><span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"/><span>{activeTransactions.length} data terfilter</span></div>
+              {dataLoadError&&<div role="alert" className="text-xs text-red-600">Data Google Sheets gagal dimuat: {dataLoadError}</div>}
+            </div>
+            <div className="hidden sm:block">
             <div className={`p-2 sm:p-3 ${cardBg} border rounded-2xl flex flex-wrap items-center gap-2 sm:gap-3 justify-between text-xs font-bold`}>
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex items-center gap-1 bg-black/10 dark:bg-black/20 p-1 rounded-xl">
@@ -3136,6 +3157,7 @@ Indosat IM3 : ${isatText}`;
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                 <span>Terfilter: {activeTransactions.length} Baris ({periodType.toUpperCase()} - {periodType === "daily" ? selectedDate : periodType === "weekly" ? selectedWeek : selectedMonth})</span>
               </div>
+            </div>
             </div>
           </header>
 
