@@ -118,4 +118,31 @@ if(benefits.length)await cheatSheets("CHEATSHEET_BENEFITS!A:H","POST",benefits.m
 return res.status(200).json({ok:true,id});
 }catch(e:any){console.error("Cheatsheet Promo",e);return res.status(503).json({error:String(e.message||"Server error")})}}
 
-export default async function handler(req:any,res:any){if(req.query?.cheatsheet==="1")return cheatsheetRequest(req,res);if(req.query?.promoManual==="1")return manualPromoRequest(req,res);if(req.query?.promoFile==="1")return uploadFileRequest(req,res);if(req.query?.promoUpload==="1")return uploadPromoRequest(req,res);if(req.query?.promo==="1")return promoRequest(req,res);res.setHeader("Cache-Control","no-store");if(req.method==="GET")return res.status(200).json({admin:validSession(req)});if(req.method==="DELETE"){res.setHeader("Set-Cookie",sessionCookie("",0));return res.status(200).json({admin:false})}if(req.method!=="POST")return res.status(405).json({error:"Method not allowed"});const password=String(req.body?.password||"");const expected=process.env.ADMIN_ACCESS_LOG_PASSWORD||"";if(expected.length<12)return res.status(503).json({error:"Password admin server belum dikonfigurasi dengan aman"});const a=Buffer.from(password),b=Buffer.from(expected);if(a.length!==b.length||!timingSafeEqual(a,b))return res.status(401).json({error:"Password Store Leader Admin tidak sesuai"});try{res.setHeader("Set-Cookie",sessionCookie(issueSession(),8*60*60));return res.status(200).json({admin:true})}catch(e){return res.status(503).json({error:e instanceof Error?e.message:"Gagal membuat sesi admin"})}}
+
+const ACCESSORY_SHEET="14_E-3MB9Fly4nMO3Go2jnU4hev_FgtiMDn0QtLZvh5A";
+async function accessoriesRequest(req:any,res:any){
+ res.setHeader("Cache-Control","no-store");
+ if(req.method!=="GET")return res.status(405).json({error:"Read-only endpoint"});
+ try{
+ const creds=JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON||"{}");
+ if(!creds.client_email||!creds.private_key)throw Error("Google Service Account belum dikonfigurasi");
+ const now=Math.floor(Date.now()/1000);
+ const enc=(v:any)=>Buffer.from(JSON.stringify(v)).toString("base64url");
+ const unsigned=enc({alg:"RS256",typ:"JWT"})+"."+enc({iss:creds.client_email,scope:"https://www.googleapis.com/auth/spreadsheets.readonly",aud:"https://oauth2.googleapis.com/token",iat:now,exp:now+3600});
+ const signer=createSign("RSA-SHA256");signer.update(unsigned);signer.end();
+ const auth=await fetch("https://oauth2.googleapis.com/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({grant_type:"urn:ietf:params:oauth:grant-type:jwt-bearer",assertion:unsigned+"."+signer.sign(creds.private_key).toString("base64url")})});
+ const credentials=await auth.json();if(!auth.ok)throw Error("Autentikasi Google gagal");
+ const url="https://sheets.googleapis.com/v4/spreadsheets/"+ACCESSORY_SHEET+"/values/"+encodeURIComponent("'Stock Position Report'!A1:J10000")+"?valueRenderOption=UNFORMATTED_VALUE";
+ const r=await fetch(url,{headers:{Authorization:"Bearer "+credentials.access_token}});
+ const d=await r.json();if(!r.ok)throw Error(r.status===403?"Service Account belum memiliki akses baca ke Product Price List":d.error?.message||"Gagal membaca Stock Position Report");
+ const rows:Array<any[]> =d.values||[];
+ const reportDate=String(rows[0]?.[4]||"").trim();
+ const products=rows.slice(2).filter(row=>String(row[2]||"").trim().toUpperCase()==="ACCESSORIES").map(row=>{
+ const raw=String(row[4]||"");const split=raw.indexOf(" / ");const article=split>=0?raw.slice(0,split).trim():raw.trim();const name=split>=0?raw.slice(split+3).trim():raw;
+ const barcode=String(row[5]??"").trim();const price=Number(String(row[6]??"0").replace(/,/g,""));const qty=Number(String(row[7]??"0").replace(/,/g,""));
+ return {brand:String(row[0]||""),category:String(row[2]||""),subcategory:String(row[3]||""),article,name,barcode,price:Number.isFinite(price)?price:0,qty:Number.isFinite(qty)?qty:0,demo:/\bDEMO\b/i.test(name)||/\bDEMO\b/i.test(row[2]||"")};
+ }).filter(p=>p.barcode&&p.article);
+ return res.status(200).json({products,reportDate,syncedAt:new Date().toISOString(),source:"Stock Position Report",readOnly:true});
+ }catch(e:any){console.error("Accessories scan",e);return res.status(503).json({error:String(e.message||"Gagal membaca data accessories")})}
+}
+export default async function handler(req:any,res:any){if(req.query?.accessoriesScan==="1")return accessoriesRequest(req,res);if(req.query?.cheatsheet==="1")return cheatsheetRequest(req,res);if(req.query?.promoManual==="1")return manualPromoRequest(req,res);if(req.query?.promoFile==="1")return uploadFileRequest(req,res);if(req.query?.promoUpload==="1")return uploadPromoRequest(req,res);if(req.query?.promo==="1")return promoRequest(req,res);res.setHeader("Cache-Control","no-store");if(req.method==="GET")return res.status(200).json({admin:validSession(req)});if(req.method==="DELETE"){res.setHeader("Set-Cookie",sessionCookie("",0));return res.status(200).json({admin:false})}if(req.method!=="POST")return res.status(405).json({error:"Method not allowed"});const password=String(req.body?.password||"");const expected=process.env.ADMIN_ACCESS_LOG_PASSWORD||"";if(expected.length<12)return res.status(503).json({error:"Password admin server belum dikonfigurasi dengan aman"});const a=Buffer.from(password),b=Buffer.from(expected);if(a.length!==b.length||!timingSafeEqual(a,b))return res.status(401).json({error:"Password Store Leader Admin tidak sesuai"});try{res.setHeader("Set-Cookie",sessionCookie(issueSession(),8*60*60));return res.status(200).json({admin:true})}catch(e){return res.status(503).json({error:e instanceof Error?e.message:"Gagal membuat sesi admin"})}}
