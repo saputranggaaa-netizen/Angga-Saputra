@@ -2914,62 +2914,50 @@ Indosat IM3 : ${isatText}`;
         </div>
       </aside>
 
-      {/* 2. MOBILE NAVIGATION — compact iOS-inspired drawer; desktop unchanged */}
-      {mobileDrawerOpen && (
-        <div onClick={() => setMobileDrawerOpen(false)} className="lg:hidden fixed inset-0 bg-slate-950/65 backdrop-blur-[5px] z-50 print:hidden" />
-      )}
+      {/* 2. MOBILE NAVIGATION — premium Digiplus drawer, existing menu groups and permissions retained */}
+      {mobileDrawerOpen && <div onClick={() => setMobileDrawerOpen(false)} className="lg:hidden fixed inset-0 bg-slate-950/45 backdrop-blur-[5px] z-50 print:hidden" />}
       <aside
         aria-label="Navigasi mobile Digiplus GI"
         aria-hidden={!mobileDrawerOpen}
-        className={`lg:hidden fixed inset-y-0 left-0 w-[min(328px,88vw)] z-50 transform transition-transform duration-300 ease-out border-r flex flex-col overflow-hidden print:hidden ${isDark ? "bg-[#161b23] border-white/10" : "bg-[#f8fafc] border-slate-200"} ${mobileDrawerOpen ? "translate-x-0" : "-translate-x-full pointer-events-none"}`}
-        style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
+        className={`lg:hidden fixed inset-y-0 left-0 w-[min(350px,88vw)] z-50 transform transition-transform duration-300 ease-out flex flex-col overflow-hidden rounded-r-[28px] shadow-2xl print:hidden ${isDark ? "bg-[#121a2a] text-white border-r border-white/10" : "bg-[#fbfcff] text-slate-950 border-r border-slate-200/80"} ${mobileDrawerOpen ? "translate-x-0" : "-translate-x-full pointer-events-none"}`}
+        style={{paddingTop:"env(safe-area-inset-top)",paddingBottom:"env(safe-area-inset-bottom)"}}
       >
-        <div className="px-5 pt-5 pb-4 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-white border border-slate-200/80 dark:border-white/10 flex items-center justify-center overflow-hidden"><img src="/apple-touch-icon.png" alt="Logo Digiplus" className="h-full w-full object-contain p-1"/></div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[15px] font-bold tracking-tight text-slate-950 dark:text-white">DIGIPLUS GI</p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">Store dashboard</p>
+        <div className="shrink-0 px-5 pt-5 pb-3">
+          <div className="flex items-center justify-between gap-2">
+            <img src="/apple-touch-icon.png" alt="Digiplus" className="h-12 w-28 object-contain object-left"/>
+            <button type="button" aria-label="Tutup menu" onClick={()=>setMobileDrawerOpen(false)} className="h-9 w-9 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center text-slate-600 dark:text-white active:scale-95"><span className="text-xl leading-none">×</span></button>
+          </div>
+          <div className="mt-4 flex items-center gap-3 rounded-2xl bg-slate-100/90 dark:bg-white/[0.07] p-3">
+            <div className="h-11 w-11 shrink-0 rounded-xl border border-sky-100 dark:border-white/10 bg-white flex items-center justify-center"><img src="/apple-touch-icon.png" alt="" className="h-9 w-9 object-contain"/></div>
+            <div className="min-w-0 flex-1">
+              <p className="font-bold text-sm tracking-tight">DIGIPLUS GI</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-300 truncate"><span className="text-sky-600 dark:text-sky-400 font-bold">QF01</span> · {currentSalesName || "Store Leader Admin"}</p>
             </div>
-            <button aria-label="Tutup menu" onClick={() => setMobileDrawerOpen(false)} className="w-9 h-9 rounded-full bg-slate-200/80 dark:bg-white/10 text-slate-700 dark:text-slate-200 flex items-center justify-center text-lg active:scale-95">×</button>
           </div>
         </div>
-        <div className="px-5 pb-2 shrink-0"><p className="text-[10px] font-bold tracking-[0.14em] uppercase text-slate-400">Navigation</p></div>
-        <nav className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 pb-3 space-y-0.5 custom-scrollbar">
+        <nav className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 pb-3 custom-scrollbar" aria-label="Menu utama">
           {navGroups.map(group => (
-            <div key={group} className="mb-2">
-              <button type="button" aria-expanded={!collapsedNavGroups.includes(group)} onClick={() => toggleNavGroup(group)} className={navGroupButtonClass}>
-                <span>{group}</span><ChevronDown size={15} className={`transition-transform duration-200 ${collapsedNavGroups.includes(group) ? "-rotate-90" : ""}`}/>
+            <div key={group} className="mb-3">
+              <button type="button" aria-expanded={!collapsedNavGroups.includes(group)} onClick={()=>toggleNavGroup(group)} className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-bold uppercase tracking-[0.13em] text-slate-400 dark:text-slate-400">
+                <span>{group}</span><ChevronDown size={14} className={`transition-transform duration-200 ${collapsedNavGroups.includes(group)?"-rotate-90":""}`}/>
               </button>
-              {!collapsedNavGroups.includes(group) && <div className="space-y-0.5">
-                {navGroupItems(group).map(item => {
-                  const Icon = item.icon;
-                  const active = activeTab === item.id;
-                  return <button key={item.id} type="button" aria-current={active ? "page" : undefined} onClick={() => { setActiveTab(item.id as MenuTab); setMobileDrawerOpen(false); }} className={navItemClass(active,true)}>
-                    <Icon size={21} strokeWidth={1.8} className="shrink-0"/><span className="flex-1 min-w-0 truncate">{item.label}</span>
-                    {active && <span className="h-4 w-[3px] rounded-full bg-sky-500"/>}
-                  </button>;
+              {!collapsedNavGroups.includes(group) && <div className="space-y-1">
+                {navGroupItems(group).map(item=>{
+                  const Icon=item.icon;const active=activeTab===item.id;
+                  return <button key={item.id} type="button" aria-current={active?"page":undefined} onClick={()=>{setActiveTab(item.id as MenuTab);setMobileDrawerOpen(false)}} className={`w-full min-h-[44px] flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] transition-colors duration-200 active:scale-[0.99] ${active?"bg-[#e2efff] text-[#1154a3] dark:bg-blue-500/20 dark:text-blue-200 font-bold":"text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 font-medium"}`}>
+                    <Icon size={19} strokeWidth={1.9} className="shrink-0"/><span className="flex-1 min-w-0 truncate">{item.label}</span>{active&&<ChevronDown size={15} className="-rotate-90 shrink-0"/>}
+                  </button>
                 })}
               </div>}
             </div>
           ))}
-
         </nav>
-        <div className="shrink-0 px-4 py-3 border-t border-slate-200 dark:border-white/10">
-          <button
-            type="button"
-            onClick={() => { setMobileDrawerOpen(false); setPptxConfigOpen(true); }}
-            disabled={isExportingPptx}
-            aria-label="Export laporan ke PowerPoint"
-            className="w-full min-h-[48px] flex items-center justify-center gap-2 rounded-xl border border-sky-500/40 bg-sky-500/15 px-3 py-3 text-sm font-bold text-sky-700 dark:text-sky-300 disabled:cursor-wait disabled:opacity-60 active:scale-[0.99]"
-          >
-            <span aria-hidden="true">📽️</span>
-            <span>{isExportingPptx ? "Membuat Slide..." : "Export ke Slide PPTX"}</span>
-          </button>
-        </div>
         <div className="shrink-0 px-4 pt-3 pb-4 border-t border-slate-200 dark:border-white/10 space-y-2">
-          <button onClick={toggleTheme} className="w-full min-h-[44px] rounded-xl bg-slate-200/70 dark:bg-white/[0.07] text-slate-800 dark:text-slate-200 text-[13px] font-semibold flex items-center justify-center gap-2">{isDark ? "☀️ Mode Terang" : "🌙 Mode Gelap"}</button>
-          <button onClick={handleLogout} className="w-full min-h-[44px] rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[13px] font-semibold flex items-center justify-center gap-2">🚪 Keluar</button>
+          <button type="button" onClick={()=>{setMobileDrawerOpen(false);setPptxConfigOpen(true)}} disabled={isExportingPptx} className="w-full min-h-[44px] rounded-xl bg-blue-600 text-white flex items-center justify-center gap-2 text-sm font-semibold disabled:opacity-60"><Presentation size={17}/>{isExportingPptx?"Membuat Slide...":"Export PPTX"}</button>
+          <div className="flex gap-2">
+            <button type="button" onClick={toggleTheme} className="flex-1 min-h-[42px] rounded-xl bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center justify-center gap-2">{isDark?<Sun size={16}/>:<Moon size={16}/>} {isDark?"Light":"Dark"}</button>
+            <button type="button" onClick={handleLogout} className="flex-1 min-h-[42px] rounded-xl bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center justify-center gap-2"><LogOut size={16}/> Keluar</button>
+          </div>
         </div>
       </aside>
 
