@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { LayoutDashboard, ChartNoAxesColumnIncreasing, ShieldCheck, ChartLine, Wallet, Handshake, Footprints, Watch, Tags, ClipboardList, Users, Target, Layers, CalendarDays, MessageSquare, CreditCard, Search, ListChecks, History, ChevronDown, Share2, RefreshCw, Presentation, LogOut, Sun, Moon, Clock3, Package, TrendingUp, Receipt } from "lucide-react";
+import { LayoutDashboard, ChartNoAxesColumnIncreasing, ShieldCheck, ChartLine, Wallet, Handshake, Footprints, Watch, Tags, ClipboardList, Users, Target, Layers, CalendarDays, MessageSquare, CreditCard, Search, ListChecks, History, ChevronDown, Share2, RefreshCw, Presentation, LogOut, Sun, Moon, Clock3, Package, TrendingUp, Receipt , ScanBarcode } from "lucide-react";
 
 
 import PriceListDocuments from "./PriceListDocuments";
@@ -9,6 +9,7 @@ import ProductCatalog from "./ProductCatalog";
 import LivePriceCatalog from "./LivePriceCatalog";
 import StockIntelligence from "./StockIntelligence";
 import CheatsheetPromo from "./CheatsheetPromo";
+import AccessoriesScanner from "./AccessoriesScanner";
 
 const RETAIL_BRAND_ICONS: Record<string,string> = {APPLE:"apple",SAMSUNG:"samsung",XIAOMI:"xiaomi",OPPO:"oppo",HUAWEI:"huawei",INFINIX:"infinix",MOTOROLA:"motorola",ANDROID:"android",QOALA:"shield",TELKOMSEL:"telkomsel",XL:"xl",INDOSAT:"indosat"};
 function RetailBrandLogo({brand,size=22,light=false}:{brand:string,size?:number,light?:boolean}){
@@ -169,6 +170,7 @@ type MenuTab =
   | "whiteboard"
   | "price-center"
   | "cheatsheet-promo"
+  | "accessories-scanner"
   | "store-traffic"
   | "nirwana";
 
@@ -2590,6 +2592,7 @@ Indosat IM3 : ${isatText}`;
     { id: "daily-target", label: "Daily Target & Run Rate", icon: Target, group: "Dashboard" },
     { id: "price-center", label: "Price List & Promo", icon: Tags, group: "Operations" },
     { id: "cheatsheet-promo", label: "Cheatsheet Promo", icon: Tags, group: "Operations" },
+    { id: "accessories-scanner", label: "Cek Harga Accessories", icon: ScanBarcode, group: "Operations" },
     { id: "store-traffic", label: "Store Traffic", icon: Footprints, group: "Operations" },
     { id: "customer-engagement", label: "Customer Engagement", icon: Handshake, group: "Operations" },
     { id: "nirwana", label: "Nirwana · Apple Watch Demo", icon: Watch, group: "Operations" },
@@ -3163,6 +3166,7 @@ Indosat IM3 : ${isatText}`;
               {activeTab === "store-traffic" && <StoreTraffic transactions={transactions} isAdmin={currentSalesId===ADMIN_ID} salesId={currentSalesId} salesName={currentSalesName} isDark={isDark}/>}
               {activeTab === "price-center" && <PriceCenter isAdmin={currentSalesId===ADMIN_ID} isDark={isDark} transactions={transactions}/>}
               {activeTab === "cheatsheet-promo" && <CheatsheetPromo isDark={isDark} isAdmin={currentSalesId===ADMIN_ID}/>}
+              {activeTab === "accessories-scanner" && <AccessoriesScanner isDark={isDark}/>}
               {activeTab === "whiteboard" && (
                 <div className={`space-y-4 dg-scroll-reveal rounded-3xl border p-4 shadow-xl lg:hidden ${cardBg}`}>
                   <header className="flex items-start justify-between gap-3">
