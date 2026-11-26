@@ -342,6 +342,8 @@ export default function DigiplusOperationalEngine() {
   const [incentiveChartMode, setIncentiveChartMode] = useState<"stacked" | "grouped">("stacked");
   const [productSearchQuery, setProductSearchQuery] = useState("");
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState<boolean>(false);
+  const [mobileMenuSearch,setMobileMenuSearch] = useState("");
+  const [mobileOpenGroup,setMobileOpenGroup] = useState<string>("Dashboard");
   const [collapsedNavGroups, setCollapsedNavGroups] = useState<string[]>([]);
   const toggleNavGroup = (group: string) => setCollapsedNavGroups(prev => prev.includes(group) ? prev.filter(x => x !== group) : [...prev, group]);
   // Edge swipe opens navigation; left swipe closes it. Ignore gestures over horizontal scrollers.
@@ -2641,6 +2643,7 @@ Indosat IM3 : ${isatText}`;
   const navGroups = ["Dashboard", "Operations", "Reports"] as const;
   const navGroupOf = (id: string) => mainNavItems.find(item => item.id === id)?.group || "Dashboard";
   const navGroupItems = (group: string) => mainNavItems.filter(item => item.group === group);
+  useEffect(()=>{if(mobileDrawerOpen){setMobileOpenGroup(navGroupOf(activeTab));setMobileMenuSearch("");}},[mobileDrawerOpen,activeTab]);
   const navItemClass = (active: boolean, mobile: boolean) => `dg-nav-item w-full flex items-center gap-3 rounded-xl text-left transition-all duration-200 active:scale-[0.98] ${mobile ? "min-h-[48px] px-3 py-2 text-[13px]" : "px-3 py-2.5 text-xs"} ${active ? "bg-sky-500/10 text-sky-700 dark:text-sky-300 font-semibold" : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 font-medium"}`;
   const navGroupButtonClass = "w-full flex items-center justify-between px-3 py-2 text-[10px] uppercase tracking-[0.14em] font-bold text-slate-500 dark:text-slate-400";
   const renderComparisonSection = (data: typeof momAnalytics) => {
@@ -2919,11 +2922,11 @@ Indosat IM3 : ${isatText}`;
       <aside
         aria-label="Navigasi mobile Digiplus GI"
         aria-hidden={!mobileDrawerOpen}
-        className={`lg:hidden fixed inset-y-0 left-0 w-[min(350px,88vw)] z-50 transform transition-transform duration-300 ease-out flex flex-col overflow-hidden rounded-r-[28px] shadow-2xl print:hidden ${isDark ? "bg-[#121a2a] text-white border-r border-white/10" : "bg-[#fbfcff] text-slate-950 border-r border-slate-200/80"} ${mobileDrawerOpen ? "translate-x-0" : "-translate-x-full pointer-events-none"}`}
-        style={{paddingTop:"env(safe-area-inset-top)",paddingBottom:"env(safe-area-inset-bottom)"}}
+        className={`lg:hidden fixed left-2 top-[max(8px,env(safe-area-inset-top))] bottom-[max(8px,env(safe-area-inset-bottom))] w-[min(350px,calc(100vw-24px))] z-50 transform transition-transform duration-300 ease-out flex flex-col overflow-hidden rounded-[28px] shadow-2xl border backdrop-blur-[32px] motion-reduce:transition-none print:hidden ${isDark ? "bg-gradient-to-br from-[#35465d]/95 via-[#172130]/95 to-[#293443]/95 text-white border-white/20" : "bg-gradient-to-br from-white/95 via-[#e3e8ef]/95 to-[#c7d1df]/95 text-slate-950 border-white/90"} ${mobileDrawerOpen ? "translate-x-0" : "-translate-x-[110%] invisible pointer-events-none"}`}
+        style={{WebkitBackdropFilter:"blur(32px)",backdropFilter:"blur(32px)"}}
       >
         <div className="shrink-0 px-4 pt-4 pb-3">
-          <div className="flex items-center gap-3 min-h-[64px]">
+          <div className="flex items-center gap-3 min-h-[64px] rounded-2xl p-2 border border-white/70 dark:border-white/15 bg-white/50 dark:bg-white/5 shadow-sm">
             <div className="h-14 w-14 shrink-0 rounded-2xl bg-white border border-slate-200/80 dark:border-white/10 shadow-sm flex items-center justify-center overflow-hidden">
               <img src="/apple-touch-icon.png" alt="Logo Digiplus" className="w-full h-full object-contain p-1"/>
             </div>
@@ -2931,31 +2934,32 @@ Indosat IM3 : ${isatText}`;
               <p className="font-bold text-[14px] tracking-tight leading-5">DIGIPLUS GI</p>
               <p className="text-[11px] text-slate-500 dark:text-slate-300 leading-5 truncate"><span className="text-sky-600 dark:text-sky-400 font-bold">QF01</span> · {currentSalesName || "Store Leader Admin"}</p>
             </div>
-            <button type="button" aria-label="Tutup menu" onClick={()=>setMobileDrawerOpen(false)} className="h-9 w-9 shrink-0 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center text-slate-600 dark:text-white active:scale-95"><span className="text-xl leading-none">×</span></button>
+            <button type="button" aria-label="Tutup menu" onClick={()=>setMobileDrawerOpen(false)} className="h-9 w-9 shrink-0 rounded-full bg-white/60 dark:bg-white/10 flex items-center justify-center text-slate-600 dark:text-white active:scale-95"><span className="text-xl leading-none">×</span></button>
           </div>
         </div>
+        <div className="mx-4 mb-3 flex items-center gap-2 rounded-2xl border border-white/80 dark:border-white/15 bg-white/60 dark:bg-white/10 px-3 py-2"><Search size={17} className="shrink-0 text-slate-500 dark:text-slate-300"/><input aria-label="Cari menu" placeholder="Cari menu..." value={mobileMenuSearch} onChange={e=>setMobileMenuSearch(e.target.value)} className="w-full min-w-0 bg-transparent outline-none text-base placeholder:text-slate-500 dark:placeholder:text-slate-400"/>{mobileMenuSearch&&<button type="button" aria-label="Hapus pencarian" onClick={()=>setMobileMenuSearch("")}>×</button>}</div>
         <nav className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 pb-3 custom-scrollbar" aria-label="Menu utama">
-          {navGroups.map(group => (
-            <div key={group} className="mb-3">
-              <button type="button" aria-expanded={!collapsedNavGroups.includes(group)} onClick={()=>toggleNavGroup(group)} className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-bold uppercase tracking-[0.13em] text-slate-400 dark:text-slate-400">
-                <span>{group}</span><ChevronDown size={14} className={`transition-transform duration-200 ${collapsedNavGroups.includes(group)?"-rotate-90":""}`}/>
+          {navGroups.filter(group=>navGroupItems(group).some(item=>item.label.toLowerCase().includes(mobileMenuSearch.trim().toLowerCase()))).map(group => (
+            <div key={group} className="mb-2 rounded-2xl border border-white/80 dark:border-white/10 bg-white/45 dark:bg-white/5 p-1.5">
+              <button type="button" aria-expanded={(mobileOpenGroup===group||!!mobileMenuSearch.trim())} onClick={()=>setMobileOpenGroup(prev=>prev===group?"":group)} className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-bold uppercase tracking-[0.13em] text-slate-400 dark:text-slate-400">
+                <span className="flex items-center gap-2">{group==="Dashboard"?<LayoutDashboard size={16}/>:group==="Operations"?<Layers size={16}/>:<ListChecks size={16}/>} {group}</span><ChevronDown size={14} className={`transition-transform duration-200 ${mobileOpenGroup===group||mobileMenuSearch.trim()?"":"-rotate-90"}`}/>
               </button>
               {!collapsedNavGroups.includes(group) && <div className="space-y-1">
-                {navGroupItems(group).map(item=>{
+                {navGroupItems(group).filter(item=>item.label.toLowerCase().includes(mobileMenuSearch.trim().toLowerCase())).map(item=>{
                   const Icon=item.icon;const active=activeTab===item.id;
-                  return <button key={item.id} type="button" aria-current={active?"page":undefined} onClick={()=>{setActiveTab(item.id as MenuTab);setMobileDrawerOpen(false)}} className={`w-full min-h-[44px] flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] transition-colors duration-200 active:scale-[0.99] ${active?"bg-[#e2efff] text-[#1154a3] dark:bg-blue-500/20 dark:text-blue-200 font-bold":"text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 font-medium"}`}>
-                    <Icon size={19} strokeWidth={1.9} className="shrink-0"/><span className="flex-1 min-w-0 truncate">{item.label}</span>{active&&<ChevronDown size={15} className="-rotate-90 shrink-0"/>}
+                  return <button key={item.id} type="button" aria-current={active?"page":undefined} onClick={()=>{setActiveTab(item.id as MenuTab);setMobileDrawerOpen(false)}} className={`w-full min-h-[44px] flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] transition-colors duration-200 active:scale-[0.99] ${active?"bg-[#d3dfef] text-[#263c5a] dark:bg-[#344c6d] dark:text-white shadow-sm font-bold":"text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 font-medium"}`}>
+                    <span className={`shrink-0 rounded-lg p-2 border border-white/60 dark:border-white/10 ${active?"bg-[#344e71] text-white dark:bg-[#5b7597]":"bg-[#e5ebf3] text-[#536b8c] dark:bg-[#2a3648] dark:text-[#a8bfd9]"}`}><Icon size={18} strokeWidth={1.8}/></span><span className="flex-1 min-w-0 break-words">{item.label}</span>{active&&<ChevronDown size={15} className="-rotate-90 shrink-0"/>}
                   </button>
                 })}
               </div>}
             </div>
           ))}
         </nav>
-        <div className="shrink-0 px-4 pt-3 pb-4 border-t border-slate-200 dark:border-white/10 space-y-2">
-          <button type="button" onClick={()=>{setMobileDrawerOpen(false);setPptxConfigOpen(true)}} disabled={isExportingPptx} className="w-full min-h-[44px] rounded-xl bg-blue-600 text-white flex items-center justify-center gap-2 text-sm font-semibold disabled:opacity-60"><Presentation size={17}/>{isExportingPptx?"Membuat Slide...":"Export PPTX"}</button>
+        <div className="shrink-0 mx-3 mb-3 p-2.5 rounded-2xl border border-white/80 dark:border-white/15 bg-white/60 dark:bg-white/10 shadow-lg space-y-2">
+          <button type="button" onClick={()=>{setMobileDrawerOpen(false);setPptxConfigOpen(true)}} disabled={isExportingPptx} className="w-full min-h-[44px] rounded-xl bg-gradient-to-b from-[#647c9d] to-[#263c5a] text-white shadow-md flex items-center justify-center gap-2 text-sm font-semibold disabled:opacity-60"><Presentation size={17}/>{isExportingPptx?"Membuat Slide...":"Export PPTX"}</button>
           <div className="flex gap-2">
-            <button type="button" onClick={toggleTheme} className="flex-1 min-h-[42px] rounded-xl bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center justify-center gap-2">{isDark?<Sun size={16}/>:<Moon size={16}/>} {isDark?"Light":"Dark"}</button>
-            <button type="button" onClick={handleLogout} className="flex-1 min-h-[42px] rounded-xl bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center justify-center gap-2"><LogOut size={16}/> Keluar</button>
+            <button type="button" onClick={toggleTheme} className="flex-1 min-h-[42px] rounded-xl bg-white/60 dark:bg-white/10 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center justify-center gap-2">{isDark?<Sun size={16}/>:<Moon size={16}/>} {isDark?"Light":"Dark"}</button>
+            <button type="button" onClick={handleLogout} className="flex-1 min-h-[42px] rounded-xl bg-white/60 dark:bg-white/10 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center justify-center gap-2"><LogOut size={16}/> Keluar</button>
           </div>
         </div>
       </aside>
